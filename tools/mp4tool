@@ -1,0 +1,395 @@
+#!/bin/sh
+
+if [ -z "$1" ]; then
+  echo "Video Converter"
+  echo "Copyrights i6net 2008"
+  echo ""
+  echo "Usage: $0 {options} list_of_video_files"
+  echo "  convertion options : -3gp/3g | -mp4/3g | -mp4/(h263,h264) | -3gp/hints | -flv"
+  echo "  record options     : -(avi,mov)/(alaw,ulaw)/record"
+  echo "                       -(3gp,avi,mov)/(alaw,ulaw)/record/split"
+  echo "  image options      : -3gp/3gp/image"
+  echo "  codecs options     : -force/input/(alaw,ulaw,h263,h264)"
+  echo "         options     : -force/output(copy,h263,h264)"
+  echo ""
+  
+  exit 1
+fi
+
+# video encoding bit rate
+V_BITRATE=45000
+V_SIZE="176x144"
+FORMAT="-3gp/3g"
+V_CODECIN=""
+V_CODECOUT=""
+
+V_SIZE_H263="qcif"
+V_FPS_H263=8
+V_BITRATE_H263=35000
+V_BR_TOLERANCE_H263=5000
+V_FFMPEG_OPTS_H263="-g 40 -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
+
+V_SIZE_H264="cif"
+V_FPS_H264=15
+V_BITRATE_H264=140000
+V_BR_TOLERANCE_H264=10000
+V_FFMPEG_OPTS_H264="-g 250 -max_slice_size 1300 -level 13 -qmin 2 -qmax 35 -me_method hex "
+
+while [ "$1" ]; do
+  case "$1" in
+    -output/copy)
+      if  [ "$V_CODECOUT" = "" ]; then
+      V_CODECOUT="-vcodec copy"
+      fi
+      ;;
+    -output/h263)
+      if  [ "$V_CODECOUT" = "" ]; then
+      V_CODECOUT="-vcodec h263"
+      fi
+      ;;
+    -output/h264)
+      if  [ "$V_CODECOUT" = "" ]; then
+      V_CODECOUT="-vcodec libx264"
+      fi
+      ;;
+    -input/h263)
+      if  [ "$V_CODECIN" = "" ]; then
+      V_CODECIN="-vcodec h263"
+      fi
+      ;;
+    -input/h264)
+      if  [ "$V_CODECIN" = "" ]; then
+      V_CODECIN="-vcodec libx264"
+      fi
+      ;;
+    -3gp/3g)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -3gp/3g/test)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -3gp/3g/bis)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -mp4/3g)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -mp4/full)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -mp4/h264)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -mov/alaw)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -mov/ulaw)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -avi/alaw/record)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -avi/ulaw/record)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -mov/alaw/record)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -mov/ulaw/record)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;      
+    -mp4/alaw/record/stereo)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -mp4/ulaw/record/stereo)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -3gp/alaw/record/split)
+      FORMAT="$1"
+      V_SIZE="320x240"
+      FFMPEG_OPTS=""
+      ;;
+    -3gp/ulaw/record/split)
+      FORMAT="$1"
+      V_SIZE="320x240"
+      FFMPEG_OPTS=""
+      ;;
+    -avi/alaw/record/split)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -avi/ulaw/record/split)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -mov/alaw/record/split)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -mov/ulaw/record/split)
+      FORMAT="$1"
+      V_SIZE="cif"
+      FFMPEG_OPTS=""
+      ;;
+    -flv)
+      FORMAT="$1"
+      FFMPEG_OPTS=""
+      ;;
+    -3gp/3g/image)
+      FORMAT="$1"
+      V_SIZE="qcif"
+      FFMPEG_OPTS=""
+      ;;      
+    -mp4/3g/image)
+      FORMAT="$1"
+      V_SIZE="qcif"
+      FFMPEG_OPTS=""
+      ;;      
+    -mp4/h264/image)
+      FORMAT="$1"
+      V_SIZE="qcif"
+      FFMPEG_OPTS=""
+      ;;      
+    -mp4/full/image)
+      FORMAT="$1"
+      V_SIZE="qcif"
+      FFMPEG_OPTS=""
+      ;;      
+    *)
+            
+      if  [ $FORMAT = "-3gp/3g" ]; then
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file \
+          vstats-2p-noip -pass 1 "`basename $1 .avi`.3gp"
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file  \
+          vstats-2p-noip -pass 2 "`basename $1 .avi`.3gp"
+        mp4creator -hint=1 "`basename $1 .avi`.3gp"
+        mp4creator -hint=2 "`basename $1 .avi`.3gp"        
+      fi
+      if  [ $FORMAT = "-3gp/3g/test" ]; then
+        ffmpeg -y -i "$1" $FFMPEG_OPTS -s $V_SIZE -r 10 -vcodec h263 -b $V_BITRATE \
+         -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file \
+          vstats-2p-noip -pass 1 "`basename $1 .avi`.3gp"
+        ffmpeg -y -i "$1" $FFMPEG_OPTS -s $V_SIZE -r 10 -vcodec h263 -b $V_BITRATE \
+         -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file  \
+          vstats-2p-noip -pass 2 "`basename $1 .avi`.3gp"
+        mp4creator -hint=1 "`basename $1 .avi`.3gp"
+        mp4creator -hint=2 "`basename $1 .avi`.3gp"        
+      fi
+      if  [ $FORMAT = "-3gp/3g/bis" ]; then
+       ffmpeg -y -i "$1" $FFMPEG_OPTS -s $V_SIZE -r 7 -vcodec h263 -b $V_BITRATE \
+        -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -flags loop \
+        -me_method full -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 \
+        -vstats_file vstats-2p-noip -pass 1 "`basename $1 .avi`.3gp" 
+       ffmpeg -y -i "$1" $FFMPEG_OPTS -s $V_SIZE -r 7 -vcodec h263 -b $V_BITRATE \
+        -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -flags loop \
+        -me_method full -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 \
+        -vstats_file vstats-2p-noip -pass 2 "`basename $1 .avi`.3gp" 
+        mp4creator -hint=1 "`basename $1 .avi`.3gp"
+        mp4creator -hint=2 "`basename $1 .avi`.3gp"        
+      fi
+      if  [ $FORMAT = "-mp4/3g" ]; then
+        ffmpeg -y -i "$1" -acodec pcm_mulaw -ar 8000 -ac 1 -f mulaw /tmp/convert.mulaw
+        ffmpeg -y -i "$1" -acodec pcm_alaw -ar 8000 -ac 1 -f alaw /tmp/convert.alaw
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file \
+          vstats-2p-noip -pass 1 /tmp/convert.3gp
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file  \
+          vstats-2p-noip -pass 2 /tmp/convert.3gp
+        mv /tmp/convert.3gp "`basename $1 .avi`.mp4"
+        mp4creator -hint=1 "`basename $1 .avi`.mp4"
+        mp4creator -hint=2 "`basename $1 .avi`.mp4"
+        pcm2mp4 /tmp/convert.mulaw "`basename $1 .avi`.mp4"
+        pcm2mp4 /tmp/convert.alaw "`basename $1 .avi`.mp4"
+        rm /tmp/convert.mulaw
+        rm /tmp/convert.alaw
+      fi      
+      if  [ $FORMAT = "-mp4/full" ]; then
+        ffmpeg -y -i "$1" -acodec pcm_mulaw -ar 8000 -ac 1 -f mulaw /tmp/convert.mulaw
+        ffmpeg -y -i "$1" -acodec pcm_alaw -ar 8000 -ac 1 -f alaw /tmp/convert.alaw
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file \
+          vstats-2p-noip -pass 1 /tmp/convert.3gp
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file  \
+          vstats-2p-noip -pass 2 /tmp/convert.3gp
+        rm vstats-2p-noip
+        mv /tmp/convert.3gp "`basename $1 .avi`.mp4"
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
+          "vstats-2p-noip" -pass 1 /tmp/convert.mp4
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
+          "vstats-2p-noip" -pass 2 /tmp/convert.mp4
+        rm vstats-2p-noip
+        mp4creator -extract=1 /tmp/convert.mp4
+        rm /tmp/convert.mp4
+        mv /tmp/convert.mp4.t1 /tmp/convert.264
+        mp4creator -create /tmp/convert.264 -rate $V_FPS_H264 "`basename $1 .avi`.mp4"
+        rm /tmp/convert.264
+        mp4creator -hint=1 "`basename $1 .avi`.mp4"
+        mp4creator -hint=2 "`basename $1 .avi`.mp4"
+        mp4creator -hint=3 "`basename $1 .avi`.mp4"
+        pcm2mp4 /tmp/convert.mulaw "`basename $1 .avi`.mp4"
+        pcm2mp4 /tmp/convert.alaw "`basename $1 .avi`.mp4"
+        rm /tmp/convert.mulaw
+        rm /tmp/convert.alaw
+      fi      
+      if  [ $FORMAT = "-mp4/h264" ]; then
+        ffmpeg -y -i "$1" -acodec pcm_mulaw -ar 8000 -ac 1 -f mulaw /tmp/convert.mulaw
+        ffmpeg -y -i "$1" -acodec pcm_alaw -ar 8000 -ac 1 -f alaw /tmp/convert.alaw
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
+          "vstats-2p-noip" -pass 1 /tmp/convert.3gp
+        ffmpeg -y -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
+          "vstats-2p-noip" -pass 2 /tmp/convert.3gp
+        mv /tmp/convert.3gp "`basename $1 .avi`.mp4"
+        mp4creator -hint=1 "`basename $1 .avi`.mp4"
+        pcm2mp4 /tmp/convert.mulaw "`basename $1 .avi`.mp4"
+        pcm2mp4 /tmp/convert.alaw "`basename $1 .avi`.mp4"
+        rm /tmp/convert.mulaw
+        rm /tmp/convert.alaw
+      fi
+      if  [ $FORMAT = "-mov/alaw" ]; then
+        ffmpeg -y -acodec pcm_alaw -i "$1" -vcodec copy -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`.mov"
+      fi      
+      if  [ $FORMAT = "-mov/ulaw" ]; then
+        ffmpeg -y -acodec pcm_mulaw -i "$1" -vcodec copy -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`.mov"
+      fi      
+      if  [ $FORMAT = "-avi/alaw/record" ]; then
+        ffmpeg -y -acodec pcm_alaw -i "$1" -map 0.0 -map 0.2 -s $V_SIZE -ar 22050 "`basename $1 .mp4`.avi"
+      fi
+      if  [ $FORMAT = "-avi/ulaw/record" ]; then
+        ffmpeg -y -acodec pcm_mulaw -i "$1" -map 0.0 -map 0.2 -s $V_SIZE -ar 22050 "`basename $1 .mp4`.avi"
+      fi    
+      if  [ $FORMAT = "-mov/alaw/record" ]; then
+        ffmpeg -y -acodec pcm_alaw -i "$1" -map 0.0 -map 0.2 -vcodec copy -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`.mov"
+      fi
+      if  [ $FORMAT = "-mov/ulaw/record" ]; then
+        ffmpeg -y -acodec pcm_mulaw -i "$1" -map 0.0 -map 0.2 -vcodec copy -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`.mov"
+      fi        
+      if  [ $FORMAT = "-mp4/alaw/record/stereo" ]; then
+        ffmpeg -y -acodec pcm_alaw -i "$1" -map 0.1  "`basename $1 .mp4`-in.wav"
+        ffmpeg -y -acodec pcm_alaw -i "$1" -map 0.2  "`basename $1 .mp4`-out.wav"
+        mp4creator -delete=2 "$1"
+        mp4creator -delete=3 "$1"
+        soxmix -v 1 "`basename $1 .mp4`-in.wav" -v 1 "`basename $1 .mp4`-out.wav" "`basename $1 .mp4`.wav"
+        ffmpeg -y -i "`basename $1 .mp4`.wav" -acodec pcm_alaw -ar 8000 -ac 1 -f alaw "`basename $1 .mp4`.alaw"
+        pcm2mp4 "`basename $1 .mp4`.alaw" "$1"        
+        mp4creator -delete=5 "$1"
+      fi   
+      if  [ $FORMAT = "-mov/ulaw/record/stereo" ]; then
+        ffmpeg -y -acodec pcm_mulaw -i "$1" -map 0.0 -map 0.1 -map 0.2 -vcodec copy -ac 2 -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`.mov"
+      fi   
+      if  [ $FORMAT = "-3gp/alaw/record/split" ]; then
+        ffmpeg -y -acodec pcm_alaw -i "$1" -map 0.0 -map 0.2 -vcodec libx264 -s $V_SIZE -acodec libamr_nb -ab 12.2k "`basename $1 .mp4`-in.3gp"
+        ffmpeg -y -acodec pcm_alaw -i "$1" -map 0.4 -map 0.6 -vcodec libx264 -s $V_SIZE -acodec libamr_nb -ab 12.2k "`basename $1 .mp4`-out.3gp"
+      fi
+      if  [ $FORMAT = "-3gp/ulaw/record/split" ]; then
+        ffmpeg -y -acodec pcm_mulaw -i "$1" -map 0.0 -map 0.2 -vcodec libx264 -s $V_SIZE -acodec libamr_nb -ab 12.2k "`basename $1 .mp4`-in.3gp"
+        ffmpeg -y -acodec pcm_mulaw -i "$1" -map 0.4 -map 0.6 -vcodec libx264 -s $V_SIZE -acodec libamr_nb -ab 12.2k "`basename $1 .mp4`-out.3gp"
+      fi
+      if  [ $FORMAT = "-avi/alaw/record/split" ]; then
+        ffmpeg -y -acodec pcm_alaw -i "$1" -map 0.0 -map 0.2 -s $V_SIZE -ar 22050 "`basename $1 .mp4`-in.avi"
+        ffmpeg -y -acodec pcm_alaw -i "$1" -map 0.4 -map 0.6 -s $V_SIZE -ar 22050 "`basename $1 .mp4`-out.avi"
+      fi
+      if  [ $FORMAT = "-avi/ulaw/record/split" ]; then
+        ffmpeg -y -acodec pcm_mulaw -i "$1" -map 0.0 -map 0.2 -s $V_SIZE -ar 22050 "`basename $1 .mp4`-in.avi"
+        ffmpeg -y -acodec pcm_mulaw -i "$1" -map 0.4 -map 0.6 -s $V_SIZE -ar 22050 "`basename $1 .mp4`-out.avi"
+      fi
+      if  [ $FORMAT = "-mov/alaw/record/split" ]; then
+        ffmpeg -y $V_CODECIN -acodec pcm_alaw -i "$1" -map 0.0 -map 0.2 $V_CODECOUT -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`-in.mov"
+        ffmpeg -y $V_CODECIN -acodec pcm_alaw -i "$1" -map 0.4 -map 0.6 $V_CODECOUT -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`-out.mov"
+      fi
+      if  [ $FORMAT = "-mov/ulaw/record/split" ]; then
+        ffmpeg -y $V_CODECIN -acodec pcm_mulaw -i "$1" -map 0.0 -map 0.2 $V_CODECOUT -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`-in.mov"
+        ffmpeg -y $V_CODECIN -acodec pcm_mulaw -i "$1" -map 0.4 -map 0.6 $V_CODECOUT -acodec pcm_s16le -ar 22050 "`basename $1 .mp4`-out.mov"
+      fi
+      if  [ $FORMAT = "-3gp/hints" ]; then
+        mp4creator -hint=1 $1
+        mp4creator -hint=2 $1        
+        mp4creator -hint=100 $1
+        mp4creator -hint=200 $1        
+      fi      
+      if  [ $FORMAT = "-flv" ]; then
+        ffmpeg -y -i "$1" $FFMPEG_OPTS -s $V_SIZE -ar 22050  \
+          "`basename $1 .3gp`.flv"
+      fi  
+      if  [ $FORMAT = "-3gp/3g/image" ]; then      
+        ffmpeg -y -loop_input -vframes 20 -i "$1" $FFMPEG_OPTS -s $V_SIZE -r 7 -vb 40k -ab 10.2k -i_qfactor 1 \
+         "`basename $1 .jpg`.3gp"
+        mp4creator -hint=1 "`basename $1 .jpg`.3gp"
+      fi          
+      if  [ $FORMAT = "-mp4/3g/image" ]; then      
+        ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -an -vstats -vstats_file \
+          vstats-2p-noip -pass 1 /tmp/convert.3gp
+        ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -an -vstats -vstats_file \
+          vstats-2p-noip -pass 2 /tmp/convert.3gp
+        mv /tmp/convert.3gp "`basename $1 .jpg`.mp4"
+        mp4creator -hint=1 "`basename $1 .jpg`.mp4"
+      fi          
+      if  [ $FORMAT = "-mp4/h264/image" ]; then      
+        echo ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file "vstats-2p-noip" -pass 1 /tmp/convert.mp4
+        ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
+          "vstats-2p-noip" -pass 1 /tmp/convert.mp4
+        ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
+          "vstats-2p-noip" -pass 2 /tmp/convert.mp4
+        mv /tmp/convert.mp4 "`basename $1 .jpg`.mp4"
+        mp4creator -hint=1 "`basename $1 .jpg`.mp4"
+      fi          
+      if  [ $FORMAT = "-mp4/full/image" ]; then      
+        ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -an -vstats -vstats_file \
+          vstats-2p-noip -pass 1 /tmp/convert.3gp
+        ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 -vcodec h263 -b $V_BITRATE_H263 \
+         -bt $V_BR_TOLERANCE_H263 -an -vstats -vstats_file \
+          vstats-2p-noip -pass 2 /tmp/convert.3gp
+        mv /tmp/convert.3gp "`basename $1 .jpg`.mp4"
+        ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
+          "vstats-2p-noip" -pass 1 /tmp/convert.mp4
+        ffmpeg -y -loop_input -vframes 30 -i "$1" $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
+          "vstats-2p-noip" -pass 2 /tmp/convert.mp4
+        mp4creator -extract=1 /tmp/convert.mp4
+        rm /tmp/convert.mp4
+        mv /tmp/convert.mp4.t1 /tmp/convert.264
+        mp4creator -create /tmp/convert.264 -rate $V_FPS_H264 "`basename $1 .jpg`.mp4"
+        rm /tmp/convert.264
+        mp4creator -hint=1 "`basename $1 .jpg`.mp4"
+        mp4creator -hint=2 "`basename $1 .jpg`.mp4"
+      fi          
+      ;;
+  esac
+  shift
+done
