@@ -1,0 +1,63 @@
+Name:      fontventa
+Version:   0.3.9
+#Ne pas enlever le .ives a la fin de la release !
+#Cela est utilise par les scripts de recherche de package.
+Release:   1.ives_distrib
+Summary:   [IVeS] librairies partagées pour asterisk de Fontventa.
+Vendor:   IVeS
+Group:     Applications/Internet
+License: GPL
+URL:       http://www.ives.fr
+BuildArchitectures: ives_archi
+BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+Requires:  ivespkg, ffmpeg >= 0.1.0-1.ives_distrib, mpeg4ip >= 1.5.0-1.ives_distrib, asteriskv , bc
+BuildRequires: ffmpeg-devel, asteriskv-devel, SDL-devel, gcc-c++
+
+%description
+Un ensemble de librairies partagées pour asterisk de Fontventa.
+  
+%clean
+echo "############################# Clean"
+echo Clean du repertoire $RPM_BUILD_ROOT
+[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf "$RPM_BUILD_ROOT"
+
+%prep
+echo "Export du SVN ives"
+svn export --force https://svn.ives.fr/svn-libs-dev/asterisk/%name
+
+%build
+echo "Build"
+cd %name
+make
+
+%install
+echo "############################# Install"
+cd %name
+make DESTDIR=$RPM_BUILD_ROOT install
+
+%files
+%defattr(-,root,root,-)
+%{_libdir}/
+/usr/include/*.h
+/usr/bin/*
+%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
+
+%changelog
+* Mon Mar 17 2010 Philippe Verney <philippe.verney@ives.fr>
+- new well tested fix for video timestamping
+* Wed Mar 17 2010 Philippe Verney <philippe.verney@ives.fr>
+- fixed issue with video packet in bad order when recording
+* Mon Jan 18 2010 Philippe Verney <philippe.verney@ives.fr>
+- Fix IVES_convert.ksh ( No sound track & video quality )
+* Fri Aug 7 2009 Emmanuel BUU <emmanuel.buu@ives.fr>
+- Added IVES_convert.ksh script, added compilation requirement in .spec
+- added ability to configure H.245 bit order in h324M.conf
+* Sun Jun 14 2009 Emmanuel BUU <emmanuel.buu@ives.fr>
+- 0.2.1 -> support enreg test. Suppression logs inutiles
+* Fri Apr 17 2009 Eric Delas <eric.delas@ives.fr> 0.1.1-3.ives
+- Package for 1.4.19f-1.ives asterisk version
+* Mon Apr 07 2009 Emmanuel BUU <emmanuel.buu@ives.fr> 0.1.1-2.ives
+- Integration livraison app_mp4 de Borja
+* Mon Mar 09 2009 Didier Chabanol <didier.chabanol@ives.fr> 0.1.0-1.ives
+- Initial package
+
