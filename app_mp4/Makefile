@@ -38,7 +38,7 @@ SHAREDOS = app_mp4.so
 
 PROC = $(shell uname -m)
 INSTALL = install
-CC = gcc 
+CC = gcc  
 
 LIBS = -lmp4 -lmp4v2 -lmp4av
 DEBUG := -g 

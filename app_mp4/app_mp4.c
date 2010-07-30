@@ -968,7 +968,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	int totalVideo = 0;
 	int total = 0;
 	int t = 0;
-	int i = 0;
+	int idxTrack = 0;
 	struct ast_frame *f = NULL;
 	char src[128];
 	int res = 0;
@@ -1123,14 +1123,16 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	}
 
 	/* Disable Verbosity */
-	MP4SetVerbosity(mp4, 0);
-	
+	MP4SetVerbosity(mp4, 5);
+	idxTrack=0;
+
 	ast_log(LOG_DEBUG, "Native formats:%s , Chann capability ( videocaps.cap ):%s\n", 
           ast_getformatname_multiple(cformat1,_STR_CODEC_SIZE, chan->nativeformats),
           ast_getformatname_multiple(cformat2,_STR_CODEC_SIZE, chan->channelcaps.cap));
 
 	/* Get the first hint track */
-	hintId = MP4FindTrackId(mp4, i++, MP4_HINT_TRACK_TYPE, 0);
+  ast_log(LOG_NOTICE, "Find first track %d\n",idxTrack);  
+	hintId = MP4FindTrackId(mp4, idxTrack, MP4_HINT_TRACK_TYPE, 0);
 
 	/* Iterate hint tracks */
 	while (hintId != MP4_INVALID_TRACK_ID) {
@@ -1292,13 +1294,16 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		}
 
 		/* Get the next hint track */
-		hintId = MP4FindTrackId(mp4, i++, MP4_HINT_TRACK_TYPE, 0);
+    idxTrack++;
+    ast_log(LOG_NOTICE, "Find next track %d\n",idxTrack);
+		hintId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
 	}
 
 	/* If not valid */
 	if (mp4 == MP4_INVALID_FILE_HANDLE)
 	{
 		/* exit */
+	  ast_log(LOG_WARNING, "mp4_play:	Invalid file : %s!\n", args.filename);
 		res = -1;
 		goto clean;
 	}
@@ -1313,10 +1318,12 @@ static int mp4_play(struct ast_channel *chan, void *data)
       hintId = audioLastId;
   
   /* No audio and no video */
-  if ((hintId == NO_CODEC) && (videoBestId == NO_CODEC))
+  if ( hintId == NO_CODEC  )
   {
 		/* exit */
-		res = -1;	goto clean;
+	  ast_log(LOG_WARNING, "mp4_play: no audio %s!\n", args.filename );
+		//res = -1;	
+    //goto clean;
   }
       
   if (hintId != NO_CODEC)
@@ -1370,9 +1377,13 @@ static int mp4_play(struct ast_channel *chan, void *data)
   else
 #ifdef VIDEOCAPS
   {
+    ast_log(LOG_DEBUG, "mp4_play: find in native codec \n ");
     int idx = 0 ;
-    while ( idx < NATIVE_VIDEO_CODEC_LAST && hintId != NO_CODEC )
+    hintId = NO_CODEC ;
+    while ( idx < NATIVE_VIDEO_CODEC_LAST && hintId == NO_CODEC )
     {
+      ast_log(LOG_WARNING, "mp4_play: Native codec  VideoNativeID[%d]=%d",
+              VideoNativeID[idx]);
       if ( VideoNativeID[idx] != NO_CODEC )
       {
         hintId = VideoNativeID[idx] ;
@@ -1381,6 +1392,8 @@ static int mp4_play(struct ast_channel *chan, void *data)
       }
       idx ++ ;
     }
+    // phv test 
+    //hintId = 4 ;
   }
 #else
   {
@@ -1430,7 +1443,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
   
 	
 #ifndef i6net	
- i = 0;
+ idxTrack = 0;
  
  if (autohint)
  if (!video.name)
@@ -1441,7 +1454,8 @@ static int mp4_play(struct ast_channel *chan, void *data)
    ast_log(LOG_DEBUG, "Autohint the video track\n");
 
 	  /* Get the first hint track */
-	  trackId = MP4FindTrackId(mp4, i++, MP4_VIDEO_TRACK_TYPE, 0);
+    ast_log(LOG_NOTICE, "Find first track %d\n",idxTrack);   
+	  trackId = MP4FindTrackId(mp4,idxTrack, MP4_VIDEO_TRACK_TYPE, 0);
 
 	  /* Iterate hint tracks */
 	  while (trackId != MP4_INVALID_TRACK_ID) {
@@ -1467,7 +1481,9 @@ static int mp4_play(struct ast_channel *chan, void *data)
      }     
           
      /* Get the next hint track */
-		   trackId = MP4FindTrackId(mp4, i++, MP4_VIDEO_TRACK_TYPE, 0);
+     idxTrack++;
+     ast_log(LOG_NOTICE, "Find next track %d\n",idxTrack);
+     trackId = MP4FindTrackId(mp4, idxTrack, MP4_VIDEO_TRACK_TYPE, 0);
    }
    MP4Close(mp4);     
  }
@@ -1499,19 +1515,19 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	 f->frametype = video.frameType;
 	 f->subclass = video.frameSubClass;
 
- 	f->delivery.tv_usec = 0;
- 	f->delivery.tv_sec = 0;
- 	/* Don't free the frame outside */
- 	f->mallocd = 0;
+   f->delivery.tv_usec = 0;
+   f->delivery.tv_sec = 0;
+   /* Don't free the frame outside */
+   f->mallocd = 0;
 
-		f->samples = 0;
+   f->samples = 0;
  	 
   
-  MP4GetTrackH264SeqPictHeaders(mp4, video.track, 
-				&seqheader, &seqheadersize,
-				&pictheader, &pictheadersize);
-  for (ix = 0; seqheadersize[ix] != 0; ix++) {
-    //dump_buffer_hex("SeqHeader", seqheader[ix], seqheadersize[ix]);
+   MP4GetTrackH264SeqPictHeaders(mp4, video.track, 
+                                 &seqheader, &seqheadersize,
+                                 &pictheader, &pictheadersize);
+   for (ix = 0; seqheadersize[ix] != 0; ix++) {
+     //dump_buffer_hex("SeqHeader", seqheader[ix], seqheadersize[ix]);
  
     memcpy(f->data, seqheader[ix], seqheadersize[ix]);
 				f->datalen = seqheadersize[ix];
@@ -1595,9 +1611,11 @@ static int mp4_play(struct ast_channel *chan, void *data)
 
 			/* if we have been hang up */
 			if (ms < 0) 
+      {
+        ast_log(LOG_DEBUG, "mp4play :  hangup detect exit  \n");
 				/* exit */
 				goto end;
-
+      }
 			/* if we have received something on the channel */
 			if (ms > 0) {
 				/* Read frame */
@@ -1605,9 +1623,11 @@ static int mp4_play(struct ast_channel *chan, void *data)
 
 				/* If failed */
 				if (!f) 
+        {
+          ast_log(LOG_DEBUG, "mp4play : bad frame exiting  \n");
 					/* exit */
 					goto end;
-
+        }
 #ifndef i6net
     if (speech != NULL)
     if (stopChars != NULL)
@@ -1825,7 +1845,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 
 end:
 	/* Log end */
-	ast_log(LOG_DEBUG, "<app_mp4");
+	ast_log(LOG_DEBUG, "<app_mp4\n");
 
 	/* Close file */
 	MP4Close(mp4);
