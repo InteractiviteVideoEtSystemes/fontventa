@@ -38,7 +38,7 @@ SHAREDOS = app_transcoder.so
 
 PROC = $(shell uname -m)
 INSTALL = install
-CC = gcc
+CC = gcc 
 
 INCLUDE = -I$(FFMPEGDIR) -I$(FFMPEGDIR)/libavcodec -I$(FFMPEGDIR)/libswscale
 LIBS = -L$(FFMPEGDIR)/libavcodec -L$(FFMPEGDIR)/libavutil -lavcodec -lavutil -lswscale

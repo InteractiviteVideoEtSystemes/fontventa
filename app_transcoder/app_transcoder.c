@@ -1457,11 +1457,17 @@ static int app_transcode(struct ast_channel *chan, void *data)
 
 	/* Find fwd params */
 	if (!(a=strchr((char*)data,'|')))
+  {
+    ast_log(LOG_WARNING,"Syntaxe error\n");
 		return 0;
+  }
 
 	/* Find local channel params */
 	if (!(b=strchr(a+1,'|')))
+  {
+    ast_log(LOG_WARNING,"Syntaxe error\n");
 		return 0;
+  }
 
 	/* Set local params */
 	fwdParams = strndup((char*)data,a-(char*)data);
@@ -1476,7 +1482,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
     int audioformats = chan->rawwriteformat;
 
 	  if ( option_debug > 4 )
-      ast_log(LOG_WARNING,"rawwriteformat %x\n",audioformats);
+      ast_log(LOG_WARNING,"audioformats  %x\n",audioformats);
 	
     if (!strncasecmp(revParams, "noamr", 5))
     {
@@ -1498,7 +1504,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
     }
 
 	  if ( option_debug > 4 )
-      ast_log(LOG_WARNING,"rawwriteformat %x\n",audioformats);
+      ast_log(LOG_WARNING,"audioformats %x\n",audioformats);
 
     /* Request new channel */
     pseudo = ast_request("Local", AST_FORMAT_H263 | AST_FORMAT_MPEG4 | AST_FORMAT_H263_PLUS | audioformats, local, &reason);
@@ -1513,8 +1519,15 @@ static int app_transcode(struct ast_channel *chan, void *data)
  
 	/* If somthing has gone wrong */
 	if (!pseudo)
+  {
+    ast_log(LOG_WARNING,"Null pseudo\n");   
 		/* goto end */
 		goto end; 
+  }
+  else
+  {
+    ast_log(LOG_DEBUG,"pseudo OK %s ast_channel_state[%d] \n",pseudo->name , pseudo->_state );
+  }
 
 	/* Copy global variables from incoming channel to local channel */
 	ast_channel_inherit_variables(chan, pseudo);
@@ -1528,37 +1541,100 @@ static int app_transcode(struct ast_channel *chan, void *data)
 
 	/* Place call */
 	if (ast_call(pseudo,data,0))
+  {
 		/* if fail goto clean */
+    ast_log(LOG_WARNING,"ast_call failed \n");   
 		goto clean_pseudo;
+  }
 
+  // Phv entorse pour h323 
+  // _state!=AST_STATE_UP !!
+  int havetrs=0 ;
 	/* while not setup */
-	while (pseudo->_state!=AST_STATE_UP) {
+	while (pseudo->_state!=AST_STATE_UP && !havetrs) 
+    // while (pseudo->_state!=AST_STATE_UP )
+  {
 		/* Wait for data */
 		if (ast_waitfor(pseudo, 0)<0)
+    {
 			/* error, timeout, or done */
+      if ( option_debug > 4 )
+        ast_log(LOG_DEBUG,"error, timeout, or done\n");
 			break;
+    }
 		/* Read frame */
 		if (pseudo->fdno == -1)
+    {
+      if ( option_debug > 4 )
+        ast_log(LOG_DEBUG,"pseudo->fdno == -1 \n");
       continue;
+    }
 		else
       f = ast_read(pseudo);
+
 		/* If not frame */
 		if (!f)
+    {
+      if ( option_debug > 4 )
+        ast_log(LOG_DEBUG,"Null frame\n");
 			/* done */ 
 			break;
+    }
+
+#if 1 // Debug phv 
+    if ( option_debug > 5 )
+    {
+      switch ( f->frametype )
+      {
+        case AST_FRAME_VOICE:
+          if ( option_debug > 4 )
+            ast_log(LOG_DEBUG, "receiv audio frame\n");
+          break;
+        case AST_FRAME_VIDEO:
+          if ( option_debug > 4 )
+            ast_log(LOG_DEBUG, "receiv video frame\n");
+          break;
+        case AST_FRAME_TEXT:
+          if ( option_debug > 4 )
+            ast_log(LOG_DEBUG, "receiv text frame\n");
+          break;
+        default :
+          break;
+      }
+    }
+#endif
+
+#if 1 // phv test 
+    if ( f->frametype == AST_FRAME_VOICE || f->frametype ==AST_FRAME_VIDEO || f->frametype ==AST_FRAME_TEXT )
+    {
+      if ( option_debug > 4 )
+        ast_log(LOG_DEBUG, "trs frame\n");
+      havetrs = 1 ;
+    }
+#endif
+
+
+
 		/* If it's a control frame */
-		if (f->frametype == AST_FRAME_CONTROL) {
+		if (f->frametype == AST_FRAME_CONTROL) 
+    {
+      if ( option_debug > 4 )
+        ast_log(LOG_DEBUG," control frame management  \n");
 			/* Dependinf on the event */
 			switch (f->subclass) {
 				case AST_CONTROL_RINGING:       
 					break;
 				case AST_CONTROL_BUSY:
 				case AST_CONTROL_CONGESTION:
+        {
+          if ( option_debug > 4 )
+            ast_log(LOG_DEBUG,"Congestion / busy \n");
 					/* Save cause */
 					reason = pseudo->hangupcause;
 					/* exit */
 					goto hangup_pseudo;
-					break;
+        }
+        break;
 				case AST_CONTROL_ANSWER:
 					/* Set UP*/
 					reason = 0;	
@@ -1570,9 +1646,12 @@ static int app_transcode(struct ast_channel *chan, void *data)
 	}
 
 	/* If no answer */
-	if (pseudo->_state != AST_STATE_UP)
+	if (!f && pseudo->_state != AST_STATE_UP)
+  {
 		/* goto end */
+    ast_log(LOG_WARNING,"No answer \n");
 		goto clean_pseudo; 
+  }
 
 	/* Log */
   if ( option_debug > 4 )
@@ -1718,22 +1797,23 @@ static int app_transcode(struct ast_channel *chan, void *data)
     ast_log(LOG_WARNING,"-Hanging up \n");
 
     hangup_pseudo:
+    ast_log(LOG_WARNING,"hangup_pseudo\n");
     /* Hangup pseudo channel if needed */
     ast_softhangup(pseudo, reason);
 
     clean_pseudo:
-    /* Destroy pseudo channel */
+    ast_log(LOG_WARNING,"clean_pseudo\n");    /* Destroy pseudo channel */
     ast_hangup(pseudo);
 
-    /* Log */
-    ast_log(LOG_WARNING,"<Transcoding\n");
-
     end:
-    /* Free params */
+     ast_log(LOG_WARNING,"end\n");
+     /* Free params */
     free(fwdParams);
     free(local);
     free(revParams);
 
+    /* Log */
+    ast_log(LOG_WARNING,"<Transcoding\n");
 
     /* Unlock module*/
     ast_module_user_remove(u);
