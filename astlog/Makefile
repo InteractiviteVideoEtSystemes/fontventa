@@ -25,7 +25,7 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc 
 
-LIBS = -lmp4 -lmp4v2 -lmp4av
+LIBS = 
 DEBUG := -g 
 
 #
@@ -41,6 +41,7 @@ $(BIN) : $(OBJS:.o=.c)
 	$(CC) $? -o $@
 
 install: all
-	cp $(BIN) $(INSTALL_MODULES_DIR)
+	mkdir -p $(DESTDIR)/$(INSTALL_MODULES_DIR)
+	cp $(BIN) $(DESTDIR)/$(INSTALL_MODULES_DIR)
 
 
