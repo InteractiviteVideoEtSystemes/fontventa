@@ -23,16 +23,16 @@ echo Clean du repertoire $RPM_BUILD_ROOT
 
 %prep
 echo "Export du SVN ives"
-svn export --force https://svn.ives.fr/svn-libs-dev/asterisk/%name
+svn export --force https://svn.ives.fr/svn-libs-dev/asterisk/%name/tags/%version
 
 %build
 echo "Build"
-cd %name
+cd %version
 make
 
 %install
 echo "############################# Install"
-cd %name
+cd %version
 make DESTDIR=$RPM_BUILD_ROOT install
 
 %files
@@ -40,6 +40,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %{_libdir}/
 /usr/include/*.h
 /usr/bin/*
+/usr/sbin/astlog
 %config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
