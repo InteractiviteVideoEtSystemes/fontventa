@@ -1382,8 +1382,8 @@ static int mp4_play(struct ast_channel *chan, void *data)
     hintId = NO_CODEC ;
     while ( idx < NATIVE_VIDEO_CODEC_LAST && hintId == NO_CODEC )
     {
-      ast_log(LOG_WARNING, "mp4_play: Native codec  VideoNativeID[%d]=%d",
-              VideoNativeID[idx]);
+      ast_log(LOG_WARNING, "mp4_play: Native codec  VideoNativeID[%d]=%d\n",
+              idx,VideoNativeID[idx]);
       if ( VideoNativeID[idx] != NO_CODEC )
       {
         hintId = VideoNativeID[idx] ;
