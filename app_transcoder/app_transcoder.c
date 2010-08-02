@@ -1574,12 +1574,11 @@ static int app_transcode(struct ast_channel *chan, void *data)
 
 		/* If not frame */
 		if (!f)
-    {
-      if ( option_debug > 4 )
-        ast_log(LOG_DEBUG,"Null frame\n");
-			/* done */ 
-			break;
-    }
+		{
+			
+      ast_log(LOG_WARNING,"Null frame received from pseudo %s. Exiting",pseudo->name);
+      break;
+		}
 
 #if 1 // Debug phv 
     if ( option_debug > 5 )
@@ -1612,8 +1611,6 @@ static int app_transcode(struct ast_channel *chan, void *data)
       havetrs = 1 ;
     }
 #endif
-
-
 
 		/* If it's a control frame */
 		if (f->frametype == AST_FRAME_CONTROL) 
