@@ -23,7 +23,6 @@
 # =============================================================================
 #  -----1=0-------2=0-------3=0-------4=0-------5=0-------6=0-------7=0-------8
 
-
 # =============================================================================
 # Constant de convertion 
 # =============================================================================
@@ -36,25 +35,21 @@ V_CODECIN=""
 V_CODECOUT=""
 
 V_SIZE_H263="qcif"
-#V_SIZE_H263="cif"
 V_FPS_H263=7
 V_BITRATE_H263=35000
 V_BR_TOLERANCE_H263=10000
-#V_FFMPEG_OPTS_H263="-g 40 -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
 V_FFMPEG_OPTS_H263="-g 5 -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
 
 
-#V_SIZE_H263_GOOD="qcif"
 V_SIZE_H263_GOOD="cif"
-V_FPS_H263_GOOD=20
+V_FPS_H263_GOOD=25
 V_BITRATE_H263_GOOD=700000
-V_BR_TOLERANCE_H263_GOOD=10000
-#V_FFMPEG_OPTS_H263="-g 40 -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
+V_BR_TOLERANCE_H263_GOOD=70000
 V_FFMPEG_OPTS_H263_GOOD="-g 5 -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
 
 
 V_SIZE_H264="cif"
-V_FPS_H264=20
+V_FPS_H264=25
 V_BITRATE_H264=140000
 V_BR_TOLERANCE_H264=10000
 V_FFMPEG_OPTS_H264="-g 250 -max_slice_size 1300 -level 13 -qmin 2 -qmax 35 -me_method hex "
@@ -107,7 +102,7 @@ integer frame_rate=3
 integer text=0
 #gestion du flv
 integer flvFile=0
-
+integer h263_good=0
 
 
 # =============================================================================
@@ -162,7 +157,7 @@ mp4_info()
     if [ echo_on_stdout -eq 1 ] 
         then 
         printf "========================= \033[32m File information \033[0m  =====================\n"
-        cmd="${BIN_PATH}/mp4info $outFile"
+        cmd="${BIN_PATH}/mp4info $1 "
         $cmd
         printf "===================================================================\n"
     fi
@@ -180,7 +175,7 @@ usage()
 {
     printf "\033[1mUsage \033[0m\n"
     printf "\033[1mNAME\033[0m\n"
-    printf "\t $0 convert AVI/WAV/MP3 file to mp4 multitrack for asterisk\n"
+    printf "\t $0 convert media file to mp4 multitrack for asterisk\n"
     printf "\033[1mSYNOPSIS\033[0m\n"
     printf "\t $0 -i infilename <-o outfilename> <-b background> <-v> <-d> <-s> <-f> <-t time> <-F>\n"
     printf "\t $0 COMMANDS\n"
@@ -192,8 +187,11 @@ usage()
     printf "\t\033[1m -v \033[0m create log file IVES_convert.log  \n"
     printf "\t\033[1m -d \033[0m debug mode , temporary files are not deleted  \n"
     printf "\t\033[1m -s \033[0m silence mode , no output on stdout, only error  \n"
+    printf "\t\033[1m -g \033[0m H263 in good quality   \n"
+    printf "\t\033[1m -r \033[0m frame rate for background image   \n"
     printf "\t\033[1m -f \033[0m fast mode ( ratio 1:2 )  \n"
     printf "\t\033[1m -t \033[0m time of background duration   \n"
+    printf "\t\033[1m -w \033[0m file informations   \n"
     printf "\t\033[1m -F \033[0m Out file are flv \n"
     printf "\t   if you dont use this , duration of background are\n"
     printf "\t   build with audio track duration \n"
@@ -209,8 +207,18 @@ usage()
 MakeOutFilename()
 {
     if [ "$outFile" == "" ]
-        then outFile=./`basename $inFile .avi`.mp4
-    fi      
+        then 
+        suffixe $inFile ;
+        if [ $flvFile -eq 1  ]
+            then outFile=`basename $inFile $mimetype`.flv
+            else outFile=`basename $inFile $mimetype`.mp4
+        fi
+    fi
+    if [ "$inFile" ==  "$outFile" ]
+        then        
+        printf "\033[31m Input file == Output file \033[0m\n"
+        exit EXIT_ERROR
+    fi
 }
 
 MakeTempFilename()
@@ -294,12 +302,41 @@ remove_file()
 # =============================================================================
 # Extraction informations
 # =============================================================================
+suffixe() 
+{
+    printLine "Suffixe : "
+    nom=`basename "$1"` &&
+    nom=`expr match "$nom" ".*\(\..*\)$"` &&
+    echo $nom
+    mimetype=$nom
+}
+
+whatFile()
+{
+    cmd="${BIN_PATH}/ffmpeg -i  $1 "
+    $cmd > $INFO_FILE 2>&1
+
+    # mp4 ?
+    grep "Input #0" $INFO_FILE | grep "mov,mp4,m4a,3gp" >>  $LOG_FILE
+    ret=$? 
+    if [ "$ret" -eq "0" ]
+        then mp4_info $1
+        else 
+        if [ echo_on_stdout -eq 1 ] 
+            then 
+            printf "========================= \033[32m File information \033[0m  =====================\n"
+            $cmd
+            printf "===================================================================\n"
+        fi    
+    fi
+}
 
 test_input_file()
 {
    file=$1
    if [ "$file" == "" ]
        then 
+       printf "\033[31m No input file  \033[0m\n"
        usage
        exit EXIT_ERROR
    fi
@@ -323,29 +360,8 @@ WhatThisFile()
     grep "Input #0" $INFO_FILE | grep "mov,mp4,m4a,3gp" >>  $LOG_FILE
     ret=$? 
     if [ "$ret" -eq "0" ]
-        then
-          mimeType="mp4"
-          CheckMP4File $1 std_out_ok
-        else 
-        grep "Input #0" $INFO_FILE | grep "avi" >>  $LOG_FILE
-        ret=$? 
-        if [ "$ret" -eq "0" ]
-            then
-            mimeType="avi"
-            CheckFfmpegFile $1
-            else 
-            grep "Input #0" $INFO_FILE | grep "wav" >>  $LOG_FILE
-            ret=$? 
-            if [ "$ret" -eq "0" ]
-                then
-                mimeType="wav"
-                CheckFfmpegFile $1
-                else
-                # on pourrait continuer ... mais est - ce bien sage ?
-                echo "unknow mime type for file $1"
-                exit EXIT_ERROR 
-            fi
-        fi
+        then CheckMP4File $1 std_out_ok
+        else CheckFfmpegFile $1
     fi
     # Build base name 
     base="/tmp/"`basename $inFile .$mimeType`
@@ -357,14 +373,13 @@ CheckFfmpegFile()
 {
     # Extract info 
     std_out=$2
-
     cmd="${BIN_PATH}/ffmpeg -i $1 "
     $cmd > $INFO_FILE 2>&1
     cat  $INFO_FILE >>  $LOG_FILE
     # and check
     # Video ?
     if [ "$std_out" != "" ] ; then printLine "Video in track " ; fi 
-    cmd="grep Video $INFO_FILE"
+    cmd="grep  Video: $INFO_FILE"
     $cmd  ; ret=$? >>  $LOG_FILE
     if [ "$ret" -eq "0" ]
         then 
@@ -1179,12 +1194,21 @@ AddVideoTracks()
        then 
        if [ haveH263 -eq 0 ] 
            then 
-           create_H263_track 
+           if [ h263_good -eq 0 ]
+               then create_H263_track 
+               else create_H263_good_track
+           fi  
        fi
        # for amr ..... 
-       if [ haveAmr -eq 0 ] 
+       if [ haveAmr -eq 0 ]
            then 
-           create_H263_track 
+           if [ $haveAudio -ne 0 ] 
+               then 
+               if [ h263_good -eq 0 ]
+                   then create_H263_track 
+                   else create_H263_good_track
+               fi
+           fi
        fi 
        if [ haveH264 -eq 0 ] 
            then 
@@ -1229,9 +1253,6 @@ ExtractTextFromMp4()
     fi
 }
 
-# =============================================================================
-# main
-# =============================================================================
 HaveAllTrack()
 {
     if [ haveUlaw -eq 1 ] ; then 
@@ -1241,7 +1262,7 @@ HaveAllTrack()
                     if [ haveH264 -eq 1 ] ; then 
                         # rien a faire 
                         cp $inFile $outFile
-                        mp4_info
+                        mp4_info $outFile
                         exit EXIT_SUCCESS
                     fi
                 fi
@@ -1276,28 +1297,31 @@ MakeMp4()
          then AddAudioTracks 
     fi
     CopyTmp2out
-    mp4_info
 }
 
 MakeFlv()
 {
+    CopyIn2tmp
+    if [ $haveAudio -ne 0 ] 
+         then create_pcm_track 
+    fi
     if  [ $haveVideo -eq 0 ]
         then AddVideoBackground
     fi
-    CopyIn2tmp
-    create_pcm_track
+
     if [ orgHaveVideo -eq 1 ]
         then create_flv_file_from_org
         else create_flv_file 
     fi
+    
 }
 
 Execut()
 {
     test_input_file $inFile
+    MakeOutFilename
     start_line
     WhatThisFile $inFile std_out_ok
-    MakeOutFilename
     MakeTempFilename
     clean_ctx
     clean_old_file
@@ -1306,75 +1330,85 @@ Execut()
         then MakeFlv
         else MakeMp4
     fi
+    whatFile $outFile
     if [ $debug -eq 0 ] ; then clean_ctx ; fi
 }
 
-ExtractArgs()
-{
-    while [ "$1" ] 
-      do    
-      case "$1" in
-          -g)
-            h263_good=1
-            ;;
-          -i)
-            shift
-            inFile=$1
-            orgFile=$inFile
-            ;;
-          -o)
-            shift
-            outFile=$1
-            ;;
-          -F)
-            flvFile=1
-            ;;
-          -b)
-            shift
-            backgroundFile=$1
-            ;;
-          -v)
-            LOG_FILE="/tmp/IVES_convert.log"
-            ;;
-          -d)
-            debug=1
-            LOG_FILE="/tmp/IVES_convert.log"
-            ;;
-          -s)
-            echo_on_stdout=0
-            ;;
-          -f)
-            mode_fast=1
-            ;;
-          -t)
-            shift
-            duration=$1
-            ;;
-          -T)
-            shift 
-            outTxtName=$1;
-            ;;
-          -c|clean)
-            MakeOutFilename
-            MakeTempFilename
-            purge_log
-            clean_ctx
-            exit EXIT_SUCCESS
-            ;;
-          -h|help)
-            usage
-            exit EXIT_SUCCESS
-            ;;
-          *)
-            echo "Commande inconnue: $1"
-            usage
-            exit EXIT_ERROR
-            ;;
-      esac
+
+
+# =============================================================================
+# main : parse args and exeute 
+# =============================================================================
+
+while [ "$1" ] 
+  do    
+  case "$1" in
+      -g)
+      h263_good=1
+      ;;
+      -i)
       shift
-  done
-}
-
-
-ExtractArgs $1 $2 $3 $4 $5 $6 $7 $8 $9  
+      inFile=$1
+      orgFile=$inFile
+      ;;
+      -o)
+      shift
+      outFile=$1
+      ;;
+      -F)
+      flvFile=1
+      ;;
+      -r)
+      shift
+      frame_rate=$1 
+      ;;
+      -b)
+      shift
+      backgroundFile=$1
+      ;;
+      -v)
+      LOG_FILE="/tmp/IVES_convert.log"
+      ;;
+      -d)
+      debug=1
+      LOG_FILE="/tmp/IVES_convert.log"
+      ;;
+      -s)
+      echo_on_stdout=0
+      ;;
+      -f)
+      mode_fast=1
+      ;;
+      -t)
+      shift
+      duration=$1
+      ;;
+      -T)
+      shift 
+      outTxtName=$1
+      ;;
+      -w)
+      test_input_file  $inFile
+      whatFile $inFile
+      exit EXIT_SUCCESS
+      ;;
+      -c|clean)
+      MakeOutFilename
+      MakeTempFilename
+      purge_log
+      clean_ctx
+      exit EXIT_SUCCESS
+      ;;
+      -h|help)
+      usage
+      exit EXIT_SUCCESS
+      ;;
+      *)
+      echo "Commande inconnue: $1"
+      usage
+      exit EXIT_ERROR
+      ;;
+  esac
+  shift
+done
 Execut
