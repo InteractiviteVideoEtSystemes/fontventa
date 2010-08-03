@@ -133,15 +133,18 @@ ConvertFile()
 
 SaveCurrentWaitScreen()
 {
-    printLine "Save current wait screen ... "
-    cp -f $MediaRep$MediaName $MediaRep$SaveMediaName
-    ret=$?
-    if [ $ret -ne 0 ] 
-        then 
-        PrintFailed
-    else 
-        PrintOK
-    fi
+   if [ -f $MediaRep$MediaName ] 
+     then 
+       printLine "Save current wait screen ... "
+       cp -f $MediaRep$MediaName $MediaRep$SaveMediaName
+       ret=$?
+       if [ $ret -ne 0 ] 
+           then 
+           PrintFailed
+       else 
+           PrintOK
+       fi
+   fi
 }
 
 RestorCurrentWaitScreen()
