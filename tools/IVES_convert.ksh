@@ -217,7 +217,7 @@ MakeOutFilename()
     if [ "$inFile" ==  "$outFile" ]
         then        
         printf "\033[31m Input file == Output file \033[0m\n"
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     fi
 }
 
@@ -294,7 +294,7 @@ remove_file()
        if [ $ret -ne 0 ] 
            then 
            PrintFailed
-           exit EXIT_ERROR
+           exit $EXIT_ERROR
        fi
    fi
 }
@@ -338,7 +338,7 @@ test_input_file()
        then 
        printf "\033[31m No input file  \033[0m\n"
        usage
-       exit EXIT_ERROR
+       exit $EXIT_ERROR
    fi
 
    if [ -f $file ] 
@@ -346,7 +346,7 @@ test_input_file()
    else
      printf "\033[31m Error file  $1 not found \033[0m\n"
      usage
-     exit EXIT_ERROR
+     exit $EXIT_ERROR
    fi
 }
 
@@ -403,7 +403,7 @@ CheckFfmpegFile()
           haveAudio=0
           if [ $haveVideo -eq 0 ] 
               then PrintFailed
-              exit EXIT_ERROR
+              exit $EXIT_ERROR
           else
               if [ "$std_out" != "" ] ; then PrintNone ; fi
           fi
@@ -482,7 +482,7 @@ CheckMP4File()
           haveAudio=0
           if [ $haveVideo -eq 0 ] 
               then PrintFailed
-              exit EXIT_ERROR
+              exit $EXIT_ERROR
           else
               if [ "$std_out" != "" ] ; then PrintNone ; fi
           fi
@@ -554,7 +554,7 @@ create_pcm_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
     fi
@@ -582,7 +582,7 @@ create_mulaw_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
     fi
@@ -596,7 +596,7 @@ create_mulaw_track()
 #    if [ $ret -ne 0 ]
 #    then
 #        PrintFailed
-#        exit EXIT_ERROR
+#        exit $EXIT_ERROR
 #    else
 #        PrintOK
 #    fi
@@ -614,7 +614,7 @@ add_mulaw_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
         # rm -f $tmpWorkInFile
@@ -633,7 +633,7 @@ hint_mulaw_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
         CheckMP4File $tmpWorkInFile 
@@ -650,7 +650,7 @@ create_alaw_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
     fi 
@@ -666,7 +666,7 @@ add_alaw_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
         CheckMP4File $tmpWorkInFile 
@@ -683,7 +683,7 @@ hint_alaw_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
         CheckMP4File $tmpWorkInFile 
@@ -700,7 +700,7 @@ hint_amr_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
         CheckMP4File $tmpWorkInFile 
@@ -785,7 +785,7 @@ AddVideoBackground()
         if [ $ret -ne 0 ] 
             then 
             PrintFailed
-            exit EXIT_ERROR
+            exit $EXIT_ERROR
         else 
             PrintOK
             rm -f $tmpWorkInFile  >> $LOG_FILE 2>&1
@@ -817,7 +817,7 @@ create_H263_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
     fi
@@ -882,7 +882,7 @@ hint_H263_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
         CheckMP4File $tmpWorkInFile 
@@ -911,7 +911,7 @@ create_H263_good_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
     fi
@@ -976,7 +976,7 @@ hint_H263_good_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
         CheckMP4File $tmpWorkInFile 
@@ -1177,7 +1177,7 @@ hint_H264_track()
     if [ $ret -ne 0 ] 
     then 
         PrintFailed
-        exit EXIT_ERROR
+        exit $EXIT_ERROR
     else 
         PrintOK
         CheckMP4File $tmpWorkInFile 
@@ -1245,7 +1245,7 @@ ExtractTextFromMp4()
             if [ $ret -ne 0 ] 
                 then 
                 PrintFailed
-                exit EXIT_ERROR
+                exit $EXIT_ERROR
             else 
                 PrintOK
             fi
@@ -1263,7 +1263,7 @@ HaveAllTrack()
                         # rien a faire 
                         cp $inFile $outFile
                         mp4_info $outFile
-                        exit EXIT_SUCCESS
+                        exit $EXIT_SUCCESS
                     fi
                 fi
             fi
@@ -1275,6 +1275,11 @@ CopyTmp2out()
 {
     cd $ORG_REP
     mv $tmpWorkInFile $outFile
+    ret=$?
+    if [ $ret -ne 0 ] 
+        then 
+        exit $EXIT_ERROR
+    fi
 }
 
 CopyIn2tmp()
@@ -1390,23 +1395,23 @@ while [ "$1" ]
       -w)
       test_input_file  $inFile
       whatFile $inFile
-      exit EXIT_SUCCESS
+      exit $EXIT_SUCCESS
       ;;
       -c|clean)
       MakeOutFilename
       MakeTempFilename
       purge_log
       clean_ctx
-      exit EXIT_SUCCESS
+      exit $EXIT_SUCCESS
       ;;
       -h|help)
       usage
-      exit EXIT_SUCCESS
+      exit $EXIT_SUCCESS
       ;;
       *)
       echo "Commande inconnue: $1"
       usage
-      exit EXIT_ERROR
+      exit $EXIT_ERROR
       ;;
   esac
   shift
