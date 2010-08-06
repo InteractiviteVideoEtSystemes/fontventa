@@ -103,6 +103,8 @@ integer text=0
 #gestion du flv
 integer flvFile=0
 integer h263_good=0
+#gestion des fiechiers pour queue
+integer queueFile=0
 
 
 # =============================================================================
@@ -177,7 +179,7 @@ usage()
     printf "\033[1mNAME\033[0m\n"
     printf "\t $0 convert media file to mp4 multitrack for asterisk\n"
     printf "\033[1mSYNOPSIS\033[0m\n"
-    printf "\t $0 -i infilename <-o outfilename> <-b background> <-v> <-d> <-s> <-f> <-t time> <-F>\n"
+    printf "\t $0 -i infilename <-o outfilename> <-b background> <-v> <-d> <-s> <-f> <-t time> <-F> <-g> <-w> \n"
     printf "\t $0 COMMANDS\n"
     printf "\033[1mDESCRIPTION\033[0m\n"
     printf "\t\033[1m -i infilename \033[0m  Name of input file\n"
@@ -193,6 +195,7 @@ usage()
     printf "\t\033[1m -t \033[0m time of background duration   \n"
     printf "\t\033[1m -w \033[0m file informations   \n"
     printf "\t\033[1m -F \033[0m Out file are flv \n"
+    printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats \n"
     printf "\t   if you dont use this , duration of background are\n"
     printf "\t   build with audio track duration \n"
     printf "\t\033[1m COMMANDS \033[0m \n"
@@ -380,7 +383,8 @@ CheckFfmpegFile()
     # Video ?
     if [ "$std_out" != "" ] ; then printLine "Video in track " ; fi 
     cmd="grep  Video: $INFO_FILE"
-    $cmd  ; ret=$? >>  $LOG_FILE
+    $cmd  >>  $LOG_FILE ; 
+    ret=$? 
     if [ "$ret" -eq "0" ]
         then 
           haveVideo=1
@@ -1302,6 +1306,7 @@ MakeMp4()
          then AddAudioTracks 
     fi
     CopyTmp2out
+    whatFile $outFile
 }
 
 MakeFlv()
@@ -1318,7 +1323,35 @@ MakeFlv()
         then create_flv_file_from_org
         else create_flv_file 
     fi
-    
+    whatFile $outFile    
+}
+
+MakeQueueFile()
+{
+    CopyIn2tmp
+    if [ $h263_good -eq 0 ]
+        then IVES_convert.ksh -i $inFile -o /tmp/.queueFile.mp4
+        else IVES_convert.ksh -i $inFile -o /tmp/.queueFile.mp4 -g
+    fi
+    mv /tmp/.queueFile.mp4 $outFile
+    cmd="${BIN_PATH}/mp4asterisk $outFile "
+    printLine "Creation file for asterisk Queue and Playback app : "
+    echo $cmd >> $LOG_FILE
+    $cmd >> $LOG_FILE 2>&1
+    ret=$?
+    if [ $ret -ne 0 ] 
+    then 
+        PrintFailed
+        exit $EXIT_ERROR
+    else 
+        PrintOK
+    fi     
+    if [ $haveAudio -ne 0 ] 
+        then 
+        create_pcm_track 
+        wavname=`basename $inFile $mimetype`.wav
+        cp $tmpPcmFile $wavname
+    fi 
 }
 
 Execut()
@@ -1333,9 +1366,11 @@ Execut()
     purge_log
     if [ $flvFile -eq 1  ]
         then MakeFlv
-        else MakeMp4
+        else if [ $queueFile -eq 1  ]
+          then MakeQueueFile
+          else MakeMp4
+        fi
     fi
-    whatFile $outFile
     if [ $debug -eq 0 ] ; then clean_ctx ; fi
 }
 
@@ -1407,6 +1442,9 @@ while [ "$1" ]
       -h|help)
       usage
       exit $EXIT_SUCCESS
+      ;;
+      -q)
+      queueFile=1
       ;;
       *)
       echo "Commande inconnue: $1"
