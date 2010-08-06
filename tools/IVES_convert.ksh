@@ -177,7 +177,7 @@ usage()
 {
     printf "\033[1mUsage \033[0m\n"
     printf "\033[1mNAME\033[0m\n"
-    printf "\t $0 convert media file to mp4 multitrack for asterisk\n"
+    printf "\t $0 convert media file to mp4 multitrack ,queue and playback formats for asterisk\n"
     printf "\033[1mSYNOPSIS\033[0m\n"
     printf "\t $0 -i infilename <-o outfilename> <-b background> <-v> <-d> <-s> <-f> <-t time> <-F> <-g> <-w> \n"
     printf "\t $0 COMMANDS\n"
@@ -192,16 +192,17 @@ usage()
     printf "\t\033[1m -g \033[0m H263 in good quality   \n"
     printf "\t\033[1m -r \033[0m frame rate for background image   \n"
     printf "\t\033[1m -f \033[0m fast mode ( ratio 1:2 )  \n"
-    printf "\t\033[1m -t \033[0m time of background duration   \n"
     printf "\t\033[1m -w \033[0m file informations   \n"
     printf "\t\033[1m -F \033[0m Out file are flv \n"
     printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats \n"
+    printf "\t\033[1m -t \033[0m time of background duration   \n"
     printf "\t   if you dont use this , duration of background are\n"
     printf "\t   build with audio track duration \n"
     printf "\t\033[1m COMMANDS \033[0m \n"
     printf "\t\033[1m   -c | clean \033[0m remove temporary files \n"
     printf "\t   (temporary convertions , logs , and output file) \n"
     printf "\t\033[1m   -h | help \033[0m this usage \n"
+    printf "\t\033[1m Version :  $Revision$  \033[0m \n"
 }
 
 # =============================================================================
