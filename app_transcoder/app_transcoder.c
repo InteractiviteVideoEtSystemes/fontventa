@@ -1547,12 +1547,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
 		goto clean_pseudo;
   }
 
-  // Phv entorse pour h323 
-  // _state!=AST_STATE_UP !!
-  int havetrs=0 ;
-	/* while not setup */
-	while (pseudo->_state!=AST_STATE_UP && !havetrs) 
-    // while (pseudo->_state!=AST_STATE_UP )
+  while (pseudo->_state!=AST_STATE_UP )
   {
 		/* Wait for data */
 		if (ast_waitfor(pseudo, 0)<0)
@@ -1600,15 +1595,6 @@ static int app_transcode(struct ast_channel *chan, void *data)
         default :
           break;
       }
-    }
-#endif
-
-#if 1 // phv test 
-    if ( f->frametype == AST_FRAME_VOICE || f->frametype ==AST_FRAME_VIDEO || f->frametype ==AST_FRAME_TEXT )
-    {
-      if ( option_debug > 4 )
-        ast_log(LOG_DEBUG, "trs frame\n");
-      havetrs = 1 ;
     }
 #endif
 
