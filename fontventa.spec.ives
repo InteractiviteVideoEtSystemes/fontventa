@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   0.3.12
+Version:   0.3.13
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -44,6 +44,8 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Wed Sep 24 2010 Philippe Verney <philippe.verney@ives.fr>
+- Suppress work arround on h323
 * Mon Mar 17 2010 Philippe Verney <philippe.verney@ives.fr>
 - new well tested fix for video timestamping
 * Wed Mar 17 2010 Philippe Verney <philippe.verney@ives.fr>
