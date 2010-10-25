@@ -105,6 +105,7 @@ integer flvFile=0
 integer h263_good=0
 #gestion des fiechiers pour queue
 integer queueFile=0
+integer TgpFile=0
 
 
 # =============================================================================
@@ -194,6 +195,7 @@ usage()
     printf "\t\033[1m -f \033[0m fast mode ( ratio 1:2 )  \n"
     printf "\t\033[1m -w \033[0m file informations   \n"
     printf "\t\033[1m -F \033[0m Out file are flv \n"
+    printf "\t\033[1m -3 \033[0m Out file are 3gp ( h264/AMR ) \n"
     printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats \n"
     printf "\t\033[1m -t \033[0m time of background duration   \n"
     printf "\t   if you dont use this , duration of background are\n"
@@ -215,7 +217,10 @@ MakeOutFilename()
         suffixe $inFile ;
         if [ $flvFile -eq 1  ]
             then outFile=`basename $inFile $mimetype`.flv
-            else outFile=`basename $inFile $mimetype`.mp4
+            else if [ $TgpFile -eq 1 ]
+                 then outFile=`basename $inFile $mimetype`.3gp
+                 else outFile=`basename $inFile $mimetype`.mp4
+            fi
         fi
     fi
     if [ "$inFile" ==  "$outFile" ]
@@ -771,7 +776,42 @@ create_flv_file_from_org()
         PrintOK
     fi
 }
+# =============================================================================
+# Gestion 3gp 
+# =============================================================================
+create_3gp_file()
+{
+    cmd="${BIN_PATH}/ffmpeg -y -i $inFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -ar 22050 -r 25 -ar 8000 -ab 12.2k -ac 1 $outFile"
+    printLine "Create 3gp file : "
+    echo $cmd >> $LOG_FILE
+    $cmd >> $LOG_FILE 2>&1
+    ret=$?
+    if [ $ret -ne 0 ] 
+        then 
+        PrintFailed
+        exit
+    else 
+        PrintOK
+    fi
+}
 
+create_3gp_file_from_org()
+{
+    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -ar 22050 -r 25 -ar 8000 -ab 12.2k -ac 1 $outFile "
+    printLine "Create 3gp file (from org) : "
+    echo $cmd >> $LOG_FILE
+    $cmd >> $LOG_FILE 2>&1
+    ret=$?
+    if [ $ret -ne 0 ] 
+        then 
+        PrintFailed
+        exit
+    else 
+        PrintOK
+    fi
+}
 # =============================================================================
 # Gestion video 
 # =============================================================================
@@ -1327,6 +1367,23 @@ MakeFlv()
     whatFile $outFile    
 }
 
+Make3gp()
+{
+    CopyIn2tmp
+    if [ $haveAudio -ne 0 ] 
+         then create_pcm_track 
+    fi
+    if  [ $haveVideo -eq 0 ]
+        then AddVideoBackground
+    fi
+
+    if [ orgHaveVideo -eq 1 ]
+        then create_3gp_file_from_org
+        else create_3gp_file 
+    fi
+    whatFile $outFile    
+}
+
 MakeQueueFile()
 {
     CopyIn2tmp
@@ -1355,6 +1412,8 @@ MakeQueueFile()
     fi 
 }
 
+
+
 Execut()
 {
     test_input_file $inFile
@@ -1368,8 +1427,11 @@ Execut()
     if [ $flvFile -eq 1  ]
         then MakeFlv
         else if [ $queueFile -eq 1  ]
-          then MakeQueueFile
-          else MakeMp4
+             then MakeQueueFile
+             else if [ $TgpFile -eq 1  ]
+                  then Make3gp
+                  else MakeMp4
+             fi
         fi
     fi
     if [ $debug -eq 0 ] ; then clean_ctx ; fi
@@ -1446,6 +1508,9 @@ while [ "$1" ]
       ;;
       -q)
       queueFile=1
+      ;;
+      -3)
+      TgpFile=1
       ;;
       *)
       echo "Commande inconnue: $1"
