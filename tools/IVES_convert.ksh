@@ -944,7 +944,7 @@ create_H263_good_track()
          -vcodec h263 -b $V_BITRATE_H263_GOOD -bt $V_BR_TOLERANCE_H263_GOOD -vstats -vstats_file \
          $tmpStats2pnoip -pass 1 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
         else
-        cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkInFile -s $V_SIZE_CIF -r 7 -vcodec h263 -b $V_BITRATE \
+        cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkInFile -s $V_SIZE_CIF -r 7 -vcodec h263 -b $V_BITRATE_H263_GOOD \
          -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 -vstats_file \
          $tmpStats2pnoip -pass 1  $tmpVideoFile "
     fi
@@ -1367,6 +1367,17 @@ MakeFlv()
     whatFile $outFile    
 }
 
+MakeH263Only()
+{
+    CopyIn2tmp
+    if [ h263_good -eq 0 ]
+      then create_H263_track 
+      else create_H263_good_track
+    fi
+    cp $tmpWorkInFile $outFile
+    whatFile $outFile    
+}
+
 Make3gp()
 {
     CopyIn2tmp
@@ -1430,7 +1441,10 @@ Execut()
              then MakeQueueFile
              else if [ $TgpFile -eq 1  ]
                   then Make3gp
-                  else MakeMp4
+                  else if [ $H263Only -eq 1 ]
+                       then MakeH263Only
+                       else MakeMp4
+                  fi
              fi
         fi
     fi
@@ -1448,6 +1462,9 @@ while [ "$1" ]
   case "$1" in
       -g)
       h263_good=1
+      ;;
+      -h263)
+      H263Only=1
       ;;
       -i)
       shift
