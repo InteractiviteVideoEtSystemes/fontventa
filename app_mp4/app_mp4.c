@@ -1327,41 +1327,63 @@ static int mp4_play(struct ast_channel *chan, void *data)
   }
       
   if (hintId != NO_CODEC)
-  {  
-		/* Get asociated track */
-		trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
-		
-		audio.mp4 = mp4;
-		audio.hint = hintId;
-		audio.track = trackId;
-		audio.sampleId = 1;
-		audio.packetIndex = 0;
-		audio.frameType = AST_FRAME_VOICE;
+  { 
+     int oldnative;
+	/* Get asociated track */
+	trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
+	
+	audio.mp4 = mp4;
+	audio.hint = hintId;
+	audio.track = trackId;
+	audio.sampleId = 1;
+	audio.packetIndex = 0;
+	audio.frameType = AST_FRAME_VOICE;
 
-		/* Get audio type */
-		MP4GetHintTrackRtpPayload(mp4, hintId, &audio.name, &audio.type, NULL, NULL);
+	/* Get audio type */
+	MP4GetHintTrackRtpPayload(mp4, hintId, &audio.name, &audio.type, NULL, NULL);
 
     if (audio.name)
-    ast_log(LOG_NOTICE, "set audio track %d %s\n", hintId, audio.name);
+        ast_log(LOG_NOTICE, "set audio track %d %s\n", hintId, audio.name);
 
-  	/* Get time scale */
-		audio.timeScale = MP4GetTrackTimeScale(mp4, hintId);	
+    /* Get time scale */
+    audio.timeScale = MP4GetTrackTimeScale(mp4, hintId);	
     
 		/* Depending on the name */
     if (audio.name == NULL)
-		audio.frameSubClass = AST_FORMAT_AMRNB;     
-		else if (strcmp("PCMU", audio.name) == 0)
-		audio.frameSubClass = AST_FORMAT_ULAW;
-		else if (strcmp("PCMA", audio.name) == 0)
-		audio.frameSubClass = AST_FORMAT_ALAW;
-		else if (strcmp("AMR", audio.name) == 0)
-		audio.frameSubClass = AST_FORMAT_AMRNB;
+	audio.frameSubClass = AST_FORMAT_AMRNB;     
+    else if (strcmp("PCMU", audio.name) == 0)
+	audio.frameSubClass = AST_FORMAT_ULAW;
+    else if (strcmp("PCMA", audio.name) == 0)
+	audio.frameSubClass = AST_FORMAT_ALAW;
+    else if (strcmp("AMR", audio.name) == 0)
+	audio.frameSubClass = AST_FORMAT_AMRNB;
 
-  	if (ast_set_write_format(chan, audio.frameSubClass))
+   oldnative = chan->nativeformats;
+
+#ifdef VIDEOCAPS
+   if ( chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK )
+   {
+	chan->nativeformats =  chan->channelcaps.cap;
+	ast_log(LOG_WARNING, "mp4_play:	already received audio format %08x.\n",
+		chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK)	;
+   }
+   else
+   {
+	ast_log(LOG_WARNING, "mp4_play: using original native formats.\n");
+   }
+	
+#endif
+
+    if ( ast_set_write_format(chan, audio.frameSubClass) )
 	  ast_log(LOG_WARNING, "mp4_play:	Unable to set write format to %s!\n", audio.name);
-	}
-	else
-	{
+
+
+#ifdef VIDEOCAPS
+    chan->nativeformats = oldnative;
+#endif
+  }
+  else
+  {
 	  audio.mp4 = MP4_INVALID_FILE_HANDLE;
 	  audio.hint = MP4_INVALID_TRACK_ID;
   }
@@ -2047,6 +2069,22 @@ static int mp4_save(struct ast_channel *chan, void *data)
  /* Lock module */
  u = ast_module_user_add(chan);
 
+#ifdef VIDEOCAPS
+   int oldnative = chan->nativeformats;
+   if ( chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK )
+   {
+        chan->nativeformats =  chan->channelcaps.cap;
+        ast_log(LOG_WARNING, "mp4_save: already received audio format %08x.\n",
+                chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK)  ;
+   }
+   else
+   {
+        ast_log(LOG_WARNING, "mp4_save: using original native formats.\n");
+   }
+
+#endif
+
+
  int length = strlen(data);
  if (!strcmp(data+length-4, ".3gp"))
  {
@@ -2058,6 +2096,10 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	 if (ast_set_read_format(chan, AST_FORMAT_ULAW|AST_FORMAT_ALAW|AST_FORMAT_AMRNB))
      ast_log(LOG_WARNING, "mp4_save: Unable to set read format to ULAW|ALAW|AMRNB!\n");
  }     
+
+#ifdef VIDEOCAPS
+    chan->nativeformats = oldnative;
+#endif
 
  videoTrack.sampleId = 0;
  videoTrack.frame    = NULL;		
