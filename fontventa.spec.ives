@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   0.3.16
+Version:   0.4.0
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -23,7 +23,7 @@ echo Clean du repertoire $RPM_BUILD_ROOT
 
 %prep
 echo "Export du SVN ives"
-svn export --force https://svn.ives.fr/svn-libs-dev/asterisk/%name/tags/%version
+svn export --force http://svn.ives.fr/svn-libs-dev/asterisk/%name/tags/%version
 
 %build
 echo "Build"
@@ -44,6 +44,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Wed Jul 27 2011 Emmanuel BUU <emmanuel.buu@ives.fr>
+- support for multiple audo codec negocation (asterisk-i1.4.19r)
+* Wef Jul 7 2011 Sergio <sergio@fontventa.com>
+- added H.264 support for Transcoder application
 * Wed Sep 24 2010 Philippe Verney <philippe.verney@ives.fr>
 - Suppress work arround on h323
 * Mon Mar 17 2010 Philippe Verney <philippe.verney@ives.fr>
