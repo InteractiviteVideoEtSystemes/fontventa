@@ -1358,9 +1358,9 @@ static int mp4_play(struct ast_channel *chan, void *data)
     else if (strcmp("AMR", audio.name) == 0)
 	audio.frameSubClass = AST_FORMAT_AMRNB;
 
+#ifdef VIDEOCAPS
    oldnative = chan->nativeformats;
 
-#ifdef VIDEOCAPS
    if ( chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK )
    {
 	chan->nativeformats =  chan->channelcaps.cap;
@@ -1376,7 +1376,6 @@ static int mp4_play(struct ast_channel *chan, void *data)
 
     if ( ast_set_write_format(chan, audio.frameSubClass) )
 	  ast_log(LOG_WARNING, "mp4_play:	Unable to set write format to %s!\n", audio.name);
-
 
 #ifdef VIDEOCAPS
     chan->nativeformats = oldnative;
@@ -2100,6 +2099,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 #ifdef VIDEOCAPS
     chan->nativeformats = oldnative;
 #endif
+
 
  videoTrack.sampleId = 0;
  videoTrack.frame    = NULL;		
