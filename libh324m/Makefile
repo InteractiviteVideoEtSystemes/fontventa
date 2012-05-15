@@ -1,5 +1,5 @@
 CXXFLAGS=-g -O3 -fPIC -DPIC -D_REENTRANT -fno-exceptions 
-LDFLAGS=`ptlib-config --libs` -fPIC
+LDFLAGS=-lpthread -lSDL -lresolv -Wl,-Bstatic -lpt_linux_x86_r_s  -Wl,-Bdynamic -fPIC
 
 all: libh324m test
 
