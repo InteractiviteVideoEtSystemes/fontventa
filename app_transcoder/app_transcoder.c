@@ -1308,8 +1308,8 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 	vtc->end 	= 0;
 
 	/* Alloc context */
-  vtc->decoderCtx = avcodec_alloc_context();
-  vtc->encoderCtx = avcodec_alloc_context();
+  vtc->decoderCtx = avcodec_alloc_context3(NULL);
+  vtc->encoderCtx = avcodec_alloc_context3(NULL);
 
 	/* Allocate pictures */
   vtc->decoderPic = avcodec_alloc_frame();
@@ -1361,10 +1361,10 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 
 	/* qMin */
 	if (vtc->qMin>0)
-		vtc->encoderCtx->mb_qmin = vtc->encoderCtx->qmin= vtc->qMin;
+		vtc->encoderCtx->qmin = vtc->encoderCtx->qmin= vtc->qMin;
 	/* qMax */
 	if (vtc->qMax>0)
-		vtc->encoderCtx->mb_qmax = vtc->encoderCtx->qmax= vtc->qMax;
+		vtc->encoderCtx->qmax = vtc->encoderCtx->qmax= vtc->qMax;
 
   /* Video quality */
   vtc->encoderCtx->rc_buffer_size     = vtc->bufferSize;
@@ -1395,7 +1395,7 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
     vtc->encoderCtx->flags |= CODEC_FLAG_PASS1;                 //PASS1
     vtc->encoderCtx->flags &= ~CODEC_FLAG_H263P_UMV;            //unrestricted motion vector
     vtc->encoderCtx->flags &= ~CODEC_FLAG_4MV;                  //advanced prediction
-    vtc->encoderCtx->flags &= ~CODEC_FLAG_H263P_AIC;            //advanced intra coding*/
+    vtc->encoderCtx->flags &= ~CODEC_FLAG_AC_PRED;            //advanced intra coding*/
     vtc->encoderCtx->flags |= CODEC_FLAG_H263P_SLICE_STRUCT;
   }
 #else
