@@ -2,7 +2,7 @@ Name:      fontventa
 Version:   0.4.0
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
-Release:   1.ives_distrib
+Release:   2.ives_distrib
 Summary:   [IVeS] librairies partagées pour asterisk de Fontventa.
 Vendor:   IVeS
 Group:     Applications/Internet
@@ -11,7 +11,7 @@ URL:       http://www.ives.fr
 BuildArchitectures: ives_archi
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:  ivespkg, ffmpeg >= 0.1.0-1.ives_distrib, mpeg4ip >= 1.5.0-1.ives_distrib, asteriskv , bc
-BuildRequires: ffmpeg-devel, asteriskv-devel, SDL-devel, gcc-c++
+BuildRequires: ffmpeg-devel, asteriskv-devel, SDL-devel, gcc-c++, mpeg4ip-devel
 
 %description
 Un ensemble de librairies partagées pour asterisk de Fontventa.
@@ -47,6 +47,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 * Tue May 15 2012 Olivier Maquin <olivier.maquin@ives.fr> 
 - version 0.4.0
 - static linking for libpt
+- compatibility of app_transcoder with ffmpeg 0.9.1
 * Wed Jul 27 2011 Emmanuel BUU <emmanuel.buu@ives.fr>
 - support for multiple audo codec negocation (asterisk-i1.4.19r)
 * Wed Jul 7 2011 Sergio <sergio@fontventa.com>
