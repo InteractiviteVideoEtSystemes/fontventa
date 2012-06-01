@@ -106,6 +106,8 @@ integer h263_good=0
 #gestion des fiechiers pour queue
 integer queueFile=0
 integer TgpFile=0
+#gestion des mp4 h264 + amr 
+integer Mp4H264MP3File=0
 
 
 # =============================================================================
@@ -180,7 +182,7 @@ usage()
     printf "\033[1mNAME\033[0m\n"
     printf "\t $0 convert media file to mp4 multitrack ,queue and playback formats for asterisk\n"
     printf "\033[1mSYNOPSIS\033[0m\n"
-    printf "\t $0 -i infilename <-o outfilename> <-b background> <-v> <-d> <-s> <-f> <-t time> <-F> <-g> <-w> \n"
+    printf "\t $0 -i infilename <-o outfilename> <-b background> <-v> <-d> <-s> <-f> <-t time> <-F> <-M> <-g> <-w> \n"
     printf "\t $0 COMMANDS\n"
     printf "\033[1mDESCRIPTION\033[0m\n"
     printf "\t\033[1m -i infilename \033[0m  Name of input file\n"
@@ -196,6 +198,7 @@ usage()
     printf "\t\033[1m -w \033[0m file informations   \n"
     printf "\t\033[1m -F \033[0m Out file are flv \n"
     printf "\t\033[1m -3 \033[0m Out file are 3gp ( h264/AMR ) \n"
+    printf "\t\033[1m -M \033[0m MP4 file light in good quality H264/amr only   \n"
     printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats \n"
     printf "\t\033[1m -t \033[0m time of background duration   \n"
     printf "\t   if you dont use this , duration of background are\n"
@@ -215,11 +218,14 @@ MakeOutFilename()
     if [ "$outFile" == "" ]
         then 
         suffixe $inFile ;
-        if [ $flvFile -eq 1  ]
-            then outFile=`basename $inFile $mimetype`.flv
-            else if [ $TgpFile -eq 1 ]
-                 then outFile=`basename $inFile $mimetype`.3gp
-                 else outFile=`basename $inFile $mimetype`.mp4
+        if [ $Mp4H264MP3File -eq 1  ]
+            then outFile=`basename $inFile $mimetype`.3gp
+            else if [ $flvFile -eq 1  ]
+                 then outFile=`basename $inFile $mimetype`.flv
+                 else if [ $TgpFile -eq 1 ]
+                      then outFile=`basename $inFile $mimetype`.3gp
+                      else outFile=`basename $inFile $mimetype`.mp4
+                 fi
             fi
         fi
     fi
@@ -743,7 +749,7 @@ AddAudioTracks()
 }
 
 # =============================================================================
-# Gestion video 
+# Gestion video flv
 # =============================================================================
 create_flv_file()
 {
@@ -776,6 +782,42 @@ create_flv_file_from_org()
         PrintOK
     fi
 }
+
+# =============================================================================
+# Gestion video mp4 good quality h264 and audio amr only 
+# =============================================================================
+create_Mp4H264MP3_file()
+{
+    cmd="${BIN_PATH}/ffmpeg -y -i $inFile -vcodec libx264  -acodec libamr_nb -ac 1 -ab 12200 -ar 8000   $outFile"
+    printLine "Create mp4 light ( h264/amr ) file : "
+    echo $cmd >> $LOG_FILE
+    $cmd >> $LOG_FILE 2>&1
+    ret=$?
+    if [ $ret -ne 0 ] 
+        then 
+        PrintFailed
+        exit
+    else 
+        PrintOK
+    fi
+}
+
+create_Mp4H264MP3_file_from_org()
+{
+    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile -vcodec libx264 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000  $outFile"
+    printLine "Create mp4 light ( h264/amr ) file (from org) : "
+    echo $cmd >> $LOG_FILE
+    $cmd >> $LOG_FILE 2>&1
+    ret=$?
+    if [ $ret -ne 0 ] 
+        then 
+        PrintFailed
+        exit
+    else 
+        PrintOK
+    fi
+}
+
 # =============================================================================
 # Gestion 3gp 
 # =============================================================================
@@ -1367,6 +1409,23 @@ MakeFlv()
     whatFile $outFile    
 }
 
+MakeMp4H264MP3()
+{
+    CopyIn2tmp
+    if [ $haveAudio -ne 0 ] 
+         then create_pcm_track 
+    fi
+    if  [ $haveVideo -eq 0 ]
+        then AddVideoBackground
+    fi
+
+    if [ orgHaveVideo -eq 1 ]
+        then create_Mp4H264MP3_file_from_org
+        else create_Mp4H264MP3_file 
+    fi
+    whatFile $outFile    
+}
+
 MakeH263Only()
 {
     CopyIn2tmp
@@ -1435,15 +1494,18 @@ Execut()
     clean_ctx
     clean_old_file
     purge_log
-    if [ $flvFile -eq 1  ]
-        then MakeFlv
-        else if [ $queueFile -eq 1  ]
-             then MakeQueueFile
-             else if [ $TgpFile -eq 1  ]
-                  then Make3gp
-                  else if [ $H263Only -eq 1 ]
-                       then MakeH263Only
-                       else MakeMp4
+    if [ $Mp4H264MP3File -eq 1  ]
+        then MakeMp4H264MP3
+        else if [ $flvFile -eq 1  ]
+             then MakeFlv
+             else if [ $queueFile -eq 1  ]
+                  then MakeQueueFile
+                  else if [ $TgpFile -eq 1  ]
+                       then Make3gp
+                       else if [ $H263Only -eq 1 ]
+                            then MakeH263Only
+                            else MakeMp4
+                       fi
                   fi
              fi
         fi
@@ -1477,6 +1539,9 @@ while [ "$1" ]
       ;;
       -F)
       flvFile=1
+      ;;
+      -M)
+      Mp4H264MP3File=1
       ;;
       -r)
       shift
