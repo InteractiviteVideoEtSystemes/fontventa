@@ -40,12 +40,11 @@ V_BITRATE_H263=35000
 V_BR_TOLERANCE_H263=10000
 V_FFMPEG_OPTS_H263="-g 5 -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
 
-
 V_SIZE_H263_GOOD="cif"
-V_FPS_H263_GOOD=25
-V_BITRATE_H263_GOOD=700000
-V_BR_TOLERANCE_H263_GOOD=70000
-V_FFMPEG_OPTS_H263_GOOD="-g 5 -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
+V_FPS_H263_GOOD=15
+V_BITRATE_H263_GOOD=200000
+V_BR_TOLERANCE_H263_GOOD=100000
+V_FFMPEG_OPTS_H263_GOOD="-g 8  -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
 
 
 V_SIZE_H264="cif"
@@ -90,7 +89,7 @@ integer idxHintAmrTrack=0
 integer haveH263=0
 integer idxH263Track=0
 integer idxHintH263Track=0
-integer h263_good=0
+integer h263_good=1
 integer haveH264=0
 integer idxH264Track=0
 integer idxHintH264Track=0
@@ -102,13 +101,12 @@ integer frame_rate=3
 integer text=0
 #gestion du flv
 integer flvFile=0
-integer h263_good=0
 #gestion des fiechiers pour queue
 integer queueFile=0
 integer TgpFile=0
 #gestion des mp4 h264 + amr 
 integer Mp4H264MP3File=0
-
+integer H263Only=0
 
 # =============================================================================
 # Affichage
@@ -192,7 +190,7 @@ usage()
     printf "\t\033[1m -v \033[0m create log file IVES_convert.log  \n"
     printf "\t\033[1m -d \033[0m debug mode , temporary files are not deleted  \n"
     printf "\t\033[1m -s \033[0m silence mode , no output on stdout, only error  \n"
-    printf "\t\033[1m -g \033[0m H263 in good quality   \n"
+    printf "\t\033[1m -g \033[0m H263 in not good quality (qcif)  \n"
     printf "\t\033[1m -r \033[0m frame rate for background image   \n"
     printf "\t\033[1m -f \033[0m fast mode ( ratio 1:2 )  \n"
     printf "\t\033[1m -w \033[0m file informations   \n"
@@ -201,6 +199,7 @@ usage()
     printf "\t\033[1m -M \033[0m MP4 file light in good quality H264/amr only   \n"
     printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats \n"
     printf "\t\033[1m -t \033[0m time of background duration   \n"
+    printf "\t\033[1m -T textfile \033[0m extract text on mp4    \n"
     printf "\t   if you dont use this , duration of background are\n"
     printf "\t   build with audio track duration \n"
     printf "\t\033[1m COMMANDS \033[0m \n"
@@ -1523,7 +1522,7 @@ while [ "$1" ]
   do    
   case "$1" in
       -g)
-      h263_good=1
+      h263_good=0
       ;;
       -h263)
       H263Only=1
