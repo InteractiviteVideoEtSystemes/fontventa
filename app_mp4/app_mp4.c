@@ -31,10 +31,13 @@
 #include <sys/time.h>
 
 #include <asterisk.h>
-
+#ifdef MP4V2
+#include <mp4v2/mp4v2.h>
+#else
 #include <mp4.h>
 #include <mp4av.h>
 #include <mp4av_h264.h>
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -117,7 +120,7 @@ typedef enum
 // #define DEBUG_TEXT "/tmp/txt2mp4.txt"
 
 static const char mark_cut_txt[]=" Buff too small supress end of text";
-
+static const char h263VideoName[]="H.263" ; 
 static const char *app_play = "mp4play";
 static const char *syn_play = "MP4 file playblack";
 static const char *des_play = "  mp4play(filename,[options]):  Play mp4 file to user. \n"
@@ -190,6 +193,699 @@ AST_APP_OPTIONS(mp4play_exec_options, {
 	AST_APP_OPTION_ARG('s', OPT_STOPDTMF, OPT_ARG_STOPDTMF),
 });
 
+#define H263_RTP_MAX_HEADER_LEN     8       // H263 header max length for RFC2190 (mode A) or RFC2429
+#define MAX_H263_PACKET             32      // max number of RTP packet per H263 Video Frame
+#define H263_FRAME_SIZE            (PKT_PAYLOAD - H263_HEADER_MODE_A_SIZE)
+
+
+
+
+
+/*! \brief   H263 GOB (Group Of Block) structure
+ */
+typedef struct
+{
+	unsigned char         *data;        // pointer on frame data: pointer on GBSC or SSC (Start Code) or on data (for rfc2429)
+	unsigned int          sbit;         // start bit stuffing to find start of GBSC (if not byte align)
+	unsigned int          ebit;         // end bit stuffing to find end of GOB (if not byte align)
+  unsigned int          len;          // data length
+  unsigned int          sc;           // data pointer is on start code
+} VIDEO_H263Data;
+
+/*! \brief   H263 codec info for RFC2190 packetization
+ */
+typedef struct
+{
+  unsigned char         format;       // Picture Format
+  unsigned int          umv;          // Unrestricted Motion Vector mode
+  unsigned int          sac;          // Syntax-based Arithmetic Coding mode
+  unsigned int          adp;          // Advanced Prediction mode
+} VIDEO_H263Info;
+
+/*! \brief   H263 header for rtp packetization
+ */
+typedef struct
+{
+  unsigned int          len;          // header len
+  unsigned char         header[H263_RTP_MAX_HEADER_LEN]; // header value
+} VIDEO_H263Header;
+
+/*! \brief   H263 specific frame structure (see ITU-T H263 recommendation)
+ */
+typedef struct
+{
+  unsigned int          nb_packet;    // Number of RTP packet for this frame
+  unsigned char         ptype[5];     // PTYPE Type Information
+  unsigned int          use_pptype;   // Indicate usage of Plus PTYPE
+  unsigned int          pptype_ufep;  // Plus PTYPE Update Full Extended PTYPE (UFEP)
+  unsigned int          inter;        // Frame type (Inter, Intra)
+  VIDEO_H263Info        h263_info;    // H263 codec info for packetization
+  VIDEO_H263Data        rtp_data[MAX_H263_PACKET+1]; // data pointer for packetization 
+  VIDEO_H263Header      rtp_header[MAX_H263_PACKET]; // H263 header for RFC2190(mode A) or RFC2429
+} VIDEO_H263Frame;
+
+
+struct RFC2190H263HeadersBasic
+{
+        //F=0             F=1
+        //P=0   I/P frame       I/P mode b
+        //P=1   B frame         B fame mode C
+        uint32_t trb:9;
+        uint32_t tr:3;
+        uint32_t dbq:2;
+        uint32_t r:3;
+        uint32_t a:1;
+        uint32_t s:1;
+        uint32_t u:1;
+        uint32_t i:1;
+        uint32_t src:3;
+        uint32_t ebits:3;
+        uint32_t sbits:3;
+        uint32_t p:1;
+        uint32_t f:1;
+};
+#define H263P_HEADER_SIZE		2
+#define H263_HEADER_MODE_A_SIZE 4
+#define H263_HEADER_MODE_B_SIZE 8
+#define H263_HEADER_MODE_C_SIZE 12
+
+/*!
+ * \brief : Parse H263 frame for RFC2190 (packetized on GOB or SLICE start code)
+ */
+static void H263_ParseRfc2190Frame ( uint8_t *pckt_data, uint32_t size ,VIDEO_H263Frame *h263_frame)
+{
+  unsigned int    i;
+  unsigned int    nb_pckt = 0;
+  uint8_t         *ptr;
+  unsigned char   sc[4];
+	int             bit;
+  unsigned int    found = false;
+  unsigned char   *data = NULL;
+
+  // Parse frame and fill pckt structure
+  // Start at index 1 to start on PSC
+  for(ptr=&pckt_data[1]; ptr<&pckt_data[size] && (nb_pckt < MAX_H263_PACKET); ptr++)
+	{
+    found = false;
+
+		// Find the next bytes to zero 
+		for(;*ptr && ptr<&pckt_data[size]; ptr++);
+
+    if ( ptr == &pckt_data[size] )
+      break ;
+
+		// See if it handles a sc
+    data = ptr - 1;
+		memcpy(sc, data, 4);
+
+    // GBSC = SSC = 0000 0000 0000 0000 1
+    // SC (Start Code) may not be byte align, so we must test SC presence on each bit alignement
+    for(bit=0; bit<8; bit++)
+		{
+      // Test GBSC
+			if (sc[0] == 0 && sc[1] == 0 && (sc[2] & 0x80) == 0x80)
+			{
+				found = true;
+				break;
+			}
+      // Bit shiftting
+			sc[0] = (sc[0] << 1) | (sc[1] >> 7);
+			sc[1] = (sc[1] << 1) | (sc[2] >> 7);
+			sc[2] = (sc[2] << 1) | (sc[3] >> 7);
+			sc[3] = (sc[3] << 1);
+		}
+
+    // Save GOB address
+		if (found)
+		{
+      // pointer on gob byte
+			h263_frame->rtp_data[nb_pckt].data = data;
+      // number of bit stuffing
+			h263_frame->rtp_data[nb_pckt].sbit = bit;
+      h263_frame->rtp_data[nb_pckt].ebit = (8 - bit) & 0x07;
+      // for rfc2190, data pointer is always on PSC, GBSC or SSC
+      h263_frame->rtp_data[nb_pckt].sc = 1;
+      // increment number of pckt
+			nb_pckt++;
+		}
+	}
+
+  // Save number of pckt
+  h263_frame->nb_packet = nb_pckt;
+  // Use last pointer to handle end of block
+	h263_frame->rtp_data[nb_pckt].data = &data[size];
+
+  // Compute pckt length in bytes
+  for (i=0; i<nb_pckt; i++)
+  {
+    h263_frame->rtp_data[i].len = h263_frame->rtp_data[i+1].data - h263_frame->rtp_data[i].data;
+    // Check pckt size for video quality statistics
+    if (h263_frame->rtp_data[i].len > H263_FRAME_SIZE)
+    {
+      ast_log(LOG_DEBUG,"H263_ParseRfc2190Frame: GOB size[%d] is too large (RTP packet will exceed MTU)\n",
+              h263_frame->rtp_data[i].len);
+    }
+  }
+}
+
+static void H263_BuildRfc2190Header (VIDEO_H263Frame *h263_frame)
+{
+  unsigned int    i;
+  // Pointer on h263 header
+  unsigned char   *rfc2190_header;
+
+  // Fill RTP header
+  for (i=0; i<h263_frame->nb_packet; i++)
+  {
+    h263_frame->rtp_header[i].len = H263_HEADER_MODE_A_SIZE;
+    rfc2190_header = h263_frame->rtp_header[i].header;
+  
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Fill RFC2190 RTP header:                                                                                    //
+    //                                                                                                             //
+    // bits: F(1) | P(1) | SBIT(3) | EBIT(3) | SRC(3) | I(1) | U(1) | S(1) | A(1) | 0000 | DBQ(2) | TRB(3) | TR(8) //
+    // byte:              0                  |                 1                    |           2          |   3   //
+    //                                                                                                             //
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    // F= 0 (for mode A), P = 0 (no PB frame) set start(sbit) and end(ebit) bit stiffing (not byte align)
+  	rfc2190_header[0] = (unsigned char)((h263_frame->rtp_data[i].sbit << 3) | h263_frame->rtp_data[i].ebit);
+    // SRC=format, I ("0"Intra | "1"Inter), U: umv, S: sac, A: adp, 0 
+  	rfc2190_header[1] = (unsigned char)(h263_frame->h263_info.format << 5 | 
+                                        h263_frame->inter << 4 | 
+                                        h263_frame->h263_info.umv << 3 | 
+                                        h263_frame->h263_info.sac << 2 | 
+                                        h263_frame->h263_info.adp << 1);   
+  	// DBQ  and TRB are set to 0 if PB frame option not used 
+  	//rfc2190_header[2] = 0;
+    // TR set to 0 if PB frame option not used
+    //rfc2190_header[3] = 0;
+  }
+}
+
+static void H263_ExtractFrameInfo (uint8_t *h263_data, VIDEO_H263Frame *h263_frame)
+{
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  // We assume that PB frame mode is not supported                                                   //
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  // H263 frame structure (without optionnal PLUSTYPE fields, Ptype != 111 : extended PTYPE)         //
+  //                                                                                                 //
+  //       |PSC |TR |PTYPE|PQUANT|CPM|PSBI|PEI|PSUPP|PEI|PSUPP|....|GOBs|ESTUF|EOS|PSTUF|            //
+  // bits: | 22 | 8 | 13  |  5   | 1 | 2  | 1 | 0/8 | 1 | 0/8 |....| XX | 0-7 | 22| 0-7 |            //
+  //                                                                                                 //
+  //       |        PSC            |   TR   |     PTYPE   |PQUANT|                                   //
+  // bits: 00000000 00000000 100000TT TTTTTTPP PPPPPPPP PPPQQQQQ                                     //
+  // bytes    0        1        2       3         4        5                                         //
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  // H263 frame structure (with optionnal PLUSTYPE fields, Ptype == 111 and UFEP == '001')           //
+  //                                                                                                 //
+  //       |PSC |TR |PTYPE|PLUSTYPE|PQUANT|CPM|PSBI|PEI|PSUPP|PEI|PSUPP|....|GOBs|ESTUF|EOS|PSTUF|   //
+  // bits: | 22 | 8 | 8  |     30  |   5  | 2 | 1 | 0/8 | 1 | 0/8 |....| XX | 0-7 | 22| 0-7 |        //
+  //                                                                                                 //
+  //       |        PSC            |   TR   | PTYPE  |                PLUSTYPE         | PQUANT|   //
+  // bits: 00000000 00000000 100000TT TTTTTTPP PPPPPPPP PPPPPPPP PPPPPPPP PPPPPPPP PPPPQQQQ QXXXXXXX //
+  // bytes    0        1        2       3         4        5         6       7         8        9    //
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  // H263 frame structure (with optionnal PLUSTYPE fields, Ptype == 111 and UFEP == '000')           //
+  //                                                                                                 //
+  //       |PSC |TR |PTYPE|PLUSTYPE|PQUANT|CPM|PSBI|PEI|PSUPP|PEI|PSUPP|....|GOBs|ESTUF|EOS|PSTUF|   //
+  // bits: | 22 | 8 | 8  |     12  |   5  | 2 | 1 | 0/8 | 1 | 0/8 |....| XX | 0-7 | 22| 0-7 |        //
+  //                                                                                                 //
+  //       |        PSC            |   TR   | PTYPE  | PLUSTYPE    | PQUANT|                         //
+  // bits: 00000000 00000000 100000TT TTTTTTPP PPPPPPPP PPPPPPPP PPQQQQQX                            //
+  // bytes    0        1        2       3         4        5         6                               //
+  /////////////////////////////////////////////////////////////////////////////////////////////////////
+  
+  // PTYPE: Get first 8 bits of Packet Type
+	h263_frame->ptype[0] = (h263_data[3] << 6) | (h263_data[4] >> (8-6));
+
+  // look for extended PTYPE (PLUSTYPE) mode
+  if ((h263_frame->ptype[0] & 0x7) == 0x07)
+  {
+#ifdef _DBG_H263_
+      ast_log(LOG_DEBUG,"H263_ExtractFrameInfo: data: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+                  h263_data[0],h263_data[1],h263_data[2],h263_data[3],h263_data[4],h263_data[5],
+                  h263_data[6],h263_data[7],h263_data[8],h263_data[9]);
+#endif
+    // Indicate usage of Plus PTYPE
+    h263_frame->use_pptype = 1;
+    // Get first 8 bits of Plus Type
+	  h263_frame->ptype[1] = (h263_data[4] << 6) | (h263_data[5] >> (8-6));
+    // Update Full Extended PTYPE (UFEP) 3 bits
+    h263_frame->pptype_ufep = h263_frame->ptype[1] >> 5;
+    // Get Optionnal Part of PLUSTYPE (OPPTYPE): only present if ufep = '001'
+    if (h263_frame->pptype_ufep)
+    {
+#ifdef _DBG_H263_
+      ast_log(LOG_DEBUG,"H263_ExtractFrameInfo: H263+ type with OPPTYPE (ufep %02X)\n",
+                  h263_frame->pptype_ufep);
+#endif
+      // if OPPTYPE is present, PLUSTYPE field is 30 bits length: UFEP(3bits)/OPPTYPE(18bits)/MPPTYPE(9bits)
+	    h263_frame->ptype[2] = (h263_data[5] << 6) | (h263_data[6] >> (8-6));
+	    h263_frame->ptype[3] = (h263_data[6] << 6) | (h263_data[7] >> (8-6));
+	    h263_frame->ptype[4] = (h263_data[7] << 6) | (h263_data[8] >> (8-6));
+      // Picture format
+      h263_frame->h263_info.format = (h263_frame->ptype[1] >> 2) & 0x7;
+      // Unrestricted Motion Vector mode ("1"On | "0"Off)
+      h263_frame->h263_info.umv = h263_frame->ptype[1] & 0x1;
+      // Syntax-based Arithmetic Coding mode ("1"On | "0"Off)
+      h263_frame->h263_info.sac = h263_frame->ptype[2] >> 7;
+      // Advanced Prediction mode ("1"On | "0"Off)
+      h263_frame->h263_info.adp = (h263_frame->ptype[2] >> 6) & 0x1;
+
+      // Frame type ("0"Intra | "1"Inter)
+      if (h263_frame->ptype[3] & 0x7)
+      {
+        h263_frame->inter = 1;
+      }
+    }
+    else
+    {
+#ifdef _DBG_H263_
+      ast_log(LOG_DEBUG,"H263_ExtractFrameInfo: H263+ type without OPPTYPE (ufep %02X)\n",
+                  h263_frame->pptype_ufep);
+#endif
+      // if OPPTYPE is NOT present, PLUSTYPE field is 12 bits length
+	    h263_frame->ptype[2] = (h263_data[5] << 6) | (h263_data[6] >> (8-6));
+      
+      // Frame type ("0"Intra | "1"Inter)
+      if ((h263_frame->ptype[1] >> 2) & 0x7)
+      {
+        h263_frame->inter = 1;
+      }
+      // OPPTYPE is not present: all H263 information must be the same than the previous frame
+    }
+  }
+  else
+  {
+#ifdef _DBG_H263_
+    ast_log(LOG_DEBUG,"H263_ExtractFrameInfo: H263 type\n",
+                  h263_frame->pptype_ufep);
+#endif
+    // Get next PTYPE bits
+	  h263_frame->ptype[1] = (h263_data[4] << 6) | (h263_data[5] >> (8-6));
+    // Picture format (bit 5-7 of PTYPE)
+    h263_frame->h263_info.format = h263_frame->ptype[0] & 0x7;
+    // Frame type ("0"Intra | "1"Inter)                     (bit 8 of PTYPE)
+    h263_frame->inter = h263_frame->ptype[1] >> 7;
+    // Unrestricted Motion Vector mode ("1"On | "0"Off)     (bit 9 of PTYPE)
+    h263_frame->h263_info.umv = (h263_frame->ptype[1] >> 6) & 0x1;
+    // Syntax-based Arithmetic Coding mode ("1"On | "0"Off) (bit 10 of PTYPE)
+    h263_frame->h263_info.sac = (h263_frame->ptype[1] >> 5) & 0x1;
+    // Advanced Prediction mode ("1"On | "0"Off)            (bit 11 of PTYPE)
+    h263_frame->h263_info.adp = (h263_frame->ptype[1] >> 4) & 0x1;
+  }
+}
+
+static const uint8_t *find_resync_marker_reverse(const uint8_t * start,
+                                                 const uint8_t * end)
+{
+    const uint8_t *p = end - 1;
+    start += 1; /* Make sure we never return the original start. */
+    for (; p > start; p -= 2) {
+        if (!*p) {
+            if      (!p[ 1] && p[2]) return p;
+            else if (!p[-1] && p[1]) return p - 1;
+        }
+    }
+    return end;
+}
+
+/**
+ * Packetize H.263 frames into RTP packets according to RFC 4629 from ffmpeg
+ */ 
+#define FFMIN(a,b) ((a) > (b) ? (b) : (a))
+static void SendVideoFrameRFC2190_bis(struct ast_channel *chan, uint8_t *data, uint32_t size, int first, int last , int fps);
+static void ff_rtp_send_h263(struct ast_channel *chan, const uint8_t *buf1, int size , int fps)
+{
+  //size += 2 ;
+  while (size > 0) {
+    int len ;
+    uint8_t *q  ;
+    uint8_t frameBuffer[PKT_SIZE];
+    struct ast_frame *send = (struct ast_frame *) frameBuffer;
+    uint8_t *frameData = NULL;
+
+    memset(send,0,PKT_SIZE);
+    AST_FRAME_SET_BUFFER(send,send,PKT_OFFSET,0);
+    frameData = AST_FRAME_GET_BUFFER(send);
+    q = frameData ;
+#if 0
+    if (size >= 2 && (buf1[0] == 0) && (buf1[1] == 0)) {
+      *q++ = 0x04;
+      buf1 += 2;
+      size -= 2;
+    } else {
+      *q++ = 0;
+    }
+    *q++ = 0;
+
+    len = FFMIN(PKT_PAYLOAD - 2, size);
+#else
+    len = FFMIN(H263_FRAME_SIZE , size);
+#endif
+    /* Look for a better place to split the frame into packets. */
+    if (len < size) {
+      const uint8_t *end = find_resync_marker_reverse(buf1, buf1 + len);
+      len = end - buf1;
+    }
+#if 0
+    memcpy(q, buf1, len);
+
+    /* Set frame len*/
+    send->datalen = len+2;
+   
+    /* Set timestamp */
+    send->samples = 90000/fps;
+
+    /* Set video type */
+    send->frametype = AST_FRAME_VIDEO;
+    /* Set codec value */
+    send->subclass = AST_FORMAT_H263 | (len == size);
+    /* Rest of values*/
+    send->src = "mp4play";
+    send->delivery = ast_tv(0, 0);
+    /* Don't free the frame outrside */
+    send->mallocd = 0;
+    if ( option_debug > 4 )
+      ast_log(LOG_DEBUG, "ff_rtp_send_h263  send  lenght[%d/%d @%d fps] \n",len,size,(int)fps );
+
+
+    ast_write(chan, send);
+#else
+    SendVideoFrameRFC2190_bis(chan, buf1, len, 0, (len == size),fps);
+#endif
+    buf1 += len;
+    size -= len;
+  }
+}
+
+
+
+static uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32_t bufferLen)
+{
+	/* Debug */
+  if ( option_debug > 4 )
+    ast_log(LOG_DEBUG,"RFC2190 appending [%d:0x%.2x,0x%.2x]\n",bufferLen,buffer[0],buffer[1]);
+
+	/* Check length */
+	if (bufferLen<sizeof(struct RFC2190H263HeadersBasic))
+		/* exit */
+		return 0;
+
+	/* Get headers */
+	uint32_t x = ntohl(*(uint32_t *)buffer);
+
+	/* Set headers */
+	struct RFC2190H263HeadersBasic *headers = (struct RFC2190H263HeadersBasic *)&x;
+
+	/* Get ini */
+	uint8_t* in = buffer + sizeof(struct RFC2190H263HeadersBasic);
+	uint32_t  len = sizeof(struct RFC2190H263HeadersBasic);
+
+	if (headers->f)
+	{
+	  if (headers->p)
+      /* If C type */
+	  {
+      if ( option_debug > 4 )
+        ast_log(LOG_DEBUG,"RFC2190 C type %d\n",headers->f);
+
+		  /* Skip rest of header */
+		  in+=8;
+		  len+=8;
+	  }
+	  else
+      /* If B type */
+	  {
+      if ( option_debug > 4 )
+        ast_log(LOG_DEBUG,"RFC2190 B type %d\n",headers->f);
+
+		  /* Skip rest of header */
+		  in+=4;
+		  len+=4;
+		}
+	}
+	else
+	{
+    if ( option_debug > 4 )
+      ast_log(LOG_DEBUG,"RFC2190 A type %d\n",headers->f);
+  }
+
+	//ast_log(LOG_DEBUG,"RFC2190 len %d\n",len);
+
+	if(headers->ebits!=0)
+	{
+    if ( option_debug > 4 )
+      ast_log(LOG_DEBUG,"RFC2190 cut %d ebit (%d)\n", headers->ebits, bufferLen-len);
+	  in[bufferLen-len-1] &= 0xff << headers->ebits;
+	}	
+
+	/* Mix first and end byte */
+	if(headers->sbits!=0 && destLen>0)
+	{
+    if ( option_debug > 4 )
+      ast_log(LOG_DEBUG,"RFC2190 mix %d sbit\n", headers->sbits);
+
+		/* Append to previous byte */
+    in[0] &= 0xff >> headers->sbits;		
+		dest[destLen-1] |= in[0];
+		/* Skip first */
+		in++;
+		len++;
+	}	
+
+	/* Copy the rest */
+	memcpy(dest+destLen,in,bufferLen-len);	
+
+  if ( option_debug > 4 )
+    ast_log(LOG_DEBUG,"RFC2190 max write %d\n", destLen+bufferLen-len);
+
+	/* Return added */
+	return bufferLen-len;
+}
+
+static void SendVideoFrameRFC2190_bis(struct ast_channel *chan, uint8_t *data, uint32_t size, int first, int last , int fps)
+{
+	uint8_t frameBuffer[PKT_SIZE];
+	struct ast_frame *send = (struct ast_frame *) frameBuffer;
+	uint8_t *frameData = NULL;
+ 	unsigned char RFC2190_header[4] = {0} ;
+	
+  if(data[0] == 0x00 && data[1] == 0x00 && (data[2] & 0xfc)==0x80){ /* PSC */
+		/* RFC 2190 -5.1 Mode A
+			0                   1                   2                   3
+			0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+			|F|P|SBIT |EBIT | SRC |I|U|S|A|R      |DBQ| TRB |    TR         |
+			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		
+		SRC : 3 bits
+		Source format, bit 6,7 and 8 in PTYPE defined by H.263 [4], specifies
+		the resolution of the current picture.
+		
+		I:  1 bit.
+		Picture coding type, bit 9 in PTYPE defined by H.263[4], "0" is
+		intra-coded, "1" is inter-coded.
+		*/
+		
+		// PDATA[4] ======> Bits 3-10 of PTYPE
+		uint8_t format, pict_type;
+		
+		// Source Format = 4,5,6
+		format = (data[4] & 0x3C)>>2;
+		// Picture Coding Type = 7
+		pict_type = (data[4] & 0x02)>>1;
+		// RTP mode A header
+    ((uint32_t *)RFC2190_header)[1] = ntohl( (format <<5) | (pict_type << 4) );
+	}
+
+  uint32_t *p = (uint32_t *) data;
+  int gob_num = (ntohl(*p) >> 10) & 0x1f;
+  char *dat = (char *)data;	
+  
+  static uint32_t tr = 0; //Static to have it when needed for splitting into multiple
+  static uint32_t sz = 0; //packets (a hack that works for one video connection
+  //         only, must be stored elsewhere for more)
+
+	/* Debug */
+  if ( option_debug > 4 )
+    ast_log(LOG_DEBUG,"Send video frame [%p,%d,%d,%d,0x%.2x,0x%.2x,0x%.2x,0x%.2x]\n",send,size,first,last,data[0],data[1],data[2],data[3]);
+
+	/* Check size */
+	if (size+2>PKT_PAYLOAD)
+	{
+		/* Error */
+		ast_log(LOG_ERROR,"Send video frame too large [%d]\n",size);
+		/* Exit */
+		return ;
+	}
+
+	/* clean */
+	memset(send,0,PKT_SIZE);
+
+	/* Set frame data */
+	AST_FRAME_SET_BUFFER(send,send,PKT_OFFSET,0);
+	/* Get the frame pointer */
+	frameData = AST_FRAME_GET_BUFFER(send);
+
+
+	/* Debug */
+  if ( option_debug > 4 )
+    ast_log(LOG_DEBUG,"GOB number %d\n",gob_num);
+
+  if(gob_num == 0)
+  {
+    /* Get relevant framedata and memorize it for later use */
+    /* Get the "temporal reference" from the H.263 frameheader. */
+    tr = ((dat[2] & 0x03) * 64) + ((dat[3] & 0xfc) / 4);
+    /* Get the Imgesize from the H.263 frameheader. */
+    sz = (dat[4] >> 2) & 0x07;
+  }
+  else
+  {
+    /* The memorized values from the frame start will be used */
+  }
+  /* Construct payload header.
+     Set videosize and the temporal reference to that of the frame */
+  ((uint32_t *)RFC2190_header)[0] = ntohl((sz << 21) | (tr & 0x000000ff));
+  
+	/* Set frame len*/
+	send->datalen = size+4;
+	/* Set header */
+	memcpy(frameData, RFC2190_header, 4);
+	/* Copy */
+	memcpy(frameData+4, data, size);
+	/* Set timestamp */
+	send->samples = 90000/fps;
+
+	/* Set video type */
+	send->frametype = AST_FRAME_VIDEO;
+	/* Set codec value */
+	send->subclass = AST_FORMAT_H263 | last;
+	/* Rest of values*/
+	send->src = "mp4play";
+	send->delivery = ast_tv(0, 0);
+	/* Don't free the frame outrside */
+	send->mallocd = 0;
+
+
+	/* Send */
+	//vtc->channel->tech->write_video(vtc->channel, send);
+	ast_write(chan, send);
+}
+
+
+
+static void SendVideoFrame(struct ast_channel *chan, uint8_t *data, uint32_t size, int first, int last , int fps)
+{
+	uint8_t frameBuffer[PKT_SIZE];
+	struct ast_frame *send = (struct ast_frame *) frameBuffer;
+	uint8_t *frameData = NULL;
+
+	/* Debug */
+  if ( option_debug > 4 )
+    ast_log(LOG_DEBUG,"Send video frame [%p,%d,%d,%d,0x%.2x,0x%.2x,0x%.2x,0x%.2x]\n",send,size,first,last,data[0],data[1],data[2],data[3]);
+
+	/* Check size */
+	if (size+2>PKT_PAYLOAD)
+	{
+		/* Error */
+		ast_log(LOG_ERROR,"Send video frame too large [%d]\n",size);
+		/* Exit */
+		return ;
+	}
+
+	/* clean */
+	memset(send,0,PKT_SIZE);
+
+	/* Set frame data */
+	AST_FRAME_SET_BUFFER(send,send,PKT_OFFSET,0);
+	/* Get the frame pointer */
+	frameData = AST_FRAME_GET_BUFFER(send);
+
+	/* if it$(0#n(Bs first */
+	if (first)
+	{
+		/* Set frame len*/
+		send->datalen = size;
+		/* Copy */
+		memcpy(frameData+2, data+2, size-2);
+		/* Set header */
+		frameData[0] = 0x04;
+		frameData[1] = 0x00; 
+		/* Set timestamp */
+		send->samples = 90000/fps;
+	} else {
+		/* Set frame len */
+		send->datalen = size+2;
+		/* Copy */
+		memcpy(frameData+2, data, size);
+		/* Set header */
+		frameData[0] = 0x00;
+		frameData[1] = 0x00;
+		/* Set timestamp */
+		send->samples = 0;
+	}
+
+	/* Set video type */
+	send->frametype = AST_FRAME_VIDEO;
+	/* Set codec value */
+	send->subclass = AST_FORMAT_H263 | last;
+	/* Rest of values*/
+	send->src = "mp4play";
+	send->delivery = ast_tv(0, 0);
+	/* Don't free the frame outrside */
+	send->mallocd = 0;
+
+	/* Send */
+	ast_write(chan, send);
+}
+
+
+static void SendVideoFrameRFC2190(struct ast_channel *chan, uint8_t* header,uint32_t hSize, uint8_t *data, uint32_t dSize,  int last , int fps)
+{
+
+	uint8_t frameBuffer[PKT_SIZE];
+	struct ast_frame *send = (struct ast_frame *) frameBuffer;
+	uint8_t *frameData = NULL;
+
+  ast_log(LOG_DEBUG,"SendVideoFrameRFC2190 size %d\n",dSize);
+  if ( dSize >H263_FRAME_SIZE ) dSize = H263_FRAME_SIZE ;
+	/* clean */
+	memset(send,0,PKT_SIZE);
+
+	/* Set frame data */
+	AST_FRAME_SET_BUFFER(send,send,PKT_OFFSET,0);
+	/* Get the frame pointer */
+	frameData = AST_FRAME_GET_BUFFER(send);
+
+
+	/* Set frame len*/
+	send->datalen = dSize+hSize;
+	/* Set header */
+	memcpy(frameData, header, hSize );
+	/* Copy */
+	memcpy(frameData+hSize, data, dSize);
+
+	/* Set timestamp */
+	send->samples = 90000/fps;
+	/* Set video type */
+	send->frametype = AST_FRAME_VIDEO;
+	/* Set codec value */
+	send->subclass = AST_FORMAT_H263 | last;
+	/* Rest of values*/
+	send->src = "mp4play";
+	send->delivery = ast_tv(0, 0);
+	/* Don't free the frame outrside */
+	send->mallocd = 0;
+
+	/* Send */
+	//vtc->channel->tech->write_video(vtc->channel, send);
+	ast_write(chan, send);
+}
 
 #define MAX_DTMF_BUFFER_SIZE 25
 
@@ -529,12 +1225,12 @@ static unsigned char silence_amr[] =
 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
-
+#if 0
 static unsigned char silence_amr2[] =
 {
 0x7C,
 };
-
+#endif
 static int mp4_rtp_write_audio_silence(struct mp4track *t, int payload, struct ast_frame *f)
 {	
     /* Unset */
@@ -620,7 +1316,7 @@ static struct ast_frame *decode_redundant_payload( const struct ast_frame * f, s
 	    t_offset  = t_offset >> 2;
 
 	    if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Found red block at offset %d (total length = %d) with payload type %02x timestamp offset %d len %d.\n",
+		ast_log(LOG_DEBUG, "Found red block at offset %d (total length = %ld) with payload type %02x timestamp offset %d len %d.\n",
 			i, srclen, ptype & 0x7F, t_offset, len );
 	    i+=4;
 	}
@@ -774,35 +1470,47 @@ static int mp4_rtp_write_video(struct mp4track *t, struct ast_frame *f, int payl
 	if (payload > 0)
 		MP4AddRtpImmediateData(t->mp4, t->hint, AST_FRAME_GET_BUFFER(f), payload);
 
-	/* If we have to prepend */
-  if (prependLength<0)
+  if (  f->subclass  & AST_FORMAT_H263)
   {
-    /* Prepend data to video buffer */
-    memcpy(t->frame, (char *)prependBuffer, -prependLength);
+    /* Set hint reference to video data */
+		if (option_debug > 4) 
+      ast_log(LOG_DEBUG, "H263 intra[%d] payload[%d] skip[%d] prependLength[%d]\n",
+              intra,payload,skip,prependLength);
 
-    /* Inc length */
-    if (t->length == 0)
-    t->length += -prependLength;
+    /* Depacketize */
+		t->length += rfc2190_append( t->frame,t->length,AST_FRAME_GET_BUFFER(f),f->datalen);
   }
-  else if (prependLength)
- 	{
-	 	/* Prepend data to video buffer */
-		 memcpy(t->frame + t->length, (char*)prependBuffer, prependLength);
+  else
+  {
+    /* If we have to prepend */
+    if (prependLength<0)
+    {
+      /* Prepend data to video buffer */
+      memcpy(t->frame, (char *)prependBuffer, -prependLength);
 
-		 /* Inc length */
-		 t->length += prependLength;
-	 }
+      /* Inc length */
+      if (t->length == 0)
+        t->length += -prependLength;
+    }
+    else if (prependLength)
+    {
+      /* Prepend data to video buffer */
+      memcpy(t->frame + t->length, (char*)prependBuffer, prependLength);
 
-	/* Set hint reference to video data */
-	if (t->hint != -1)
-	MP4AddRtpSampleData(t->mp4, t->hint, t->sampleId, (u_int32_t) t->length, f->datalen - payload - skip);
+      /* Inc length */
+      t->length += prependLength;
+    }
 
-	/* Copy the video data to buffer */
- memcpy(t->frame + t->length , AST_FRAME_GET_BUFFER(f) + payload + skip, f->datalen - payload - skip); 
+    /* Set hint reference to video data */
+    if (t->hint != -1)
+      MP4AddRtpSampleData(t->mp4, t->hint, t->sampleId, (u_int32_t) t->length, f->datalen - payload - skip);
 
-	/* Increase stored buffer length */
-	t->length += f->datalen - payload - skip;	
+    /* Copy the video data to buffer */
+    memcpy(t->frame + t->length , AST_FRAME_GET_BUFFER(f) + payload + skip, f->datalen - payload - skip); 
 
+    /* Increase stored buffer length */
+    t->length += f->datalen - payload - skip;	
+  }
 	/* If it's the las packet in a frame */
 	if (mBit)
 		/* Set first mark */
@@ -830,6 +1538,94 @@ struct mp4rtp {
 	unsigned char type;
 
 };
+
+
+
+static int mp4_video_read(struct mp4rtp *p)
+{
+	int          next = 0;
+	int          last = 0;
+	int          first = 1;
+	u_int8_t*    data  = NULL  ;
+  // MP4Timestamp StartTime ;
+  MP4Duration  Duration ; 
+  // MP4Duration  RenderingOffset;
+  // bool         IsSyncSample = false ;
+  uint32_t     NumBytes = 0;
+  uint32_t     len      = 0;
+  uint32_t     sent     = 0;
+
+  double       fps      = MP4GetTrackVideoFrameRate(p->mp4 , p->track );
+  if (  !MP4ReadSample(p->mp4, 
+                       p->track, 
+                       p->sampleId++,
+                       &data,
+                       &NumBytes,
+                       0,
+                       &Duration,
+                       0,
+                       0) ) 
+  {
+     if ( option_debug > 1 )
+       ast_log(LOG_ERROR, "Error reading H263 packet [%d]\n", p->track);
+    return -1;
+  }
+
+ 
+
+  Duration  = Duration / 90 ;
+  if ( option_debug > 4 )
+    ast_log(LOG_DEBUG, "MP4ReadSample Duration[%d] lenght[%d] @%d \n",(int)Duration,NumBytes,(int)fps );
+#if 0
+  {
+    int idPacket = 0 ; 
+    VIDEO_H263Frame h263_frame ;
+    memset(  &h263_frame , 0 , sizeof(VIDEO_H263Frame));
+    // extract H263 frame information
+    H263_ExtractFrameInfo (data, &h263_frame);
+
+    // Parse frame and data pointer to GOB pointer
+    H263_ParseRfc2190Frame (data,NumBytes , &h263_frame);
+
+    // Build RFC2190 header  
+    H263_BuildRfc2190Header(&h263_frame);
+    while ( idPacket < h263_frame.nb_packet )
+    {
+      if ( idPacket == (h263_frame.nb_packet-1)) last=1;
+      SendVideoFrameRFC2190(p->chan, h263_frame.rtp_header[idPacket].header,h263_frame.rtp_header[idPacket].len, 
+                            h263_frame.rtp_data[idPacket].data ,h263_frame.rtp_data[idPacket].len ,  last , fps);
+      idPacket ++ ;
+    }
+  }
+#else
+#if 1
+  while(sent<NumBytes)
+  {
+    if (sent+H263_FRAME_SIZE>NumBytes)
+    {
+      last = 1;
+      len = NumBytes-sent;
+    } else 
+      len = H263_FRAME_SIZE;
+
+    SendVideoFrameRFC2190_bis(p->chan, &data[sent], len, first, last,fps);
+    first = 0;
+    sent += len;
+  }
+#else
+  ff_rtp_send_h263( p->chan,data,NumBytes,fps);
+#endif
+#endif
+  free(data);
+  
+  next = (Duration)?(int)Duration:(int)(900/fps);
+
+	if (option_debug > 4)
+		ast_log(LOG_DEBUG, "mp4_video_read return [%d]\n", next);
+
+	/* exit next send time */
+	return next;
+}
 
 static int mp4_rtp_read(struct mp4rtp *p, struct ast_frame *f)
 {
@@ -993,6 +1789,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 
 #ifdef VIDEOCAPS
   int VideoNativeID[NATIVE_VIDEO_CODEC_LAST] ;
+  int h263Play   = 0 ;
 #else
   int videoLastId = NO_CODEC;  
 #endif
@@ -1136,8 +1933,8 @@ static int mp4_play(struct ast_channel *chan, void *data)
 
 	/* Iterate hint tracks */
 	while (hintId != MP4_INVALID_TRACK_ID) {
-
-		ast_log(LOG_NOTICE, "found hint track %d\n", hintId);
+    const char* nm = MP4GetTrackMediaDataName(mp4,hintId) ;
+		ast_log(LOG_NOTICE, "found track %d (%s)\n", hintId,nm?nm:"null");
 
 		/* Get asociated track */
 		trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
@@ -1149,7 +1946,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 			type = MP4GetTrackType(mp4, trackId);
 
 			if (type != NULL)
-			ast_log(LOG_NOTICE, "track %d %s\n", trackId, type);
+			ast_log(LOG_NOTICE, "track #[%d] type[%s] :", trackId, type);
 			else
 			ast_log(LOG_NOTICE, "track %d (null)\n", trackId);
 
@@ -1162,7 +1959,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		    MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
 
         if (name)
- 			  ast_log(LOG_NOTICE, "audio track %s\n", name);
+ 			  ast_log(LOG_NOTICE, "audio track codec[%s]\n", name);
  			  else
  			  ast_log(LOG_NOTICE, "audio track (null)\n");
 
@@ -1202,45 +1999,34 @@ static int mp4_play(struct ast_channel *chan, void *data)
 			 	 MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
 
          if (name)
- 			   ast_log(LOG_NOTICE, "video track %s\n", name);
+ 			   ast_log(LOG_NOTICE, "video track codec[%s]\n", name);
  			   else
  			   ast_log(LOG_NOTICE, "video track (null)\n");
 
 
 				 /* Depending on the name */
 #ifdef VIDEOCAPS
-         if (( chan->channelcaps.cap & AST_FORMAT_H263 ) && 
-             (strcmp("H263", name) == 0))
-         {
-           videoBestId = hintId;
-         }
-         else if (  (chan->channelcaps.cap & AST_FORMAT_H263_PLUS ) &&
+         if (  (chan->channelcaps.cap & AST_FORMAT_H263_PLUS ) &&
                     ((strcmp("H263-1998", name)==0)  ||
                      (strcmp("H263-2000", name)==0)  ))
          {
             videoBestId = hintId;
-            ast_log(LOG_NOTICE, "Select videoBestId = %d\n",hintId);
+            ast_log(LOG_NOTICE, "Select H263P videoBestId = %d\n",hintId);
          }
 				 else if ( (chan->channelcaps.cap & AST_FORMAT_H264) &&
                    ( strcmp("H264", name) == 0))
 				 {
            videoBestId = hintId;
-           ast_log(LOG_NOTICE, "Select videoBestId = %d\n",hintId);
+           ast_log(LOG_NOTICE, "Select H264 videoBestId = %d\n",hintId);
          }
-         else if ( (chan->nativeformats & AST_FORMAT_H263 ) && 
-                   (strcmp("H263", name)==0 )) 
-         {
-           VideoNativeID[NATIVE_VIDEO_CODEC_H263] = hintId;
-           ast_log(LOG_NOTICE, "Select videoBestId = %d\n",hintId);
-        }
          else if ((chan->nativeformats & AST_FORMAT_H263_PLUS) &&
                   (( strcmp("H263-1998", name) == 0 ) ||
                    ( strcmp("H263-2000", name) == 0 ) ))
 				 {
            VideoNativeID[NATIVE_VIDEO_CODEC_H263P] = hintId;
-            ast_log(LOG_NOTICE, "VideoNativeID H263P = %d\n",hintId);
+           ast_log(LOG_NOTICE, "VideoNativeID H263P = %d\n",hintId);
          }
-				 else if ((chan->nativeformats & AST_FORMAT_H264 ) &&
+ 				 else if ((chan->nativeformats & AST_FORMAT_H264 ) &&
                   (strcmp("H264", name) == 0) )
          {
            VideoNativeID[NATIVE_VIDEO_CODEC_H264] = hintId;
@@ -1413,8 +2199,26 @@ static int mp4_play(struct ast_channel *chan, void *data)
       }
       idx ++ ;
     }
-    // phv test 
-    //hintId = 4 ;
+
+    if ( hintId == NO_CODEC && (chan->nativeformats & AST_FORMAT_H263 )) 
+    {
+      uint32_t numTracks = MP4GetNumberOfTracks(mp4,0,0);
+      uint32_t i = 0 ;
+      for ( i=0 ; i < numTracks; i++) 
+      {
+        MP4TrackId tId = MP4FindTrackId(mp4, i,0,0);
+        const char* trackType = MP4GetTrackType(mp4, tId);
+        if (!strcmp(trackType, MP4_VIDEO_TRACK_TYPE)) {
+          const char *media_data_name = MP4GetTrackMediaDataName(mp4, tId);
+           if (strcasecmp(media_data_name, "s263") == 0) {
+             ast_log(LOG_WARNING, "mp4_play: Special case of H263 using track %d \n",i);
+             trackId = tId ; 
+             h263Play = 1 ;
+             i = numTracks ;
+           }
+        }
+      }
+    }
   }
 #else
   {
@@ -1439,7 +2243,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
  	  MP4GetHintTrackRtpPayload(mp4, hintId, &video.name, &video.type, NULL, NULL);
 
     if (video.name)
-    ast_log(LOG_NOTICE, "set video track %d %s\n", hintId, video.name);
+      ast_log(LOG_NOTICE, "set video track %d %s\n", hintId, video.name);
   
 	  /* Get time scale */
 		video.timeScale = MP4GetTrackTimeScale(mp4, hintId);
@@ -1454,12 +2258,28 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		else if (strcmp("H263-2000", video.name) == 0)
 		video.frameSubClass = AST_FORMAT_H263_PLUS;
 		else if (strcmp("H264", video.name) == 0)
-		video.frameSubClass = AST_FORMAT_H264;		
+		video.frameSubClass = AST_FORMAT_H264;
   }
 	else
 	{
-	  video.mp4 = MP4_INVALID_FILE_HANDLE;
-	  video.hint = MP4_INVALID_TRACK_ID;
+    if ( h263Play )
+    {
+      video.mp4 = mp4;
+      video.hint = hintId;
+      video.track = trackId;
+      video.sampleId = 1;
+      video.packetIndex = 0;
+      video.frameType = AST_FRAME_VIDEO;  
+      video.name=(char*)h263VideoName;
+      video.frameSubClass = AST_FORMAT_H263;
+      if (video.name)
+        ast_log(LOG_NOTICE, "set video track %d %s\n", trackId, video.name);
+    }
+    else
+    {
+      video.mp4 = MP4_INVALID_FILE_HANDLE;
+      video.hint = MP4_INVALID_TRACK_ID;
+    }
   }
   
 	
@@ -1596,12 +2416,10 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	if (video.mp4 != MP4_INVALID_FILE_HANDLE)
 	{
 		/* Send video */
-		videoNext = mp4_rtp_read(&video, f);
+		videoNext = h263Play?mp4_video_read(&video):mp4_rtp_read(&video, f);
 		if (videoNext > 0)
-    totalVideo += audioNext;
+    totalVideo += videoNext;
   }
-
-	ast_log(LOG_DEBUG, "Play -> total audio %d, video %d\n", totalAudio, totalVideo);
 
 	/* Calculate start time */
 	tv = ast_tvnow();
@@ -1623,7 +2441,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		int ms = t;
 		
 	  if (option_debug > 5)
-		ast_log(LOG_DEBUG, "mp4play Time to wait %d\n", ms);		
+      ast_log(LOG_DEBUG, "mp4play Time to wait %d\n", ms);		
 
 		/* Read from channel and wait timeout */
 		while (ms > 0) {
@@ -1836,7 +2654,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		//if (videoNext<=0 && video.name)
 		if (videoNext<=0 && (video.mp4 != MP4_INVALID_FILE_HANDLE))
 		{
-			videoNext = mp4_rtp_read(&video, f);
+			videoNext = h263Play?mp4_video_read(&video):mp4_rtp_read(&video, f);
 			if (videoNext > 0)
       totalVideo += videoNext;
 		}
@@ -1906,8 +2724,11 @@ static int mp4_save(struct ast_channel *chan, void *data)
   long oldAudioTs = 0L ; 
 	long VideoDuration;
   long AudioDuration;
+  long TextDuration;
 	long lastdurationVideo;
 	long lastdurationAudio;
+  long lastdurationText;
+  
 	unsigned int timestampVideo;
 	unsigned int timestampAudio;
 	int correctionVideo;
@@ -1940,19 +2761,28 @@ static int mp4_save(struct ast_channel *chan, void *data)
   struct timeval CurrVideoTv = { 0 , 0 };
   struct timeval LastVideoTv = { 0 , 0 };
   long long      TimeDiff    = 0L;
+
 	struct timeval video_tvn   = { 0 , 0 };
 	struct timeval video_tvs   = { 0 , 0 };
+	struct timeval text_tvn    = { 0 , 0 };
+	struct timeval text_tvs    = { 0 , 0 };
 	struct timeval audio_tvn   = { 0 , 0 };
 	struct timeval audio_tvs   = { 0 , 0 };
   long long frameDuration    = 0L ;
-  
+
+#ifdef MP4V2
+	MP4TrackId text = -1;
+  struct timeval CurrTextTv  = { 0 , 0 };
+  struct timeval LastTextTv  = { 0 , 0 }; 
+#endif
+
 	videoTrack.mp4 = 0;
 	videoTrack.track = 0;
 	videoTrack.hint = 0;
 	videoTrack.length = 0;
 	videoTrack.first = 0;  
 	videoTrack.intra = 0;  
-	  
+
 	/* Check for file */
 	if (!data)
 		return -1;
@@ -2108,8 +2938,10 @@ static int mp4_save(struct ast_channel *chan, void *data)
  correctionVideo     = 0;
  lastdurationVideo   = 0;
  lastdurationAudio   = 0;
+ lastdurationText    = 0;
  VideoDuration       = 0;
  AudioDuration       = 0;
+ TextDuration        = 0;
 
  if (maxduration <= 0)
    maxduration = -1;
@@ -2132,7 +2964,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
    }
 			
    // ast_log(LOG_DEBUG, "maxduration=%d waires=%d!\n", maxduration, waitres); 
-   audio_tvn = video_tvn = ast_tvnow();
+   audio_tvn = video_tvn = text_tvn = ast_tvnow();
    if ( !(video_tvs.tv_sec) && !(video_tvs.tv_usec ))
    {
      video_tvs = video_tvn ;	 
@@ -2141,6 +2973,11 @@ static int mp4_save(struct ast_channel *chan, void *data)
    if ( !(audio_tvs.tv_sec) && !(audio_tvs.tv_usec ))
    {
      audio_tvs = audio_tvn ;	 
+   }
+
+   if ( !(text_tvs.tv_sec) && !(text_tvs.tv_usec ))
+   {
+     text_tvs = text_tvn ;	 
    }
 
    /* Calculate elapsed */
@@ -2869,6 +3706,9 @@ static int mp4_save(struct ast_channel *chan, void *data)
 #endif
         if (f->subclass == AST_FORMAT_RED)
         {
+
+				
+
 			    /* T140 redondant */
 			    struct ast_frame *pf, *red[MAX_REDUNDANCY_LEVEL];
 
@@ -2889,6 +3729,34 @@ static int mp4_save(struct ast_channel *chan, void *data)
             fwrite( pf->data , pf->datalen, 1, textFile );
 #endif
             
+#ifdef MP4V2
+            // Write text on subtitle track 
+            {
+				
+              if (text == -1)
+              {
+                text = MP4AddSubtitleTrack(mp4,1000,0,0);
+              }
+              if (text != -1)
+                // build duration 
+                TextDuration = ast_tvdiff_ms(text_tvn,text_tvs);	
+              text_tvs = text_tvn ;
+              MP4Duration frameduration = (TextDuration - lastdurationText) * 8;
+              lastdurationText = TextDuration;
+              //Create data to send
+              char* data = (char*)malloc(pf->datalen+2);
+              //Set size
+              data[0] = pf->datalen >>8;
+              data[1] = pf->datalen & 0xFF;
+              //Copy text
+              memcpy(data+2,pf->data,pf->datalen );
+              //Write sample
+              MP4WriteSample( mp4, text , data, pf->datalen+2, frameduration, 0, false );
+              free(data);
+            }
+          }
+#endif
+
 #ifndef DEBUG_TEXT_ON_FILE
             if ( (IdxTxtBuff + pf->datalen) < AST_MAX_TXT_SIZE )
             {
@@ -2938,8 +3806,12 @@ static int mp4_save(struct ast_channel *chan, void *data)
               }
               else if (IdxTxtBuff < AST_MAX_TXT_SIZE )
               {
-                // write txt on tmp buff 
-                txtBuff[IdxTxtBuff]= ((char*)f->data)[idx];
+                if ( isprint(((char*)f->data)[idx]) )
+                {
+                  // write txt on tmp buff 
+                  txtBuff[IdxTxtBuff]= ((char*)f->data)[idx];
+                }
+                else if (option_debug > 2) ast_log(LOG_WARNING , "Ignore char idx[%d] :[0x%x]\n",(int)IdxTxtBuff,((char*)f->data)[IdxTxtBuff]);
                 IdxTxtBuff ++ ;
               }
               else
