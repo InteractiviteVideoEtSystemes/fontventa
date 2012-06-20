@@ -115,9 +115,6 @@ typedef enum
 
 
 
-// for debuging text on mp4 file
-// #define DEBUG_TEXT_ON_FILE 1
-// #define DEBUG_TEXT "/tmp/txt2mp4.txt"
 
 static const char mark_cut_txt[]=" Buff too small supress end of text";
 static const char h263VideoName[]="H.263" ; 
@@ -1273,26 +1270,7 @@ static int mp4_rtp_write_audio_silence(struct mp4track *t, int payload, struct a
     return 0;
 }
 
-#ifdef DEBUG_TEXT_ON_FILE
-/* IVeS - open text file to store */
-static FILE * open_text_file(const char * p_orig_filename)
-{
-    FILE *fd = NULL;
-    char nvnom[256];
 
-    strcpy(nvnom,  p_orig_filename);
-    strcat(nvnom, ".txt");
-
-    fd = fopen(nvnom, "w");
-    
-    if (fd == NULL)
-    {
-	ast_log(LOG_WARNING, "Failed to open text file %s.\n", nvnom);
-    }
-
-    return fd;
-}
-#endif
 /* Extract payload according to RFC 2198 */
 #define MAX_REDUNDANCY_LEVEL 4
 #define min(X, Y)  ((X) < (Y) ? (X) : (Y))
@@ -2746,9 +2724,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
   int haveText            =  chan->nativeformats & AST_FORMAT_TEXT_MASK ;  
 	//Text handling
 	int saveText = 1;  // force this param because it is not present in vxml
-#ifdef DEBUG_TEXT_ON_FILE
-	FILE * textFile = NULL;
-#endif
+
   char   txtBuff[AST_MAX_TXT_SIZE] = { '\n' } ;
   size_t IdxTxtBuff = 1 ;
 	
@@ -2861,13 +2837,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    return -1;
 	}
 
-	/* Create text file if needed */
-	if (saveText)
-	{
-#ifdef DEBUG_TEXT_ON_FILE
-	    textFile =  open_text_file(  (char*) data );
-#endif
-	}
+
 
  /* Disable verbosity */
  MP4SetVerbosity(mp4, 0);
@@ -3700,69 +3670,49 @@ static int mp4_save(struct ast_channel *chan, void *data)
 		}
 		else if (f->frametype == AST_FRAME_TEXT) 
 		{
-#ifdef DEBUG_TEXT_ON_FILE
-      if (textFile != NULL)
-      {
-#endif
         if (f->subclass == AST_FORMAT_RED)
         {
-
-				
-
 			    /* T140 redondant */
 			    struct ast_frame *pf, *red[MAX_REDUNDANCY_LEVEL];
 
 			    pf = decode_redundant_payload( f, red );
 			    if (pf != NULL && pf->datalen > 0 )  
 			    {
-            if (option_debug > 2)
-            {
-              char txt[200];
-
-              strncpy(txt, pf->data, 200);
-              txt[pf->datalen] = '\0';
-              ast_log(LOG_DEBUG, "Saving %d char of redundant text : [0x%X] %s.\n", 
-                      pf->datalen,((char*)f->data)[0], txt);
-            }
-
-#ifdef DEBUG_TEXT_ON_FILE
-            fwrite( pf->data , pf->datalen, 1, textFile );
-#endif
-            
-#ifdef MP4V2
-            // Write text on subtitle track 
-            {
-				
-              if (text == -1)
-              {
-                text = MP4AddSubtitleTrack(mp4,1000,0,0);
-              }
-              if (text != -1)
-                // build duration 
-                TextDuration = ast_tvdiff_ms(text_tvn,text_tvs);	
-              text_tvs = text_tvn ;
-              MP4Duration frameduration = (TextDuration - lastdurationText) * 8;
-              lastdurationText = TextDuration;
-              //Create data to send
-              char* data = (char*)malloc(pf->datalen+2);
-              //Set size
-              data[0] = pf->datalen >>8;
-              data[1] = pf->datalen & 0xFF;
-              //Copy text
-              memcpy(data+2,pf->data,pf->datalen );
-              //Write sample
-              MP4WriteSample( mp4, text , data, pf->datalen+2, frameduration, 0, false );
-              free(data);
-            }
-          }
-#endif
-
-#ifndef DEBUG_TEXT_ON_FILE
+            int idx = 0 ;
             if ( (IdxTxtBuff + pf->datalen) < AST_MAX_TXT_SIZE )
             {
-              // write txt on tmp buff 
-              memcpy( &txtBuff[IdxTxtBuff],pf->data,pf->datalen);
-              IdxTxtBuff += pf->datalen ;
+              if (option_debug > 1)
+              {
+                char txt[200];
+                strncpy(txt, pf->data, 200);
+                txt[pf->datalen] = '\0';
+                ast_log(LOG_DEBUG, "Saving %d char of redundant text : [%s].\n", 
+                        pf->datalen, txt);
+              }
+
+              while ( idx <  pf->datalen )
+              {
+                if ( (((char*)pf->data)[idx] == 0x08) && ( IdxTxtBuff > 1 )  )
+                {
+                  // 08  == $(B!G(B\b$(B!G(B (effacement arrière)  
+                  IdxTxtBuff -- ;
+                }
+                else if (IdxTxtBuff < AST_MAX_TXT_SIZE )
+                {
+                  // write txt on tmp buff 
+                  txtBuff[IdxTxtBuff]= ((char*)pf->data)[idx];
+                  IdxTxtBuff ++ ;
+                  txtBuff[IdxTxtBuff]=0;
+                  ast_log(LOG_DEBUG, ">%s\n",txtBuff);
+                }
+                else
+                {
+                  ast_log(LOG_WARNING , "Size of buff are too small (%d) "
+                          "- or buff are emptye and char is 0x08,"
+                          " can't save all the text\n",AST_MAX_TXT_SIZE);
+                }
+                idx++;
+              }
             }
             else
             {
@@ -3777,7 +3727,6 @@ static int mp4_save(struct ast_channel *chan, void *data)
               txtBuff[AST_MAX_TXT_SIZE]=0;
               IdxTxtBuff = AST_MAX_TXT_SIZE ;
             }
-#endif
 			    }
 
 			    int i;
@@ -3791,12 +3740,9 @@ static int mp4_save(struct ast_channel *chan, void *data)
 			    if (f->datalen > 0) 
 			    {
             int idx = 0 ;
-            if (option_debug > 2)
-              //char a = (char)f->data[0];
+            if (option_debug > 1)
               ast_log(LOG_DEBUG, "Saving %d [0x%X] char of text.\n", f->datalen,((char*)f->data)[0]);
-#ifdef DEBUG_TEXT_ON_FILE
-            fwrite( f->data, f->datalen, 1, textFile );
-#endif
+
             while ( idx <  f->datalen )
             {
               if ( (((char*)f->data)[idx] == 0x08) && ( IdxTxtBuff > 1 )  )
@@ -3806,13 +3752,13 @@ static int mp4_save(struct ast_channel *chan, void *data)
               }
               else if (IdxTxtBuff < AST_MAX_TXT_SIZE )
               {
-                if ( isprint(((char*)f->data)[idx]) )
+                if ( isprint( ((char*)f->data)[idx]) )
                 {
                   // write txt on tmp buff 
                   txtBuff[IdxTxtBuff]= ((char*)f->data)[idx];
+                  IdxTxtBuff ++ ;
                 }
-                else if (option_debug > 2) ast_log(LOG_WARNING , "Ignore char idx[%d] :[0x%x]\n",(int)IdxTxtBuff,((char*)f->data)[IdxTxtBuff]);
-                IdxTxtBuff ++ ;
+                else  ast_log(LOG_WARNING , "Ignore char idx[%d] car. code[0x%x]\n",(int)IdxTxtBuff,((char*)f->data)[idx]);
               }
               else
               {
@@ -3824,9 +3770,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
             }
 			    }
         }
-#ifdef DEBUG_TEXT_ON_FILE
-      }
-#endif
+
 		}
 
 		/* If we have frame */
@@ -3843,45 +3787,9 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	}
 
 
-#ifdef DEBUG_TEXT_ON_FILE
-	if (textFile) 
-  {
-    fclose(textFile);
-    {
-      int fileId    = open(DEBUG_TEXT,O_RDONLY);
-      size_t szRead = 0 ;
-      if ( fileId != -1 )
-      {
-        ast_log(LOG_WARNING , "DEBUG_TEXT_ON_FILE : read txt from file %s",DEBUG_TEXT);
-        szRead = read(fileId,txtBuff,AST_MAX_TXT_SIZE );
-        
-        if ( (IdxTxtBuff + szRead ) == AST_MAX_TXT_SIZE )
-        {
-          ast_log(LOG_WARNING , "Size of buff are too small (%d),"
-                  " can't save all the text\n",AST_MAX_TXT_SIZE);
-          // buf too small , print a marker for futur information 
-          size_t szMark = sizeof(mark_cut_txt);
-          memcpy( &txtBuff[AST_MAX_TXT_SIZE - szMark], mark_cut_txt,szMark);
-          txtBuff[AST_MAX_TXT_SIZE]=0;
-          IdxTxtBuff = AST_MAX_TXT_SIZE ;
-        }
-        else
-        {
-          IdxTxtBuff = szRead ;
-        }
-        close(fileId);
-      }
-      else
-      {
-        ast_log(LOG_ERROR , "DEBUG_TEXT_ON_FILE : open file %s failed : %s\n",
-                DEBUG_TEXT,strerror(errno));
-      }
-    }
-  }
-#endif
   if ( IdxTxtBuff > 1 )
   {
-    if (option_debug > 2)
+    if (option_debug > 1)
     {
       ast_log(LOG_DEBUG, "Save text on mpa4 : %s.\n", 
              txtBuff );
