@@ -757,7 +757,7 @@ AddAudioTracks()
 # =============================================================================
 create_flv_file()
 {
-    cmd="${BIN_PATH}/ffmpeg -y -i $inFile -s 320x240 -ar 22050 -r 25 -f flv  $outFile"
+    cmd="${BIN_PATH}/ffmpeg -y -i $inFile   -s 320x240 -ar 22050 -r 25 -f flv $METATDATA_RTP  $outFile"
     printLine "Create flv file : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -773,7 +773,7 @@ create_flv_file()
 
 create_flv_file_from_org()
 {
-    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile -s 320x240 -ar 22050 -r 25 -f flv  $outFile"
+    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile   -s 320x240 -ar 22050 -r 25 -f flv $METATDATA_RTP  $outFile"
     printLine "Create flv file (from org) : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -792,7 +792,7 @@ create_flv_file_from_org()
 # =============================================================================
 create_Mp4H264MP3_file()
 {
-    cmd="${BIN_PATH}/ffmpeg -y -i $inFile $METATDATA_RTP -vcodec libx264  -acodec libamr_nb -ac 1 -ab 12200 -ar 8000   $outFile"
+    cmd="${BIN_PATH}/ffmpeg -y -i $inFile  -vcodec libx264 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 $METATDATA_RTP  $outFile.mp4"
     printLine "Create mp4 light ( h264/amr ) file : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -802,13 +802,14 @@ create_Mp4H264MP3_file()
         PrintFailed
         exit
     else 
+        mv  $outFile.mp4  $outFile
         PrintOK
     fi
 }
 
 create_Mp4H264MP3_file_from_org()
 {
-    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile $METATDATA_RTP -vcodec libx264 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000  $outFile"
+    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile -vcodec libx264 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000  $METATDATA_RTP   $outFile.mp4"
     printLine "Create mp4 light ( h264/amr ) file (from org) : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -818,6 +819,7 @@ create_Mp4H264MP3_file_from_org()
         PrintFailed
         exit
     else 
+        mv  $outFile.mp4  $outFile
         PrintOK
     fi
 }
@@ -827,8 +829,8 @@ create_Mp4H264MP3_file_from_org()
 # =============================================================================
 create_3gp_file()
 {
-    cmd="${BIN_PATH}/ffmpeg -y -i $inFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
-         -bt $V_BR_TOLERANCE_H264 -ar 22050 -r 25 -ar 8000 -ab 12.2k -ac 1  $outFile"
+    cmd="${BIN_PATH}/ffmpeg -y -i $inFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -ar 22050 -r 25 -ar 8000 -ab 12.2k -ac 1  $METATDATA_RTP  $outFile"
     printLine "Create 3gp file : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -844,8 +846,8 @@ create_3gp_file()
 
 create_3gp_file_from_org()
 {
-    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
-         -bt $V_BR_TOLERANCE_H264 -ar 22050 -r 25 -ar 8000 -ab 12.2k -ac 1   $outFile "
+    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile   $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -ar 22050 -r 25 -ar 8000 -ab 12.2k -ac 1  $METATDATA_RTP  $outFile "
     printLine "Create 3gp file (from org) : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
