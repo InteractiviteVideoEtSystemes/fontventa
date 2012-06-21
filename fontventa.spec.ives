@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   0.5.0
+Version:   0.5.1
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -44,6 +44,9 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Tue Jun 21 2012 Philippe Verney <philippe.verney@ives.fr> 
+- version 0.5.1
+- Add rtp stat on file   
 * Tue Jun 20 2012 Philippe Verney <philippe.verney@ives.fr> 
 - version 0.5.0
 - Fix h263 play/rec , fix T140 record msg
