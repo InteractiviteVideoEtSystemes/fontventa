@@ -3218,6 +3218,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
             int idx = 0 ;
             if ( (IdxTxtBuff + pf->datalen) < AST_MAX_TXT_SIZE )
             {
+              suppressT140BOM((char*)pf->data ,(size_t*)&pf->datalen );
               if (option_debug > 1)
               {
                 char txt[200];
@@ -3277,6 +3278,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 			    if (f->datalen > 0) 
 			    {
             int idx = 0 ;
+            suppressT140BOM( (char*)f->data , (size_t*)&f->datalen );
             if (option_debug > 1)
               ast_log(LOG_DEBUG, "Saving %d [0x%X] char of text.\n", f->datalen,((char*)f->data)[0]);
 
@@ -3325,9 +3327,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 
 
   if ( IdxTxtBuff > 1 )
-  {
-    size_t sz = strlen(txtBuff);
-    suppressT140BOM(txtBuff,&sz );
+  {  
     if (option_debug > 1)
     {
       ast_log(LOG_DEBUG, "Save text on mp4 : %s.\n", 
@@ -3377,10 +3377,13 @@ static void suppressT140BOM(char* buff,size_t* sz )
 
 	char bomUtf16[KEEP_ALIVE_BOM_UTF16_SZ]	= KEEP_ALIVE_BOM_UTF16;
 	char bomUtf8[KEEP_ALIVE_BOM_UTF8_SZ]	= KEEP_ALIVE_BOM_UTF8;
-  char * seq = buff;
+  char*  seq = buff;
   size_t len = *sz ;
+
   if (option_debug > 1)
     ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%ld]\n",buff,len);
+
+
 	while ( seq != NULL && buff != NULL && len > 0 )
 	{
     if (option_debug > 1)
