@@ -3326,11 +3326,11 @@ static int mp4_save(struct ast_channel *chan, void *data)
 
   if ( IdxTxtBuff > 1 )
   {
+    size_t sz = strlen(txtBuff);
+    suppressT140BOM(txtBuff,&sz );
     if (option_debug > 1)
     {
-      size_t sz = strlen(txtBuff);
-      suppressT140BOM(txtBuff,&sz );
-      ast_log(LOG_DEBUG, "Save text on mpa4 : %s.\n", 
+      ast_log(LOG_DEBUG, "Save text on mp4 : %s.\n", 
              txtBuff );
     }
     if ( !MP4SetMetadataComment(mp4,txtBuff) )
@@ -3379,8 +3379,12 @@ static void suppressT140BOM(char* buff,size_t* sz )
 	char bomUtf8[KEEP_ALIVE_BOM_UTF8_SZ]	= KEEP_ALIVE_BOM_UTF8;
   char * seq = buff;
   size_t len = *sz ;
+  if (option_debug > 1)
+    ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%ld]\n",buff,len);
 	while ( seq != NULL && buff != NULL && len > 0 )
 	{
+    if (option_debug > 1)
+      ast_log(LOG_DEBUG, "Find bom on:%s\n",buff);
 		seq = strstr( buff, bomUtf16 );
 		if (seq != NULL)
 		{
