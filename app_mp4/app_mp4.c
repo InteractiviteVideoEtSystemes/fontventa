@@ -228,7 +228,7 @@ struct RFC2190H263HeadersBasic
 #define H263_HEADER_MODE_A_SIZE 4
 #define H263_HEADER_MODE_B_SIZE 8
 #define H263_HEADER_MODE_C_SIZE 12
-static void suppressT140BOM(char* buff,size_t* sz );
+static int suppressT140BOM(char* buff,int sz );
 
 static uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32_t bufferLen)
 {
@@ -3218,7 +3218,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
             int idx = 0 ;
             if ( (IdxTxtBuff + pf->datalen) < AST_MAX_TXT_SIZE )
             {
-              suppressT140BOM((char*)pf->data ,(size_t*)&pf->datalen );
+              pf->datalen = suppressT140BOM((char*)pf->data ,pf->datalen );
               if (option_debug > 1)
               {
                 char txt[200];
@@ -3278,7 +3278,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 			    if (f->datalen > 0) 
 			    {
             int idx = 0 ;
-            suppressT140BOM( (char*)f->data , (size_t*)&f->datalen );
+            f->datalen = suppressT140BOM( (char*)f->data , f->datalen );
             if (option_debug > 1)
               ast_log(LOG_DEBUG, "Saving %d [0x%X] char of text.\n", f->datalen,((char*)f->data)[0]);
 
@@ -3367,7 +3367,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 }
 
 
-static void suppressT140BOM(char* buff,size_t* sz )
+static int suppressT140BOM(char* buff,int sz )
 {
 #define KEEP_ALIVE_BOM_UTF8         {0xEF,0xBB,0xBF}
 #define KEEP_ALIVE_BOM_UTF8_SZ      3
@@ -3378,7 +3378,7 @@ static void suppressT140BOM(char* buff,size_t* sz )
 	char bomUtf16[KEEP_ALIVE_BOM_UTF16_SZ]	= KEEP_ALIVE_BOM_UTF16;
 	char bomUtf8[KEEP_ALIVE_BOM_UTF8_SZ]	= KEEP_ALIVE_BOM_UTF8;
   char*  seq = buff;
-  size_t len = *sz ;
+  size_t len = (size_t)sz ;
 
   if (option_debug > 1)
     ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%ld]\n",buff,len);
@@ -3417,9 +3417,9 @@ static void suppressT140BOM(char* buff,size_t* sz )
       seq[lgRestante]=0;
 		}
 		len = strlen(buff);
-    *sz = len ;
 	}
   buff[len]=0;
+  return len;
 }
 
 static int unload_module(void)
