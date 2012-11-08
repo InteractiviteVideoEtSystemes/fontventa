@@ -228,7 +228,7 @@ struct RFC2190H263HeadersBasic
 #define H263_HEADER_MODE_A_SIZE 4
 #define H263_HEADER_MODE_B_SIZE 8
 #define H263_HEADER_MODE_C_SIZE 12
-static int suppressT140BOM(char* buff,int sz );
+static int suppressT140BOM(unsigned char* buff,int sz );
 
 static uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32_t bufferLen)
 {
@@ -3218,7 +3218,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
             int idx = 0 ;
             if ( (IdxTxtBuff + pf->datalen) < AST_MAX_TXT_SIZE )
             {
-              pf->datalen = suppressT140BOM((char*)pf->data ,pf->datalen );
+              pf->datalen = suppressT140BOM((unsigned char*)pf->data ,pf->datalen );
               if (option_debug > 1)
               {
                 char txt[200];
@@ -3278,7 +3278,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 			    if (f->datalen > 0) 
 			    {
             int idx = 0 ;
-            f->datalen = suppressT140BOM( (char*)f->data , f->datalen );
+            f->datalen = suppressT140BOM( (unsigned char*)f->data , f->datalen );
             if (option_debug > 1)
               ast_log(LOG_DEBUG, "Saving %d [0x%X] char of text.\n", f->datalen,((char*)f->data)[0]);
 
@@ -3367,7 +3367,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 }
 
 
-static int suppressT140BOM(char* buff,int sz )
+static int suppressT140BOM(unsigned char* buff,int sz )
 {
 #define KEEP_ALIVE_BOM_UTF8         {0xEF,0xBB,0xBF}
 #define KEEP_ALIVE_BOM_UTF8_SZ      3
@@ -3375,9 +3375,9 @@ static int suppressT140BOM(char* buff,int sz )
 #define KEEP_ALIVE_BOM_UTF16        { 0xFE , 0xFF }
 #define KEEP_ALIVE_BOM_UTF16_SZ     2
 
-	char bomUtf16[KEEP_ALIVE_BOM_UTF16_SZ]	= KEEP_ALIVE_BOM_UTF16;
-	char bomUtf8[KEEP_ALIVE_BOM_UTF8_SZ]	= KEEP_ALIVE_BOM_UTF8;
-  char*  seq = buff;
+	unsigned char bomUtf16[KEEP_ALIVE_BOM_UTF16_SZ]	= KEEP_ALIVE_BOM_UTF16;
+	unsigned char bomUtf8[KEEP_ALIVE_BOM_UTF8_SZ]	= KEEP_ALIVE_BOM_UTF8;
+  unsigned char*  seq = buff;
   int len = sz ;
 
   if (option_debug > 1)
