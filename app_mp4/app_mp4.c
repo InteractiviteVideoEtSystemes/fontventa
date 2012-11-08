@@ -3394,6 +3394,7 @@ static void suppressT140BOM(char* buff,size_t* sz )
        // On decale le reste de la chaine pour supprimer le BOM
        int lgRestante = len - ( seq - buff );
        memmove( seq, seq + 1, lgRestante );
+      seq[lgRestante]=0;
 		}		
 		len = strlen(buff);
 		
@@ -3413,6 +3414,7 @@ static void suppressT140BOM(char* buff,size_t* sz )
 			// On decale le reste de la chaine pour supprimer le BOM
 			int lgRestante = len - ( seq - buff ) - 2;
 			memmove( seq, seq + 3, lgRestante ) ;
+      seq[lgRestante]=0;
 		}
 		len = strlen(buff);
     *sz = len ;
