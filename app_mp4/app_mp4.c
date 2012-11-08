@@ -3381,7 +3381,7 @@ static int suppressT140BOM(char* buff,int sz )
   size_t len = (size_t)sz ;
 
   if (option_debug > 1)
-    ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%ld]\n",buff,len);
+    ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%ld]  [0x%X][0x%x][0x%x] \n",buff,len,buff[0],buff[1],buff[2]);
 
 
 	while ( seq != NULL && buff != NULL && len > 0 )
