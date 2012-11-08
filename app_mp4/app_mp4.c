@@ -228,7 +228,7 @@ struct RFC2190H263HeadersBasic
 #define H263_HEADER_MODE_A_SIZE 4
 #define H263_HEADER_MODE_B_SIZE 8
 #define H263_HEADER_MODE_C_SIZE 12
-
+static void suppressT140BOM(char* buff,size_t* sz );
 
 static uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32_t bufferLen)
 {
@@ -3328,6 +3328,8 @@ static int mp4_save(struct ast_channel *chan, void *data)
   {
     if (option_debug > 1)
     {
+      size_t sz = strlen(txtBuff);
+      suppressT140BOM(txtBuff,&sz );
       ast_log(LOG_DEBUG, "Save text on mpa4 : %s.\n", 
              txtBuff );
     }
@@ -3339,7 +3341,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 
   {    
     char rtpStat[_STR_CODEC_SIZE]= { 0 } ;
-    snprintf( rtpStat , _STR_CODEC_SIZE , "Quality_stat_audio_lost=%d,__video_lost=%d,__text_lost=%d.",
+    snprintf( rtpStat , _STR_CODEC_SIZE , "Quality_stat_audLost=%d,__vidLost=%d,__txtLost=%d.",
               lostAudioPacket, lostVideoPacket ,lostTextPacket );
     if (lostAudioPacket||lostVideoPacket||lostTextPacket)
     {
@@ -3362,6 +3364,55 @@ static int mp4_save(struct ast_channel *chan, void *data)
 
 	//Success
 	return 0;
+}
+
+
+static void suppressT140BOM(char* buff,size_t* sz )
+{
+#define KEEP_ALIVE_BOM_UTF8         {0xEF,0xBB,0xBF}
+#define KEEP_ALIVE_BOM_UTF8_SZ      3
+
+#define KEEP_ALIVE_BOM_UTF16        { 0xFE , 0xFF }
+#define KEEP_ALIVE_BOM_UTF16_SZ     2
+
+	char bomUtf16[KEEP_ALIVE_BOM_UTF16_SZ]	= KEEP_ALIVE_BOM_UTF16;
+	char bomUtf8[KEEP_ALIVE_BOM_UTF8_SZ]	= KEEP_ALIVE_BOM_UTF8;
+  char * seq = buff;
+  size_t len = *sz ;
+	while ( seq != NULL && buff != NULL && len > 0 )
+	{
+		seq = strstr( buff, bomUtf16 );
+		if (seq != NULL)
+		{
+			 if (option_debug > 1)
+         ast_log(LOG_DEBUG, " UTF 16 BOM detected.\n");
+       // On decale le reste de la chaine pour supprimer le BOM
+       int lgRestante = len - ( seq - buff );
+       memmove( seq, seq + 1, lgRestante );
+		}		
+		len = strlen(buff);
+		
+		if (len > 3)
+		{
+			seq = strstr( buff, bomUtf8 );
+		}
+		else
+		{
+			seq = NULL;
+		}
+		
+		if (seq != NULL)
+		{
+		 if (option_debug > 1)
+         ast_log(LOG_DEBUG, " UTF 8 BOM detected.\n");
+			// On decale le reste de la chaine pour supprimer le BOM
+			int lgRestante = len - ( seq - buff ) - 2;
+			memmove( seq, seq + 3, lgRestante ) ;
+		}
+		len = strlen(buff);
+    *sz = len ;
+	}
+  buff[len]=0;
 }
 
 static int unload_module(void)
