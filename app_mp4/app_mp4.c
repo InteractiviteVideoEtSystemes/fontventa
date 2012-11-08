@@ -3386,8 +3386,6 @@ static void suppressT140BOM(char* buff,size_t* sz )
 
 	while ( seq != NULL && buff != NULL && len > 0 )
 	{
-    if (option_debug > 1)
-      ast_log(LOG_DEBUG, "Find bom on:%s\n",buff);
 		seq = strstr( buff, bomUtf16 );
 		if (seq != NULL)
 		{
