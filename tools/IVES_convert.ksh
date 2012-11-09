@@ -48,8 +48,8 @@ V_FFMPEG_OPTS_H263_GOOD="-g 8  -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -s
 
 
 V_SIZE_H264="cif"
-V_FPS_H264=25
-V_BITRATE_H264=340000
+V_FPS_H264=15
+V_BITRATE_H264=240000
 V_BR_TOLERANCE_H264=10000
 V_FFMPEG_OPTS_H264="-g 250 -max_slice_size 1300 -level 13 -qmin 2 -qmax 35 -me_method hex "
 
@@ -810,7 +810,7 @@ create_flv_file_from_org()
 # =============================================================================
 create_Mp4H264MP3_file()
 {
-    cmd="${BIN_PATH}/ffmpeg -y -i $inFile -vcodec libx264  -acodec libamr_nb -ac 1 -ab 12200 -ar 8000   $outFile"
+    cmd="${BIN_PATH}/ffmpeg -y -i $inFile -vcodec libx264 -s $V_SIZE_H264 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000   $outFile"
     printLine "Create mp4 light ( h264/amr ) file : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -826,7 +826,7 @@ create_Mp4H264MP3_file()
 
 create_Mp4H264MP3_file_from_org()
 {
-    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile -vcodec libx264 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000  $outFile"
+    cmd="${BIN_PATH}/ffmpeg -y -i $tmpWorkOrgFile -vcodec libx264 -s $V_SIZE_H264 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000  $outFile"
     printLine "Create mp4 light ( h264/amr ) file (from org) : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
