@@ -3377,13 +3377,40 @@ static int suppressT140BOM(unsigned char* buff,int sz )
 
 	unsigned char bomUtf16[KEEP_ALIVE_BOM_UTF16_SZ]	= KEEP_ALIVE_BOM_UTF16;
 	unsigned char bomUtf8[KEEP_ALIVE_BOM_UTF8_SZ]	= KEEP_ALIVE_BOM_UTF8;
-  unsigned char*  seq = buff;
   int len = sz ;
 
   if (option_debug > 1)
     ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%d]  [0x%X][0x%x][0x%x] \n",buff,len,buff[0],buff[1],buff[2]);
 
+  if (  buff != NULL && len > KEEP_ALIVE_BOM_UTF16_SZ ){
+    int i = 0 ;
+    for ( i = 0 ; i < len ; i++ )
+    {
+      if ( (i + KEEP_ALIVE_BOM_UTF8_SZ ) <= len )
+      {
+        if ( buff[i]==bomUtf8[0] && buff[i+1]==bomUtf8[1] && buff[i+2]==bomUtf8[2] )
+        {
+          ast_log(LOG_DEBUG, " UTF 8 BOM detected.\n");
+          int lgRestante = len - i - KEEP_ALIVE_BOM_UTF8_SZ ;
+          memmove(  &buff[i],  &buff[i + KEEP_ALIVE_BOM_UTF8_SZ], lgRestante );
+          len-=KEEP_ALIVE_BOM_UTF8_SZ;
+        }
+      }
 
+      if ( (i + KEEP_ALIVE_BOM_UTF16_SZ ) <= len ){
+        if ( buff[i]==bomUtf16[0] && buff[i+1]==bomUtf16[1]  )
+        {
+          ast_log(LOG_DEBUG, " UTF 16 BOM detected.\n");
+          int lgRestante = len - i - KEEP_ALIVE_BOM_UTF16_SZ ;
+          memmove(  &buff[i],  &buff[i + KEEP_ALIVE_BOM_UTF16_SZ], lgRestante );
+          len-=KEEP_ALIVE_BOM_UTF16_SZ;
+        }
+      }
+    }
+  }
+ #if 0
+
+  unsigned char*  seq = buff;
 	while ( seq != NULL && buff != NULL && len > 0 )
 	{
 	
@@ -3423,7 +3450,9 @@ static int suppressT140BOM(unsigned char* buff,int sz )
       len-=KEEP_ALIVE_BOM_UTF16_SZ;
 		}
 	}
+#endif
   buff[len]=0;
+
   if (option_debug > 1)
     ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%d]  [0x%X][0x%x][0x%x] \n",buff,len,buff[0],buff[1],buff[2]);
   return len;
