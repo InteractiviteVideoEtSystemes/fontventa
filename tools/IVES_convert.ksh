@@ -51,7 +51,7 @@ V_SIZE_H264="cif"
 V_FPS_H264=15
 V_BITRATE_H264=240000
 V_BR_TOLERANCE_H264=10000
-V_FFMPEG_OPTS_H264="-g 250 -max_slice_size 1300 -level 13 -qmin 2 -qmax 35 -me_method hex "
+V_FFMPEG_OPTS_H264="-g 250 -max_slice_size 1000 -level 13 -qmin 2 -qmax 35 -me_method hex "
 
 # =============================================================================
 # Constant de travail
