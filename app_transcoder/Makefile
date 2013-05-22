@@ -41,7 +41,7 @@ INSTALL = install
 CC = gcc 
 
 INCLUDE = -I$(FFMPEGDIR) -I$(FFMPEGDIR)/libavcodec -I$(FFMPEGDIR)/libswscale
-LIBS = -L$(FFMPEGDIR)/libavcodec -L$(FFMPEGDIR)/libavutil -lavcodec -lavutil -lswscale
+LIBS = -lavcodec -lavutil -lswscale -lx264
 DEBUG := -g 
 
 CFLAGS = -DAST_MODULE=\"app_transcoder\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE -fPIC
@@ -56,7 +56,7 @@ clean:
 	rm -f *.so *.o $(OBJS)
 
 app_transcoder.so : $(OBJS)
-	$(CC) -g -shared -Xlinker -x -o $@ $(OBJS) $(LIBS) 
+	$(CC) -g -shared -Xlinker -x -o $@ $(OBJS) -Wl,-Bstatic  $(LIBS) -Wl,-Bdynamic
 
 install: all
 	@if [ "`uname -m`" == "x86_64" ] ; then make install64 ; else make install32 ; fi

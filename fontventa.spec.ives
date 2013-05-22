@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   0.5.2
+Version:   0.5.3
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -44,7 +44,9 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
-#date +"%a %b %d %Y"
+* Wed May 22 2013 Emmanuel BUU <emmannuel.buu@ives.fr>
+- static link with FFMPEG and X264
+- version 0.5.3
 * Fri Nov 09 2012 Philippe Verney <philippe.verney@ives.fr> 
 - version 0.5.2
 - Add filter BOM on T140
