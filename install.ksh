@@ -10,6 +10,8 @@ then
 else
 	DESTDIR_LIB=/usr/lib
 fi
+echo "SYS_LIB=$DESTDIR_LIB" >Makeinclude
+
 #RPepertoire d'installation des fichiers so
 DESTDIR_MOD=$DESTDIR_LIB/asterisk/modules
 #Repertoire d'installation du fichier mp4tool
