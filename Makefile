@@ -1,3 +1,5 @@
+include ./Makeinclude
+
 all: app_h324m.so app_mp4.so app_transcoder.so app_rtsp.so astlog
 	echo "FOntventa compile"
 
