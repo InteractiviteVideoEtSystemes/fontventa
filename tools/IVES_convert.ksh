@@ -220,9 +220,10 @@ usage()
 # =============================================================================
 MakeOutFilename()
 {
+
+    suffixe $inFile ;
     if [ "$outFile" == "" ]
         then 
-        suffixe $inFile ;
         if [ $Mp4H264MP3File -eq 1  ]
             then outFile=`basename $inFile $mimetype`.3gp
             else if [ $flvFile -eq 1  ]
@@ -1486,6 +1487,8 @@ Make3gp()
 MakeQueueFile()
 {
     CopyIn2tmp
+    wavname=`basename $outFile $mimetype`.wav
+    wavdir=`dirname $outFile`
     if [ $h263_good -eq 0 ]
         then IVES_convert.ksh -i $inFile -o /tmp/.queueFile.mp4
         else IVES_convert.ksh -i $inFile -o /tmp/.queueFile.mp4 -g
@@ -1506,8 +1509,7 @@ MakeQueueFile()
     if [ $haveAudio -ne 0 ] 
         then 
         create_pcm_track 
-        wavname=`basename $inFile $mimetype`.wav
-        cp $tmpPcmFile $wavname
+        cp $tmpPcmFile  $wavdir/$wavname
     fi 
 }
 
