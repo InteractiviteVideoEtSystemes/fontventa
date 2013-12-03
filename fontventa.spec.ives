@@ -1,8 +1,8 @@
 Name:      fontventa
-Version:   0.5.4
+Version:   0.5.5
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
-Release:   1.ives_distrib
+Release:   4.ives_distrib
 Summary:   [IVeS] librairies partagées pour asterisk de Fontventa.
 Vendor:   IVeS
 Group:     Applications/Internet
@@ -10,8 +10,8 @@ License: GPL
 URL:       http://www.ives.fr
 BuildArchitectures: ives_archi
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires:  ivespkg,  asteriskv , bc
-BuildRequires: ffmpeg-devel = 0.4.1, asteriskv-devel, SDL-devel, gcc-c++, mpeg4ip-devel =1.5.2   
+Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 1.5.2
+BuildRequires: ffmpeg-devel = 0.4.1, asteriskv-devel, SDL-devel, gcc-c++, mpeg4ip-devel = 1.5.2   
 
 %description
 Un ensemble de librairies partagées pour asterisk de Fontventa.
@@ -28,6 +28,15 @@ svn export --force http://svn.ives.fr/svn-libs-dev/asterisk/%name/tags/%version
 %build
 echo "Build"
 cd %version
+#Repertoire d'installation des librairies
+if [ "`uname -m`" == "x86_64" ]
+then
+        DESTDIR_LIB=/usr/lib64
+else
+        DESTDIR_LIB=/usr/lib
+fi
+echo "SYS_LIB=$DESTDIR_LIB" >Makeinclude
+#
 make
 
 %install
@@ -38,13 +47,13 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %files
 %defattr(-,root,root,-)
 %{_libdir}/
-/usr/include/*.h
+#/usr/include/*.h
 /usr/bin/*
 /usr/sbin/astlog
-%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
+#%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
-* Mon Jui 15 2013 Maquin Olivier <olivier.maquin@ives.fr>
+* Mon Jul 15 2013 Maquin Olivier <olivier.maquin@ives.fr>
 - static link with FFMPEG , suppress x264 , static with mp4IP
 - version 0.5.4
 * Wed May 22 2013 Emmanuel BUU <emmannuel.buu@ives.fr>
