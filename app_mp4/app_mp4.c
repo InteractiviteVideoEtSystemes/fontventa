@@ -2874,8 +2874,8 @@ static int mp4_save(struct ast_channel *chan, void *data)
         unsigned char type = nal & 0x1f;
 					
         /* All intra & first*/
-				intra = 1;
-				first = 1;
+				intra = 0;
+				first = 0;
 				/* Set payload and skip */
 				video_payload = 0;
 				skip = 0;
