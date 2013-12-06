@@ -10,8 +10,8 @@ License: GPL
 URL:       http://www.ives.fr
 BuildArchitectures: ives_archi
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 1.5.2
-BuildRequires: ffmpeg-devel = 0.4.1, asteriskv-devel, SDL-devel, gcc-c++, mpeg4ip-devel = 1.5.2   
+Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 1.5.2 ,  gsm , lame , amrnb
+BuildRequires: ffmpeg-devel = 0.4.2, asteriskv-devel, SDL-devel, gcc-c++, mpeg4ip-devel = 1.5.2   
 
 %description
 Un ensemble de librairies partag�es pour asterisk de Fontventa.
