@@ -1,4 +1,4 @@
-#!/usr/bin/ksh
+#!/bin/bash
 
 PROJET=fontventa
 #Repertoire d'installation des includes
@@ -21,7 +21,7 @@ TEMPDIR=/tmp
 
 function svn_export
 {
-        svn export https://svn.ives.fr/svn-libs-dev/asterisk/${PROJET}
+        svn export http://svn.ives.fr/svn-libs-dev/asterisk/${PROJET}
 }
 
 #Preparation du fichier spec de packaging rpm
@@ -50,7 +50,7 @@ function prepare_spec
        sed s/ives_archi/${SRVARCH}/g ${PROJET}.spec.tmp > ${PROJET}.spec
        rm ${PROJET}.spec.tmp
     else
-       echo "Erreur: On n'a pas trouvé de distribution Fedora, ou CentOS !"
+       echo "Erreur: On n'a pas trouvï¿½ de distribution Fedora, ou CentOS !"
        exit
     fi
 }
@@ -76,12 +76,6 @@ function copy_rpmInstall
     mkdir -p $1/$DESTDIR_MOD
     mkdir -p $1/$DESTDIR_BIN
     pwd
-    cp $PROJET/libh324m/include/h324m.h $1/$DESTDIR_INC/h324m.h
-    chmod 644 $1/$DESTDIR_INC/h324m.h
-    cp $PROJET/libh324m/libh324m.so $1/$DESTDIR_LIB/libh324m.so
-    chmod 755 $1/$DESTDIR_LIB/libh324m.so
-    cp $PROJET/app_h324m/app_h324m.so $1/$DESTDIR_MOD/app_h324m.so 
-    chmod 755 $1/$DESTDIR_MOD/app_h324m.so
     cp $PROJET/app_mp4/app_mp4.so $1/$DESTDIR_MOD/app_mp4.so 
     chmod 755 $1/$DESTDIR_MOD/app_mp4.so
     cp $PROJET/app_transcoder/app_transcoder.so $1/$DESTDIR_MOD/app_transcoder.so 
@@ -90,9 +84,11 @@ function copy_rpmInstall
     chmod 755 $1/$DESTDIR_MOD/app_rtsp.so
     cp $PROJET/tools/mp4tool $1/$DESTDIR_BIN/mp4tool
     cp $PROJET/tools/IVES_convert.ksh $1/$DESTDIR_BIN/IVES_convert.ksh
+    cp /usr/bin/ffmpeg $1/$DESTDIR_BIN/IVeS_ffmpeg
     chmod 755 $1/$DESTDIR_BIN/mp4tool
     chmod 755 $1/$DESTDIR_BIN/IVES_convert.ksh
-
+    chmod 755 $1/$DESTDIR_BIN/IVeS_ffmpeg
+    cp Makeinclude $1/
     echo "Fin de la copie des fichiers dans " $1
 }
 
@@ -128,7 +124,13 @@ function create_rpm
     cp ../../${PROJET}.spec ${PROJET}.spec
     cd ../../
     #Cree le package
-    rpmbuild -bb --sign $PWD/rpmbuild/SPECS/${PROJET}.spec
+    if [[ -z $1 || $1 -ne nosign ]]
+    then
+             rpmbuild -bb --sign $PWD/rpmbuild/SPECS/${PROJET}.spec
+    else
+             rpmbuild -bb $PWD/rpmbuild/SPECS/${PROJET}.spec
+    fi
+
     if [ $? == 0 ]
     then
         echo "************************* fin du rpmbuild ****************************"
@@ -141,7 +143,7 @@ function create_rpm
 
 function clean
 {
-  	# On efface les liens ainsi que le package precedemment créé
+  	# On efface les liens ainsi que le package precedemment crï¿½ï¿½
   	echo Effacement des fichiers et liens gnupg rpmbuild ${PROJET}.rpm ${TEMPDIR}/${PROJET}
   	rm -rf gnupg rpmbuild ${PROJET}.rpm ${TEMPDIR}/${PROJET}
 }
@@ -157,7 +159,7 @@ case $1 in
   	"rpm")
   		echo "Creation du rpm"
                 prepare_spec
-  		create_rpm;;
+  		create_rpm $2;;
   	*)
   		echo "usage: install.ksh [options]" 
   		echo "options :"

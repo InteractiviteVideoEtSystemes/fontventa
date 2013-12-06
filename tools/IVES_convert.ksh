@@ -334,7 +334,7 @@ suffixe()
 
 whatFile()
 {
-    cmd="${BIN_PATH}/ffmpeg -i  $1 "
+    cmd="${BIN_PATH}/IVeS_ffmpeg -i  $1 "
     $cmd > $INFO_FILE 2>&1
 
     # mp4 ?

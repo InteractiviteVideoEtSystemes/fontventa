@@ -3,7 +3,7 @@ Version:   0.5.6
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   4.ives_distrib
-Summary:   [IVeS] librairies partagées pour asterisk de Fontventa.
+Summary:   [IVeS] librairies partagï¿½es pour asterisk de Fontventa.
 Vendor:   IVeS
 Group:     Applications/Internet
 License: GPL
@@ -14,7 +14,7 @@ Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 1.5.2
 BuildRequires: ffmpeg-devel = 0.4.1, asteriskv-devel, SDL-devel, gcc-c++, mpeg4ip-devel = 1.5.2   
 
 %description
-Un ensemble de librairies partagées pour asterisk de Fontventa.
+Un ensemble de librairies partagï¿½es pour asterisk de Fontventa.
   
 %clean
 echo "############################# Clean"

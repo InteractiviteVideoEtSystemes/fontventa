@@ -41,7 +41,7 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc  
 
-LIBS = $(SYS_LIB)/libmp4.a $(SYS_LIB)/libmp4v2.a $(SYS_LIB)/libmp4av.a
+LIBS = -lmp4 -lmp4v2 -lmp4av
 DEBUG := -g 
 
 CFLAGS =  -fPIC -DPIC -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -D_GNU_SOURCE -DVIDEOCAPS
