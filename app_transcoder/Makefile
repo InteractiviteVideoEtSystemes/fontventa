@@ -42,7 +42,7 @@ INSTALL = install
 CC = gcc 
 
 INCLUDE = 
-LIBS = -L$(SYS_LIB)/libavcodec.a -L$(SYS_LIB)/libavavutil.a
+LIBS = -L$(SYS_LIB)/libavcodec.a -L$(SYS_LIB)/libavutil.a
 DEBUG := -g 
 
 CFLAGS =  -fPIC -DPIC -DAST_MODULE=\"app_transcoder\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -D_GNU_SOURCE -DVIDEOCAPS
