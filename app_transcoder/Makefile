@@ -40,11 +40,11 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc 
 
-INCLUDE = -I$(FFMPEGDIR) -I$(FFMPEGDIR)/libavcodec -I$(FFMPEGDIR)/libswscale
-LIBS = -lavcodec -lavutil -lswscale 
+INCLUDE = 
+LIBS = -L${SYS_LIB}/libavcodec.a 
 DEBUG := -g 
 
-CFLAGS = -DAST_MODULE=\"app_transcoder\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE -fPIC
+CFLAGS =  -fPIC -DPIC -DAST_MODULE=\"app_transcoder\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -D_GNU_SOURCE -DVIDEOCAPS
 
 #
 # targets
