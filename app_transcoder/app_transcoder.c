@@ -39,6 +39,7 @@
 #include <asterisk/options.h>
 #include <libavcodec/avcodec.h>
 #include <libswscale/swscale.h>
+#include <libavutil/avutil.h>
 
 #ifndef AST_FORMAT_AMR
 #define AST_FORMAT_AMR		(1 << 13)
@@ -2124,7 +2125,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
   static int load_module(void)
   {
     /* Set log */
-    av_log_set_callback(av_log_asterisk_callback);
+    //av_log_set_callback(av_log_asterisk_callback);
 
     /* Init avcodec */
     avcodec_init();

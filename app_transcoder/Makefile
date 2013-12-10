@@ -42,7 +42,7 @@ INSTALL = install
 CC = gcc 
 
 INCLUDE = 
-LIBS = -L$(SYS_LIB)/libavcodec.a -L$(SYS_LIB)/libavutil.a
+LIBS = $(SYS_LIB)/libswscale.a  $(SYS_LIB)/libavcodec.a $(SYS_LIB)/libavutil.a 
 DEBUG := -g 
 
 CFLAGS =  -fPIC -DPIC -DAST_MODULE=\"app_transcoder\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -D_GNU_SOURCE -DVIDEOCAPS
@@ -57,7 +57,7 @@ clean:
 	rm -f *.so *.o $(OBJS)
 
 app_transcoder.so : $(OBJS)
-	$(CC) -g -shared -Xlinker -x -o $@ $(OBJS)  $(LIBS) 
+	$(CC) $(LIBS) -g -shared -Xlinker -x -o $@ $(OBJS)  
 
 
 install: all
