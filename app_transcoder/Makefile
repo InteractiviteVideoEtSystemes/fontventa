@@ -12,6 +12,7 @@
 #
 
 .EXPORT_ALL_VARIABLES:
+include ../Makeinclude
 
 #
 # app_transcoder defines which can be passed on the command-line
