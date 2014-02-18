@@ -26,6 +26,7 @@ protected:
      MP4TrackId mediatrack;
      MP4TrackId hinttrack;
      int sampleId;
+     DWORD prevts;
 };
 
 #define MP4_AUDIO_TRACK	0
