@@ -587,15 +587,30 @@ bool AstFormatToCodec( int format, AudioCodec::Type & codec )
     }
     return true;
 }
-
-bool AstFrameToMediaFrame( struct ast_frame * fsrc, AudioFrame & fdst)
-{
-     if ( fsrc != NULL )
-     {
-        AudioCodec::Type acodec;
-	fdst->SetMedia( AST_FRAME_GET_BUFFER(fsrc), fsrc->datalen );
 	
+bool AstFormatToCodec( int format, VideoCodec::Type & codec )
+{
+    switch ( format )
+    {
+        case AST_FORMAT_H263:
+	    codec = VideoCodec::H263_1996;
+	    break;
+	    
+	case AST_FORMAT_H263P:
+	    codec = VideoCodec::H263_1998;
+	    break;
+	    
+	case AST_FORMAT_H264:
+	    codec = VideoCodec::H264;
+	    break;
+	
+	default:
+	    return false;
+    }
+    return true;
+}
 
+	
 int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 {
     if (f != NULL)
@@ -606,49 +621,137 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	{
 	    case AST_FRAME_VOICE:
 	    {	
-	        AudioCodec::Type acodec;
-		int ret;
+	        AudioCodec::Type acodec = AudioCodec::PCMU;
+		AudioFrame af( acodec, 8000, false );
+		
+		af.SetTimestamp( f->ts );
 		
 		if ( f->subclass == AST_FORMAT_SLINEAR )
 		{
-		    if (audioencoder == NULL) audioencoder = CreateEncoder(AudioCodec::PCMU);
+		    int outLen = 800;
 		    acodec = AudioCodec::PCMU;
+		    
+		    if (audioencoder == NULL)
+			audioencoder = CreateEncoder(AudioCodec::PCMU);
+   
+		    outLen = audioencoder->Encode( AST_FRAME_GET_BUFFER(f), f->datalen, audioBuff, outLen );
+		    if ( outLen > 0 ) 
+		        af.SetMedia( audioBuff, outLen );
+		    else
+			return 0;
+		    
 		}
-		else if ( AstFormatToCodec( f->subclass, acodec) == false )
+		else if ( AstFormatToCodec( f->subclass, acodec) )
+		{
+		     af.SetCodec( acodec );
+		     af.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
+		}
+		else
 		{
 		    /* unsupported codec */
 		    return -4;
 		}
-		
-		AudioFrame af( acodec, 8000 );
-		af.Set
 		return ProcessFrame( af );
 	    }
-	        
-	    
+	    		
 	    case AST_FRAME_VIDEO:
-	    
+	    {
+	        VideoCodec vcodec;
+		
+		if ( AstFormatToCodec( f->subclass, vcodec ) )
+		{
+		    VideoFrame vf(vcodec, f->datalen, false);
+		    
+		    vf.SetTimeStamp(f->ts);
+		    
+		    // Handle packetization here
+		    vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
+		    int ret = ProcessFrame( vf );
+		    
+		    if ( ret == -1 && vtx != NULL)
+		    {
+			/* we need to transcode */
+			return VideoTranscoderProcessFrame( vtc, f );
+		    }
+		    return ret;
+		}
+		else
+		{
+		    return -4;
+		}
+	    }		
+		
 	    case AST_FRAME_TEXT:
-	    {	
+	    {
+		DWORD lost = 0;
 	        TextCodec::Type tcodec;
-		int ret;
+		TextFrame tf( TextCodec::T140, 1000, false );
+
+		//If not first
+		if (textSeqNo != 0xFFFF)
+			//Calculate losts
+			lost = f->seqno - textSeqNo-1;
+
+		//Update last sequence number
+		lastSeq = f->seqno;
 		
 		if ( f->subclass == AST_FORMAT_RED )
 		{
-		    RTPRedundantPayload( AST_FRAME_GET_BUFFER(f)
+		    // parse RED to recover lost packets
+		    RTPRedundantPayload red( AST_FRAME_GET_BUFFER(f), f->datalen );
 		    
+		    if (lost > 0 && red.GetRedundantCount() > 0)
+		    {
+		        if ( lost > red.GetRedundantCount()  )
+			{
+			    /* cas ou l'on a perdu + de paquet de le niv de red. On ne fait rien */
+			    lost = red.GetRedundantCount();
+			}
+			
+			//Fore each recovered packet
+			for (int i=red.GetRedundantCount()-lost;i<red->GetRedundantCount();i++)
+			{
+				//Create frame from recovered data - check timestamps ...
+				tf.SetTimeStamp( red.GetRedundantTimestamp(i) );
+				tf.SetMedia( red.GetRedundantPayloadData(i),red.GetRedundantPayloadSize(i) );
+				ProcessFrame ( tf );
+			}
+		    }
+		    
+		    tf.SetTimeStamp( f->ts );
+		    tf.SetMedia( red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
 		}
-		else if ( AstFormatToCodec( f->subclass, acodec) == false )
+		else /* assume plain text */
 		{
-		    /* unsupported codec */
-		    return -4;
+		    tf.SetTimeStamp( f->ts );
+		    tf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
 		}
 		
-		AudioFrame af( acodec, 8000 );
 		return ProcessFrame( af );
 	    }	    
 }
 
-
-int Mp4RecordFrame( struct mp4participant * p, struct ast_frame * f )
+struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, char * videoformat)
 {
+    mp4recorder * r = new mp4recorder(chan, mp4);
+    
+    return (struct mp4rec *) r;
+}
+
+void Mp4RecorderDestroy( struct mp4rec * r );
+{
+    mp4recorder * r2 = (mp4recorder *) r;
+
+    delete r2;    
+}
+
+int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f )
+{
+   mp4recorder * r2 = (mp4recorder *) r;
+
+   if (r2)
+	return r2->ProcessFrame(f);
+   else
+	return -5;
+}
+

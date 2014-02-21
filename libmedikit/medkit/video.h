@@ -7,7 +7,7 @@
 class VideoFrame : public MediaFrame
 {
 public:
-	VideoFrame(VideoCodec::Type codec,DWORD size) : MediaFrame(MediaFrame::Video,size)
+	VideoFrame(VideoCodec::Type codec,DWORD size, bool own = true) : MediaFrame(MediaFrame::Video,size, own)
 	{
 		//Store codec
 		this->codec = codec;

@@ -98,14 +98,18 @@ private:
     void * ctxdata;
     
     AudioEncoder * audioencoder;
-    
+
+#if 0
     /* RTP packets will be accumulated in videoframes */
     VideoFrame vf1;
     
     /* Same as above but for secondary stream */
     VideoFrame vf2;
-    
+#endif
+
     DWORD textSeqNo;
+    
+    BYTE audioBuff[800];
 };
 
 #endif

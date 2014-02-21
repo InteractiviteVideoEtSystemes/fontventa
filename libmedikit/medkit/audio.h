@@ -30,7 +30,7 @@ public:
 class AudioFrame : public MediaFrame
 {
 public:
-	AudioFrame(AudioCodec::Type codec,DWORD rate) : MediaFrame(MediaFrame::Audio,2048)
+	AudioFrame(AudioCodec::Type codec,DWORD rate, bool owns = true) : MediaFrame(MediaFrame::Audio,2048, owns)
 	{
 		//Store codec
 		this->codec = codec;

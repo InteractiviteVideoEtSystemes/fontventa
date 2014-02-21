@@ -46,10 +46,3 @@ int VideoTranscoderProcessFrame(struct VideoTranscoder *vtc, const ast_frame * f
  * @return MP4 participant context for recording.
  */
 
-struct mp4participant * CreateMp4Recorder(struct ast_channel * chan, MP4FileHandle mp4, char * videoformat);
-
-/**
- * Process one ast_frame and record it into the MP4 file
- **/
-
- int Mp4RecordFrame

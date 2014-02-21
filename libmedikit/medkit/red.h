@@ -4,7 +4,7 @@
 class RTPRedundantPayload
 {
 public:
-	RTPRedundantPacket(BYTE *data,DWORD size);
+	RTPRedundantPayload(BYTE *data,DWORD size);
 	
 	void ParseRed( BYTE *data,DWORD size ); 
 	
