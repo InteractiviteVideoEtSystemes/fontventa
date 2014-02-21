@@ -65,7 +65,7 @@ public:
 		}
 	}
 
-	MediaFrame(Type type,DWORD size)
+	MediaFrame(Type type,DWORD size, bool ownsBuffer = true)
 	{
 		//Set media type
 		this->type = type;
@@ -73,10 +73,21 @@ public:
 		ts = (DWORD)-1;
 		//No duration
 		duration = 0;
-		//Set buffer size
-		bufferSize = size;
-		//Allocate memory
-		buffer = (BYTE*) malloc(bufferSize);
+		
+		this->ownsBuffer = ownsBuffer;
+		
+		if ( ownsBuffer )
+		{
+			//Set buffer size
+			bufferSize = size;
+			//Allocate memory
+			buffer = (BYTE*) malloc(bufferSize);
+		}
+		else
+		{
+			buffer = NULL;
+			bufferSize = 0;
+		}
 		//NO length
 		length = 0;
 	}
@@ -86,7 +97,7 @@ public:
 		//Clear
 		ClearRTPPacketizationInfo();
 		//Clear memory
-		free(buffer);
+		if (ownsBuffer) free(buffer);
 	}
 
 	void	ClearRTPPacketizationInfo()
@@ -133,6 +144,8 @@ public:
 
 	bool SetMedia(BYTE* data,DWORD size)
 	{
+	    if (ownsBuffer)
+	    {
 		//Check size
 		if (size>bufferSize)
 			//Allocate new size
@@ -141,10 +154,18 @@ public:
 		memcpy(buffer,data,size);
 		//Increase length
 		length=size;
+	    }
+	    else
+	    {
+	        length=size;
+		buffer=data;
+	    }
 	}
 
 	DWORD AppendMedia(BYTE* data,DWORD size)
 	{
+	    if ( ownsBuffer )
+	    {
 		DWORD pos = length;
 		//Check size
 		if (size+length>bufferSize)
@@ -156,6 +177,11 @@ public:
 		length+=size;
 		//Return previous pos
 		return pos;
+	    }
+	    else
+	    {
+	        return 0;
+	    }
 	}
 	
 protected:
@@ -167,6 +193,7 @@ protected:
 	DWORD	bufferSize;
 	DWORD	duration;
 	DWORD	clockRate;
+	bool ownsBuffer;
 };
 
 #endif	/* MEDIA_H */

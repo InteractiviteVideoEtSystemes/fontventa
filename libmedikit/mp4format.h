@@ -29,18 +29,61 @@ protected:
      DWORD prevts;
 };
 
-#define MP4_AUDIO_TRACK	0
-#define MP4_VIDEO_TRACK	1
-#define MP4_TEXT_TRACK  2
+#define MP4_AUDIO_TRACK		0
+#define MP4_VIDEO_TRACK		1
+#define MP4_VIDEODOC_TRACK	2
+#define MP4_TEXT_TRACK  	3
 
 class mp4recorder 
 {
     mp4recorder(void * ctxdata, MP4FileHandle mp4);
     ~mp4recorder();
     
-    int AddTrack(int trackType, const char * trackName);
-    int ProcessFrame( struct ast_frame * f );
-    int ProcessFrame( const MediaFrame * f );
+    /**
+     * Create an audio track
+     **/
+    int AddTrack(AudioCodec codec, DWORD samplerate, const char * trackName);
+    
+    /**
+     * Create an audio track
+     **/
+    int AddTrack(VideoCodec codec, DWORD width, DWORD height, DWORD bitrate, const char * trackName, bool secondary = false);
+    
+    /**
+     * Create a text track
+     **/
+    int AddTrack(TextCodec codec, const char * trackName);
+    
+    /**
+     * Process ONE asterisk frame and record it into the MP4 file
+     *
+     * @param f: asterisk frame to process
+     * @param secondary: frame from a secondary media stream (for future use)
+     *
+     * @return 1 = frame is processed and recorded
+     *         0 = frame is empty or not considered for recording
+     *        -1 = frame codec does not match track codec (need to transcode)
+     *        -2 = frams media does not match track media
+     *        -3 = track is not open for this media
+     *        -4 = this frame codec is not supported by mp4recorder
+     *        -5 = could not record data (probably incorect MP4 file handle)
+     **/
+    int ProcessFrame( struct ast_frame * f, bool secondary = false );
+    
+    /**
+     * Process one media frame
+     * @param f: media frame to process
+     * @param secondary: frame from a secondary media stream (for future use)
+     *
+     * @return 1 = frame is processed and recorded
+     *         0 = frame is empty or not considered for recording
+     *        -1 = frame codec does not match track codec (need to transcode)
+     *        -2 = frame media does not match track media
+     *        -3 = track is not open for this media
+     *        -4 = this frame codec is not supported by mp4recorder
+     *        -5 = could not record data (probably incorect MP4 file handle)
+     **/
+    int ProcessFrame( const MediaFrame * f, bool secondary = false );
     void * GetCtxDate() { return ctxdata; }
     
 private:
@@ -52,8 +95,17 @@ private:
     int length;
 
     struct VideoTranscoder *vtc;
-    struct TextTranscoder  *ttc;
     void * ctxdata;
+    
+    AudioEncoder * audioencoder;
+    
+    /* RTP packets will be accumulated in videoframes */
+    VideoFrame vf1;
+    
+    /* Same as above but for secondary stream */
+    VideoFrame vf2;
+    
+    DWORD textSeqNo;
 };
 
 #endif
@@ -64,6 +116,9 @@ struct
 extern "C"
 {
 #endif
+
+struct mp4rec;
+
 /**
  * Create one MP4 recording or playing session for a given asterisk channel
  * @param chan: asterisk channel that will be recorded
@@ -71,15 +126,18 @@ extern "C"
  * @param video format specification for transcoder
  * @return MP4 participant context for recording.
  */
-
-struct mp4participant * CreateMp4Recorder(struct ast_channel * chan, MP4FileHandle mp4, char * videoformat);
+struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, char * videoformat);
 
 /**
- * Process one ast_frame and record it into the MP4 file
+ * Process one ast_frame and record it into the MP4 file. Warning: packets must be reordered
+ * before being posted to the recorder.
+ *
+ * @param r: instance of mp4 recorder
+ * @param f: ast_frame to record.
  **/
+int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f );
 
- int Mp4RecordFrame( struct mp4participant * p, struct ast_frame * f );
-
+void Mp4RecorderDestroy( struct mp4rec * r );
  
 #ifdef _cplusplus
 }

@@ -1,8 +1,73 @@
 #include "mp4format.h"
+#include "transcoder.h"
+#include "medikit/red.h"
+
+#if ASTERISK_VERSION_NUM>999999   // 10600
+#define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data.ptr))
+#else
+#define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data))
+#endif
+
+static unsigned char silence_alaw[] = 
+{
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5,
+ 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5,
+  
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5,
+  
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+ 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
+};
+	
+static unsigned char silence_ulaw[] = 
+{
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+ 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+};
+
+static unsigned char silence_amr[] =
+{
+0x70,
+0x3C, 0x48, 0xF5, 0x1F, 0x96, 0x66, 0x78, 0x00,
+0x00, 0x01, 0xE7, 0x8A, 0x00, 0x00, 0x00, 0x00,
+0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
 
 class Mp4AudioTrack : public mp4track
 {
 public:
+    Mp4AudioTrack(MP4FileHandle mp4) : mp4track(mp4) { }
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( MediaFrame * f );
     
@@ -55,14 +120,18 @@ private:
     VideoCodec codec;
 };
 
-class Mp4TextFrameTrack : public mp4track
+#define MAX_SUBTITLE_DURATION 7000
+
+class Mp4TextTrack : public mp4track
 {
 public:
+    Mp4TextTrack(MP4FileHandle mp4) : mp4track(mp4) { }
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( MediaFrame * f );
     
 private:
-
+    TextEncoder encoder;
+    MP4TrackId rawtexttrack;
 };
 
 int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD bitrate)
@@ -95,6 +164,16 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD bitrate)
 	    MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.ulaw.sampleSize", 8);
 	    break;
 
+	case AudioCodec::AMR
+	    mediatrack = MP4AddAmrAudioTrack(mp4, rate, 0, 0, 1, 0);;
+	    // Create audio hint track
+	    hinttrack = MP4AddHintTrack(mp4, mediatrack);
+			// Set payload type for hint track
+	    type = 98;
+	    MP4SetHintTrackRtpPayload(mp4, hinttrack, "AMR", &type, 0, NULL, 1, 0);
+	    MP4SetAudioProfileLevel(mp4, 0xFE);
+	    break;
+	
 	// TODO: Add AAC support
 	
 	default:
@@ -147,7 +226,12 @@ int Mp4AudioTrack::ProcessFrame( MediaFrame * f )
 	    }
 	    return 1;
 	}
-    return 0;
+	else
+	{
+	    return -1;
+	}
+    }
+    return -2;
 }
 
 int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
@@ -193,14 +277,15 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 		    return 0;
 	}
 	this->codec = codec;
-	if (mediatrack > 0) Log("-mp4recorder: created video track %d using codec %s.\n", mediatrack, VideoCodec::GetNameFor(codec));
+	if ( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
+	Log("-mp4recorder: created video track %d using codec %s.\n", mediatrack, VideoCodec::GetNameFor(codec));
 
 }
 
 
 int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 {
-    if ( f->GetType() == MediaFrame::Audio )
+    if ( f->GetType() == MediaFrame::Video )
     {
         VideoFrame f2 = ( VideoFrame *) f;
 	
@@ -296,11 +381,222 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 	    }
 	    return 1;
 	}
+	else
+	{
+	    return -1;
+	}
+
     }
     return 0;
 }
 
-int Mp4RecordFrame( struct mp4participant * p, struct ast_frame * f )
+int Mp4TextFrameTrack::Create(const char * trackName, int codec, DWORD bitrate)
+{
+    mediatrack = MP4AddSubtitleTrack(mp4,1000,384,60);
+    if ( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
+}
+
+int Mp4TextFrameTrack::ProcessFrame( MediaFrame * f )
+{
+    if ( f->GetType() == MediaFrame::Text )
+    {
+        TextFrame f2 = ( TextFrame *) f;
+	DWORD duration = 0, frameduration = 0;
+	DWORD subtsize = 0;
+
+	if ( f2->GetLength() == 0 ) return 0;
+
+	//Set the duration of the frame on the screen
+	
+	if (sampleId == 0)
+	{
+	        frameduration = 20;
+	}
+	else
+	{
+	        frameduration = (f2->GetTimeStamp()-prevts);
+	}
+	
+	duration = frameduration;
+	if (frameduration > MAX_SUBTITLE_DURATION) frameduration = MAX_SUBTITLE_DURATION;
+	
+	sampleId++;
+	
+	encoder.Accumulate( f2->GetWString() );
+	TextFrame * f3 = GetSubtitle();
+
+	if (f3)
+	{
+	    subsize = f3->GetLength();
+	    BYTE* data = (BYTE*)malloc(subsize+2);
+
+	    //Set size
+	    data[0] = subsize>>8;
+	    data[1] = subsize & 0xFF;
+	    
+	    memcpy(data+2,f3->GetData(),f3->GetLength());
+	    
+	    MP4WriteSample( mp4, mediatrack, data, subsize+2, frameduration, 0, false );
+	    
+	    if (duration > MAX_SUBTITLE_DURATION)
+	   {
+		frameduration = duration - MAX_SUBTITLE_DURATION;
+		//Log
+		//Put empty text
+		data[0] = 0;
+		data[1] = 0;
+
+		//Write sample
+		MP4WriteSample( mp4, track, data, 2, frameduration, 0, false );
+	    }
+	}
+	return 1;
+    }
+    return 0;
+}
+
+
+mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4)
+{
+    this->ctxdata = ctxdata;
+    this->mp4 = mp4;
+    textSeqNo = 0;
+    vtc = NULL;
+    audioencoder = NULL;
+}
+
+int mp4recorder::AddTrack(AudioCodec codec, DWORD samplerate, const char * trackName)
+{
+    if ( mediatracks[MP4_AUDIO_TRACK] == NULL )
+    {
+	mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4);
+	if ( mediatracks[MP4_AUDIO_TRACK] )
+	{
+	    mediatracks[MP4_AUDIO_TRACK]->Create( trackName, codec, sampleRate );
+	    return 1;
+	}
+	else
+	{
+	    return -1;
+	}
+    }
+    return 0;
+}
+
+int mp4recorder::AddTrack(VideoCodec codec, DWORD width, DWORD height, DWORD bitrate, const char * trackName, bool secondary )
+{
+    int trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
+    
+    if ( mediatracks[trackidx] == NULL )
+    {
+	mediatracks[trackidx] = new Mp4VideoTrack(mp4);
+	if ( mediatracks[trackidx] )
+	{
+	    mediatracks[trackidx]->SetSize(width, height);
+	    mediatracks[trackidx]->Create( trackName, codec, bitrate );
+	    return 1;
+	}
+	else
+	{
+	    return -1;
+	}
+    }
+    return 0;
+}
+
+int mp4recorder::AddTrack(TextCodec codec, const char * trackName)
+{
+    if ( mediatracks[MP4_TEXT_TRACK] == NULL )
+    {
+	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4);
+	if ( mediatracks[MP4_TEXT_TRACK] )
+	{
+	    mediatracks[MP4_TEXT_TRACK]->Create( trackName, codec, 1000 );
+	    return 1;
+	}
+	else
+	{
+	    return -1;
+	}
+    }
+    return 0;
+}
+
+
+int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
+{
+    switch ( f->GetType() )
+    {
+        case MediaFrame::Audio:
+	    if ( mediatracks[MP4_AUDIO_TRACK] )
+	    {
+	        return mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+	    }
+	    else
+	    {
+		return -3;
+	    }
+	    break;
+	    
+	case MediaFrame::Video:
+	    trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
+	    if ( mediatracks[trackidx] )
+	    {
+	        return mediatracks[trackidx]->ProcessFrame(f);
+	    }
+	    else
+	    {
+		return -3;
+	    }
+	    break;
+	    
+	case MediaFrame::Text:
+	    if ( mediatracks[MP4_TEXT_TRACK] )
+	    {
+	        return mediatracks[MP4_TEXT_TRACK]->ProcessFrame(f);
+	    }
+	    else
+	    {
+		return -3;
+	    }
+	    break;
+	
+	default:
+	    break;
+    }
+}
+
+bool AstFormatToCodec( int format, AudioCodec::Type & codec )
+{
+    switch ( format )
+    {
+        case AST_FORMAT_ULAW:
+	    codec = AudioCodec::PCMU;
+	    break;
+	    
+	case AST_FORMAT_ALAW:
+	    codec = AudioCodec::PCMA;
+	    break;
+	    
+	case AST_FORMAT_AMR:
+	    codec = AudioCodec::AMR;
+	    break;
+	
+	default:
+	    return false;
+    }
+    return true;
+}
+
+bool AstFrameToMediaFrame( struct ast_frame * fsrc, AudioFrame & fdst)
+{
+     if ( fsrc != NULL )
+     {
+        AudioCodec::Type acodec;
+	fdst->SetMedia( AST_FRAME_GET_BUFFER(fsrc), fsrc->datalen );
+	
+
+int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 {
     if (f != NULL)
     {
@@ -309,9 +605,50 @@ int Mp4RecordFrame( struct mp4participant * p, struct ast_frame * f )
         switch(f->frametype)
 	{
 	    case AST_FRAME_VOICE:
-	        ret = RecordV
+	    {	
+	        AudioCodec::Type acodec;
+		int ret;
+		
+		if ( f->subclass == AST_FORMAT_SLINEAR )
+		{
+		    if (audioencoder == NULL) audioencoder = CreateEncoder(AudioCodec::PCMU);
+		    acodec = AudioCodec::PCMU;
+		}
+		else if ( AstFormatToCodec( f->subclass, acodec) == false )
+		{
+		    /* unsupported codec */
+		    return -4;
+		}
+		
+		AudioFrame af( acodec, 8000 );
+		af.Set
+		return ProcessFrame( af );
+	    }
+	        
 	    
 	    case AST_FRAME_VIDEO:
 	    
 	    case AST_FRAME_TEXT:
+	    {	
+	        TextCodec::Type tcodec;
+		int ret;
+		
+		if ( f->subclass == AST_FORMAT_RED )
+		{
+		    RTPRedundantPayload( AST_FRAME_GET_BUFFER(f)
+		    
+		}
+		else if ( AstFormatToCodec( f->subclass, acodec) == false )
+		{
+		    /* unsupported codec */
+		    return -4;
+		}
+		
+		AudioFrame af( acodec, 8000 );
+		return ProcessFrame( af );
+	    }	    
 }
+
+
+int Mp4RecordFrame( struct mp4participant * p, struct ast_frame * f )
+{
