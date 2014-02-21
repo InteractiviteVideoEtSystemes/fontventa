@@ -5,7 +5,7 @@ struct VideoTranscoder;
 struct TextTranscoder;
 
 
-//typedef (*VideoTranscoderCb)(void * ctxdata, int outputcodec, const char *output, size_t outputlen);
+typedef void (*VideoTranscoderCb)(void * ctxdata, int outputcodec, const char *output, size_t outputlen);
 
 /**
  * Create a video transcoder

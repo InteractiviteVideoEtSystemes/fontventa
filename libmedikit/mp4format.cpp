@@ -731,6 +731,21 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	    }	    
 }
 
+/* ---- callbeck used for video transcoding --- */
+
+void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size_t outputlen)
+{
+    mp4recorder * r2 = (mp4recorder *) ctxdata;
+    VideoFrame vf(outputcodec, 2000, false);
+    
+    if (r2)
+    {
+        vf.SetMedia(output, outputlen);
+	// add timestamp
+	r2->ProcessFrame(vf);
+    }
+}    
+
 struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, char * videoformat)
 {
     mp4recorder * r = new mp4recorder(chan, mp4);
