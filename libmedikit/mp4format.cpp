@@ -83,10 +83,12 @@ public:
     {
         width = 0;
 	height =0;
-	waitvideo = true;
+	videoStarted = false;
 	AVCProfileIndication 	= 0x42;	//Baseline
 	AVCLevelIndication	= 0x0D;	//1.3
 	AVCProfileCompat	= 0xC0;
+	hasSPS = false;
+	hasPPS = false;
     }
     
     void SetSize(DWORD width, DWORD height)
@@ -97,7 +99,7 @@ public:
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( MediaFrame * f );
-    bool IsWaitingVideo() { return waitVideo; }
+    bool IsVideoStarted() { return videoStarted; }
     
     void SetH264ProfileLevel( unsigned char profile, unsigned char constraint, unsigned char level )
     {
@@ -108,9 +110,11 @@ public:
 
 private:
     DWORD width, height;
+    bool videoStarted;
     bool firstpkt;
     bool intratrame;
-    bool waitVideo;
+    bool hasSPS;
+    bool hasPPS;
 
     //H264 profile/level
     unsigned char AVCProfileIndication;
@@ -311,7 +315,7 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 	    if (f2->HasRtpPacketizationInfo())
 	    {
 		//Get list
-		MediaFrame::RtpPacketizationInfo& rtpInfo = frame->GetRtpPacketizationInfo();
+		MediaFrame::RtpPacketizationInfo& rtpInfo = f2->GetRtpPacketizationInfo();
 		//Add hint for frame
 		MP4AddRtpHint(mp4, hint);
 		//Get iterator
@@ -359,10 +363,19 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 					//Update widht an ehight
 					MP4SetTrackIntegerProperty(mp4,track,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
 					MP4SetTrackIntegerProperty(mp4,track,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
+					
+					// Update size
+					witdh = sps.GetWidth();
+					height = sps.GetHeight();
+					
 					//Add it
 					MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
 					//No need to search more
 					hasSPS = true;
+					
+					// Update profile level
+					AVCProfileIndication 	= sps.GetProfile();
+					AVCLevelIndication	= sps.GetLevel();
 				}
 
 				//If it is a PPS NAL
@@ -377,7 +390,7 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 		}
 
 		//Save rtp
-		MP4WriteRtpHint(mp4, hinttrack, duration, frame->IsIntra());
+		MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());
 	    }
 	    return 1;
 	}
@@ -456,13 +469,15 @@ int Mp4TextFrameTrack::ProcessFrame( MediaFrame * f )
 }
 
 
-mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4)
+mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
 {
     this->ctxdata = ctxdata;
     this->mp4 = mp4;
     textSeqNo = 0;
     vtc = NULL;
+    this->waitVideo = waitVideo;
     audioencoder = NULL;
+    SetParticipantName( "participant" );
 }
 
 int mp4recorder::AddTrack(AudioCodec codec, DWORD samplerate, const char * trackName)
@@ -530,11 +545,23 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
         case MediaFrame::Audio:
 	    if ( mediatracks[MP4_AUDIO_TRACK] )
 	    {
+		if (waitVideo)  return 0;
+		
 	        return mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
 	    }
 	    else
 	    {
-		return -3;
+	        /* auto create audi track if needed */
+		AudioFrame * f2 = (AudioFrame *) f;
+	        AddTrack( partName, f->GetCodec(),f->GetRate() );
+		
+		if ( mediatracks[MP4_AUDIO_TRACK] )
+		{
+		    if (waitVideo)  return 0;
+		    return mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+		}
+		else
+		    return -3;
 	    }
 	    break;
 	    
@@ -542,7 +569,12 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
 	    if ( mediatracks[trackidx] )
 	    {
-	        return mediatracks[trackidx]->ProcessFrame(f);
+	        int ret = mediatracks[trackidx]->ProcessFrame(f);
+		if ( ( (Mp4VideoTrack *) mediatracks[trackidx])->VideoStarted() )
+		{
+		    waitVideo = false;
+		}
+		return ret;
 	    }
 	    else
 	    {
@@ -553,10 +585,22 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	case MediaFrame::Text:
 	    if ( mediatracks[MP4_TEXT_TRACK] )
 	    {
+	        if (waitVideo) return 0;
 	        return mediatracks[MP4_TEXT_TRACK]->ProcessFrame(f);
 	    }
 	    else
 	    {
+	        /* auto create audi track if needed */
+	        AddTrack( partName, f->GetCodec(),f->GetRate() );
+		
+		if ( mediatracks[MP4_AUDIO_TRACK] )
+		{
+		    if (waitVideo)  return 0;
+		    return mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+		}
+		else
+		    return -3;
+	    
 		return -3;
 	    }
 	    break;
@@ -650,8 +694,8 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		{
 		    /* unsupported codec */
 		    return -4;
-		}
-		return ProcessFrame( af );
+		}		
+		return ProcessFrame( &af );
 	    }
 	    		
 	    case AST_FRAME_VIDEO:
@@ -666,7 +710,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    
 		    // Handle packetization here
 		    vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
-		    int ret = ProcessFrame( vf );
+		    int ret = ProcessFrame( &vf );
 		    
 		    if ( ret == -1 && vtx != NULL)
 		    {
@@ -727,7 +771,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    tf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
 		}
 		
-		return ProcessFrame( af );
+		return ProcessFrame( &af );
 	    }	    
 }
 
@@ -742,7 +786,7 @@ void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size
     {
         vf.SetMedia(output, outputlen);
 	// add timestamp
-	r2->ProcessFrame(vf);
+	r2->ProcessFrame(&vf);
     }
 }    
 

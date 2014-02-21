@@ -77,6 +77,10 @@ private:
 public:
 	DWORD GetWidth()	{ return (pic_width_in_mbs_minus1+1)*16; }
 	DWORD GetHeight()	{ return (pic_height_in_map_units_minus1+1)*16; }
+	
+	BYTE GetProfile()	{  return profile_idc; }
+	BYTE GetLevel()		{  return level_idc; }
+	
 	void Dump()
 	{
 		Debug("[H264SeqParameterSet \n");

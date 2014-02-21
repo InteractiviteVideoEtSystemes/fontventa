@@ -36,7 +36,7 @@ protected:
 
 class mp4recorder 
 {
-    mp4recorder(void * ctxdata, MP4FileHandle mp4);
+    mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo);
     ~mp4recorder();
     
     /**
@@ -86,6 +86,11 @@ class mp4recorder
     int ProcessFrame( const MediaFrame * f, bool secondary = false );
     void * GetCtxDate() { return ctxdata; }
     
+    void SetParticipantName( const char * name )
+    {
+        strcpy( participantName, name );
+    }
+    
 private:
     char partName[80];
     
@@ -99,16 +104,11 @@ private:
     
     AudioEncoder * audioencoder;
 
-#if 0
-    /* RTP packets will be accumulated in videoframes */
-    VideoFrame vf1;
+    bool waitVideo;
     
-    /* Same as above but for secondary stream */
-    VideoFrame vf2;
-#endif
-
     DWORD textSeqNo;
     
+    char partcipantName[8];
     BYTE audioBuff[800];
 };
 
@@ -130,7 +130,7 @@ struct mp4rec;
  * @param video format specification for transcoder
  * @return MP4 participant context for recording.
  */
-struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, char * videoformat);
+struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, char * videoformat);
 
 /**
  * Process one ast_frame and record it into the MP4 file. Warning: packets must be reordered

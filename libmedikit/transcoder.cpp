@@ -17,6 +17,7 @@ struct VideoTranscoder
     int HandleResize();
     void SetListener(MediaFrame::Listener listener) { this->listener = listener; }
     
+    bool GetDecodedPicParam( VideoCodec * codec, DWORD * width, DWORD * height);
     
     VideoEncoder *encoder;
     FrameScaler  *scaler;
@@ -40,6 +41,8 @@ struct VideoTranscoder
     DWORD decodedPicSize;
     
     MediaFrame::Listener listener;
+    
+    VideoTranscoderCb cb;
     void * ctxdata;
 };
 
@@ -166,7 +169,7 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 	    if ( needAdjust )
 		ReopenEncoder();
 	    
-	    if (encoder)
+	    if ( encoder != NULL && ( listener != NULL || cb != NULL )
 	    {
 		f_out = encoder->EncodeFrame( dstV, decodedPicSize );
 	    }
@@ -175,9 +178,29 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 	    {
 		listener->onMediaFrame(f_out);
 	    }
+	    
+	    if ( cb != NULL ) cb( ctxdata, f_out->GetCodec(), f_out->GetMedia(), f_out->GetLength() );
+	    
 	    delete f_out;
 	}
     }
+}
+
+
+bool VideoTranscoder::GetDecodedPicParam( VideoCodec * codec, DWORD * width, DWORD * height)
+{
+    if ( decoder != NULL)
+    {
+        if ( decoder->GetWidth() > 0 && decoder->GetHeight() > 0 )
+	{
+	    *codec = decoder->GetCodec();
+	    *width = decoder->GetWidth();
+	    *height = decoder->GetHeight();
+	    return true;
+	}
+    }
+    return false;
+}
 
 int VideoTranscoder::HandleResize()
 {
@@ -315,5 +338,15 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
     return vtc;
 }
 
-
+int VideoTranscoderGetDecodedPicParams( struct VideoTranscoder *vtc, int * codec, DWORD * width, DWORD *height )
+{
+    VideoCodec c2;
+    
+    int ret = vtc->GetDecodedPicParams(&c2, width, height );
+    if (ret)
+    {
+	*codec = c2;
+    }
+    return ret;
+}
 

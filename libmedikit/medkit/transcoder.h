@@ -39,10 +39,12 @@ int VideoTranscoderDestroy(struct VideoTranscoder *vtc);
 int VideoTranscoderProcessFrame(struct VideoTranscoder *vtc, const ast_frame * f);
 
 /**
- * Create one MP4 recording or playing session for a given asterisk channel
- * @param chan: asterisk channel that will be recorded
- * @param mp4: MP4 file handle (see MP4V2 lib) to use for recording. Must already be OPEN in the proper mode
- * @param video format specification for transcoder
- * @return MP4 participant context for recording.
+ * Obtain inbound codec, width and height of decoded picture
+ * @param vtc: video transcoder instance
+ * @param codec: source codec
+ * @param width: width of decoded picture
+ * @height height: height of decoded picture.
+ * @return 0 : params are not available, 1 valid params
  */
 
+int VideoTranscoderGetDecodedPicParams( struct VideoTranscoder *vtc, int * codec, DWORD * width, DWORD *height );
