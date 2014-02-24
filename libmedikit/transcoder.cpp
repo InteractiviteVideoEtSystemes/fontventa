@@ -19,10 +19,11 @@ struct VideoTranscoder
     
     bool GetDecodedPicParam( VideoCodec * codec, DWORD * width, DWORD * height);
     
-    VideoEncoder *encoder;
-    FrameScaler  *scaler;
-    VideoEncoder *decoder;
     
+    VideoDecoder *decoder;
+    FrameScaler  *scaler;
+    VideoEncoder *encoder;
+
     unsigned int bitrate_out; 
     unsigned int bitrate_in;
     unsigned int bitrate_in_tmp;
