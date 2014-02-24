@@ -1,5 +1,6 @@
 #include "medkit/transcoder.h"
 #include "medkit/video.h"
+#include "medkit/framescaler.h"
 
 struct VideoTranscoder
 {    
@@ -15,7 +16,7 @@ struct VideoTranscoder
     
     bool ProcessFrame(VideoFrame * f);
     int HandleResize();
-    void SetListener(MediaFrame::Listener listener) { this->listener = listener; }
+    void SetListener(MediaFrame::Listener * listener) { this->listener = listener; }
     
     bool GetDecodedPicParam( VideoCodec * codec, DWORD * width, DWORD * height);
     
@@ -34,6 +35,8 @@ struct VideoTranscoder
     unsigned int gob_size;
     unsigned int width_out;
     unsigned int height_out;
+    unsigned int resizeWidth;
+    unsigned int resizeHeight;
     unsigned int fps_in;
     unsigned int fps_in_tmp;
     unsigned int fps_out;
@@ -41,7 +44,7 @@ struct VideoTranscoder
     BYTE * decodedPic;
     DWORD decodedPicSize;
     
-    MediaFrame::Listener listener;
+    MediaFrame::Listener * listener;
     
     VideoTranscoderCb cb;
     void * ctxdata;
@@ -71,11 +74,11 @@ VideoTranscoder::VideoTranscoder(void  * ctxdata, unsigned int width_out, unsign
     decodedPic = NULL;
     decodedPicSize = 0;
     
-    numPixelSrc = 0;
-    numPixelDst = resizeWidth * resizeHeight;
+    numPixSrc = 0;
+    numPixDst = width_out * height_out;
 }
 
-
+#if 0
 void av_log_asterisk_callback(void* ptr, int level, const char* fmt, va_list vl)
 {
     if ( option_debug > 2 )
@@ -90,7 +93,7 @@ void av_log_asterisk_callback(void* ptr, int level, const char* fmt, va_list vl)
 	    ast_log(LOG_DEBUG, msg);
     }
 }
-
+#endif
 
 int VideoTranscoderDestroy(struct VideoTranscoder *vtc)
 {

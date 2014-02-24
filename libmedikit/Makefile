@@ -66,11 +66,11 @@ H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 #NELLYDIR=nelly
 #NELLYOBJ=NellyCodec.o
 
-G722DIR=g722
-G722OBJ=g722codec.o
+#G722DIR=g722
+#G722OBJ=g722codec.o
 
 
-OBJS=audio.o video.o transcoder.o framescaler.o text
+OBJS=audio.o video.o transcoder.o framescaler.o
 OBJS+=audioencoder.o audiodecoder.o textencoder.o mp4format.o avcdescriptor.o red.o 
 OBJS+=$(H263OBJ) $(H264OBJ)
 
