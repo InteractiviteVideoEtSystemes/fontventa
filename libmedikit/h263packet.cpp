@@ -1,4 +1,4 @@
-#include "h263.h"
+#include "medkit/h263packet.h"
 
 static H263MCBPCEntry H263MCPBTableI[] =
 {

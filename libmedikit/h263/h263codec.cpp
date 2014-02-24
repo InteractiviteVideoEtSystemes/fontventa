@@ -1,8 +1,8 @@
 #include <string.h>
 #include <netinet/in.h>
-#include "log.h"
+#include "medkit/log.h"
 #include "h263codec.h"
-#include "video.h"
+#include "medkit/video.h"
 
 
 //////////////////////////////////////////////////////////////////////////

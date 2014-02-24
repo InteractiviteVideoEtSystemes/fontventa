@@ -1,9 +1,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "log.h"
+#include "medkit/log.h"
 #include "mpeg4codec.h"
-#include "video.h"
+#include "medkit/video.h"
 
 DWORD Mpeg4Decoder::bufSize = 4096*16;
 

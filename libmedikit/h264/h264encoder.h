@@ -1,7 +1,7 @@
 #ifndef _H264ENCODER_H_
 #define _H264ENCODER_H_
-#include "codecs.h"
-#include "video.h"
+#include "../medkit/codecs.h"
+#include "../medkit/video.h"
 extern "C" {
 #include <x264.h>
 }

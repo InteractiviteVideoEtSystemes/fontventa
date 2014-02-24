@@ -1,15 +1,5 @@
-#include "log.h"
-#include "audio.h"
-#include "g711/g711codec.h"
-#include "gsm/gsmcodec.h"
-#include "speex/speexcodec.h"
-#include "nelly/NellyCodec.h"
-#ifdef OPUS_SUPPORT
-#include "opus/opusencoder.h"
-#include "opus/opusdecoder.h"
-#endif
-#include "g722/g722codec.h"
-#include "aac/aacencoder.h"
+#include "medkit/log.h"
+#include "medkit/audio.h"
 
 AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec)
 {
@@ -27,6 +17,7 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 	//Creamos uno dependiendo del tipo
 	switch(codec)
 	{
+#if 0
 		case AudioCodec::GSM:
 			return new GSMEncoder(properties);
 		case AudioCodec::PCMA:
@@ -49,6 +40,7 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 		case AudioCodec::AAC:
 			return new AACEncoder(properties);
 #endif
+#endif
 		default:
 			Error("Codec not found [%d]\n",codec);
 	}
@@ -63,6 +55,7 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 	//Creamos uno dependiendo del tipo
 	switch(codec)
 	{
+#if 0
 		case AudioCodec::GSM:
 			return new GSMDecoder();
 		case AudioCodec::PCMA:
@@ -81,6 +74,7 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 #endif
 		case AudioCodec::G722:
 			return new G722Decoder();
+#endif
 		default:
 			Error("Codec not found [%d]\n",codec);
 	}

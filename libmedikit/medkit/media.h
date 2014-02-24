@@ -17,7 +17,7 @@ public:
 	class RtpPacketization
 	{
 	public:
-		RtpPacketization(DWORD pos,DWORD size,BYTE* prefix,DWORD prefixLen)
+		RtpPacketization(DWORD pos,DWORD size,const BYTE* prefix,DWORD prefixLen)
 		{
 			//Store values
 			this->pos = pos;
@@ -32,7 +32,7 @@ public:
 
 		DWORD GetPos() const		{ return pos;	}
 		DWORD GetSize()	const	{ return size;	}
-		BYTE* GetPrefixData() const { return prefix;	}
+		const BYTE* GetPrefixData() const { return prefix;	}
 		DWORD GetPrefixLen()	{ return prefixLen;	}
 		DWORD GetTotalLength()	{ return size+prefixLen;}
 		
@@ -41,7 +41,6 @@ public:
 		DWORD	size;
 		BYTE	prefix[16];
 		DWORD	prefixLen;
-		bool    ownsbuffer;
 	};
 
 	typedef std::vector<RtpPacketization*> RtpPacketizationInfo;
@@ -66,7 +65,7 @@ public:
 		}
 	}
 
-	MediaFrame(Type type,DWORD size)
+	MediaFrame(Type type,DWORD size, bool owns = true)
 	{
 		//Set media type
 		this->type = type;
@@ -80,10 +79,23 @@ public:
 		
 		//NO length
 		length = 0;
-		if ( size > 0 )
+		if ( owns )
 		{
-		    buffer = (BYTE*) malloc(bufferSize);
+		    if ( size > 0 )
+		    {
+			buffer = (BYTE*) malloc(bufferSize);
+		    }
+		    else
+		    {
+			buffer = NULL;
+		    }
 		    ownsbuffer = true;
+		}
+		else
+		{
+		    buffer = NULL;
+		    bufferSize = 0;
+		    ownsbuffer = false;
 		}
 	}
 
@@ -107,14 +119,14 @@ public:
 		}
 	}
 	
-	void	AddRtpPacket(DWORD pos,DWORD size,BYTE* prefix,DWORD prefixLen)		
+	void	AddRtpPacket(DWORD pos,DWORD size,const BYTE* prefix,DWORD prefixLen)		
 	{
 		rtpInfo.push_back(new RtpPacketization(pos,size,prefix,prefixLen));
 	}
 	
 	Type	GetType() const		{ return type;	}
 	DWORD	GetTimeStamp()	const	{ return ts;	}
-	DWORD	SetTimestamp(DWORD ts) const	{ this->ts = ts; }
+	DWORD	SetTimestamp(DWORD ts)	{ this->ts = ts; }
 
 	bool	HasRtpPacketizationInfo()		{ return !rtpInfo.empty();	}
 	RtpPacketizationInfo& GetRtpPacketizationInfo()	{ return rtpInfo;		}
@@ -185,6 +197,7 @@ protected:
 	DWORD	bufferSize;
 	DWORD	duration;
 	DWORD	clockRate;
+	bool	ownsbuffer;
 };
 
 #endif	/* MEDIA_H */

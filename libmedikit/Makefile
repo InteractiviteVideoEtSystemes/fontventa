@@ -97,7 +97,7 @@ CXXFLAGS+= $(INCLUDE) $(OPTS)
 ############################################
 #Targets
 ############################################
-all: libmedikit.a
+all: libmedkit.a
 
-libmedikit.a: $(OBJS)
+libmedkit.a: $(OBJS)
 	ar r $@ $(OBJS)

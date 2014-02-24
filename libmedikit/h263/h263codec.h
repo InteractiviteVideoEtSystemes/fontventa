@@ -4,9 +4,9 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 }
 
-#include "h263.h"
-#include "codecs.h"
-#include "video.h"
+#include "../medkit/h263packet.h"
+#include "../medkit/codecs.h"
+#include "../medkit/video.h"
 #include <list>
 
 class H263Encoder : public VideoEncoder

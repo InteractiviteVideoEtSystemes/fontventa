@@ -3,8 +3,8 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 } 
-#include "codecs.h"
-#include "video.h"
+#include "../medkit/codecs.h"
+#include "../medkit/video.h"
 
 class Mpeg4Decoder : public VideoDecoder
 {
