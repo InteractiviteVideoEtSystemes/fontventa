@@ -1,5 +1,5 @@
-#include <asterisk.h>
-#include <video.h>
+#include <asterisk/frame.h>
+#include <medkit/video.h>
 
 struct VideoTranscoder;
 struct TextTranscoder;
