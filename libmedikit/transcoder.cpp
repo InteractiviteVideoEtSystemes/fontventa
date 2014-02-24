@@ -76,6 +76,8 @@ VideoTranscoder::VideoTranscoder(void  * ctxdata, unsigned int width_out, unsign
     
     numPixSrc = 0;
     numPixDst = width_out * height_out;
+    resizeWidth = 0;
+    resizeHeight = 0;
 }
 
 #if 0
