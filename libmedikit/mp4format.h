@@ -107,6 +107,7 @@ private:
     bool waitVideo;
     
     DWORD textSeqNo;
+    DWORD videoSeqNo;
     
     char partcipantName[8];
     BYTE audioBuff[800];

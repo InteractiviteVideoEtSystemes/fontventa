@@ -2,7 +2,7 @@
 #include "transcoder.h"
 #include "medikit/red.h"
 
-#if ASTERISK_VERSION_NUM>999999   // 10600
+#if ASTERISK_VERSION_NUM > 10000   // 10600
 #define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data.ptr))
 #else
 #define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data))
@@ -109,7 +109,7 @@ public:
     }
 
 private:
-    DWORD width, height;
+    DWORD width, height, bitrate;
     bool videoStarted;
     bool firstpkt;
     bool intratrame;
@@ -122,6 +122,7 @@ private:
     unsigned char AVCProfileCompat;
     
     VideoCodec codec;
+    std::string trackName;
 };
 
 #define MAX_SUBTITLE_DURATION 7000
@@ -241,7 +242,7 @@ int Mp4AudioTrack::ProcessFrame( MediaFrame * f )
 int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 {
 	BYTE type;
-
+		
 	//Check the codec
 	switch (codec)
 	{
@@ -281,7 +282,17 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 		    return 0;
 	}
 	this->codec = codec;
-	if ( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
+	
+	if ( trackName ) this->trackName = trackName; 
+	
+	if ( IsOpen() )
+	{
+		if ( trackName) 
+			MP4SetTrackName( mp4, mediatrack, trackName );
+		else if ( ! this->trackName.empty() )
+			MP4SetTrackName( mp4, mediatrack, this->trackName.c_str() );
+	}
+	
 	Log("-mp4recorder: created video track %d using codec %s.\n", mediatrack, VideoCodec::GetNameFor(codec));
 
 }
@@ -293,9 +304,15 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
     {
         VideoFrame f2 = ( VideoFrame *) f;
 	
-	fi (f2->GetType() == codec )
-	{
+	if (f2->GetType() == codec )
+	{	
 	    DWORD duration;
+	    f2->GuessIsIntra();
+
+	    // If video is not started, wait for the first I Frame
+	    if ( ! videoStarted && f2->IsIntra() ) return 0; 
+	    
+	    videoStarted = true;
 	    
 	    if (sampleId == 0)
 	    {
@@ -320,77 +337,89 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 		MP4AddRtpHint(mp4, hint);
 		//Get iterator
 		MediaFrame::RtpPacketizationInfo::iterator it = rtpInfo.begin();
-		//Latest?
-		bool last = (it==rtpInfo.end());
-
-		//Iterate
-		while(!last)
+		
+		for (it = rtpInfo.begin(); it != rtpInfo.end(); it++)
 		{
-			//Get rtp packet and move to next
-			MediaFrame::RtpPacketization *rtp = *(it++);
-			//is last?
-			last = (it==rtpInfo.end());
-			//Create rtp packet
-			MP4AddRtpPacket(mp4, hinttrack, last, 0);
+		    if ( f2->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
+		    {
+			//Get rtp data pointer
+			BYTE *data = f2->GetData()+rtp->GetPos();
+			//Check nal type
+			BYTE nalType = data[0] & 0x1F;
+			//Get nal data
+			BYTE *nalData = data+1;
+			DWORD nalSize = rtp->GetSize()-1;
 
-			//Check rtp payload header len
-			if (rtp->GetPrefixLen())
-				//Add rtp data
-				MP4AddRtpImmediateData(mp4, hinttrack, rtp->GetPrefixData(), rtp->GetPrefixLen());
+			//If it a SPS NAL
+			if (!hasSPS && nalType==0x07)
+			{
+				H264SeqParameterSet sps;
+				//DEcode SPS
+				sps.Decode(nalData,nalSize);
+				//Dump
+				sps.Dump();
+				
+				// Recreate tracks
+				if (mediatrack != MP4_INVALID_TRACK_ID)
+				{
+				    MP4DeleteTrack( mp4, mediatrack );
+				    mediatrack = MP4_INVALID_TRACK_ID;
+				}
+				
+				if (hinttrack != MP4_INVALID_TRACK_ID)
+				{
+				    MP4DeleteTrack( mp4, mediatrack );
+				    mediatrack = MP4_INVALID_TRACK_ID;
+				}
+								
+				// Update size
+				witdh = sps.GetWidth();
+				height = sps.GetHeight();
+				
+				//Add it
+				MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
+				//No need to search more
+				hasSPS = true;
+				
+				// Update profile level
+				AVCProfileIndication 	= sps.GetProfile();
+				AVCLevelIndication	= sps.GetLevel();
+				Create(NULL, bitrate);
+				
+				//Update widht an ehight
+				MP4SetTrackIntegerProperty(mp4,track,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
+				MP4SetTrackIntegerProperty(mp4,track,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
+				
+				//Add it
+				MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
+				
+				videoStarted = true;
+			}
+
+			//If it is a PPS NAL
+			if (!hasPPS && nalType==0x08)
+			{
+				//Add it
+				MP4AddH264PictureParameterSet(mp4,mediatrack,nalData,nalSize);
+				//No need to search more
+				hasPPS = true;
+			}
+		    }	
+		    
+		    // It was before AddH264Seq ....
+		    MP4AddRtpPacket(mp4, hinttrack, rtp->IsMark(), 0);
+
+		    //Check rtp payload header len
+		    if (rtp->GetPrefixLen())
+			//Add rtp data
+			MP4AddRtpImmediateData(mp4, hinttrack, rtp->GetPrefixData(), rtp->GetPrefixLen());
 
 			//Add rtp data
-			MP4AddRtpSampleData(mp4, hinttrack, sampleId, rtp->GetPos(), rtp->GetSize());
+		    MP4AddRtpSampleData(mp4, hinttrack, sampleId, rtp->GetPos(), rtp->GetSize());
 
-			//It is h264 and we still do not have SPS or PPS?
-			if (f2->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS))
-			{
-				//Get rtp data pointer
-				BYTE *data = f2->GetData()+rtp->GetPos();
-				//Check nal type
-				BYTE nalType = data[0] & 0x1F;
-				//Get nal data
-				BYTE *nalData = data+1;
-				DWORD nalSize = rtp->GetSize()-1;
-
-				//If it a SPS NAL
-				if (!hasSPS && nalType==0x07)
-				{
-					H264SeqParameterSet sps;
-					//DEcode SPS
-					sps.Decode(nalData,nalSize);
-					//Dump
-					sps.Dump();
-					//Update widht an ehight
-					MP4SetTrackIntegerProperty(mp4,track,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
-					MP4SetTrackIntegerProperty(mp4,track,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
-					
-					// Update size
-					witdh = sps.GetWidth();
-					height = sps.GetHeight();
-					
-					//Add it
-					MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
-					//No need to search more
-					hasSPS = true;
-					
-					// Update profile level
-					AVCProfileIndication 	= sps.GetProfile();
-					AVCLevelIndication	= sps.GetLevel();
-				}
-
-				//If it is a PPS NAL
-				if (!hasPPS && nalType==0x08)
-				{
-					//Add it
-					MP4AddH264PictureParameterSet(mp4,mediatrack,nalData,nalSize);
-					//No need to search more
-					hasPPS = true;
-				}
-			}
+		    //Save rtp
+		    MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());	
 		}
-
-		//Save rtp
-		MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());
 	    }
 	    return 1;
 	}
@@ -612,7 +641,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 
 bool AstFormatToCodec( int format, AudioCodec::Type & codec )
 {
-    switch ( format )
+    switch ( ((unsigned int) format) & 0xFFFFFFFE )
     {
         case AST_FORMAT_ULAW:
 	    codec = AudioCodec::PCMU;
@@ -634,7 +663,7 @@ bool AstFormatToCodec( int format, AudioCodec::Type & codec )
 	
 bool AstFormatToCodec( int format, VideoCodec::Type & codec )
 {
-    switch ( format )
+    switch ( ((unsigned int) format) & 0xFFFFFFFE )
     {
         case AST_FORMAT_H263:
 	    codec = VideoCodec::H263_1996;
@@ -701,7 +730,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	    case AST_FRAME_VIDEO:
 	    {
 	        VideoCodec vcodec;
-		
+		bool ismark = ( f->subclass & 0x01 ) != 0;
 		if ( AstFormatToCodec( f->subclass, vcodec ) )
 		{
 		    VideoFrame vf(vcodec, f->datalen, false);
@@ -710,6 +739,8 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    
 		    // Handle packetization here
 		    vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
+		    vf.AddRtpPacket( 0, f->datalen, NULL, 0, ismark);
+		    
 		    int ret = ProcessFrame( &vf );
 		    
 		    if ( ret == -1 && vtx != NULL)
