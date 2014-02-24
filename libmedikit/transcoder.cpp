@@ -1,5 +1,5 @@
-#include "medikit/transcoder.h"
-#include "medikit/video.h"
+#include "medkit/transcoder.h"
+#include "medkit/video.h"
 
 struct VideoTranscoder
 {    
