@@ -13,8 +13,6 @@ endif
 LOG             = yes
 DEBUG           = yes
 
-ADDLIBPATH      = ../staticdeps
-VADWEBRTC       = yes
 
 #DEBUG
 #OPTS=-msse -msse2 -msse3 -D__SSE2__  
@@ -99,18 +97,7 @@ CXXFLAGS+= $(INCLUDE) $(OPTS)
 ############################################
 #Targets
 ############################################
-all: mkdirs $(TARGETS) 
+all: libmedikit.a
 
-
-mcu: $(OBJSMCU)
-	$(CXX) -o $(BIN)/$@ $(BUILDOBJSMCU) $(LDFLAGS) $(VADLD)
-
-rtmptest: $(OBJSRTMPTEST)
-	$(CXX) -o $(BIN)/$@ $(BUILDOBJSRTMPTEST) $(LDFLAGS)
-
-mediagw:  $(OBJSMEDIAGW)
-	$(CXX) -o $(BIN)/$@ $(OBJSMEDIAGW) $(LDFLAGS)
-	
-flashstreamer: $(OBJSFS) $(OBJS)
-	g++ $(GNASHLD) -o $(BIN)/$@ $(BUILDOBJSFS) $(BUILDOBJS) $(GNASHBASE)/backend/.libs/libgnashagg.a  /usr/lib/libagg.a  $(LDFLAGS)
-
+libmedikit.a: $(OBJS)
+	ar r $@ $(OBJS)
