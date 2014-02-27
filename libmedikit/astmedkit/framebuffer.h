@@ -222,7 +222,7 @@ extern "C"
 #endif
      struct AstFb;
 
-     struct AstFb *AstFbCreate(struct AstFb *fb, DWORD maxWaitTime, int blocking);
+     struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking);
      int AstFbAddFrame( struct AstFb *fb, struct ast_frame *f );
      struct ast_frame * AstFbGetFrame(struct AstFb *fb);
      DWORD AstFbLength(struct AstFb *fb);

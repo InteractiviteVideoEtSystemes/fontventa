@@ -1,14 +1,11 @@
-#include "framebuffer.h"
+#include <astmedkit/framebuffer.h>
 
 
 bool AstFrameBuffer::Add(const ast_frame * f)
 {
 	DWORD seq;
-	
-	if (!ast_test_flag(f, AST_FRFLAG_HAS_TIMING_INFO) || f->len < 2 || f->ts < 0)
-	    return false;
-	    
-	seq = f->rxseqno;
+		    
+	seq = f->seqno;
 	
 	//Lock
 	pthread_mutex_lock(&mutex);
@@ -119,7 +116,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 	return rtp;
 }
 
-struct AstFb *AstFbCreate(struct AstFb *fb, DWORD maxWaitTime, int blocking)
+struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking)
 {
 	AstFrameBuffer * fb = new AstFrameBuffer((bool) blocking);
 	if (fb)
