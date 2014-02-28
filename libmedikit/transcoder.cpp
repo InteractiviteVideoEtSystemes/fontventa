@@ -116,10 +116,26 @@ bool VideoTranscoder::ReopenEncoder()
     if (encoder)
     {
 	encoder->SetSize(width_out, height_out);
-	encoder->SetFrameRate(fps_out, bitrate, gop_size);
+	encoder->SetFrameRate(fps_out, bitrate_out, gob_size);
 	return true;
     }
     return false;
+}
+
+bool VideoTranscoder::SetInputCodec(VideoCodec::Type codec)
+{
+    if (decoder != NULL)
+    {
+	// If no change is needed, just return.
+	if ( decoder->type == codec ) return true;
+	
+	delete decoder;
+	decoder = NULL;
+    }
+    
+    decoder = VideoCodecFactor::CreateDecoder(codec);
+    
+    return (decoder != NULL);
 }
 
 bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
@@ -200,7 +216,7 @@ bool VideoTranscoder::GetDecodedPicParam( VideoCodec * codec, DWORD * width, DWO
     {
         if ( decoder->GetWidth() > 0 && decoder->GetHeight() > 0 )
 	{
-	    *codec = decoder->GetCodec();
+	    *codec = decoder->type;
 	    *width = decoder->GetWidth();
 	    *height = decoder->GetHeight();
 	    return true;
