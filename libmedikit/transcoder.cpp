@@ -4,7 +4,8 @@
 
 struct VideoTranscoder
 {    
-    VideoTranscoder(void  * ctxdata, unsigned int width_out, unsigned int height_out, VideoCodec::Type outputcodec, 
+    VideoTranscoder(void  * ctxdata, unsigned int width_out, unsigned int height_out,
+		    VideoCodec::Type outputcodec, 
 		    unsigned int bitrate, unsigned gob_size);
 				 
     ~VideoTranscoder();
@@ -64,10 +65,10 @@ VideoTranscoder::VideoTranscoder(void  * ctxdata, unsigned int width_out, unsign
     /* we will measure it */
     fps_in = 0;
     
-    fps_out = 20;
+    fps_out = 15;
     
     
-    encoder = CreateEncoder(outputcodec);
+    encoder = VideoCodecFactory::CreateEncoder(outputcodec);
     decoder = NULL;
     scaler = NULL;
     listener = NULL;
@@ -115,7 +116,7 @@ bool VideoTranscoder::ReopenEncoder()
     if (encoder)
     {
 	encoder->SetSize(width_out, height_out);
-	encoder->SetFrameRate(fps, bitrate, gop_size);
+	encoder->SetFrameRate(fps_out, bitrate, gop_size);
 	return true;
     }
     return false;
