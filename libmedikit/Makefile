@@ -102,3 +102,6 @@ all: libmedkit.a
 
 libmedkit.a: $(OBJS)
 	ar r $@ $(OBJS)
+
+clean:
+	rm -f $(OBJS) libmedkit.a
