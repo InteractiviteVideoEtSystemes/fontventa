@@ -19,7 +19,7 @@ struct VideoTranscoder
     int HandleResize();
     void SetListener(MediaFrame::Listener * listener) { this->listener = listener; }
     
-    bool GetDecodedPicParam( VideoCodec * codec, DWORD * width, DWORD * height);
+    bool GetDecodedPicParam( VideoCodec::Type * codec, DWORD * width, DWORD * height);
     
     
     VideoDecoder *decoder;
@@ -43,7 +43,7 @@ struct VideoTranscoder
     unsigned int fps_out;
     
     BYTE * decodedPic;
-    DWORD decodedPicSize;
+    DWORD  decodedPicSize;
     
     MediaFrame::Listener * listener;
     
@@ -133,7 +133,7 @@ bool VideoTranscoder::SetInputCodec(VideoCodec::Type codec)
 	decoder = NULL;
     }
     
-    decoder = VideoCodecFactor::CreateDecoder(codec);
+    decoder = VideoCodecFactory::CreateDecoder(codec);
     
     return (decoder != NULL);
 }
@@ -170,17 +170,17 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 		    
 		case 1:
 		    srcY = decoder->GetFrame();
-		    srcU = srcY + numPixelSrc;
-		    srcV = srcU + numPixelSrc/4;
+		    srcU = srcY + numPixSrc;
+		    srcV = srcU + numPixSrc/4;
 		    dstY = decodedPic;
-		    dstU = decodedPic + numPixelDst;
-		    dstV = dstU + numPixelDst/4;
+		    dstU = decodedPic + numPixDst;
+		    dstV = dstU + numPixDst/4;
 		    scaler->Resize(srcY,srcU,srcV,dstY,dstU,dstV);
 		    break;
 		
 		case 2:
 		    dstY = decoder->GetFrame();
-		    decodedPicSize = numPixelDst + numPixelDst/4;
+		    decodedPicSize = numPixDst + numPixDst/4;
 		    break;
 		    
 		default:
@@ -192,7 +192,7 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 	    if ( needAdjust )
 		ReopenEncoder();
 	    
-	    if ( encoder != NULL && ( listener != NULL || cb != NULL )
+	    if ( encoder != NULL && ( listener != NULL || cb != NULL ))
 	    {
 		f_out = encoder->EncodeFrame( dstV, decodedPicSize );
 	    }
@@ -210,13 +210,13 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 }
 
 
-bool VideoTranscoder::GetDecodedPicParam( VideoCodec * codec, DWORD * width, DWORD * height)
+bool VideoTranscoder::GetDecodedPicParam( VideoCodec::Type * codec, DWORD * width, DWORD * height)
 {
     if ( decoder != NULL)
     {
         if ( decoder->GetWidth() > 0 && decoder->GetHeight() > 0 )
 	{
-	    *codec = decoder->type;
+	    (*codec) = decoder->type;
 	    *width = decoder->GetWidth();
 	    *height = decoder->GetHeight();
 	    return true;
@@ -233,7 +233,7 @@ int VideoTranscoder::HandleResize()
     if (scaler != NULL && decoder->GetWidth() == resizeWidth && decoder->GetHeight() == resizeHeight)
 	return 1;
 
-   numPixelSrc = decoder->GetWidth() * decoder->GetHeight();
+   numPixSrc = decoder->GetWidth() * decoder->GetHeight();
     /* if encoder and decoder have the same format */
     if (decoder->GetWidth() == width_out && decoder->GetHeight() == height_out )
     {
@@ -245,17 +245,18 @@ int VideoTranscoder::HandleResize()
 	/* Invalid picture or decoder context. Ignore */
 	if (decoder->GetWidth() == 0 || decoder->GetHeight() == 0) return 0;
 	
-	if ( scaler == NULL ) scaler ) new FrameScaler();
+	if ( scaler == NULL ) scaler = new FrameScaler();
 
-	if ( scaler->SetResize( decoder->GetWidth(), decoder->GetHeight(), width_out, height_out) )
+	if ( scaler->SetResize( decoder->GetWidth(), decoder->GetHeight(), decoder->GetWidth(),
+				(int) width_out, (int) height_out, (int) width_out ) )
 	{
 	    resizeWidth = decoder->GetWidth();
 	    resizeHeight = decoder->GetHeight();
 	    
-	    if (decodedPic) free decodedPic;
-	    decodecPicSize = resizeWidth*Height + (resizeWidth*Height) / 2;
+	    if (decodedPic) free(decodedPic);
+	    decodedPicSize = resizeWidth*resizeHeight + (resizeWidth*resizeHeight) / 2;
 
-	    decodedPic = (BYTE *) malloc( decodecPicSize );
+	    decodedPic = (BYTE *) malloc(decodedPicSize);
 	    
 	    return 1;
 	}
@@ -286,7 +287,6 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
     /* Get first parameter */
     char *i = strchr(format,'@');
     int picsize = 0, qMin = -1, qMax = -1, fps = -1, bitrate = -1;
-    int 
     /* Parse params */
     while (i)
     {
