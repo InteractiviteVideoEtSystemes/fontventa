@@ -1,5 +1,6 @@
 #ifndef TEXTENCODER_H_
 #define	TEXTENCODER_H_
+
 #include "text.h"
 
 class TextEncoder

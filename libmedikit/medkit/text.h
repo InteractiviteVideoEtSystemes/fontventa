@@ -1,10 +1,36 @@
 #ifndef _TEXT_H_
 #define _TEXT_H_
-#include "config.h"
+#include <wstring>
 #include "tools.h"
-#include "amf.h"
-#include "partedmosaic.h"
 #include "media.h"
+
+class UTF8Parser
+{
+public:
+	UTF8Parser();
+	UTF8Parser(const std::wstring& str);
+	void Reset();
+	DWORD Parse(const BYTE *data,DWORD size);
+	bool IsParsed();
+	void SetSize(DWORD size);
+	DWORD GetUTF8Size();
+	DWORD GetLength();
+	std::wstring GetWString();
+	const wchar_t* GetWChar();
+	void SetWString(const std::wstring& str);
+	void SetWChar(const wchar_t* buffer,DWORD bufferLen);
+	DWORD SetString(const char* str);
+	DWORD Serialize(BYTE *data,DWORD size);
+	DWORD Serialize(std::string & str);
+	DWORD Truncate(DWORD size);
+
+private:
+	std::wstring value;
+	DWORD utf8size;
+	DWORD bytes;
+	DWORD len;
+	wchar_t w;
+};
 
 
 class TextFrame : public MediaFrame
