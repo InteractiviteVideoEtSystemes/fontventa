@@ -14,6 +14,7 @@ LOG             = yes
 DEBUG           = yes
 
 
+INCLUDE=-I.
 #DEBUG
 #OPTS=-msse -msse2 -msse3 -D__SSE2__  
 ifeq ($(DEBUG),yes)

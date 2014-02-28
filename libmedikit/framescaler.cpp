@@ -1,8 +1,8 @@
-#include <framescaler.h>
+#include <medkit/framescaler.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include "log.h"
+#include <medkit/log.h>
 extern "C" {
 #include <libswscale/swscale.h>
 #include <libavcodec/avcodec.h>

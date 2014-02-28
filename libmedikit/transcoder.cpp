@@ -6,20 +6,20 @@ struct VideoTranscoder
 {    
     VideoTranscoder(void  * ctxdata, unsigned int width_out, unsigned int height_out,
 		    VideoCodec::Type outputcodec, 
-		    unsigned int bitrate, unsigned gob_size);
+		    unsigned int bitrate, unsigned int fps, unsigned gob_size);
 				 
     ~VideoTranscoder();
     
-    bool ReopenEncoder();
-    bool ComputeFps()    { return false; }
+    bool EncoderOpen();
+    bool ComputeFps(time_t t)    { return false; }
 
     bool SetInputCodec(VideoCodec::Type codec);
     
-    bool ProcessFrame(VideoFrame * f);
-    int HandleResize();
+    bool ProcessFrame(VideoFrame * f, int lost, int last);
+    int  HandleResize();
     void SetListener(MediaFrame::Listener * listener) { this->listener = listener; }
     
-    bool GetDecodedPicParam( VideoCodec::Type * codec, DWORD * width, DWORD * height);
+    bool GetDecodedPicParams( VideoCodec::Type * codec, DWORD * width, DWORD * height);
     
     
     VideoDecoder *decoder;
@@ -41,6 +41,7 @@ struct VideoTranscoder
     unsigned int fps_in;
     unsigned int fps_in_tmp;
     unsigned int fps_out;
+    unsigned int fps_out_max;
     
     BYTE * decodedPic;
     DWORD  decodedPicSize;
@@ -53,7 +54,7 @@ struct VideoTranscoder
 
 
 VideoTranscoder::VideoTranscoder(void  * ctxdata, unsigned int width_out, unsigned int height_out, VideoCodec::Type outputcodec, 
-				 unsigned int bitrate, unsigned gob_size)
+				 unsigned int bitrate, unsigned int fps, unsigned gob_size)
 {
     this->ctxdata	= ctxdata;
     bitrate_out         = bitrate;
@@ -64,9 +65,10 @@ VideoTranscoder::VideoTranscoder(void  * ctxdata, unsigned int width_out, unsign
     
     /* we will measure it */
     fps_in = 0;
+    fps_in_tmp = 0;
     
     fps_out = 15;
-    
+    fps_out_max = fps;
     
     encoder = VideoCodecFactory::CreateEncoder(outputcodec);
     decoder = NULL;
@@ -111,7 +113,7 @@ VideoTranscoder::~VideoTranscoder()
     if (scaler) delete scaler;
 }
 
-bool VideoTranscoder::ReopenEncoder()
+bool VideoTranscoder::EncoderOpen()
 {
     if (encoder)
     {
@@ -143,8 +145,8 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
     VideoFrame * f_out = NULL;
     time_t t = time(NULL);
     bool needAdjust = false;
-    BYTE * srcY, srcU, srcV;
-    BYTE * dstY, dstU, dstV;    
+    BYTE * srcY, * srcU, * srcV;
+    BYTE * dstY, * dstU, * dstV;    
     
     if ( decoder == NULL || decoder->type != f->GetCodec() )
     {
@@ -190,7 +192,7 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 	    
 	    }
 	    if ( needAdjust )
-		ReopenEncoder();
+		EncoderOpen();
 	    
 	    if ( encoder != NULL && ( listener != NULL || cb != NULL ))
 	    {
@@ -199,10 +201,11 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 	    
 	    if (listener)
 	    {
-		listener->onMediaFrame(f_out);
+		listener->onMediaFrame( *f_out );
 	    }
 	    
-	    if ( cb != NULL ) cb( ctxdata, f_out->GetCodec(), f_out->GetMedia(), f_out->GetLength() );
+	    if ( cb != NULL ) cb( ctxdata, f_out->GetCodec(), (const char *) f_out->GetData(),
+				  f_out->GetLength() );
 	    
 	    delete f_out;
 	}
@@ -210,7 +213,7 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 }
 
 
-bool VideoTranscoder::GetDecodedPicParam( VideoCodec::Type * codec, DWORD * width, DWORD * height)
+bool VideoTranscoder::GetDecodedPicParams( VideoCodec::Type * codec, DWORD * width, DWORD * height)
 {
     if ( decoder != NULL)
     {
@@ -267,16 +270,16 @@ int VideoTranscoder::HandleResize()
 struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char *format)
 {
     /* Check params */
-    int output;
+    VideoCodec::Type output;
     struct VideoTranscoder *vtc;
     
     if ( strncasecmp(format,"h263",4) == 0 )
     {
-        output = AST_FORMAT_H263;
+        output = VideoCodec::H263_1996;
     }
     else if ( strncasecmp(format,"h264",4) == 0 )
     {
-        output = AST_FORMAT_H264;
+        output = VideoCodec::H264;
     }
     else
     {
@@ -287,6 +290,8 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
     /* Get first parameter */
     char *i = strchr(format,'@');
     int picsize = 0, qMin = -1, qMax = -1, fps = -1, bitrate = -1;
+    int gob_size_out;
+    unsigned int width_out = 352, height_out = 288;
     /* Parse params */
     while (i)
     {
@@ -297,16 +302,22 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
 	if (strncasecmp(i,"qcif",4) == 0)
 	{
 	    /* Set qcif */
+	    width_out = 176;
+	    height_out = 144;
 	    picsize = 0;
 	} 
 	else if (strncasecmp(i,"cif",3)==0) 
 	{
 			/* Set cif */
+	    width_out = 352;
+	    height_out = 288;
 	    picsize = 1;
 	} 
 	else if (strncasecmp(i,"vga",3)==0) 
 	{
 	    /* Set VGA */
+	    width_out = 640;
+	    height_out = 480;
 	    picsize = 2;
 	}
 	else if (strncasecmp(i,"fps=",4)==0) 
@@ -330,7 +341,7 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
 	} 
 	else if (strncasecmp(i,"gs=",3)==0) {
 			/* Set gop size */
-		gop_size = atoi(i+3);
+		gob_size_out = atoi(i+3);
 	}
 
 	/* Find next param*/
@@ -338,7 +349,10 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
     }
 
     /* Create transcoder */
-    vtc = new VideoTranscoder(channel, picsize, output, fps, bitrate, qMin, qMax, gob_size);
+    // VideoTranscoder(void  * ctxdata, unsigned int width_out, unsigned int height_out,
+    //                VideoCodec::Type outputcodec,
+    //                unsigned int bitrate, unsigned gob_size)
+    vtc = new VideoTranscoder(channel, width_out, height_out, output, fps, bitrate, gob_size_out);
 
     if ( vtc == NULL ) 
     {
@@ -363,7 +377,7 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
 
 int VideoTranscoderGetDecodedPicParams( struct VideoTranscoder *vtc, int * codec, DWORD * width, DWORD *height )
 {
-    VideoCodec c2;
+    VideoCodec::Type c2;
     
     int ret = vtc->GetDecodedPicParams(&c2, width, height );
     if (ret)
