@@ -6,6 +6,7 @@ extern "C"
 #include <libswscale/swscale.h>
 #include <libavutil/opt.h>
 }
+#include <medkit/config.h>
 
 class FrameScaler
 {

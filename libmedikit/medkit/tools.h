@@ -9,6 +9,7 @@
 #include <sys/signal.h>
 #include <climits>
 #include <pthread.h>
+
 /*************************************
 * blocksignals
 *       Bloquea todas las sygnals para esa thread
