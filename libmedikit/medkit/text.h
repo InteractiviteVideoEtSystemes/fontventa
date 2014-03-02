@@ -1,6 +1,6 @@
 #ifndef _TEXT_H_
 #define _TEXT_H_
-#include <wstring>
+#include <string>
 #include "tools.h"
 #include "media.h"
 

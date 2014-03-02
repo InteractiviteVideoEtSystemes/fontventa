@@ -1,5 +1,4 @@
-#include "mp4format.h"
-#include "transcoder.h"
+#include "astmedkit/mp4format.h"
 #include "medikit/red.h"
 
 #if ASTERISK_VERSION_NUM > 10000   // 10600

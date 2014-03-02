@@ -8,10 +8,10 @@
 #include <signal.h>
 #include <set>
 #include <list>
-#include "textencoder.h"
-#include "log.h"
-#include "tools.h"
-#include "text.h"
+#include <medkit/textencoder.h>
+#include <medkit/log.h>
+#include <medkit/tools.h>
+#include <medkit/text.h>
 
 
 /**********************************
