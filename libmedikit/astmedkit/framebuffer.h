@@ -9,7 +9,7 @@
 #define	ASTFRAMEBUFFER_H
 
 #include <errno.h>
-#include <asterisk/log.h>
+#include <asterisk/logger.h>
 #include <asterisk/frame.h>
 #include <pthread.h>
 

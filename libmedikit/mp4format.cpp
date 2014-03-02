@@ -1,5 +1,5 @@
 #include "astmedkit/mp4format.h"
-#include "medikit/red.h"
+#include "medkit/red.h"
 
 #if ASTERISK_VERSION_NUM > 10000   // 10600
 #define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data.ptr))

@@ -1,5 +1,5 @@
 #include <medkit/transcoder.h>
-#include <medkit/framebuffer.h>
+#include <astmedkit/framebuffer.h>
 #include <mp4v2/mp4v2.h>
 
 
@@ -116,7 +116,6 @@ private:
 
 #endif
 
-struct
 
 #ifdef _cplusplus
 extern "C"
