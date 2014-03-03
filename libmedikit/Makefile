@@ -14,7 +14,8 @@ LOG             = yes
 DEBUG           = yes
 
 
-INCLUDE=-I. 
+#INCLUDE=-I. 
+INCLUDE=-I. -I/cygdrive/d/svn/asterisk-1.4.x-videocaps/include
 #DEBUG
 
 ifeq ($(DEBUG),yes)

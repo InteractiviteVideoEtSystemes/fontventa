@@ -1,13 +1,14 @@
 #include <medkit/transcoder.h>
-#include <astmedkit/framebuffer.h>
+//#include <astmedkit/framebuffer.h>
 #include <mp4v2/mp4v2.h>
 
 
 #ifdef _cplusplus
-class Mp4track
+
+class Mp4xxtrack
 {
 public:
-    mp4track(MP4FileHandle mp4) 
+    Mp4xxtrack(MP4FileHandle mp4) 
     { 
         this->mp4 = mp4;
 	sampleId = 0;
@@ -15,7 +16,7 @@ public:
 	hinttrack = MP4_INVALID_TRACK_ID;
     }
 
-    virtual ~mp4track() {};
+    virtual ~Mp4xxtrack() {};
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate) = 0;
     virtual int ProcessFrame( const MediaFrame * f ) = 0;
@@ -115,7 +116,6 @@ private:
 };
 
 #endif
-
 
 #ifdef _cplusplus
 extern "C"
