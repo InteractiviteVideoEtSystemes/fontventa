@@ -38,6 +38,7 @@ protected:
 
 class mp4recorder 
 {
+public:
     mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo);
     ~mp4recorder();
     

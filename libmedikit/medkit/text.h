@@ -40,6 +40,10 @@ public:
 	{
 	}
 	
+	TextFrame(bool owns) : MediaFrame(MediaFrame::Text,0, owns)
+	{
+	}
+	
 	TextFrame(DWORD ts,const BYTE *buffer,DWORD bufferLen) : MediaFrame(MediaFrame::Text,bufferLen)
 	{
 		SetFrame(ts,buffer,bufferLen);

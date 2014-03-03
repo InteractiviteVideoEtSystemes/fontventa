@@ -255,7 +255,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
     {
         VideoFrame * f2 = ( VideoFrame *) f;
 	
-	if (f2->GetType() == codec )
+	if (f2->GetCodec() == (VideoCodec::Type) codec )
 	{	
 	    DWORD duration;
 	    f2->GuessIsIntra();
@@ -485,11 +485,12 @@ int mp4recorder::AddTrack(VideoCodec::Type codec, DWORD width, DWORD height, DWO
     
     if ( mediatracks[trackidx] == NULL )
     {
-	mediatracks[trackidx] = new Mp4VideoTrack(mp4);
+        Mp4VideoTrack * vtr = new Mp4VideoTrack(mp4);
+	mediatracks[trackidx] = vtr;
 	if ( mediatracks[trackidx] != NULL )
 	{
-	    mediatracks[trackidx]->SetSize(width, height);
-	    mediatracks[trackidx]->Create( trackName, codec, bitrate );
+	    vtr->SetSize(width, height);
+	    vtr->Create( trackName, codec, bitrate );
 	    return 1;
 	}
 	else
@@ -553,7 +554,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    if ( mediatracks[trackidx] )
 	    {
 	        int ret = mediatracks[trackidx]->ProcessFrame(f);
-		if ( ( (Mp4VideoTrack *) mediatracks[trackidx])->VideoStarted() )
+		if ( ( (Mp4VideoTrack *) mediatracks[trackidx])->IsVideoStarted() )
 		{
 		    waitVideo = false;
 		}
@@ -655,13 +656,15 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		
 		if ( f->subclass == AST_FORMAT_SLINEAR )
 		{
-		    int outLen = 800;
+		    // If audio received is SLINEAR - transcode
+		    int outLen = sizeof(audioBuff);
 		    acodec = AudioCodec::PCMU;
 		    
 		    if (audioencoder == NULL)
 			audioencoder = AudioCodecFactory::CreateEncoder(AudioCodec::PCMU);
    
-		    outLen = audioencoder->Encode( AST_FRAME_GET_BUFFER(f), f->datalen, audioBuff, outLen );
+		    outLen = audioencoder->Encode( (SWORD*) AST_FRAME_GET_BUFFER(f), f->datalen, 
+						    audioBuff, outLen );
 		    if ( outLen > 0 ) 
 		        af.SetMedia( audioBuff, outLen );
 		    else
@@ -683,7 +686,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	    		
 	    case AST_FRAME_VIDEO:
 	    {
-	        VideoCodec vcodec;
+	        VideoCodec::Type vcodec;
 		bool ismark = ( f->subclass & 0x01 ) != 0;
 		if ( AstFormatToCodec( f->subclass, vcodec ) )
 		{
@@ -697,7 +700,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    
 		    int ret = ProcessFrame( &vf );
 		    
-		    if ( ret == -1 && vtx != NULL)
+		    if ( ret == -1 && vtc != NULL)
 		    {
 			/* we need to transcode */
 			return VideoTranscoderProcessFrame( vtc, f );
@@ -714,7 +717,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	    {
 		DWORD lost = 0;
 	        TextCodec::Type tcodec;
-		TextFrame tf( TextCodec::T140, 1000, false );
+		TextFrame tf( false );
 
 		//If not first
 		if (textSeqNo != 0xFFFF)
@@ -722,7 +725,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 			lost = f->seqno - textSeqNo-1;
 
 		//Update last sequence number
-		lastSeq = f->seqno;
+		textSeqNo = f->seqno;
 		
 		if ( f->subclass == AST_FORMAT_RED )
 		{
@@ -738,26 +741,28 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 			}
 			
 			//Fore each recovered packet
-			for (int i=red.GetRedundantCount()-lost;i<red->GetRedundantCount();i++)
+			for (int i=red.GetRedundantCount()-lost;i<red.GetRedundantCount();i++)
 			{
 				//Create frame from recovered data - check timestamps ...
-				tf.SetTimeStamp( tf->ts - red.GetRedundantTimestampOffset(i) );
+				tf.SetTimestamp( f->ts - red.GetRedundantTimestampOffset(i) );
 				tf.SetMedia( red.GetRedundantPayloadData(i),red.GetRedundantPayloadSize(i) );
-				ProcessFrame ( tf );
+				ProcessFrame ( &tf );
 			}
 		    }
 		    
-		    tf.SetTimeStamp( f->ts );
+		    tf.SetTimestamp( f->ts );
 		    tf.SetMedia( red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
 		}
 		else /* assume plain text */
 		{
-		    tf.SetTimeStamp( f->ts );
+		    tf.SetTimestamp( f->ts );
 		    tf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
 		}
 		
-		return ProcessFrame( &af );
-	    }	    
+		return ProcessFrame( &tf );
+	    }
+	}
+    }
 }
 
 /* ---- callbeck used for video transcoding --- */
@@ -765,24 +770,24 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size_t outputlen)
 {
     mp4recorder * r2 = (mp4recorder *) ctxdata;
-    VideoFrame vf(outputcodec, 2000, false);
+    VideoFrame vf( (VideoCodec::Type) outputcodec, 2000, false);
     
     if (r2)
     {
-        vf.SetMedia(output, outputlen);
+        vf.SetMedia( (uint8_t *) output, outputlen);
 	// add timestamp
 	r2->ProcessFrame(&vf);
     }
 }    
 
-struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, char * videoformat)
+struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, char * videoformat)
 {
-    mp4recorder * r = new mp4recorder(chan, mp4);
+    mp4recorder * r = new mp4recorder(chan, mp4, waitVideo);
     
     return (struct mp4rec *) r;
 }
 
-void Mp4RecorderDestroy( struct mp4rec * r );
+void Mp4RecorderDestroy( struct mp4rec * r )
 {
     mp4recorder * r2 = (mp4recorder *) r;
 

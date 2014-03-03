@@ -4,9 +4,9 @@
  * 
  * Created on 21 de junio de 2011, 12:21
  */
-#include "log.h"
-#include "avcdescriptor.h"
-#include "tools.h"
+#include "medkit/log.h"
+#include "medkit/avcdescriptor.h"
+//#include "medkit/tools.h"
 #include "h264/h264.h"
 #include <string.h>
 #include <stdlib.h>

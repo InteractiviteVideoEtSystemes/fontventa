@@ -1,4 +1,4 @@
-#include "medikit/red.h"
+#include "medkit/red.h"
 
 RTPRedundantPayload::RTPRedundantPayload(BYTE *data,DWORD size)
 {
@@ -11,7 +11,7 @@ RTPRedundantPayload::RTPRedundantPayload(BYTE *data,DWORD size)
 	if ( data != NULL && size > 0 ) ParseRed(data, size); 
 }
 
-RTPRedundantPayload::RTPRedundantPayload(BYTE *data,DWORD size)
+void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 {
 	//Number of bytes to skip of text until primary data
 	WORD skip = 0;
@@ -77,6 +77,6 @@ RTPRedundantPayload::RTPRedundantPayload(BYTE *data,DWORD size)
 	//Get prymary payload
 	primaryData = redundantData+skip;
 	//Get size of primary payload
-	primarySize = GetMediaLength()-i-skip;
+	primarySize = size-i-skip;
 }
 

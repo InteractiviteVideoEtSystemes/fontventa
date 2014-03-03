@@ -864,7 +864,7 @@ bool H263RFC2190Paquetizer::PaquetizeFrame(VideoFrame	*frame)
 						headerA.sbits = sbit;
 						headerA.ebits = ebit;
 						//Add RTP packet
-						frame->AddRtpPacket(ini/8, packsetSize, headerA.GetData(), headerA.GetSize());
+						frame->AddRtpPacket(ini/8, packsetSize, headerA.GetData(), headerA.GetSize(), true);
 						//Move the begining of the last gob
 						ini = lastGOB+1;
 					} else { 
@@ -881,7 +881,7 @@ bool H263RFC2190Paquetizer::PaquetizeFrame(VideoFrame	*frame)
 					headerB.sbits = sbit;
 					headerB.ebits = ebit;
 					//Add RTP packet
-					frame->AddRtpPacket(ini/8, packsetSize, headerB.GetData(), headerB.GetSize());
+					frame->AddRtpPacket(ini/8, packsetSize, headerB.GetData(), headerB.GetSize(), true);
 					//Move the begining of the last MB
 					ini = lastMB+1;
 					//Next is the first one
@@ -905,7 +905,7 @@ bool H263RFC2190Paquetizer::PaquetizeFrame(VideoFrame	*frame)
 			headerB.sbits = sbit;
 			headerB.ebits = ebit;
 			//Add RTP packet
-			frame->AddRtpPacket(ini/8, packsetSize, headerB.GetData(), headerB.GetSize());
+			frame->AddRtpPacket(ini/8, packsetSize, headerB.GetData(), headerB.GetSize(), true);
 			//Move the begining of the last MB
 			ini = lastMB+1;
 			//Next is the first one
@@ -933,13 +933,13 @@ bool H263RFC2190Paquetizer::PaquetizeFrame(VideoFrame	*frame)
 			headerA.sbits = sbit;
 			headerA.ebits = ebit;
 			//Add RTP packet
-			frame->AddRtpPacket(ini/8, packsetSize, headerA.GetData(), headerA.GetSize());
+			frame->AddRtpPacket(ini/8, packsetSize, headerA.GetData(), headerA.GetSize(), false);
 		} else {
 			//Set start and end bits
 			headerB.sbits = sbit;
 			headerB.ebits = ebit;
 			//Add RTP packet
-			frame->AddRtpPacket(ini/8, packsetSize, headerB.GetData(), headerB.GetSize());
+			frame->AddRtpPacket(ini/8, packsetSize, headerB.GetData(), headerB.GetSize(), false);
 		}
 	}
 	//Everything was good

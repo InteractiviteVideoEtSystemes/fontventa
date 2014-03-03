@@ -39,7 +39,7 @@ endif
 #G711OBJ=g711.o pcmucodec.o pcmacodec.o
 
 H263DIR=h263
-H263OBJ=h263.o h263codec.o mpeg4codec.o h263-1996codec.o
+H263OBJ=h263packet.o h263codec.o mpeg4codec.o h263-1996codec.o
 
 ifeq ($(FLV1PARSER),yes)
 	FLV1DIR=flv1

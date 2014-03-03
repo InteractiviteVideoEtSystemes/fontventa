@@ -137,7 +137,7 @@ public:
 	DWORD GetDuration()	const 		{ return duration;		}
 	void SetDuration(DWORD duration)	{ this->duration = duration;	}
 
-	BYTE* GetData()	const		{ return buffer;		}
+	BYTE* GetData()	const		{ return buffer;	}
 	DWORD GetLength() const		{ return length;		}
 	DWORD GetMaxMediaLength() const	{ return bufferSize;		}
 
@@ -153,7 +153,7 @@ public:
 		ownsbuffer = true;
 	}
 
-	bool SetMedia(BYTE* data,DWORD size)
+	bool SetMedia(const BYTE* data,DWORD size)
 	{
 	    if ( ownsbuffer )
 	    {
@@ -168,12 +168,12 @@ public:
 	    }
 	    else
 	    {
-	        buffer = data;
+	        buffer = (BYTE*) data;
 		length = size;
 	    }	
 	}
 
-	DWORD AppendMedia(BYTE* data,DWORD size)
+	DWORD AppendMedia(const BYTE* data,DWORD size)
 	{
 		DWORD pos = length;
 		

@@ -1,6 +1,9 @@
 #ifndef _RED_H
 #define _RED_H
 
+#include <medkit/config.h>
+#include <vector>
+
 class RTPRedundantPayload
 {
 public:
