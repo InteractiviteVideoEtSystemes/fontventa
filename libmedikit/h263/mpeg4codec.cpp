@@ -326,21 +326,25 @@ VideoFrame* Mpeg4Encoder::EncodeFrame(BYTE *in,DWORD len)
 	DWORD ini = 0;
 
 	//Copy all
+	DWORD lenpkt = RTPPAYLOADSIZE;
+	bool mark;
+	
 	while(ini<bufLen)
 	{
-		//The mtu
-		DWORD len = RTPPAYLOADSIZE;
-
+		mark = false;
 		//Check length
-		if (len+ini>bufLen)
+		if (lenpkt+ini>bufLen)
+		{
 			//Fix it
-			len=bufLen-ini;
+			lenpkt=bufLen-ini;
+			mark = true;
+		}
 
 		//Add rtp packet
-		frame->AddRtpPacket(ini,len,NULL,0);
+		frame->AddRtpPacket(ini,len,NULL,0,mark);
 
 		//Increase pointer
-		ini += len;
+		ini += lenpkt;
 	}
 
 	//Y ponemos a cero el comienzo

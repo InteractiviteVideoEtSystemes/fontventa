@@ -223,18 +223,24 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 	frame->ClearRTPPacketizationInfo();
 
 	//Copy all
+	DWORD lenpkt;
+	bool mark ;
+	
 	while(ini<bufLen)
 	{
+		mark = false;
 		//The mtu
-		DWORD len = RTPPAYLOADSIZE-2;
-
+		lenpkt = RTPPAYLOADSIZE-2;
 		//Check length
-		if (len+ini>bufLen)
+		if (lenpkt+ini >= bufLen)
+		{
+			mark = true;
 			//Fix it
-			len=bufLen-ini;
+			lenpkt=bufLen-ini;
+		}
 		
 		//Add rtp packet
-		frame->AddRtpPacket(ini,len,prefix,2);
+		frame->AddRtpPacket(ini,lenpkt,prefix,2, mark );
 
 		//If it is first
 		if (ini==2)
@@ -245,7 +251,7 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 		}
 		
 		//Increase pointer
-		ini += len;
+		ini += lenpkt;
 	}
 	
 	return frame;

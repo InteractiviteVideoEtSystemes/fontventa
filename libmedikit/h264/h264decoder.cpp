@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <netinet/in.h>
-#include "log.h"
+#include "../medkit/log.h"
 #include "h264decoder.h"
 
 //H264Decoder

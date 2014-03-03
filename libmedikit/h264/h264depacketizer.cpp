@@ -6,16 +6,14 @@
  */
 
 #include "h264depacketizer.h"
-#include "media.h"
-#include "codecs.h"
-#include "rtp.h"
-#include "log.h"
+#include "../medkit/codecs.h"
+#include "../medkit/log.h"
 
 /* 3 zero bytes syncword */
 //static uint8_t sync_bytes[] = { 0, 0, 0, 1 };
 
 
-H264Depacketizer::H264Depacketizer() : RTPDepacketizer(MediaFrame::Video,VideoCodec::H264), frame(VideoCodec::H264,0)
+H264Depacketizer::H264Depacketizer() : frame(VideoCodec::H264,0)
 {
 }
 
@@ -38,15 +36,7 @@ void H264Depacketizer::ResetFrame()
 	frame.SetLength(0);
 }
 
-MediaFrame* H264Depacketizer::AddPacket(RTPPacket *packet)
-{
-	//Set timestamp
-	frame.SetTimestamp(packet->GetTimestamp());
-	//Add payload
-	return AddPayload(packet->GetMediaData(),packet->GetMediaLength());
-}
-
-MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len)
+MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool mark)
 {
 	BYTE nalHeader[4];
 	BYTE nal_unit_type;
@@ -113,7 +103,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len)
 					 single-time aggregation units
 			*/
 			//Everything goes to the payload
-			frame.AddRtpPacket(0,0,payload,payload_len);
+			frame.AddRtpPacket(0,0,payload,payload_len, mark);
 
 			/* Skip STAP-A NAL HDR */
 			payload++;
@@ -205,7 +195,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len)
 			//Append data
 			frame.AppendMedia(payload+2,nalu_size);
 			//Add rtp payload
-			frame.AddRtpPacket(pos,nalu_size,payload,2);
+			frame.AddRtpPacket(pos,nalu_size,payload,2,mark);
 
 			if (E)
 			{
@@ -233,7 +223,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len)
 			//And data
 			frame.AppendMedia(payload, nalu_size);
 			//Add RTP packet
-			frame.AddRtpPacket(pos,nalu_size,NULL,0);
+			frame.AddRtpPacket(pos,nalu_size,NULL,0, mark);
 			//Done
 			break;
 	}

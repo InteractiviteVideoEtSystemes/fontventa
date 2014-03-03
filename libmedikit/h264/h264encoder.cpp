@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
-#include "log.h"
+#include "../medkit/log.h"
 #include "h264encoder.h"
 
 
@@ -355,7 +355,7 @@ VideoFrame* H264Encoder::EncodeFrame(BYTE *buffer,DWORD bufferSize)
 			set3(nalData,1,profileLevel);
 		}
 		//Add rtp packet
-		frame->AddRtpPacket(pos,nalSize,NULL,0);
+		frame->AddRtpPacket(pos,nalSize,NULL,0, i+1 >= numNals);
 	}
 
 	//Set first nal
