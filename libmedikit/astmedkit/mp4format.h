@@ -1,14 +1,14 @@
 #include <medkit/transcoder.h>
-//#include <astmedkit/framebuffer.h>
+#include <medkit/audio.h>
 #include <mp4v2/mp4v2.h>
 
 
-#ifdef _cplusplus
+#ifdef __cplusplus
 
-class Mp4xxtrack
+class Mp4Basetrack
 {
 public:
-    Mp4xxtrack(MP4FileHandle mp4) 
+    Mp4Basetrack(MP4FileHandle mp4) 
     { 
         this->mp4 = mp4;
 	sampleId = 0;
@@ -16,7 +16,7 @@ public:
 	hinttrack = MP4_INVALID_TRACK_ID;
     }
 
-    virtual ~Mp4xxtrack() {};
+    virtual ~Mp4Basetrack() {};
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate) = 0;
     virtual int ProcessFrame( const MediaFrame * f ) = 0;
@@ -44,17 +44,17 @@ class mp4recorder
     /**
      * Create an audio track
      **/
-    int AddTrack(AudioCodec codec, DWORD samplerate, const char * trackName);
+    int AddTrack(AudioCodec::Type codec, DWORD samplerate, const char * trackName);
     
     /**
      * Create an audio track
      **/
-    int AddTrack(VideoCodec codec, DWORD width, DWORD height, DWORD bitrate, const char * trackName, bool secondary = false);
+    int AddTrack(VideoCodec::Type codec, DWORD width, DWORD height, DWORD bitrate, const char * trackName, bool secondary = false);
     
     /**
      * Create a text track
      **/
-    int AddTrack(TextCodec codec, const char * trackName);
+    int AddTrack(TextCodec::Type codec, const char * trackName);
     
     /**
      * Process ONE asterisk frame and record it into the MP4 file
@@ -97,7 +97,7 @@ private:
     char partName[80];
     
     MP4FileHandle mp4;
-    MP4TrackId mediatracks[5];
+    Mp4Basetrack * mediatracks[5];
         
     int length;
 
@@ -111,13 +111,13 @@ private:
     DWORD textSeqNo;
     DWORD videoSeqNo;
     
-    char partcipantName[8];
+    char participantName[8];
     BYTE audioBuff[800];
 };
 
 #endif
 
-#ifdef _cplusplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -144,6 +144,6 @@ int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f );
 
 void Mp4RecorderDestroy( struct mp4rec * r );
  
-#ifdef _cplusplus
+#ifdef __cplusplus
 }
 #endif

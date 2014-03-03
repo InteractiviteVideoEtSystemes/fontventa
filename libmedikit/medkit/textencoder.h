@@ -2,7 +2,7 @@
 #define	TEXTENCODER_H_
 
 #include "text.h"
-
+#include <list>
 class TextEncoder
 {
 public:

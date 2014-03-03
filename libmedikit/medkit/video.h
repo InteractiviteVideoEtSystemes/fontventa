@@ -40,7 +40,7 @@ public:
 			//Gete info
 			MediaFrame::RtpPacketization *rtp = (*it);
 			//Add it
-			frame->AddRtpPacket(rtp->GetPos(),rtp->GetSize(),rtp->GetPrefixData(),rtp->GetPrefixLen());
+			frame->AddRtpPacket(rtp->GetPos(),rtp->GetSize(),rtp->GetPrefixData(),rtp->GetPrefixLen(), rtp->IsMark());
 		}
 		//Return it
 		return (MediaFrame*)frame;
@@ -55,6 +55,7 @@ public:
 	void SetWidth(DWORD width)		{ this->width = width;		}
 	void SetHeight(DWORD height)		{ this->height = height;	}
 	void SetIntra(bool isIntra)		{ this->isIntra = isIntra;	}
+	bool GuessIsIntra();
 	
 private:
 	VideoCodec::Type codec;

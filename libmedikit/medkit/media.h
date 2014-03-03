@@ -17,7 +17,7 @@ public:
 	class RtpPacketization
 	{
 	public:
-		RtpPacketization(DWORD pos,DWORD size,const BYTE* prefix,DWORD prefixLen)
+		RtpPacketization(DWORD pos,DWORD size,const BYTE* prefix,DWORD prefixLen, bool mark)
 		{
 			//Store values
 			this->pos = pos;
@@ -27,7 +27,7 @@ public:
 			if (prefixLen)
 				//Copy
 				memcpy(this->prefix,prefix,prefixLen);
-
+			this->mark = mark;
 		}
 
 		DWORD GetPos() const		{ return pos;	}
@@ -35,12 +35,14 @@ public:
 		const BYTE* GetPrefixData() const { return prefix;	}
 		DWORD GetPrefixLen()	{ return prefixLen;	}
 		DWORD GetTotalLength()	{ return size+prefixLen;}
+		bool IsMark() { return mark; }
 		
 	private:
 		DWORD	pos;
 		DWORD	size;
 		BYTE	prefix[16];
 		DWORD	prefixLen;
+		bool mark;
 	};
 
 	typedef std::vector<RtpPacketization*> RtpPacketizationInfo;
@@ -119,9 +121,9 @@ public:
 		}
 	}
 	
-	void	AddRtpPacket(DWORD pos,DWORD size,const BYTE* prefix,DWORD prefixLen)		
+	void	AddRtpPacket(DWORD pos,DWORD size,const BYTE* prefix,DWORD prefixLen, bool mark)
 	{
-		rtpInfo.push_back(new RtpPacketization(pos,size,prefix,prefixLen));
+		rtpInfo.push_back(new RtpPacketization(pos,size,prefix,prefixLen, mark));
 	}
 	
 	Type	GetType() const		{ return type;	}

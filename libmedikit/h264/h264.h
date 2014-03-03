@@ -7,9 +7,9 @@
 
 #ifndef H264_H
 #define	H264_H
-#include "config.h"
+
 #include "math.h"
-#include "bitstream.h"
+#include <medkit/bitstream.h>
 
 
 class H264SeqParameterSet

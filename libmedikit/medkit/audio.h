@@ -52,9 +52,9 @@ public:
 		return (MediaFrame*)frame;
 	}
 
-	AudioCodec::Type GetCodec()			{ return codec;		}
+	AudioCodec::Type GetCodec() const			{ return codec;		}
 	void	SetCodec(AudioCodec::Type codec)	{ this->codec = codec;	}
-	DWORD	GetRate()				{ return rate;		}
+	DWORD	GetRate() const				{ return rate;		}
 
 private:
 	AudioCodec::Type codec;

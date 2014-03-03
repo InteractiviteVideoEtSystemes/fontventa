@@ -1,5 +1,11 @@
+#include <asterisk/frame.h>
+#include "medkit/astcpp.h"
 #include "astmedkit/mp4format.h"
 #include "medkit/red.h"
+#include "medkit/log.h"
+#include "medkit/textencoder.h"
+#include "medkit/avcdescriptor.h"
+#include "h264/h264.h"
 
 #if ASTERISK_VERSION_NUM > 10000   // 10600
 #define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data.ptr))
@@ -7,22 +13,22 @@
 #define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data))
 #endif
 
-class Mp4AudioTrack : public Mp4track
+class Mp4AudioTrack : public Mp4Basetrack
 {
 public:
-    Mp4AudioTrack(MP4FileHandle mp4) : Mp4track(mp4) { }
+    Mp4AudioTrack(MP4FileHandle mp4) : Mp4Basetrack(mp4) { }
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
-    virtual int ProcessFrame( MediaFrame * f );
+    virtual int ProcessFrame( const MediaFrame * f );
     
 private:
-    AudioCodec codec;
+    AudioCodec::Type codec;
 
 };
 
-class Mp4VideoTrack : public Mp4track
+class Mp4VideoTrack : public Mp4Basetrack
 {
 public:
-    Mp4VideoTrack(MP4FileHandle mp4) : Mp4track(mp4)
+    Mp4VideoTrack(MP4FileHandle mp4) : Mp4Basetrack(mp4)
     {
         width = 0;
 	height =0;
@@ -41,13 +47,13 @@ public:
     }
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
-    virtual int ProcessFrame( MediaFrame * f );
+    virtual int ProcessFrame( const MediaFrame * f );
     bool IsVideoStarted() { return videoStarted; }
     
     void SetH264ProfileLevel( unsigned char profile, unsigned char constraint, unsigned char level )
     {
 	AVCProfileIndication = profile;
-	AVCProfileCompat = constraints;
+	AVCProfileCompat = constraint;
 	AVCLevelIndication = level;
     }
 
@@ -64,32 +70,32 @@ private:
     unsigned char AVCLevelIndication;
     unsigned char AVCProfileCompat;
     
-    VideoCodec codec;
+    VideoCodec::Type codec;
     std::string trackName;
 };
 
 #define MAX_SUBTITLE_DURATION 7000
 
-class Mp4TextTrack : public Mp4track
+class Mp4TextTrack : public Mp4Basetrack
 {
 public:
-    Mp4TextTrack(MP4FileHandle mp4) : Mp4track(mp4) { }
+    Mp4TextTrack(MP4FileHandle mp4) : Mp4Basetrack(mp4) { }
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
-    virtual int ProcessFrame( MediaFrame * f );
+    virtual int ProcessFrame( const MediaFrame * f );
     
 private:
     TextEncoder encoder;
     MP4TrackId rawtexttrack;
 };
 
-int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD bitrate)
+int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
 {
     // Create audio track
-    int type;
+    uint8_t type;
     switch (codec)
     {
         case AudioCodec::PCMA:
-	    mediatrack = MP4AddALawAudioTrack(mp4,rate);
+	    mediatrack = MP4AddALawAudioTrack(mp4,samplerate);
 	    // Set channel and sample properties
 	    MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.alaw.channels", 1);
 	    MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.alaw.sampleSize", 8);
@@ -101,7 +107,7 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD bitrate)
 	    break;
 	
 	case AudioCodec::PCMU:
-	    mediatrack = MP4AddULawAudioTrack(mp4,rate);
+	    mediatrack = MP4AddULawAudioTrack(mp4,samplerate);
 	    // Create audio hint track
 	    hinttrack = MP4AddHintTrack(mp4, mediatrack);
 			// Set payload type for hint track
@@ -112,8 +118,8 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD bitrate)
 	    MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.ulaw.sampleSize", 8);
 	    break;
 
-	case AudioCodec::AMR
-	    mediatrack = MP4AddAmrAudioTrack(mp4, rate, 0, 0, 1, 0);;
+	case AudioCodec::AMR:
+	    mediatrack = MP4AddAmrAudioTrack(mp4, samplerate, 0, 0, 1, 0);
 	    // Create audio hint track
 	    hinttrack = MP4AddHintTrack(mp4, mediatrack);
 			// Set payload type for hint track
@@ -125,7 +131,7 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD bitrate)
 	// TODO: Add AAC support
 	
 	default:
-	    Log("-mp4recorder: unsupported codec %s for audio track.\n", AudioCodec::GetNameFor(codec));
+	    Log("-mp4recorder: unsupported codec %s for audio track.\n", AudioCodec::GetNameFor((AudioCodec::Type) codec));
 	    return 0;
     }
     
@@ -135,11 +141,11 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD bitrate)
     return 1;
 }
 
-int Mp4AudioTrack::ProcessFrame( MediaFrame * f )
+int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 {
     if ( f->GetType() == MediaFrame::Audio )
     {
-        AudioFrame f2 = ( AudioFrame *) f;
+        const AudioFrame * f2 = ( AudioFrame *) f;
 		
 	if ( f2->GetCodec() == codec )
 	{
@@ -147,14 +153,14 @@ int Mp4AudioTrack::ProcessFrame( MediaFrame * f )
 	    
 	    if (sampleId == 0)
 	    {
-	        duration = 20*f->GetRate()/1000;
+	        duration = 20*f2->GetRate()/1000;
 	    }
 	    else
 	    {
-	        duration = (f->GetTimeStamp()-prevts)*f->GetRate()/1000;
+	        duration = (f->GetTimeStamp()-prevts)*f2->GetRate()/1000;
 	    }
-	    prevts = f->GetTimeStamp();
-	    MP4WriteSample(mp4, mediatrack, f->GetData(), f->GetLength(), duration, 0, 1);
+	    prevts = f2->GetTimeStamp();
+	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, 1);
 	    sampleId++;
 
 	    if (hinttrack != MP4_INVALID_TRACK_ID)
@@ -185,6 +191,7 @@ int Mp4AudioTrack::ProcessFrame( MediaFrame * f )
 int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 {
 	BYTE type;
+	MP4Duration h264FrameDuration;
 		
 	//Check the codec
 	switch (codec)
@@ -210,7 +217,7 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 			break;
 
 		case VideoCodec::H264:
-			MP4Duration h264FrameDuration		= 1.0/30;
+			h264FrameDuration	= (1.0/30);
 			// Create video track
 			mediatrack = MP4AddH264VideoTrack(mp4, 90000, h264FrameDuration, width, height, AVCProfileIndication, AVCProfileCompat, AVCLevelIndication,  3);
 			// Create video hint track
@@ -221,10 +228,11 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 			break;
 
 		default:
-		    Log("-mp4recorder: unsupported codec %s for video track.\n", VideoCodec::GetNameFor(codec));
+		    Log("-mp4recorder: unsupported codec %s for video track.\n", VideoCodec::GetNameFor((VideoCodec::Type) codec));
 		    return 0;
+		    break;
 	}
-	this->codec = codec;
+	this->codec = (VideoCodec::Type) codec;
 	
 	if ( trackName ) this->trackName = trackName; 
 	
@@ -236,16 +244,16 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 			MP4SetTrackName( mp4, mediatrack, this->trackName.c_str() );
 	}
 	
-	Log("-mp4recorder: created video track %d using codec %s.\n", mediatrack, VideoCodec::GetNameFor(codec));
+	Log("-mp4recorder: created video track %d using codec %s.\n", mediatrack, VideoCodec::GetNameFor( (VideoCodec::Type) codec));
 
 }
 
 
-int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
+int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 {
     if ( f->GetType() == MediaFrame::Video )
     {
-        VideoFrame f2 = ( VideoFrame *) f;
+        VideoFrame * f2 = ( VideoFrame *) f;
 	
 	if (f2->GetType() == codec )
 	{	
@@ -277,12 +285,14 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 		//Get list
 		MediaFrame::RtpPacketizationInfo& rtpInfo = f2->GetRtpPacketizationInfo();
 		//Add hint for frame
-		MP4AddRtpHint(mp4, hint);
+		MP4AddRtpHint(mp4, hinttrack);
 		//Get iterator
 		MediaFrame::RtpPacketizationInfo::iterator it = rtpInfo.begin();
 		
 		for (it = rtpInfo.begin(); it != rtpInfo.end(); it++)
 		{
+		    MediaFrame::RtpPacketization * rtp = *it;
+
 		    if ( f2->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
 		    {
 			//Get rtp data pointer
@@ -316,7 +326,7 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 				}
 								
 				// Update size
-				witdh = sps.GetWidth();
+				width = sps.GetWidth();
 				height = sps.GetHeight();
 				
 				//Add it
@@ -327,11 +337,11 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
 				// Update profile level
 				AVCProfileIndication 	= sps.GetProfile();
 				AVCLevelIndication	= sps.GetLevel();
-				Create(NULL, bitrate);
+				Create(NULL, VideoCodec::H264, bitrate);
 				
 				//Update widht an ehight
-				MP4SetTrackIntegerProperty(mp4,track,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
-				MP4SetTrackIntegerProperty(mp4,track,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
+				MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
+				MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
 				
 				//Add it
 				MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
@@ -375,19 +385,20 @@ int Mp4VideoTrack::ProcessFrame( MediaFrame * f )
     return 0;
 }
 
-int Mp4TextFrameTrack::Create(const char * trackName, int codec, DWORD bitrate)
+int Mp4TextTrack::Create(const char * trackName, int codec, DWORD bitrate)
 {
     mediatrack = MP4AddSubtitleTrack(mp4,1000,384,60);
     if ( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
 }
 
-int Mp4TextFrameTrack::ProcessFrame( MediaFrame * f )
+int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 {
     if ( f->GetType() == MediaFrame::Text )
     {
-        TextFrame f2 = ( TextFrame *) f;
+        TextFrame * f2 = ( TextFrame *) f;
 	DWORD duration = 0, frameduration = 0;
 	DWORD subtsize = 0;
+	std::wstring subtitle;
 
 	if ( f2->GetLength() == 0 ) return 0;
 
@@ -408,23 +419,21 @@ int Mp4TextFrameTrack::ProcessFrame( MediaFrame * f )
 	sampleId++;
 	
 	encoder.Accumulate( f2->GetWString() );
-	TextFrame * f3 = GetSubtitle();
+	encoder.GetSubtitle(subtitle);
 
-	if (f3)
+	unsigned int subsize = subtitle.length();
+	BYTE* data = (BYTE*)malloc(subsize+2);
+
+	//Set size
+	data[0] = subsize>>8;
+	data[1] = subsize & 0xFF;
+	    
+	memcpy(data+2,subtitle.c_str(), subsize);
+	    
+	MP4WriteSample( mp4, mediatrack, data, subsize+2, frameduration, 0, false );
+	    
+	if (duration > MAX_SUBTITLE_DURATION)
 	{
-	    subsize = f3->GetLength();
-	    BYTE* data = (BYTE*)malloc(subsize+2);
-
-	    //Set size
-	    data[0] = subsize>>8;
-	    data[1] = subsize & 0xFF;
-	    
-	    memcpy(data+2,f3->GetData(),f3->GetLength());
-	    
-	    MP4WriteSample( mp4, mediatrack, data, subsize+2, frameduration, 0, false );
-	    
-	    if (duration > MAX_SUBTITLE_DURATION)
-	   {
 		frameduration = duration - MAX_SUBTITLE_DURATION;
 		//Log
 		//Put empty text
@@ -432,9 +441,9 @@ int Mp4TextFrameTrack::ProcessFrame( MediaFrame * f )
 		data[1] = 0;
 
 		//Write sample
-		MP4WriteSample( mp4, track, data, 2, frameduration, 0, false );
-	    }
+		MP4WriteSample( mp4, mediatrack, data, 2, frameduration, 0, false );
 	}
+
 	return 1;
     }
     return 0;
@@ -452,14 +461,14 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     SetParticipantName( "participant" );
 }
 
-int mp4recorder::AddTrack(AudioCodec codec, DWORD samplerate, const char * trackName)
+int mp4recorder::AddTrack(AudioCodec::Type codec, DWORD samplerate, const char * trackName)
 {
     if ( mediatracks[MP4_AUDIO_TRACK] == NULL )
     {
 	mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4);
-	if ( mediatracks[MP4_AUDIO_TRACK] )
+	if ( mediatracks[MP4_AUDIO_TRACK] != NULL )
 	{
-	    mediatracks[MP4_AUDIO_TRACK]->Create( trackName, codec, sampleRate );
+	    mediatracks[MP4_AUDIO_TRACK]->Create( trackName, (int) codec, samplerate );
 	    return 1;
 	}
 	else
@@ -470,14 +479,14 @@ int mp4recorder::AddTrack(AudioCodec codec, DWORD samplerate, const char * track
     return 0;
 }
 
-int mp4recorder::AddTrack(VideoCodec codec, DWORD width, DWORD height, DWORD bitrate, const char * trackName, bool secondary )
+int mp4recorder::AddTrack(VideoCodec::Type codec, DWORD width, DWORD height, DWORD bitrate, const char * trackName, bool secondary )
 {
     int trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
     
     if ( mediatracks[trackidx] == NULL )
     {
 	mediatracks[trackidx] = new Mp4VideoTrack(mp4);
-	if ( mediatracks[trackidx] )
+	if ( mediatracks[trackidx] != NULL )
 	{
 	    mediatracks[trackidx]->SetSize(width, height);
 	    mediatracks[trackidx]->Create( trackName, codec, bitrate );
@@ -491,12 +500,12 @@ int mp4recorder::AddTrack(VideoCodec codec, DWORD width, DWORD height, DWORD bit
     return 0;
 }
 
-int mp4recorder::AddTrack(TextCodec codec, const char * trackName)
+int mp4recorder::AddTrack(TextCodec::Type codec, const char * trackName)
 {
     if ( mediatracks[MP4_TEXT_TRACK] == NULL )
     {
 	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4);
-	if ( mediatracks[MP4_TEXT_TRACK] )
+	if ( mediatracks[MP4_TEXT_TRACK] != NULL )
 	{
 	    mediatracks[MP4_TEXT_TRACK]->Create( trackName, codec, 1000 );
 	    return 1;
@@ -512,6 +521,8 @@ int mp4recorder::AddTrack(TextCodec codec, const char * trackName)
 
 int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 {
+    int trackidx;
+
     switch ( f->GetType() )
     {
         case MediaFrame::Audio:
@@ -523,9 +534,9 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    }
 	    else
 	    {
-	        /* auto create audi track if needed */
+	        /* auto create audio track if needed */
 		AudioFrame * f2 = (AudioFrame *) f;
-	        AddTrack( partName, f->GetCodec(),f->GetRate() );
+	        AddTrack( f2->GetCodec(), f2->GetRate(), partName );
 		
 		if ( mediatracks[MP4_AUDIO_TRACK] )
 		{
@@ -563,12 +574,12 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    else
 	    {
 	        /* auto create audi track if needed */
-	        AddTrack( partName, f->GetCodec(),f->GetRate() );
+	        AddTrack( TextCodec::T140, partName );
 		
-		if ( mediatracks[MP4_AUDIO_TRACK] )
+		if ( mediatracks[MP4_TEXT_TRACK] )
 		{
 		    if (waitVideo)  return 0;
-		    return mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+		    return mediatracks[MP4_TEXT_TRACK]->ProcessFrame(f);
 		}
 		else
 		    return -3;
@@ -594,7 +605,7 @@ bool AstFormatToCodec( int format, AudioCodec::Type & codec )
 	    codec = AudioCodec::PCMA;
 	    break;
 	    
-	case AST_FORMAT_AMR:
+	case AST_FORMAT_AMRNB:
 	    codec = AudioCodec::AMR;
 	    break;
 	
@@ -612,7 +623,7 @@ bool AstFormatToCodec( int format, VideoCodec::Type & codec )
 	    codec = VideoCodec::H263_1996;
 	    break;
 	    
-	case AST_FORMAT_H263P:
+	case AST_FORMAT_H263_PLUS:
 	    codec = VideoCodec::H263_1998;
 	    break;
 	    
@@ -648,7 +659,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    acodec = AudioCodec::PCMU;
 		    
 		    if (audioencoder == NULL)
-			audioencoder = CreateEncoder(AudioCodec::PCMU);
+			audioencoder = AudioCodecFactory::CreateEncoder(AudioCodec::PCMU);
    
 		    outLen = audioencoder->Encode( AST_FRAME_GET_BUFFER(f), f->datalen, audioBuff, outLen );
 		    if ( outLen > 0 ) 
@@ -678,7 +689,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		{
 		    VideoFrame vf(vcodec, f->datalen, false);
 		    
-		    vf.SetTimeStamp(f->ts);
+		    vf.SetTimestamp(f->ts);
 		    
 		    // Handle packetization here
 		    vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
