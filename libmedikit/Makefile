@@ -3,6 +3,8 @@
 ###########################################
 MACHINE := $(shell uname -m)
 
+CUSTOM_ASTPATH=/cygdrive/d/svn/asterisk-1.4.x-videocaps/include
+
 ifeq ($(MACHINE), x86_64)
 libdir = /usr/lib64
 endif
@@ -15,7 +17,10 @@ DEBUG           = yes
 
 
 #INCLUDE=-I. 
-INCLUDE=-I. -I/cygdrive/d/svn/asterisk-1.4.x-videocaps/include
+INCLUDE=-I.
+ifdef (CUSTOM_ASTPATH)
+INCLUDE+= -I$(CUSTOM_ASTPATH)
+endif
 #DEBUG
 
 ifeq ($(DEBUG),yes)
@@ -106,3 +111,11 @@ libmedkit.a: $(OBJS)
 
 clean:
 	rm -f $(OBJS) libmedkit.a
+
+install: libmedkit.a
+	install -d $(INSTALLPREFIX)/opt/ives/lib
+	install -d $(INSTALLPREFIX)/opt/ives/include
+	install libmedkit.a $(INSTALLPREFIX)/opt/ives/lib
+	cp -rp medkit $(INSTALLPREFIX)/opt/ives/include
+	cp -rp astmedkit $(INSTALLPREFIX)/opt/ives/include
+	echo LIBMEDKIT installer
