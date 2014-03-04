@@ -1,4 +1,4 @@
-#include <medkit/Log.h>
+#include <medkit/log.h>
 #include <astmedkit/framebuffer.h>
 
 
