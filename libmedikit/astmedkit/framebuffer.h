@@ -9,12 +9,14 @@
 #define	ASTFRAMEBUFFER_H
 
 #include <errno.h>
-#include <asterisk/logger.h>
 #include <asterisk/frame.h>
+
+
+#ifdef __cplusplus
+
+#include <medkit/astcpp.h>
+#include <medkit/config.h>
 #include <pthread.h>
-
-#ifdef _cplusplus
-
 #include <map>
 
 class AstFrameBuffer 
@@ -64,77 +66,7 @@ public:
 		pthread_cond_signal(&cond);
 	}
 
-	struct ast_frame * Wait()
-	{
-		//NO packet
-		struct ast_frame * rtp = NULL;
-
-		//Get default wait time
-		DWORD timeout = maxWaitTime;
-
-		//Lock
-		pthread_mutex_lock(&mutex);
-
-		//While we have to wait
-		while (!cancel)
-		{
-			//Check if we have somethin in queue
-			if (!packets.empty())
-			{
-
-				//Get first
-				RTPOrderedPackets::iterator it = packets.begin();
-				//Get first seq num
-				DWORD seq = it->first;
-				//Get packet
-				struct ast_frame * candidate = it->second;
-				//Get time of the packet
-				QWORD time = candidate->GetTime();
-
-				//Check if first is the one expected or wait if not
-				if (next==(DWORD)-1 || seq==next || time+maxWaitTime<getTime()/1000 || hurryUp)
-				{
-					//We have it!
-					rtp = candidate;
-					//Update next
-					next = seq+1;
-					//Remove it
-					packets.erase(it);
-					//Return it!
-					break;
-				}
-
-				//We have to wait
-				timespec ts;
-				//Calculate until when we have to sleep
-				ts.tv_sec  = (time_t) ((time+maxWaitTime) / 1e6) ;
-				ts.tv_nsec = (long) ((time+maxWaitTime) - ts.tv_sec*1e6);
-				
-				//Wait with time out
-				int ret = pthread_cond_timedwait(&cond,&mutex,&ts);
-				//Check if there is an errot different than timeout
-				if (ret && ret!=ETIMEDOUT)
-					//Print error
-					Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
-				
-			} else {
-				//Not hurryUp more
-				hurryUp = false;
-				//Wait until we have a new rtp pacekt
-				int ret = pthread_cond_wait(&cond,&mutex);
-				//Check error
-				if (ret)
-					//Print error
-					Error("-WaitQueue cond timedwait error [%rd,%d]\n",ret,errno);
-			}
-		}
-		
-		//Unlock
-		pthread_mutex_unlock(&mutex);
-
-		//canceled
-		return rtp;
-	}
+	struct ast_frame * Wait();
 
 	void Clear()
 	{
@@ -222,10 +154,10 @@ extern "C"
 #endif
      struct AstFb;
 
-     struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking);
+     struct AstFb *AstFbCreate(uint32_t maxWaitTime, int blocking);
      int AstFbAddFrame( struct AstFb *fb, struct ast_frame *f );
      struct ast_frame * AstFbGetFrame(struct AstFb *fb);
-     DWORD AstFbLength(struct AstFb *fb);
+     uint32_t AstFbLength(struct AstFb *fb);
      void AstFbCancel(struct AstFb *fb);     
      void AstFbReset(struct AstFb *fb);
      void AstFbDestroy(struct AstFb *fb);

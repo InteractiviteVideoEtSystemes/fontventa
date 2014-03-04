@@ -1,9 +1,11 @@
-#include <medkit/transcoder.h>
-#include <medkit/audio.h>
 #include <mp4v2/mp4v2.h>
 
 
 #ifdef __cplusplus
+
+#include <medkit/transcoder.h>
+#include <medkit/audio.h>
+
 
 class Mp4Basetrack
 {

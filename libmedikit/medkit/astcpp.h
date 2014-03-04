@@ -50,6 +50,10 @@
 #undef pthread_cond_wait
 #endif
 
+#ifdef pthread_cond_init
+#undef pthread_cond_init
+#endif
+
 #ifdef pthread_cond_timedwait
 #undef pthread_cond_timedwait
 #endif

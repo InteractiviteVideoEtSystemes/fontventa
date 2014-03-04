@@ -1,3 +1,4 @@
+#include <medkit/Log.h>
 #include <astmedkit/framebuffer.h>
 
 
@@ -69,7 +70,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 			//Get packet
 			struct ast_frame * candidate = it->second;
 			//Get time of the packet
-			QWORD time = candidate->GetTime();
+			QWORD time = candidate->ts;
 
 			//Check if first is the one expected or wait if not
 			if (next==(DWORD)-1 || seq==next || time+maxWaitTime<getTime()/1000 || hurryUp)
@@ -98,12 +99,13 @@ struct ast_frame * AstFrameBuffer::Wait()
 				Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
 			
 		} else {
+			int ret = ETIMEDOUT;
 			//Not hurryUp more
 			hurryUp = false;
 			//Wait until we have a new rtp pacekt
 			if (blocking) ret = pthread_cond_wait(&cond,&mutex);
 			//Check error
-			if (ret &  && ret!=ETIMEDOUT)
+			if (ret && ret!=ETIMEDOUT)
 				//Print error
 				Error("-WaitQueue cond timedwait error [%rd,%d]\n",ret,errno);
 		}

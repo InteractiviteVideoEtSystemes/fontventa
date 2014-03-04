@@ -16,11 +16,9 @@ LOG             = yes
 DEBUG           = yes
 
 
-#INCLUDE=-I. 
 INCLUDE=-I.
-ifdef (CUSTOM_ASTPATH)
 INCLUDE+= -I$(CUSTOM_ASTPATH)
-endif
+
 #DEBUG
 
 ifeq ($(DEBUG),yes)
@@ -77,10 +75,9 @@ H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 #G722OBJ=g722codec.o
 
 
-OBJS=audio.o video.o transcoder.o framescaler.o utf8parser.o
-OBJS+=textencoder.o mp4format.o avcdescriptor.o red.o 
+OBJS=audio.o video.o transcoder.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o 
 OBJS+=$(H263OBJ) $(H264OBJ)
-
+OBJS+=mp4format.o framebuffer.o
 
 VPATH =  %.cpp $(H263DIR)
 VPATH += %.cpp $(H264DIR)
@@ -113,6 +110,7 @@ clean:
 	rm -f $(OBJS) libmedkit.a
 
 install: libmedkit.a
+	rm -rf $(INSTALLPREFIX)/opt/ives/include
 	install -d $(INSTALLPREFIX)/opt/ives/lib
 	install -d $(INSTALLPREFIX)/opt/ives/include
 	install libmedkit.a $(INSTALLPREFIX)/opt/ives/lib
