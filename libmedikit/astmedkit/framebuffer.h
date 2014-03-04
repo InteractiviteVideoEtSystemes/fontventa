@@ -155,7 +155,13 @@ extern "C"
      struct AstFb;
 
      struct AstFb *AstFbCreate(uint32_t maxWaitTime, int blocking);
-     int AstFbAddFrame( struct AstFb *fb, struct ast_frame *f );
+     /**
+      *  Add an ast_frame into the jitterbuffer. Frame is duplicated.
+      *  
+      *  @param fb jitterbuffer instance to consider
+      *  @param[in]  f frame to post. f->ts must be correctly set.       
+      */
+     int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f );
      struct ast_frame * AstFbGetFrame(struct AstFb *fb);
      uint32_t AstFbLength(struct AstFb *fb);
      void AstFbCancel(struct AstFb *fb);     

@@ -128,7 +128,7 @@ struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking)
 	return (struct AstFb *) fb;
 }
 
-int AstFbAddFrame( struct AstFb *fb, struct ast_frame *f )
+int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f )
 {
 	return ((AstFrameBuffer *) fb)->Add( f );
 }
