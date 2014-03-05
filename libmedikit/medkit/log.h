@@ -139,7 +139,7 @@ inline void BitDump(QWORD val)
 }
 #endif
 
-inline void Dump(uint8_t *data,uint32_t size)
+static inline void Dump(uint8_t *data,uint32_t size)
 {
 	int i;
 
