@@ -22,7 +22,7 @@ void LogCloseFile();
 #ifdef __cplusplus
 }
 #endif
-inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
+static inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
 {
 	struct timeval tv2;
 
@@ -38,8 +38,7 @@ inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
 	return buffer;
 }
 
-
-inline int Log(const char *msg, ...)
+static inline int Log(const char *msg, ...)
 {
 	char buf[80];
 	struct timeval tv;
@@ -54,7 +53,7 @@ inline int Log(const char *msg, ...)
 	return 1;
 }
 
-inline int Log2(const char* prefix,const char *msg, ...)
+static inline int Log2(const char* prefix,const char *msg, ...)
 {
 	struct timeval tv2;
 	va_list ap;
@@ -69,7 +68,7 @@ inline int Log2(const char* prefix,const char *msg, ...)
 	return 1;
 }
 
-inline void Debug(const char *msg, ...)
+static inline void Debug(const char *msg, ...)
 {
 	va_list ap;
 	va_start(ap, msg);
@@ -78,7 +77,7 @@ inline void Debug(const char *msg, ...)
 	return ;
 }
 
-inline int Error(const char *msg, ...)
+static inline int Error(const char *msg, ...)
 {
 	struct timeval tv;
 	va_list ap;
@@ -92,7 +91,7 @@ inline int Error(const char *msg, ...)
 	return 0;
 }
 
-inline void BitDump(DWORD val,BYTE n)
+static inline void BitDump(DWORD val,BYTE n)
 {
 	char line1[136];
 	char line2[136];

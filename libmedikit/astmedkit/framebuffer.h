@@ -148,7 +148,7 @@ private:
 
 #endif
 
-#ifdef _cplusplus
+#ifdef __cplusplus
 extern "C"
 {
 #endif
@@ -168,7 +168,7 @@ extern "C"
      void AstFbReset(struct AstFb *fb);
      void AstFbDestroy(struct AstFb *fb);
 
-#ifdef _cplusplus
+#ifdef __cplusplus
 }
 #endif
 
