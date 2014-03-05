@@ -61,7 +61,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 	{
 		//Check if we have somethin in queue. In non blocking mode
 		//we need three packets at least
-		packready = blocking ? packets.empty() : ( Length() > 2 );
+		packready = blocking ? packets.empty() : ( Length() > maxWaitTime );
 		if (packready)
 		{
 			int ret = ETIMEDOUT;
