@@ -19,11 +19,16 @@ extern "C"
 {
 #endif
 int LogOpenFile(const char * filename);
-void LogCloseFile();
+void LogCloseFile(void);
 
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef localtime_r
+#undef localtime_r
+#endif
+
 static inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
 {
 	struct timeval tv2;
@@ -80,12 +85,12 @@ static inline void Debug(const char *msg, ...)
 
 static inline int Error(const char *msg, ...)
 {
-	struct timeval tv;
+	struct timeval tv2;
 	va_list ap;
 	
 	if (errfile == NULL) return 0;
-	gettimeofday(&tv,NULL);
-	fprintf(errfile, "[0x%lx][%.10ld.%.3ld][ERR]", (long) pthread_self(),(long)tv.tv_sec,(long)tv.tv_usec/1000);
+	gettimeofday(&tv2,NULL);
+	fprintf(errfile, "[0x%lx][%.10ld.%.3ld][ERR]", (long) pthread_self(),(long)tv2.tv_sec,(long)tv2.tv_usec/1000);
 	va_start(ap, msg);
 	vfprintf(errfile, msg, ap);
 	va_end(ap);
@@ -101,7 +106,7 @@ static inline char PC(uint8_t b)
 }
 
 
-inline uint32_t BitPrint(char* out,uint8_t val,uint8_t n)
+static inline uint32_t BitPrint(char* out,uint8_t val,uint8_t n)
 {
         int i, j=0;
 
@@ -192,6 +197,8 @@ static inline void Dump(uint8_t *data,uint32_t size)
 			break;
 		case 7:
 			Debug("[%.4x] [0x%.2x   0x%.2x   0x%.2x   0x%.2x   0x%.2x   0x%.2x   0x%.2x          %c%c%c%c%c%c%c ]\n",size-7,data[size-7],data[size-6],data[size-5],data[size-4],data[size-3],data[size-2],data[size-1],PC(data[size-7]),PC(data[size-6]),PC(data[size-5]),PC(data[size-4]),PC(data[size-3]),PC(data[size-2]),PC(data[size-1]));
+			break;
+		default:
 			break;
 	}
 }
