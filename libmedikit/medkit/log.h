@@ -43,7 +43,6 @@ static inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
 static inline int Log(const char *msg, ...)
 {
 	char buf[80];
-	struct timeval tv;
 	
 	if (logfile == NULL) return 0;
 	va_list ap;
@@ -91,6 +90,32 @@ static inline int Error(const char *msg, ...)
 	vfprintf(errfile, msg, ap);
 	va_end(ap);
 	return 0;
+}
+
+static inline char PC(uint8_t b)
+{
+        if (b>32&&b<128)
+                return b;
+        else
+                return '.';
+}
+
+
+inline uint32_t BitPrint(char* out,uint8_t val,uint8_t n)
+{
+        int i, j=0;
+
+        for (i=0;i<(8-n);i++)
+                out[j++] = 'x';
+        for (i=(8-n);i<8;i++)
+                if ((val>>(7-i)) & 1)
+                        out[j++] = '1';
+                else
+                        out[j++] = '0';
+        out[j++] = ' ';
+        out[j] = 0;
+
+        return j;
 }
 
 static inline void BitDump(uint32_t val,uint8_t n)

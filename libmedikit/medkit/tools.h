@@ -223,31 +223,6 @@ inline void set8(BYTE *data,BYTE i,QWORD val)
 	data[i]   = (BYTE)(val>>56);
 }
 
-inline char PC(BYTE b)
-{
-	if (b>32&&b<128)
-		return b;
-	else
-		return '.';
-}
-
-
-inline DWORD BitPrint(char* out,BYTE val,BYTE n)
-{
-	int i, j=0;
-
-	for (i=0;i<(8-n);i++)
-		out[j++] = 'x';
-	for (i=(8-n);i<8;i++)
-		if ((val>>(7-i)) & 1)
-			out[j++] = '1';
-		else
-			out[j++] = '0';
-	out[j++] = ' ';
-	out[j] = 0;
-
-	return j;
-}
 
 /* ---------------- private code */
 
