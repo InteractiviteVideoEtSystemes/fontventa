@@ -49,7 +49,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 {
 	//NO packet
 	struct ast_frame * rtp = NULL;
-
+	bool packready = false;
 	//Get default wait time
 	DWORD timeout = maxWaitTime;
 
@@ -59,8 +59,10 @@ struct ast_frame * AstFrameBuffer::Wait()
 	//While we have to wait
 	while (!cancel)
 	{
-		//Check if we have somethin in queue
-		if (!packets.empty())
+		//Check if we have somethin in queue. In non blocking mode
+		//we need three packets at least
+		packready = blocking ? packets.empty() : ( Length() > 2 );
+		if (packready)
 		{
 			int ret = ETIMEDOUT;
 			//Get first
@@ -98,16 +100,25 @@ struct ast_frame * AstFrameBuffer::Wait()
 				//Print error
 				Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
 			
-		} else {
+		} 
+		else 
+		{
 			int ret = ETIMEDOUT;
 			//Not hurryUp more
 			hurryUp = false;
 			//Wait until we have a new rtp pacekt
-			if (blocking) ret = pthread_cond_wait(&cond,&mutex);
+			if (blocking) 
+				ret = pthread_cond_wait(&cond,&mutex);
+			else
+				break;
+				
 			//Check error
 			if (ret && ret!=ETIMEDOUT)
+			{
 				//Print error
 				Error("-WaitQueue cond timedwait error [%rd,%d]\n",ret,errno);
+				break;
+			}
 		}
 	}
 	
