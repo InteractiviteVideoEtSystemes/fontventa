@@ -48,7 +48,9 @@ inline DWORD GetWidth(DWORD size)
 	switch(size)
 	{
 		case QCIF:	return 176;
-		case CIF:	return 352;
+		case CIF:
+		default:
+			return 352;
 		case PAL:	return 768;
 		case QVGA:	return 160;
 		case HVGA:	return 320;
@@ -74,7 +76,9 @@ inline DWORD GetHeight(DWORD size)
 	switch(size)
 	{
 		case QCIF:	return 144;
-		case CIF:	return 288;
+		case CIF:
+		default:
+			return 288;
 		case PAL:	return 576;
 		case QVGA:	return 120;
 		case HVGA:	return 240;

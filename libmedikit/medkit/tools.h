@@ -61,11 +61,11 @@ inline int createPriorityThread(pthread_t *thread, void *(*function)(void *), vo
 *************************************/
 inline int msleep(long msec)
 {
-	struct timeval tv;
+	struct timeval tv2;
 
-	tv.tv_sec=(int)((float)msec/1000000);
-	tv.tv_usec=msec-tv.tv_sec*1000000;
-	return select(0,0,0,0,&tv);
+	tv2.tv_sec=(int)((float)msec/1000000);
+	tv2.tv_usec=msec-tv2.tv_sec*1000000;
+	return select(0,0,0,0,&tv2);
 }
 inline QWORD getTime()
 {
@@ -234,7 +234,6 @@ inline char PC(BYTE b)
 
 inline DWORD BitPrint(char* out,BYTE val,BYTE n)
 {
-	char aux[2];
 	int i, j=0;
 
 	for (i=0;i<(8-n);i++)

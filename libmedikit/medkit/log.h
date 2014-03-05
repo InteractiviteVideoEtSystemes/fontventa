@@ -24,15 +24,15 @@ void LogCloseFile();
 #endif
 inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
 {
-	struct timeval tv;
+	struct timeval tv2;
 
 	struct tm tm;
 	char msstr[20];
-	gettimeofday(&tv,NULL);
+	gettimeofday(&tv2,NULL);
 
-	long ms = tv.tv_usec/1000;
+	long ms = tv2.tv_usec/1000;
 	sprintf( msstr, "%03ld", ms );
-	localtime_r(&tv.tv_sec, &tm);
+	localtime_r(&tv2.tv_sec, &tm);
 	strftime( buffer, bufSize, "%Y-%m-%dT%H:%M:%S.", &tm );
 	strcat(buffer, msstr); 
 	return buffer;
@@ -56,12 +56,12 @@ inline int Log(const char *msg, ...)
 
 inline int Log2(const char* prefix,const char *msg, ...)
 {
-	struct timeval tv;
+	struct timeval tv2;
 	va_list ap;
 	
 	if (logfile == NULL) return 0;
-	gettimeofday(&tv,NULL);
-	fprintf(logfile, "[0x%lx][%.10ld.%.3ld][LOG]%s ", (long) pthread_self(),(long)tv.tv_sec,(long)tv.tv_usec/1000,prefix);
+	gettimeofday(&tv2,NULL);
+	fprintf(logfile, "[0x%lx][%.10ld.%.3ld][LOG]%s ", (long) pthread_self(),(long)tv2.tv_sec,(long)tv2.tv_usec/1000,prefix);
 	va_start(ap, msg);
 	vfprintf(logfile, msg, ap);
 	va_end(ap);

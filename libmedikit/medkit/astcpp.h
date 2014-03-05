@@ -65,3 +65,7 @@
 #ifdef pthread_create
 #undef pthread_create
 #endif
+
+#ifdef localtime_r
+#undef localtime_r
+#endif
