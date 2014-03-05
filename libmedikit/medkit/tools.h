@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <sys/signal.h>
-#include <climits>
+#include <limits.h>
 #include <pthread.h>
 
 /*************************************
@@ -181,7 +181,8 @@ inline void calcTimout(struct timespec *ts,DWORD timeout)
 }
 
 
-inline void EmptyCatch(int){};
+inline void EmptyCatch(int c) { };
+
 inline BYTE  get1(const BYTE *data,BYTE i) { return data[i]; }
 inline DWORD get2(const BYTE *data,BYTE i) { return (DWORD)(data[i+1]) | ((DWORD)(data[i]))<<8; }
 inline DWORD get3(const BYTE *data,BYTE i) { return (DWORD)(data[i+2]) | ((DWORD)(data[i+1]))<<8 | ((DWORD)(data[i]))<<16; }
@@ -234,11 +235,11 @@ inline char PC(BYTE b)
 inline DWORD BitPrint(char* out,BYTE val,BYTE n)
 {
 	char aux[2];
-	int j=0;
+	int i, j=0;
 
-	for (int i=0;i<(8-n);i++)
+	for (i=0;i<(8-n);i++)
 		out[j++] = 'x';
-	for (int i=(8-n);i<8;i++)
+	for (i=(8-n);i<8;i++)
 		if ((val>>(7-i)) & 1)
 			out[j++] = '1';
 		else

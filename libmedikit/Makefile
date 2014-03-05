@@ -75,7 +75,7 @@ H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 #G722OBJ=g722codec.o
 
 
-OBJS=audio.o video.o transcoder.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o 
+OBJS=audio.o video.o transcoder.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o
 OBJS+=$(H263OBJ) $(H264OBJ)
 OBJS+=mp4format.o framebuffer.o
 

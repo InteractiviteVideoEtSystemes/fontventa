@@ -6,9 +6,22 @@
 #include <stdarg.h>
 #include <pthread.h>
 #include <sys/time.h>
-#include "config.h"
 #include "tools.h"
 
+extern FILE * logfile;
+extern FILE * errfile;
+
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+int LogOpenFile(const char * filename);
+void LogCloseFile();
+
+#ifdef __cplusplus
+}
+#endif
 inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
 {
 	struct timeval tv;
@@ -30,12 +43,14 @@ inline int Log(const char *msg, ...)
 {
 	char buf[80];
 	struct timeval tv;
+	
+	if (logfile == NULL) return 0;
 	va_list ap;
-	printf("[0x%lx][%s][LOG]", (long) pthread_self(),LogFormatDateTime(buf, sizeof(buf)));
+	fprintf(logfile, "[0x%lx][%s][LOG]", (long) pthread_self(),LogFormatDateTime(buf, sizeof(buf)));
 	va_start(ap, msg);
-	vprintf(msg, ap);
+	vfprintf(logfile, msg, ap);
 	va_end(ap);
-	fflush(stdout);
+	fflush(logfile);
 	return 1;
 }
 
@@ -43,12 +58,14 @@ inline int Log2(const char* prefix,const char *msg, ...)
 {
 	struct timeval tv;
 	va_list ap;
+	
+	if (logfile == NULL) return 0;
 	gettimeofday(&tv,NULL);
-	printf("[0x%lx][%.10ld.%.3ld][LOG]%s ", (long) pthread_self(),(long)tv.tv_sec,(long)tv.tv_usec/1000,prefix);
+	fprintf(logfile, "[0x%lx][%.10ld.%.3ld][LOG]%s ", (long) pthread_self(),(long)tv.tv_sec,(long)tv.tv_usec/1000,prefix);
 	va_start(ap, msg);
-	vprintf(msg, ap);
+	vfprintf(logfile, msg, ap);
 	va_end(ap);
-	fflush(stdout);
+	fflush(logfile);
 	return 1;
 }
 
@@ -65,10 +82,12 @@ inline int Error(const char *msg, ...)
 {
 	struct timeval tv;
 	va_list ap;
+	
+	if (errfile == NULL) return 0;
 	gettimeofday(&tv,NULL);
-	printf("[0x%lx][%.10ld.%.3ld][ERR]", (long) pthread_self(),(long)tv.tv_sec,(long)tv.tv_usec/1000);
+	fprintf(errfile, "[0x%lx][%.10ld.%.3ld][ERR]", (long) pthread_self(),(long)tv.tv_sec,(long)tv.tv_usec/1000);
 	va_start(ap, msg);
-	vprintf(msg, ap);
+	vfprintf(errfile, msg, ap);
 	va_end(ap);
 	return 0;
 }
@@ -101,6 +120,7 @@ inline void BitDump(DWORD val,BYTE n)
 	Debug("Dumping 0x%.4x:%d\n\t%s\n\t%s\n",val,n,line1,line2);
 }
 
+#ifdef __cplusplus
 inline void BitDump(WORD val)
 {
 	BitDump(val,16);
@@ -116,6 +136,7 @@ inline void BitDump(QWORD val)
 	BitDump(val>>32,32);
 	BitDump(val,32);
 }
+#endif
 
 inline void Dump(BYTE *data,DWORD size)
 {
@@ -149,7 +170,7 @@ inline void Dump(BYTE *data,DWORD size)
 	}
 }
 
-
+#ifdef __cplusplus
 class Logger
 {
 public:
@@ -183,5 +204,7 @@ private:
         Logger(Logger const&);			// Don't Implement
         void operator=(Logger const&);		// Don't implement
 };
+
+#endif
 
 #endif

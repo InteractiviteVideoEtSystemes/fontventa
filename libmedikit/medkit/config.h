@@ -2,8 +2,12 @@
 #define _CONFIG_H_
 #include <stdint.h>
 #include <stdlib.h>
+
+#ifdef __cplusplus
 #include <map>
 #include <string>
+#endif
+
 #include "version.h"
 #define QCIF	0	// 176  x 144
 #define CIF	1	// 352  x 288
@@ -90,6 +94,7 @@ inline DWORD GetHeight(DWORD size)
 	return 0;
 }
 
+#ifdef __cplusplus
 class Properties: public std::map<std::string,std::string>
 {
 public:
@@ -174,4 +179,6 @@ public:
 		return atoi(it->second.c_str());
 	}
 };
+#endif
+
 #endif
