@@ -2,17 +2,19 @@
 #define _LOG_H_
 
 #include <stdio.h>
+#include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
 #include <pthread.h>
 #include <sys/time.h>
-#include "tools.h"
 
 extern FILE * logfile;
 extern FILE * errfile;
 
 
 #ifdef __cplusplus
+#include "tools.h"
 extern "C"
 {
 #endif
@@ -91,30 +93,30 @@ static inline int Error(const char *msg, ...)
 	return 0;
 }
 
-static inline void BitDump(DWORD val,BYTE n)
+static inline void BitDump(uint32_t val,uint8_t n)
 {
 	char line1[136];
 	char line2[136];
 	int i=0;
 	if (n>24)
 	{
-		sprintf(line1,"0x%.2x     0x%.2x     0x%.2x     0x%.2x     ",(BYTE)(val>>24),(BYTE)(val>>16),(BYTE)(val>>8),(BYTE)(val));
-		i+= BitPrint(line2,(BYTE)(val>>24),n-24);
-		i+= BitPrint(line2+i,(BYTE)(val>>16),8);
-		i+= BitPrint(line2+i,(BYTE)(val>>8),8);
-		i+= BitPrint(line2+i,(BYTE)(val),8);
+		sprintf(line1,"0x%.2x     0x%.2x     0x%.2x     0x%.2x     ",(uint8_t)(val>>24),(uint8_t)(val>>16),(uint8_t)(val>>8),(uint8_t)(val));
+		i+= BitPrint(line2,(uint8_t)(val>>24),n-24);
+		i+= BitPrint(line2+i,(uint8_t)(val>>16),8);
+		i+= BitPrint(line2+i,(uint8_t)(val>>8),8);
+		i+= BitPrint(line2+i,(uint8_t)(val),8);
 	} else if (n>16) {
-		sprintf(line1,"0x%.2x     0x%.2x     0x%.2x     ",(BYTE)(val>>16),(BYTE)(val>>8),(BYTE)(val));
-		i+= BitPrint(line2+i,(BYTE)(val>>16),n-16);
-		i+= BitPrint(line2+i,(BYTE)(val>>8),8);
-		i+= BitPrint(line2+i,(BYTE)(val),8);
+		sprintf(line1,"0x%.2x     0x%.2x     0x%.2x     ",(uint8_t)(val>>16),(uint8_t)(val>>8),(uint8_t)(val));
+		i+= BitPrint(line2+i,(uint8_t)(val>>16),n-16);
+		i+= BitPrint(line2+i,(uint8_t)(val>>8),8);
+		i+= BitPrint(line2+i,(uint8_t)(val),8);
 	} else if (n>8) {
-		sprintf(line1,"0x%.2x     0x%.2x     ",(BYTE)(val>>8),(BYTE)(val));
-		i+= BitPrint(line2,(BYTE)(val>>8),n-8);
-		i+= BitPrint(line2+i,(BYTE)(val),8);
+		sprintf(line1,"0x%.2x     0x%.2x     ",(uint8_t)(val>>8),(uint8_t)(val));
+		i+= BitPrint(line2,(uint8_t)(val>>8),n-8);
+		i+= BitPrint(line2+i,(uint8_t)(val),8);
 	} else {
-		sprintf(line1,"0x%.2x     ",(BYTE)(val));
-		BitPrint(line2,(BYTE)(val),n);
+		sprintf(line1,"0x%.2x     ",(uint8_t)(val));
+		BitPrint(line2,(uint8_t)(val),n);
 	}
 	Debug("Dumping 0x%.4x:%d\n\t%s\n\t%s\n",val,n,line1,line2);
 }
@@ -137,7 +139,7 @@ inline void BitDump(QWORD val)
 }
 #endif
 
-inline void Dump(BYTE *data,DWORD size)
+inline void Dump(uint8_t *data,uint32_t size)
 {
 	int i;
 
