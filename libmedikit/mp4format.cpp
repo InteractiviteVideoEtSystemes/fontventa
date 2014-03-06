@@ -1,4 +1,5 @@
 #include <asterisk/frame.h>
+#include <asterisk/channel.h>
 #include "medkit/astcpp.h"
 #include "astmedkit/mp4format.h"
 #include "medkit/red.h"
