@@ -329,9 +329,10 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 				if (hinttrack != MP4_INVALID_TRACK_ID)
 				{
 				    MP4DeleteTrack( mp4, mediatrack );
-				    mediatrack = MP4_INVALID_TRACK_ID;
+				    hinttrack = MP4_INVALID_TRACK_ID;
 				}
 								
+				Log("-mp4recorder: got PPS recreating tracks with the parameters from the stream\n");
 				// Update size
 				width = sps.GetWidth();
 				height = sps.GetHeight();
@@ -344,6 +345,9 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 				// Update profile level
 				AVCProfileIndication 	= sps.GetProfile();
 				AVCLevelIndication	= sps.GetLevel();
+				
+				Log("-mp4recorder: new size: %luxlu. H264_profile: %02x H264_level: %02x\n", 
+				    width, height, AVCProfileIndication, AVCLevelIndication);
 				Create(NULL, VideoCodec::H264, bitrate);
 				
 				//Update widht an ehight
@@ -671,7 +675,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    if (audioencoder == NULL)
 			audioencoder = AudioCodecFactory::CreateEncoder(AudioCodec::PCMU);
    
-		    outLen = audioencoder->Encode( (SWORD*) AST_FRAME_GET_BUFFER(f), f->datalen / 2, 
+		    outLen = audioencoder->Encode( (SWORD*) AST_FRAME_GET_BUFFER(f), f->datalen, 
 						    audioBuff, outLen );
 		    if ( outLen > 0 ) 
 		        af.SetMedia( audioBuff, outLen );
