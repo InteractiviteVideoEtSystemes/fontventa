@@ -38,8 +38,8 @@ endif
 ############################################
 #Modules
 ############################################
-#G711DIR=g711
-#G711OBJ=g711.o pcmucodec.o pcmacodec.o
+G711DIR=g711
+G711OBJ=g711.o pcmucodec.o pcmacodec.o
 
 H263DIR=h263
 H263OBJ=h263packet.o h263codec.o mpeg4codec.o h263-1996codec.o
@@ -71,18 +71,19 @@ H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 #NELLYDIR=nelly
 #NELLYOBJ=NellyCodec.o
 
-#G722DIR=g722
-#G722OBJ=g722codec.o
+G722DIR=g722
+G722OBJ=g722codec.o
 
 
 OBJS=audio.o video.o transcoder.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o
-OBJS+=$(H263OBJ) $(H264OBJ)
+OBJS+=$(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ)
 OBJS+=mp4format.o framebuffer.o
 
 VPATH =  %.cpp $(H263DIR)
 VPATH += %.cpp $(H264DIR)
-
-
+VPATH += %.cpp $(G711DIR)
+VPATH += %.c $(G711DIR)
+VPATH += %.cpp $(G722DIR)
 LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lx264  -lbz2 -lssl -lcrypto -lpthread  
 
 #For abyss

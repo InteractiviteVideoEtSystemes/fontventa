@@ -1,5 +1,7 @@
 #include "medkit/log.h"
 #include "medkit/audio.h"
+#include "g711/g711codec.h"
+#include "g722/g722codec.h"
 
 AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec)
 {
@@ -17,13 +19,16 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 	//Creamos uno dependiendo del tipo
 	switch(codec)
 	{
-#if 0
-		case AudioCodec::GSM:
-			return new GSMEncoder(properties);
 		case AudioCodec::PCMA:
 			return new PCMAEncoder(properties);
 		case AudioCodec::PCMU:
 			return new PCMUEncoder(properties);
+		case AudioCodec::G722:
+			return new G722Encoder(properties);
+	
+#if 0
+		case AudioCodec::GSM:
+			return new GSMEncoder(properties);
 		case AudioCodec::SPEEX16:
 			return new SpeexEncoder(properties);
 		case AudioCodec::NELLY8:
@@ -34,8 +39,6 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 		case AudioCodec::OPUS:
 			return new OpusEncoder(properties);
 #endif
-		case AudioCodec::G722:
-			return new G722Encoder(properties);
 #ifdef AAC_SUPPORT
 		case AudioCodec::AAC:
 			return new AACEncoder(properties);
