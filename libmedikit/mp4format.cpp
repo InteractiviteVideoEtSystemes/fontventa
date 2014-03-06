@@ -671,7 +671,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    if (audioencoder == NULL)
 			audioencoder = AudioCodecFactory::CreateEncoder(AudioCodec::PCMU);
    
-		    outLen = audioencoder->Encode( (SWORD*) AST_FRAME_GET_BUFFER(f), f->datalen, 
+		    outLen = audioencoder->Encode( (SWORD*) AST_FRAME_GET_BUFFER(f), f->datalen / 2, 
 						    audioBuff, outLen );
 		    if ( outLen > 0 ) 
 		        af.SetMedia( audioBuff, outLen );

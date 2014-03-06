@@ -124,8 +124,7 @@ private:
 extern "C"
 {
 #endif
-
-struct mp4rec;
+    struct mp4rec;
 
 /**
  * Create one MP4 recording or playing session for a given asterisk channel
@@ -134,7 +133,7 @@ struct mp4rec;
  * @param video format specification for transcoder
  * @return MP4 participant context for recording.
  */
-struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, char * videoformat);
+    struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat);
 
 /**
  * Process one ast_frame and record it into the MP4 file. Warning: packets must be reordered
@@ -143,9 +142,9 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
  * @param r: instance of mp4 recorder
  * @param f: ast_frame to record.
  **/
-int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f );
+    int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f );
 
-void Mp4RecorderDestroy( struct mp4rec * r );
+    void Mp4RecorderDestroy( struct mp4rec * r );
  
 #ifdef __cplusplus
 }
