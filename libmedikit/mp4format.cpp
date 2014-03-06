@@ -91,6 +91,7 @@ private:
 int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
 {
     // Create audio track
+    
     uint8_t type;
     switch (codec)
     {
@@ -131,10 +132,15 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
 	// TODO: Add AAC support
 	
 	default:
-	    Log("-mp4recorder: unsupported codec %s for audio track.\n", AudioCodec::GetNameFor((AudioCodec::Type) codec));
+	    Error("-mp4recorder: unsupported codec %s for audio track.\n", AudioCodec::GetNameFor((AudioCodec::Type) codec));
 	    return 0;
     }
     
+    if ( mediatrack != MP4_INVALID_TRACK_ID )
+    {
+	Log("-mp4recorder: opened audio track id:%d and hint track id:%d codec %s.\n", 
+	    mediatrack, hinttrack, AudioCodec::GetNameFor((AudioCodec::Type) codec));
+    }
     if ( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
     this->codec = (AudioCodec::Type) codec;
     
@@ -237,7 +243,7 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 	if ( trackName ) this->trackName = trackName; 
 	
 	if ( IsOpen() )
-	{
+	{	
 		if ( trackName) 
 			MP4SetTrackName( mp4, mediatrack, trackName );
 		else if ( ! this->trackName.empty() )
@@ -389,6 +395,7 @@ int Mp4TextTrack::Create(const char * trackName, int codec, DWORD bitrate)
 {
     mediatrack = MP4AddSubtitleTrack(mp4,1000,384,60);
     if ( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
+    if ( IsOpen() ) Log("-mp4recorder: created text track %d.\n", mediatrack);
 }
 
 int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
@@ -780,9 +787,16 @@ void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size
     }
 }    
 
-struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, char * videoformat)
+struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat)
 {
     mp4recorder * r = new mp4recorder(chan, mp4, waitVideo);
+    
+    if ( videoformat != NULL && strlen(videoformat) > 0 )
+    {
+        // Hardcoded for now
+	r->AddTrack(VideoCodec::H264, 640, 480, 256, 
+	            chan->cid.cid_name ? chan->cid.cid_name: "unknown", false );
+    }
     
     return (struct mp4rec *) r;
 }
