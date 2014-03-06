@@ -287,11 +287,9 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	    if (sampleId == 0)
 	    {
 	        duration = 90/15;
-		gettimeofday(&firstframets,NULL);
 	    }
 	    else
 	    {
-	        if (f2->GetTimeStamp() == 0) f2->SetTimestamp( getDifTime(&firstframets)/1000 );
 	        duration = (f2->GetTimeStamp()-prevts)*90;
 	    }
 	    prevts = f->GetTimeStamp();
@@ -418,11 +416,9 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	if (sampleId == 0)
 	{
 	        frameduration = 20;
-		gettimeofday(&firstframets,NULL);
 	}
 	else
 	{
-		if (f2->GetTimeStamp() == 0) f2->SetTimestamp( getDifTime(&firstframets)/1000 );
 	        frameduration = (f2->GetTimeStamp()-prevts);
 	}
 
@@ -474,6 +470,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     audioencoder = NULL;
     depak = NULL;
     SetParticipantName( "participant" );
+    gettimeofday(&firstframets,NULL);
 }
 
 mp4recorder::~mp4recorder()
@@ -728,8 +725,12 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 				// Do the same in case of lost frame
 				if (ismark)
 				{
-				    depak->SetTimestamp( f->ts );
-				    Log("H.264 - got mark. frame ts = %ld.\n", f->ts );
+				    if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
+				        depak->SetTimestamp( f->ts );
+				    else
+				        depak->SetTimestamp( getDifTime(&firstframets)/1000 );
+				   
+				    //Log("H.264 - got mark. frame ts = %ld.\n", f->ts );
 				    ret = ProcessFrame( vfh264 );
 				    depak->ResetFrame();
 				}
@@ -744,7 +745,11 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 			default:
 			    {
 				VideoFrame vf(vcodec, f->datalen, false);
-				vf.SetTimestamp(f->ts);
+				if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
+				        vf.SetTimestamp( f->ts );
+				    else
+				        vf.SetTimestamp( getDifTime(&firstframets)/1000 );
+
 				vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
 				vf.AddRtpPacket( 0, f->datalen, NULL, 0, ismark);
 				ret = ProcessFrame( &vf );
@@ -768,7 +773,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		
 	    case AST_FRAME_TEXT:
 	    {
-		DWORD lost = 0;
+		DWORD lost = 0, text_ts;
 	        TextCodec::Type tcodec;
 		TextFrame tf( false );
 
@@ -779,6 +784,12 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 
 		//Update last sequence number
 		textSeqNo = f->seqno;
+
+		// Extract or generate timing INFO
+		if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
+			text_ts = f->ts ;
+		else
+			text_ts = getDifTime(&firstframets)/1000 ;
 		
 		if ( f->subclass == AST_FORMAT_RED )
 		{
@@ -797,18 +808,18 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 			for (int i=red.GetRedundantCount()-lost;i<red.GetRedundantCount();i++)
 			{
 				//Create frame from recovered data - check timestamps ...
-				tf.SetTimestamp( f->ts - red.GetRedundantTimestampOffset(i) );
+				tf.SetTimestamp( text_ts - red.GetRedundantTimestampOffset(i) );
 				tf.SetMedia( red.GetRedundantPayloadData(i),red.GetRedundantPayloadSize(i) );
 				ProcessFrame ( &tf );
 			}
 		    }
 		    
-		    tf.SetTimestamp( f->ts );
+		    tf.SetTimestamp( text_ts );
 		    tf.SetMedia( red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
 		}
 		else /* assume plain text */
 		{
-		    tf.SetTimestamp( f->ts );
+		    tf.SetTimestamp( text_ts );
 		    tf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
 		}
 		

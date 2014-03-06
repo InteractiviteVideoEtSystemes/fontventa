@@ -30,8 +30,6 @@ protected:
      MP4TrackId hinttrack;
      int sampleId;
      
-     // In case we need to generate a clock
-     timeval firstframets;
      DWORD prevts;
 };
 
@@ -123,6 +121,9 @@ private:
     BYTE audioBuff[800];
     
     H264Depacketizer * depak;
+    
+    // In case we need to generate a clock
+    timeval firstframets;
 };
 
 #endif
