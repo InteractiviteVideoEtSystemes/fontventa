@@ -235,7 +235,8 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 			break;
 
 		default:
-		    Log("-mp4recorder: unsupported codec %s for video track.\n", VideoCodec::GetNameFor((VideoCodec::Type) codec));
+		    Log("-mp4recorder: unsupported codec %s for video track. Track not created.\n", 
+		        VideoCodec::GetNameFor((VideoCodec::Type) codec));
 		    return 0;
 		    break;
 	}
@@ -251,7 +252,8 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 			MP4SetTrackName( mp4, mediatrack, this->trackName.c_str() );
 	}
 	
-	Log("-mp4recorder: created video track %d using codec %s.\n", mediatrack, VideoCodec::GetNameFor( (VideoCodec::Type) codec));
+	Log("-mp4recorder: created VIDEO track %d, hinttrack %d using codec %s.\n", 
+	    mediatrack, hinttrack, VideoCodec::GetNameFor( (VideoCodec::Type) codec));
 
 }
 
@@ -328,7 +330,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 				
 				if (hinttrack != MP4_INVALID_TRACK_ID)
 				{
-				    MP4DeleteTrack( mp4, mediatrack );
+				    MP4DeleteTrack( mp4, hinttrack );
 				    hinttrack = MP4_INVALID_TRACK_ID;
 				}
 								
