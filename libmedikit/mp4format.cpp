@@ -803,6 +803,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 
 		//Update last sequence number
 		textSeqNo = f->seqno;
+		Log("text frame seqno %d, lost %d\n", f->seqno, lost);
 
 		// Extract or generate timing INFO
 		if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
@@ -812,11 +813,10 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		}
 		else
 		{
-			Log("generated timing for text frame : TS=%u.\n", f->ts);
 			text_ts = getDifTime(&firstframets)/1000 ;
+			Log("generated timing for text frame : TS=%u.\n", text_ts);
 		}
 
-		Log("text frame seqno %d, lost %d\n");
 		if ( f->subclass == AST_FORMAT_RED )
 		{
 		    // parse RED to recover lost packets
