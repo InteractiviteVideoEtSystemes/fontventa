@@ -20,6 +20,8 @@
  *  15-01-2006
  *  	Code cleanup and ast_module_user_add added.
  *  	Thanxs Denis Smirnov.
+ *  6 mars 2014
+ *      Reimplementation avec medkit
  */
 
 /*! \file
@@ -31,13 +33,9 @@
 #include <sys/time.h>
 
 #include <asterisk.h>
-#ifdef MP4V2
 #include <mp4v2/mp4v2.h>
-#else
-#include <mp4.h>
-#include <mp4av.h>
-#include <mp4av_h264.h>
-#endif
+#include <astmedkit/framebuffer.h>
+#include <astmedkit/framebuffer.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -56,14 +54,6 @@
 #include <asterisk/app.h>
 #include <asterisk/version.h>
 
-#undef i6net
-#undef i6net_lock
-#ifndef i6net
-#include <asterisk/speech.h>
-#endif
-#ifdef i6net_lock
-#include <app_vxml.h>
-#endif
 
 #ifndef AST_FORMAT_AMRNB
 #define AST_FORMAT_AMRNB 	(1 << 13)
@@ -108,15 +98,6 @@
 #ifdef VIDEOCAPS
 /*! \brief codec video dans le fichier 
  */
-typedef enum 
-{
-  NATIVE_VIDEO_CODEC_H264 = 0 ,
-  NATIVE_VIDEO_CODEC_H263P ,
-  NATIVE_VIDEO_CODEC_H263 ,
-  NATIVE_VIDEO_CODEC_LAST // Always last 
-} NativeCodec;
-#endif
-
 
 
 
@@ -159,23 +140,9 @@ static const char *des_save = "  mp4save(filename,[options]):  Record mp4 file. 
         " mp4save(/tmp/save.3gp,v)  activate loopback of video\n"
         " mp4save(/tmp/save.3gp,V)  wait for first videoto start recording\n"
         " mp4save(/tmp/save.3gp,V9) wait for first videoto start recording\n"
-        "                           and stop on '9' dtmf\n";
 
-
-struct mp4track {
-	MP4FileHandle mp4;
-	MP4TrackId track;
-	MP4TrackId hint;
-	bool first;
-	bool intra;
-	unsigned char *frame;	
-	int length;
-	int sampleId;
-	int timeScale;
-};
-
-
-enum {
+enum 
+{
         OPT_DFTMINTOVAR 	=	(1 << 0),
         OPT_NOOFDTMF 		=	(1 << 1),
 	OPT_STOPDTMF		=	(1 << 2),
@@ -189,1058 +156,14 @@ enum {
 	OPT_ARG_ARRAY_SIZE,
 } mp4play_exec_option_args;
 
-AST_APP_OPTIONS(mp4play_exec_options, {
+AST_APP_OPTIONS(mp4play_exec_options, 
+{
         AST_APP_OPTION_ARG('S', OPT_DFTMINTOVAR, OPT_ARG_DFTMINTOVAR),
         AST_APP_OPTION_ARG('n', OPT_NOOFDTMF, OPT_ARG_NOOFDTMF),
 	AST_APP_OPTION_ARG('s', OPT_STOPDTMF, OPT_ARG_STOPDTMF),
 });
 
-#define H263_RTP_MAX_HEADER_LEN     8       // H263 header max length for RFC2190 (mode A) or RFC2429
-#define MAX_H263_PACKET             32      // max number of RTP packet per H263 Video Frame
-#define H263_FRAME_SIZE            (PKT_PAYLOAD - H263_HEADER_MODE_A_SIZE)
 
-
-
-
-
-
-
-struct RFC2190H263HeadersBasic
-{
-        //F=0             F=1
-        //P=0   I/P frame       I/P mode b
-        //P=1   B frame         B fame mode C
-        uint32_t trb:9;
-        uint32_t tr:3;
-        uint32_t dbq:2;
-        uint32_t r:3;
-        uint32_t a:1;
-        uint32_t s:1;
-        uint32_t u:1;
-        uint32_t i:1;
-        uint32_t src:3;
-        uint32_t ebits:3;
-        uint32_t sbits:3;
-        uint32_t p:1;
-        uint32_t f:1;
-};
-#define H263P_HEADER_SIZE		2
-#define H263_HEADER_MODE_A_SIZE 4
-#define H263_HEADER_MODE_B_SIZE 8
-#define H263_HEADER_MODE_C_SIZE 12
-static int suppressT140BOM(unsigned char* buff,int sz );
-
-static uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32_t bufferLen)
-{
-	/* Debug */
-  if ( option_debug > 4 )
-    ast_log(LOG_DEBUG,"RFC2190 appending [%d:0x%.2x,0x%.2x]\n",bufferLen,buffer[0],buffer[1]);
-
-	/* Check length */
-	if (bufferLen<sizeof(struct RFC2190H263HeadersBasic))
-		/* exit */
-		return 0;
-
-	/* Get headers */
-	uint32_t x = ntohl(*(uint32_t *)buffer);
-
-	/* Set headers */
-	struct RFC2190H263HeadersBasic *headers = (struct RFC2190H263HeadersBasic *)&x;
-
-	/* Get ini */
-	uint8_t* in = buffer + sizeof(struct RFC2190H263HeadersBasic);
-	uint32_t  len = sizeof(struct RFC2190H263HeadersBasic);
-
-	if (headers->f)
-	{
-	  if (headers->p)
-      /* If C type */
-	  {
-      if ( option_debug > 4 )
-        ast_log(LOG_DEBUG,"RFC2190 C type %d\n",headers->f);
-
-		  /* Skip rest of header */
-		  in+=8;
-		  len+=8;
-	  }
-	  else
-      /* If B type */
-	  {
-      if ( option_debug > 4 )
-        ast_log(LOG_DEBUG,"RFC2190 B type %d\n",headers->f);
-
-		  /* Skip rest of header */
-		  in+=4;
-		  len+=4;
-		}
-	}
-	else
-	{
-    if ( option_debug > 4 )
-      ast_log(LOG_DEBUG,"RFC2190 A type %d\n",headers->f);
-  }
-
-	//ast_log(LOG_DEBUG,"RFC2190 len %d\n",len);
-
-	if(headers->ebits!=0)
-	{
-    if ( option_debug > 4 )
-      ast_log(LOG_DEBUG,"RFC2190 cut %d ebit (%d)\n", headers->ebits, bufferLen-len);
-	  in[bufferLen-len-1] &= 0xff << headers->ebits;
-	}	
-
-	/* Mix first and end byte */
-	if(headers->sbits!=0 && destLen>0)
-	{
-    if ( option_debug > 4 )
-      ast_log(LOG_DEBUG,"RFC2190 mix %d sbit\n", headers->sbits);
-
-		/* Append to previous byte */
-    in[0] &= 0xff >> headers->sbits;		
-		dest[destLen-1] |= in[0];
-		/* Skip first */
-		in++;
-		len++;
-	}	
-
-	/* Copy the rest */
-	memcpy(dest+destLen,in,bufferLen-len);	
-
-  if ( option_debug > 4 )
-    ast_log(LOG_DEBUG,"RFC2190 max write %d\n", destLen+bufferLen-len);
-
-	/* Return added */
-	return bufferLen-len;
-}
-
-static void SendVideoFrameH263(struct ast_channel *chan, uint8_t *data, uint32_t size, int first, int last , int fps)
-{
-	uint8_t frameBuffer[PKT_SIZE];
-	struct ast_frame *send = (struct ast_frame *) frameBuffer;
-	uint8_t *frameData = NULL;
- 	unsigned char RFC2190_header[4] = {0} ;
-	
-  if(data[0] == 0x00 && data[1] == 0x00 && (data[2] & 0xfc)==0x80){ /* PSC */
-		/* RFC 2190 -5.1 Mode A
-			0                   1                   2                   3
-			0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-			|F|P|SBIT |EBIT | SRC |I|U|S|A|R      |DBQ| TRB |    TR         |
-			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		
-		SRC : 3 bits
-		Source format, bit 6,7 and 8 in PTYPE defined by H.263 [4], specifies
-		the resolution of the current picture.
-		
-		I:  1 bit.
-		Picture coding type, bit 9 in PTYPE defined by H.263[4], "0" is
-		intra-coded, "1" is inter-coded.
-		*/
-		
-		// PDATA[4] ======> Bits 3-10 of PTYPE
-		uint8_t format, pict_type;
-		
-		// Source Format = 4,5,6
-		format = (data[4] & 0x3C)>>2;
-		// Picture Coding Type = 7
-		pict_type = (data[4] & 0x02)>>1;
-		// RTP mode A header
-    ((uint32_t *)RFC2190_header)[1] = ntohl( (format <<5) | (pict_type << 4) );
-	}
-
-  uint32_t *p = (uint32_t *) data;
-  int gob_num = (ntohl(*p) >> 10) & 0x1f;
-  char *dat = (char *)data;	
-  
-  static uint32_t tr = 0; //Static to have it when needed for splitting into multiple
-  static uint32_t sz = 0; //packets (a hack that works for one video connection
-  //         only, must be stored elsewhere for more)
-
-	/* Debug */
-  if ( option_debug > 4 )
-    ast_log(LOG_DEBUG,"Send video frame [%p,%d,%d,%d,0x%.2x,0x%.2x,0x%.2x,0x%.2x]\n",send,size,first,last,data[0],data[1],data[2],data[3]);
-
-	/* Check size */
-	if (size+2>PKT_PAYLOAD)
-	{
-		/* Error */
-		ast_log(LOG_ERROR,"Send video frame too large [%d]\n",size);
-		/* Exit */
-		return ;
-	}
-
-	/* clean */
-	memset(send,0,PKT_SIZE);
-
-	/* Set frame data */
-	AST_FRAME_SET_BUFFER(send,send,PKT_OFFSET,0);
-	/* Get the frame pointer */
-	frameData = AST_FRAME_GET_BUFFER(send);
-
-
-	/* Debug */
-  if ( option_debug > 4 )
-    ast_log(LOG_DEBUG,"GOB number %d\n",gob_num);
-
-  if(gob_num == 0)
-  {
-    /* Get relevant framedata and memorize it for later use */
-    /* Get the "temporal reference" from the H.263 frameheader. */
-    tr = ((dat[2] & 0x03) * 64) + ((dat[3] & 0xfc) / 4);
-    /* Get the Imgesize from the H.263 frameheader. */
-    sz = (dat[4] >> 2) & 0x07;
-  }
-  else
-  {
-    /* The memorized values from the frame start will be used */
-  }
-  /* Construct payload header.
-     Set videosize and the temporal reference to that of the frame */
-  ((uint32_t *)RFC2190_header)[0] = ntohl((sz << 21) | (tr & 0x000000ff));
-  
-	/* Set frame len*/
-	send->datalen = size+4;
-	/* Set header */
-	memcpy(frameData, RFC2190_header, 4);
-	/* Copy */
-	memcpy(frameData+4, data, size);
-	/* Set timestamp */
-	send->samples = 90000/fps;
-
-	/* Set video type */
-	send->frametype = AST_FRAME_VIDEO;
-	/* Set codec value */
-	send->subclass = AST_FORMAT_H263 | last;
-	/* Rest of values*/
-	send->src = "mp4play";
-	send->delivery = ast_tv(0, 0);
-	/* Don't free the frame outrside */
-	send->mallocd = 0;
-
-
-	/* Send */
-	//vtc->channel->tech->write_video(vtc->channel, send);
-	ast_write(chan, send);
-}
-
-
-#define MAX_DTMF_BUFFER_SIZE 25
-
-#ifdef i6net
-void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
-		     const char* payloadName, bool interleave, 
-		     u_int16_t maxPayloadSize, bool doEncrypt)
-{
-
-  bool rc = FALSE;
-
-  if (MP4GetTrackNumberOfSamples(mp4File, mediaTrackId) == 0) {
-    fprintf(stderr, 
-	    "%s: couldn't create hint track, no media samples\n", ProgName);
-    MP4Close(mp4File);
-    exit(EXIT_CREATE_HINT);
-  }
-
-  // vector out to specific hinters
-  const char* trackType = MP4GetTrackType(mp4File, mediaTrackId);
-
-  if (doEncrypt || MP4IsIsmaCrypMediaTrack(mp4File, mediaTrackId)) {
-
-    ismacryp_session_id_t icSID;
-    mp4av_ismacrypParams *icPp =  (mp4av_ismacrypParams *) malloc(sizeof(mp4av_ismacrypParams));
-    memset(icPp, 0, sizeof(mp4av_ismacrypParams));
-
-    if (!strcmp(trackType, MP4_AUDIO_TRACK_TYPE)) {
-       if (ismacrypInitSession(&icSID, KeyTypeAudio) != 0) {
-          fprintf(stderr, 
-	      "%s: can't hint, error in init ismacryp session\n", ProgName);
-          goto quit_error;
-       }
-    }
-    else if (!strcmp(trackType, MP4_VIDEO_TRACK_TYPE)) {
-       if (ismacrypInitSession(&icSID, KeyTypeVideo) != 0) {
-          fprintf(stderr, 
-	      "%s: can't hint, error in init ismacryp session\n", ProgName);
-          goto quit_error;
-       }
-    }
-    else {
-      fprintf(stderr, 
-	      "%s: can't hint track type %s\n", ProgName, trackType);
-      goto quit_error;
-    }
-    
-    // get all the ismacryp parameters needed by the hinters:
-    if (ismacrypGetKeyCount(icSID, &(icPp->key_count)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting key count for session %d\n", 
-               ProgName, icSID);
-      goto quit_error;
-    }
-    if (ismacrypGetKeyIndicatorLength(icSID, &(icPp->key_ind_len)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting key ind len for session %d\n", 
-               ProgName, icSID);
-      goto quit_error;
-    }
-
-    if (ismacrypGetKeyIndPerAU(icSID, &(icPp->key_ind_perau)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting key ind per au for session %d\n", 
-               ProgName, icSID);
-      goto quit_error;
-    }
-    if (ismacrypGetSelectiveEncryption(icSID, &(icPp->selective_enc)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting selective enc for session %d\n", 
-               ProgName, icSID);
-      goto quit_error;
-    }
-    if (ismacrypGetDeltaIVLength(icSID, &(icPp->delta_iv_len)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting delta iv len for session %d\n", 
-               ProgName, icSID);
-      goto quit_error;
-    }
-    if (ismacrypGetIVLength(icSID, &(icPp->iv_len)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting iv len for session %d\n", 
-               ProgName, icSID);
-      goto quit_error;
-    }
-    if (ismacrypGetScheme(icSID, (ismacryp_scheme_t *) &(icPp->scheme)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting scheme for session %d\n", 
-               ProgName, icSID);
-      goto quit_error;
-    }
-    if (ismacrypGetKey(icSID, 1,&(icPp->key_len),&(icPp->salt_len),
-                       &(icPp->key),&(icPp->salt),&(icPp->key_life)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting scheme for session %d\n", 
-               ProgName, icSID);
-      goto quit_error;
-    }
-
-    goto ok_continue;
-    quit_error:
-    ismacrypEndSession(icSID);
-    MP4Close(mp4File);
-    exit(EXIT_CREATE_HINT);
-    ok_continue:
-
-    if (!strcmp(trackType, MP4_AUDIO_TRACK_TYPE)) {
-      rc = MP4AV_RfcCryptoAudioHinter(mp4File, mediaTrackId, 
-                                      icPp, 
-				      interleave, maxPayloadSize, 
-				      "enc-mpeg4-generic");
-      ismacrypEndSession(icSID);
-    } else if (!strcmp(trackType, MP4_VIDEO_TRACK_TYPE)) {
-      rc = MP4AV_RfcCryptoVideoHinter(mp4File, mediaTrackId, 
-                                      icPp, 
-                                      maxPayloadSize,
-				      "enc-mpeg4-generic");
-      ismacrypEndSession(icSID);
-    } else {
-      fprintf(stderr, 
-	      "%s: can't hint track type %s\n", ProgName, trackType);
-    }
-  }
-  else if (!strcmp(trackType, MP4_AUDIO_TRACK_TYPE)) {
-    const char *media_data_name;
-    media_data_name = MP4GetTrackMediaDataName(mp4File, mediaTrackId);
-    
-    if (strcasecmp(media_data_name, "mp4a") == 0) {
-      u_int8_t audioType = MP4GetTrackEsdsObjectTypeId(mp4File, mediaTrackId);
-
-      switch (audioType) {
-      case MP4_INVALID_AUDIO_TYPE:
-      case MP4_MPEG4_AUDIO_TYPE:
-	if (payloadName && 
-	    (strcasecmp(payloadName, "latm") == 0 ||
-	     strcasecmp(payloadName, "mp4a-latm") == 0)) {
-	  rc = MP4AV_Rfc3016LatmHinter(mp4File, mediaTrackId, 
-				       maxPayloadSize);
-	  break;
-	}
-      case MP4_MPEG2_AAC_MAIN_AUDIO_TYPE:
-      case MP4_MPEG2_AAC_LC_AUDIO_TYPE:
-      case MP4_MPEG2_AAC_SSR_AUDIO_TYPE:
-	rc = MP4AV_RfcIsmaHinter(mp4File, mediaTrackId, 
-				 interleave, maxPayloadSize);
-	break;
-      case MP4_MPEG1_AUDIO_TYPE:
-      case MP4_MPEG2_AUDIO_TYPE:
-	if (payloadName && 
-	    (!strcasecmp(payloadName, "3119") 
-	     || !strcasecmp(payloadName, "mpa-robust"))) {
-	  rc = MP4AV_Rfc3119Hinter(mp4File, mediaTrackId, 
-				   interleave, maxPayloadSize);
-	} else {
-	  rc = MP4AV_Rfc2250Hinter(mp4File, mediaTrackId, 
-				   false, maxPayloadSize);
-	}
-	break;
-      case MP4_PCM16_BIG_ENDIAN_AUDIO_TYPE:
-      case MP4_PCM16_LITTLE_ENDIAN_AUDIO_TYPE:
-	rc = L16Hinter(mp4File, mediaTrackId, maxPayloadSize);
-	break;
-      default:
-	fprintf(stderr, 
-		"%s: can't hint non-MPEG4/non-MP3 audio type\n", ProgName);
-      }
-    } else if (strcasecmp(media_data_name, "samr") == 0 ||
-	       strcasecmp(media_data_name, "sawb") == 0) {
-      rc = MP4AV_Rfc3267Hinter(mp4File, mediaTrackId, maxPayloadSize);
-    }
-  } else if (!strcmp(trackType, MP4_VIDEO_TRACK_TYPE)) {
-    const char *media_data_name;
-    media_data_name = MP4GetTrackMediaDataName(mp4File, mediaTrackId);
-    
-    if (strcasecmp(media_data_name, "mp4v") == 0) {
-      u_int8_t videoType = MP4GetTrackEsdsObjectTypeId(mp4File, mediaTrackId);
-      
-      switch (videoType) {
-      case MP4_MPEG4_VIDEO_TYPE:
-	rc = MP4AV_Rfc3016Hinter(mp4File, mediaTrackId, maxPayloadSize);
-	break;
-      case MP4_MPEG1_VIDEO_TYPE:
-      case MP4_MPEG2_SIMPLE_VIDEO_TYPE:
-      case MP4_MPEG2_MAIN_VIDEO_TYPE:
-	rc = Mpeg12Hinter(mp4File, mediaTrackId, maxPayloadSize);
-	break;
-      default:
-	fprintf(stderr, 
-		"%s: can't hint non-MPEG4 video type\n", ProgName);
-	break;
-      }
-    } else if (strcasecmp(media_data_name, "avc1") == 0) {
-      // h264;
-      rc = MP4AV_H264Hinter(mp4File, mediaTrackId, maxPayloadSize);
-    } else if (strcasecmp(media_data_name, "s263") == 0) {
-      rc = MP4AV_Rfc2429Hinter(mp4File, mediaTrackId, maxPayloadSize);
-    }
-  } else {
-    fprintf(stderr, 
-	    "%s: can't hint track type %s\n", ProgName, trackType);
-  }
-
-  if (!rc) {
-    fprintf(stderr, 
-	    "%s: error hinting track %u\n", ProgName, mediaTrackId);
-    MP4Close(mp4File);
-    exit(EXIT_CREATE_HINT);
-  }
-}
-#endif
-
-#ifndef i6net
-/*! \brief Helper function used to find the speech structure attached to a channel */
-static struct ast_speech *find_speech(struct ast_channel *chan)
-{
-    struct ast_speech *speech = NULL;
-    struct ast_datastore *datastore = NULL;
-
-    AST_LIST_TRAVERSE_SAFE_BEGIN(&chan->datastores, datastore, entry)
-    {
-        if (!strcmp(datastore->info->type, "speech"))
-        {
-            break;
-        }
-    }
-    AST_LIST_TRAVERSE_SAFE_END
-        //datastore = ast_channel_datastore_find(chan, &speech_datastore, NULL);
-        if (datastore == NULL)
-    {
-        return NULL;
-    }
-    speech = datastore->data;
-
-    return speech;
-}
-#endif
-
-//void dump_buffer_hex(const unsigned char * text, const unsigned char * buff, int len)
-//{
-//        int i;
-//        unsigned char *temp;
-//        temp = malloc(len*3+20); /* actually only len*3 would be needed, but negative values need more then 2 bytes*/
-//        if (temp == NULL) {
-//                ast_log(LOG_DEBUG, "app_mp4.c: dump_buffer_hex: failed to allocate buffer!\n");
-//                return;
-//        }
-//        for (i=0;i<len;i++) {
-//                sprintf( temp+3*i, "%02x ", buff[i]);
-//        }
-//        ast_log(LOG_DEBUG, "app_mp4.c: dump_buffer_hex: %s\n%s\n",text,temp);
-//        free(temp);
-//}
-
-
-static int mp4_rtp_write_audio(struct mp4track *t, struct ast_frame *f, int payload)
-{
-	/* Next sample */
-	t->sampleId++;
-
-	if (option_debug > 5) ast_log(LOG_DEBUG, "Saving #%d:%d:%d %d samples %d size of audio, payload=%d\n", t->sampleId, t->track, t->hint, f->samples, f->datalen,payload);
-	/* dump_buffer_hex("AMR buffer",f->data,f->datalen); */
-
-	/* Add hint */
-	MP4AddRtpHint(t->mp4, t->hint);
-
- if (t->hint != -1)
- {
-	/* Add rtp packet to hint track */
-	MP4AddRtpPacket(t->mp4, t->hint, 0, 0);
-
-	/* Save rtp specific payload header to hint */
-	if (payload > 0)
-		MP4AddRtpImmediateData(t->mp4, t->hint, AST_FRAME_GET_BUFFER(f), payload);
-
-	/* Set which part of sample audio goes to this rtp packet */
-	MP4AddRtpSampleData(t->mp4, t->hint, t->sampleId, 0, f->datalen - payload);
-
-	/* Write rtp hint */
-	MP4WriteRtpHint(t->mp4, t->hint, f->samples, 1);
-	}
-
-	/* Write audio */
-	MP4WriteSample(t->mp4, t->track, AST_FRAME_GET_BUFFER(f) + payload, f->datalen - payload, f->samples, 0, 0);
-
-	return 0;
-}
-
-static unsigned char silence_alaw[] = {
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5,
- 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5,
-  
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5,
-  
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
- 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
-};
-	
-static unsigned char silence_ulaw[] = {
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
- 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-};
-
-static unsigned char silence_amr[] =
-{
-0x70,
-0x3C, 0x48, 0xF5, 0x1F, 0x96, 0x66, 0x78, 0x00,
-0x00, 0x01, 0xE7, 0x8A, 0x00, 0x00, 0x00, 0x00,
-0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-};
-#if 0
-static unsigned char silence_amr2[] =
-{
-0x7C,
-};
-#endif
-static int mp4_rtp_write_audio_silence(struct mp4track *t, int payload, struct ast_frame *f)
-{	
-    /* Unset */
-    memset(f, 0, PKT_SIZE);
-
-    /* Let mp4 lib allocate memory */
-    AST_FRAME_SET_BUFFER(f,f,PKT_OFFSET,PKT_PAYLOAD);
-
-    /* Don't free the frame outside */
-    f->mallocd = 0;
-	
-    switch(payload)
-    {
-	case 0:
-	    memcpy(AST_FRAME_GET_BUFFER(f), silence_ulaw, sizeof(silence_ulaw));
-	    f->datalen = 160;
-	    f->samples = 160;
-	    mp4_rtp_write_audio(t, f, 0);
-	    break;
-
-	case 8:
-	    memcpy(AST_FRAME_GET_BUFFER(f), silence_alaw, sizeof(silence_alaw));
-	    f->datalen = 160;
-	    f->samples = 160;
-	    mp4_rtp_write_audio(t, f, 0);
-	    break;
-
-	case 32:
-	    memcpy(AST_FRAME_GET_BUFFER(f), silence_amr, sizeof(silence_amr));
-	    f->datalen = 33;
-	    f->samples = 160;
-	    mp4_rtp_write_audio(t, f, 1);
-	    break;
-
-	default:
-	    ast_log(LOG_NOTICE, "Silence generation not supported for payload %d.\n",
-		    payload);
-	    break;
-    }  
-    return 0;
-}
-
-
-/* Extract payload according to RFC 2198 */
-#define MAX_REDUNDANCY_LEVEL 4
-#define min(X, Y)  ((X) < (Y) ? (X) : (Y))
-
-static struct ast_frame *decode_redundant_payload( const struct ast_frame * f, struct ast_frame * decoded[] )
-{
-    const unsigned char *pt = (const unsigned char *) f->data;
-    size_t srclen = f->datalen;
-    int idx = 0, maxidx = 0;
-    int i = 0;
-    /* read block headers */
-    while ( i < srclen )
-    {
-	int ptype = pt[i];
-	int len, t_offset;
-
-	if (ptype & 0x80)
-	{
-	    len  = (( pt[i+2] & 0x03) << 8) + pt[i+3];
-	    t_offset = (pt[i+1] << 8) + (pt[i+2] & 0xFC);
-	    t_offset  = t_offset >> 2;
-
-	    if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Found red block at offset %d (total length = %ld) with payload type %02x timestamp offset %d len %d.\n",
-			i, srclen, ptype & 0x7F, t_offset, len );
-	    i+=4;
-	}
-	else
-	{
-	    len = 1500; /* magic value */
-	    t_offset = 0;
-
-           if (option_debug > 2)
-                ast_log(LOG_DEBUG, "Found primary block at offset %d with payload type %02x.\n",
-                        i, ptype );
-	   i++;
-	}
-
-	if (idx >= MAX_REDUNDANCY_LEVEL)
-	{
-	    ast_log(LOG_WARNING, "decode_redundant_payload: Too many blocks of redundant data in this frame.\n");
-	    goto dec_nomem;
-        }
-
-	struct ast_frame * df = (struct ast_frame *) malloc(sizeof(struct ast_frame) + len + AST_FRIENDLY_OFFSET + 1 );
-	
-	if (df == NULL)
-	{
-	    ast_log(LOG_WARNING, "decode_redundant_payload: failed to allocated memory for decoded frames.\n");
-	    goto dec_nomem;
-        }
-
-	/* hardcoed sample frequency for text is 1000 Hz */
-	/* true formula : tv_usec = ( t_offset * 10000000 / freq ) mod 1 000 000 */
-	df->delivery.tv_usec = (t_offset * 1000)  % 1000000;
-        df->delivery.tv_sec = t_offset / 1000;
-	df->mallocd = AST_MALLOCD_HDR; /* indicate that memory must be freed */
-	df->frametype = AST_FRAME_TEXT; /* hardcoded */
-	df->subclass = AST_FORMAT_T140; /* hardcoded but could be deducted from pt */
-	df->data = ((void *)df) + sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET; 
-        df->offset = sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET;
-        df->datalen = len;
-
-	decoded[idx++] = df;
-	if ( (ptype & 0x80)  == 0 ) break;
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "Now processing following block #%d.\n", idx);
-    }
-	
-    maxidx = idx;
-
-    /* Fill remaining frame slots with null pointers */
-    while (idx < MAX_REDUNDANCY_LEVEL)
-	decoded[idx++] = NULL;
-
-    /* now store datablocs in allocated frames */
-    for(idx = 0; idx < maxidx ; idx++) 
-    {
-	int  len;
-	struct ast_frame *df = decoded[idx];
-	
-
-	if (df == NULL)
-	{
-	    ast_log(LOG_WARNING, "Unexpedcted NULL frame for block #%d.\n", idx);
-	    break;
-	}
-
-	len = min( df->datalen, srclen - i );
-        if ( i + len > srclen )
-        {
-	    ast_log(LOG_WARNING, "Block #%d has a length out of bound.\n", idx);
-	    df->datalen = 0;
-            /* Out of bound */
-            break;
-        }
-
-	if (option_debug > 2)
-		ast_log(LOG_DEBUG, "block #%d contains %d bytes.\n", idx, len);
-	if (len > 0)
-	{
-	    memcpy(df->data, &pt[i], len);
-	    i += len;
-	}
-	df->datalen = len;
-
-    }
-    if ( maxidx > 0) 
-	return decoded[maxidx - 1];
-    else
-	return NULL;
-
-dec_nomem:
-    maxidx = idx;
-    for (idx = 0; idx < maxidx; idx++)
-    {
-	if (decoded[idx]) ast_frfree( decoded[idx] );
-    }
-
-    return NULL;
-}
-
-static void mp4_rtp_write_video_frame(struct mp4track *t, int samples)
-{
-    if (option_debug > 5) ast_log(LOG_DEBUG, "Saving #%d:%d:%d %d samples %d size of video\n", t->sampleId, t->track, t->hint, samples, t->length);
-
-	/* Save rtp hint */
-	if (t->hint != -1)
-	MP4WriteRtpHint(t->mp4, t->hint, samples, t->intra);
-	/* Save video frame */
-	MP4WriteSample(t->mp4, t->track, t->frame, t->length, samples, 0, t->intra);
-}
-
-static int mp4_rtp_write_video(struct mp4track *t, struct ast_frame *f, int payload, bool intra, int skip, unsigned char * prependBuffer, int prependLength)
-{
-	/* rtp mark */
-	const bool mBit = f->subclass & 0x1;
-	
-	/* If it's the first packet of a new frame */
-	if (t->first)
- {
-		/* If we hava a sample */
-		if (t->sampleId > 0) {
-		 
-			/* Save frame */
-			//mp4_rtp_write_video_frame(t, f->samples / (90000 / t->timeScale)); //!!!!!
-			mp4_rtp_write_video_frame(t, f->samples); //!!!!!
-		}
-
-		t->length = 0;	
-
-		/* Save intra flag */
-		t->intra = intra;
-
-		if (option_debug > 4) ast_log(LOG_DEBUG, "New video hint [%d,%d,%d,%d]\n",intra,payload,skip,prependLength);
-
-		/* Add hint */
-		if (t->hint != -1)
-		MP4AddRtpHint(t->mp4, t->hint);
-
-		/* Next frame */
-		if (t->first)
-		t->sampleId++;
-
-		/* Reset first mark */
-		t->first = 0;
-	}
-
-	/* Add rtp packet to hint track */
-	if (t->hint != -1)
-	MP4AddRtpPacket(t->mp4, t->hint, mBit, 0);
-
-	/* Save rtp specific payload header to hint */
-	if (t->hint != -1)
-	if (payload > 0)
-		MP4AddRtpImmediateData(t->mp4, t->hint, AST_FRAME_GET_BUFFER(f), payload);
-
-  if (  f->subclass  & AST_FORMAT_H263)
-  {
-    /* Set hint reference to video data */
-		if (option_debug > 4) 
-      ast_log(LOG_DEBUG, "H263 intra[%d] payload[%d] skip[%d] prependLength[%d]\n",
-              intra,payload,skip,prependLength);
-
-    /* Depacketize */
-		t->length += rfc2190_append( t->frame,t->length,AST_FRAME_GET_BUFFER(f),f->datalen);
-  }
-  else
-  {
-    /* If we have to prepend */
-    if (prependLength<0)
-    {
-      /* Prepend data to video buffer */
-      memcpy(t->frame, (char *)prependBuffer, -prependLength);
-
-      /* Inc length */
-      if (t->length == 0)
-        t->length += -prependLength;
-    }
-    else if (prependLength)
-    {
-      /* Prepend data to video buffer */
-      memcpy(t->frame + t->length, (char*)prependBuffer, prependLength);
-
-      /* Inc length */
-      t->length += prependLength;
-    }
-
-    /* Set hint reference to video data */
-    if (t->hint != -1)
-      MP4AddRtpSampleData(t->mp4, t->hint, t->sampleId, (u_int32_t) t->length, f->datalen - payload - skip);
-
-    /* Copy the video data to buffer */
-    memcpy(t->frame + t->length , AST_FRAME_GET_BUFFER(f) + payload + skip, f->datalen - payload - skip); 
-
-    /* Increase stored buffer length */
-    t->length += f->datalen - payload - skip;	
-  }
-	/* If it's the las packet in a frame */
-	if (mBit)
-		/* Set first mark */
-		t->first = 1;
-
-	return 0;
-}
-
-struct mp4rtp {
-	struct ast_channel *chan;
-	MP4FileHandle mp4;
-	MP4TrackId hint;
-	MP4TrackId track;
-	unsigned int timeScale;
-	unsigned int sampleId;
-	unsigned short numHintSamples;
-	unsigned short packetIndex;
-	unsigned int frameSamples;
-	int frameSize;
-	int frameTime;
-	int frameType;
-	int frameSubClass;
-	char *name;
-	char *src;
-	unsigned char type;
-
-};
-
-
-
-static int mp4_video_read(struct mp4rtp *p)
-{
-	int          next = 0;
-	int          last = 0;
-	int          first = 1;
-	u_int8_t*    data  = NULL  ;
-  // MP4Timestamp StartTime ;
-  MP4Duration  Duration ; 
-  // MP4Duration  RenderingOffset;
-  // bool         IsSyncSample = false ;
-  uint32_t     NumBytes = 0;
-  uint32_t     len      = 0;
-  uint32_t     sent     = 0;
-
-  double       fps      = MP4GetTrackVideoFrameRate(p->mp4 , p->track );
-  if (  !MP4ReadSample(p->mp4, 
-                       p->track, 
-                       p->sampleId++,
-                       &data,
-                       &NumBytes,
-                       0,
-                       &Duration,
-                       0,
-                       0) ) 
-  {
-     if ( option_debug > 1 )
-       ast_log(LOG_ERROR, "Error reading H263 packet [%d]\n", p->track);
-    return -1;
-  }
-
- 
-
-  Duration  = Duration / 90 ;
-  if ( option_debug > 4 )
-    ast_log(LOG_DEBUG, "MP4ReadSample Duration[%d] lenght[%d] @%d \n",(int)Duration,NumBytes,(int)fps );
-
-  while(sent<NumBytes)
-  {
-    if (sent+H263_FRAME_SIZE>NumBytes)
-    {
-      last = 1;
-      len = NumBytes-sent;
-    } else 
-      len = H263_FRAME_SIZE;
-
-    SendVideoFrameH263(p->chan, &data[sent], len, first, last,fps);
-    first = 0;
-    sent += len;
-  }
-
-  free(data);
-  
-  next = (Duration)?(int)Duration:(int)(900/fps);
-
-	if (option_debug > 4)
-		ast_log(LOG_DEBUG, "mp4_video_read return [%d]\n", next);
-
-	/* exit next send time */
-	return next;
-}
-
-static int mp4_rtp_read(struct mp4rtp *p, struct ast_frame *f)
-{
-	//unsigned char buffer[PKT_SIZE];
-
-//#define BUFFERLEN (sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET + 1500)
-	//unsigned char buffer[BUFFERLEN + 1];
-	//struct ast_frame *f = (struct ast_frame *) buffer;
-  	
-	int next = 0;
-	int last = 0;
-	int first = 0;
-	uint8_t* data;
-	
-	/* If it's first packet of a frame */
-	if (!p->numHintSamples) {
-		/* Get number of rtp packets for this sample */
-		if (!MP4ReadRtpHint(p->mp4, p->hint, p->sampleId, &p->numHintSamples)) {
-			ast_log(LOG_DEBUG, "MP4ReadRtpHint failed [%d,%d]\n", p->hint,p->sampleId);
-			return -1;
-		}
-
-		/* Get number of samples for this sample */
-		p->frameSamples = MP4GetSampleDuration(p->mp4, p->hint, p->sampleId);
-
-		/* Get size of sample */
-		p->frameSize = MP4GetSampleSize(p->mp4, p->hint, p->sampleId);
-
-		/* Get sample timestamp */
-		p->frameTime = MP4GetSampleTime(p->mp4, p->hint, p->sampleId);
-
-		/* Set first flag */
-		first = 1;
-	}
-
-	/* if it's the last */
-	if (p->packetIndex + 1 == p->numHintSamples)
-		last = 1;
-
-	/* Unset */
-	memset(f, 0, PKT_SIZE);
-
-	/* Let mp4 lib allocate memory */
-	AST_FRAME_SET_BUFFER(f,f,PKT_OFFSET,PKT_PAYLOAD);
-	f->src = strdup(p->src);
-
-	/* Set type */
-	f->frametype = p->frameType;
-	f->subclass = p->frameSubClass;
-
-	f->delivery.tv_usec = 0;
-	f->delivery.tv_sec = 0;
-	/* Don't free the frame outside */
-	f->mallocd = 0;
-
-	/* If it's video set the mark of last rtp packet */
-	
-  if (f->frametype == AST_FRAME_VIDEO)
-	{
-		/* Set mark bit */
-		f->subclass |= last;
-		/* If it's the first packet of the frame */
-		if (first)
-			/* Set number of samples */
-			f->samples = p->frameSamples * (90000 / p->timeScale);
-	} else {
-		/* Set number of samples */
-		f->samples = p->frameSamples;
-	}
-
-
-	/* Get data pointer */
-	data = AST_FRAME_GET_BUFFER(f);
-
-	/* Read next rtp packet */
-	if (!MP4ReadRtpPacket(
-				p->mp4,				/* MP4FileHandle hFile */
-				p->hint,			/* MP4TrackId hintTrackId */
-				p->packetIndex++,		/* u_int16_t packetIndex */
-				(u_int8_t **) &data,		/* u_int8_t** ppBytes */
-				(u_int32_t *) &f->datalen,	/* u_int32_t* pNumBytes */
-				0,				/* u_int32_t ssrc DEFAULT(0) */
-				0,				/* bool includeHeader DEFAULT(true) */
-				1				/* bool includePayload DEFAULT(true) */
-			)) {
-		ast_log(LOG_ERROR, "Error reading packet [%d,%d]\n", p->hint, p->track);
-		return -1;
-	}
-
-	if (option_debug > 6)
-		ast_log(LOG_DEBUG, "MP4ReadRtpHint samples/lenght [%d,%d]\n", f->samples, f->datalen);
-
-	/* Write frame */
-	ast_write(p->chan, f);
-
-	/* Are we the last packet in a hint? */
-	if (last) {
-		/* The first hint */
-		p->packetIndex = 0;
-		/* Go for next sample */
-		p->sampleId++;
-		p->numHintSamples = 0;
-	}
-
-	/* Set next send time */
-	if ((!last) && (f->frametype == AST_FRAME_VIDEO))
-		/* Send next now if it's not the last packet of the frame */
-		/* This will send all the packets from the same frame without pausing between them */
-		/* FIX: should wait depending on bandwith */
-		next = 0;
-	else if (p->timeScale)
-		/* If it's from a different frame or it's audio */
-		next = (p->frameSamples * 1000) / p->timeScale;
-	else
-		next = -1;
-
-	if (option_debug > 5)
-		ast_log(LOG_DEBUG, "MP4ReadRtpHint return [%d]\n", next);
-
-	/* exit next send time */
-	return next;
-}
 
 static int mp4_play(struct ast_channel *chan, void *data)
 {
@@ -1286,6 +209,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 #else
   int videoLastId = NO_CODEC;  
 #endif
+
 
 	unsigned char buffer[PKT_SIZE];
 	unsigned char buffer2[PKT_SIZE];
@@ -2197,94 +1121,42 @@ static int mp4_save(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u = NULL;
 	struct ast_frame *f = NULL;
-	struct mp4track audioTrack;
-	struct mp4track videoTrack;
-	MP4FileHandle mp4;
-	MP4TrackId audio = -1;
-	MP4TrackId video = -1;
-	MP4TrackId hintAudio = -1;
-	MP4TrackId hintVideo = -1;
-	unsigned char type = 0;
 	char *params = NULL;
-	int audio_payload = 0, video_payload = 0;
-	int loopVideo = 0;
-	int waitVideo = 0;
-	int fulength = 0;
-	unsigned char h264_buffer[100];
-	int maxduration = 0; //1000*10;		/* max duration of recording in milliseconds */
+	int maxduration = 1000*1200;		/* max duration of recording in milliseconds - 20 mins */
+	int remainingduration = maxduration;
 	int waitres;
-	int gottimeout=0;
-  long oldAudioTs = 0L ; 
-	long VideoDuration;
-  long AudioDuration;
-  long TextDuration;
-	long lastdurationVideo;
-	long lastdurationAudio;
-  long lastdurationText;
-  
-	unsigned int timestampVideo;
-	unsigned int timestampAudio;
-	int correctionVideo;
-	int synchroVideo = 1;
-
-#ifdef FIX_TIME
-	int synchroAudio = 0;
-	//unsigned int samplesVideo;	
-	int autocorrectionVideo = 0;
-	int autocorrectionAudio = 0;
-#endif
-
-  int haveAudio           =  chan->nativeformats & AST_FORMAT_AUDIO_MASK ;
-  int haveVideo           =  chan->nativeformats & AST_FORMAT_VIDEO_MASK ;  
-  int haveText            =  chan->nativeformats & AST_FORMAT_TEXT_MASK ;  
-	//Text handling
-	int saveText = 1;  // force this param because it is not present in vxml
-
-  char   txtBuff[AST_MAX_TXT_SIZE] = { '\n' } ;
-  size_t IdxTxtBuff = 1 ;
+	char stopDtmfs[20] = "#";
+	struct mp4rec * recorder;
+	char metadata[100];
 	
-	unsigned char buffer[PKT_SIZE];
-	struct ast_frame *f2 = (struct ast_frame *) buffer;
+	/*  whether we send back the video packets to the caller */
+	int videoLoopback = 0;
+	
+	/*  whether we wait for video I-frame to start recording */
+	int waitVideo = 0;
+	
+	/*  Recording is on man! */
+	int onrecord = 1;
+	
+	long VideoDuration;
+	long AudioDuration;
+	long TextDuration;
+  
+	int haveAudio           =  chan->nativeformats & AST_FORMAT_AUDIO_MASK ;
+	int haveVideo           =  chan->nativeformats & AST_FORMAT_VIDEO_MASK ;  
+	int haveText            =  chan->nativeformats & AST_FORMAT_TEXT_MASK ;  
+	
+	
+	struct AstFb * audioInQueue;
+	struct AstFb * videoInQueue;
+	struct AstFb * textInQueue;
 
-  // Time ref 
-  struct timeval CurrAudioTv = { 0 , 0 };
-  struct timeval LastAudioTv = { 0 , 0 };
-  struct timeval CurrVideoTv = { 0 , 0 };
-  struct timeval LastVideoTv = { 0 , 0 };
-  long long      TimeDiff    = 0L;
-
-	struct timeval video_tvn   = { 0 , 0 };
-	struct timeval video_tvs   = { 0 , 0 };
-	struct timeval text_tvn    = { 0 , 0 };
-	struct timeval text_tvs    = { 0 , 0 };
-	struct timeval audio_tvn   = { 0 , 0 };
-	struct timeval audio_tvs   = { 0 , 0 };
-  long long frameDuration    = 0L ;
-
-#ifdef MP4V2
-	MP4TrackId text = -1;
-  struct timeval CurrTextTv  = { 0 , 0 };
-  struct timeval LastTextTv  = { 0 , 0 }; 
-#endif
-
-  int lastAudioSeqno  = 0;
-  int lastVideoSeqno  = 0;
-  int lastTextSeqno   = 0;
-  int lostAudioPacket = 0;
-  int lostVideoPacket = 0;
-  int lostTextPacket  = 0;
-
-	videoTrack.mp4 = 0;
-	videoTrack.track = 0;
-	videoTrack.hint = 0;
-	videoTrack.length = 0;
-	videoTrack.first = 0;  
-	videoTrack.intra = 0;  
-
+	struct AstFb * queueTab[3];
+	
 	/* Check for file */
-	if (!data)
-		return -1;
+	if (!data) return -1;
 
+	
 	/* Check for params */
 	params = strchr(data,'|');
 
@@ -2301,53 +1173,41 @@ static int mp4_save(struct ast_channel *chan, void *data)
 		if (strchr(params,'v'))
 		{
 			/* Enable video loopback */
-			loopVideo = 1;
+			videoLoopback = 1;
 		}
 
 		/* Check video waiting */
 		if (strchr(params,'V'))
 		{
 			/* Enable video loopback & waiting*/
-			loopVideo = 1;
+			videoLoopback = 1;
 			waitVideo = 1;
 		}
-
-		/* Check video waiting */
-		if (strchr(params,'s'))
+		
+		int j = strlen(stopDtmfs);
+		for (int i=0; i < strlen(params); i++)
 		{
-			/* Enable video loopback & waiting*/
-			synchroVideo = 1;
-		}
-
-		if ( strchr(params, 't') )
-		{
-		    saveText = 1;
+		
+			if ( (params[i] >= '0' && params[i] <= '9') 
+			     || 
+			     params[i] == '*' )
+			{	
+				stopDtmfs[j++] = params[i];
+				stopDtmfs[j] = '\0';
+			}
 		}
 	}
 
+	ast_log(LOG_DEBUG, ">mp4save [%s,%s]\n", (char*)data,(params!=NULL)?params:"no params");
 
-	ast_log(LOG_DEBUG, ">mp4save [%s,%s]\n",
-          (char*)data,(params!=NULL)?params:"no params");
+	ast_log(LOG_DEBUG, ">mp4save media - audio[%s] video[%s] text[%s] max duration %d sec (0=infinite)\n",
+			(haveAudio)? "OK" : "NONE",
+			(haveVideo)? "OK" : "NONE",
+			(haveText) ? "OK" : "NONE",
+			maxduration/1000 ); 
 
-  if ( !haveVideo )
-  {
-    synchroVideo = 0 ;
-    loopVideo    = 0 ;
-    waitVideo    = 0 ;
-  }
-  else
-  {
-    // force video sync, else record dont stop 
-    waitVideo = 1;
-    ast_log(LOG_DEBUG, ">mp4save force wait video");
-  }
-
-  ast_log(LOG_DEBUG, ">mp4save loopVideo[%d] waitVideo[%d] "
-          " synchroVideo[%d] saveText[%d] audio[%s] video[%s] txt[%s]\n",
-          loopVideo,waitVideo,synchroVideo,saveText,
-          (haveAudio)?"OK":"NONE",
-          (haveVideo)?"OK":"NONE",
-          (haveText) ?"OK":"NONE"); 
+	/* Lock module */
+	u = ast_module_user_add(chan);
 
 	/* Create mp4 file */
 	mp4 = MP4CreateEx((char *) data, 9, 0, 1, 1, 0, 0, 0, 0);
@@ -2356,1009 +1216,185 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	if (mp4 == MP4_INVALID_FILE_HANDLE)
 	{
 	    ast_log(LOG_ERROR, "Fail to create MP4 file %s.\n", (char*) data);
-	    return -1;
+	    goto mp4_save_cleanup;
 	}
 
+	recorder = Mp4RecorderCreate(chan, mp4, waitVideo, "h264@vga");
+
+	if ( recorder == NULL )
+	{
+	    ast_log(LOG_ERROR, "Fail to create MP4 recorder. Exiting\n");
+	    goto mp4_save_cleanup;
+	}
+
+	time_t now;
+	struct tm *tmvalue; 
+
+	time(&now);
+	tmvalue = localtime(&now);
+
+	MP4SetMetadataTool(mp4, "app_mp4");	  
+	ast_copy_string(metadata, chan->cdr->dst, sizeof(chan->cdr->dst));
+	MP4SetMetadataWriter(mp4,metadata);
+	ast_copy_string(metadata, chan->cdr->src, sizeof(chan->cdr->src));
+	MP4SetMetadataArtist(mp4,metadata);
+	sprintf(metadata, "%04d/%02d/%02d %02d:%02d:%02d",
+		tmvalue->tm_year+1900, tmvalue->tm_mon+1, tmvalue->tm_mday,
+		tmvalue->tm_hour, tmvalue->tm_min, tmvalue->tm_sec);
+
+	MP4SetMetadataAlbum(mp4,metadata);
 
 
- /* Disable verbosity */
- MP4SetVerbosity(mp4, 0);
-    
-#ifndef i6net
- {
-   char metadata[100];
-   time_t now;
-   struct tm *tmvalue; 
+	/* Disable verbosity */
+	MP4SetVerbosity(mp4, 0);
 
-   time(&now);
-   tmvalue = localtime(&now);
-      
-   MP4SetMetadataTool(mp4, "app_mp4");	  
-   ast_copy_string(metadata, chan->cdr->dst, sizeof(chan->cdr->dst));
-   MP4SetMetadataWriter(mp4,metadata);
-   ast_copy_string(metadata, chan->cdr->src, sizeof(chan->cdr->src));
-   MP4SetMetadataArtist(mp4,metadata);
-   sprintf(metadata, "%04d/%02d/%02d %02d:%02d:%02d",
-           tmvalue->tm_year+1900, tmvalue->tm_mon+1, tmvalue->tm_mday,
-           tmvalue->tm_hour, tmvalue->tm_min, tmvalue->tm_sec);
-   MP4SetMetadataAlbum(mp4,metadata);
-   //MP4SetMetadataName(mp4,"Name");
-   //MP4SetMetadataYear(mp4,"Year");
- }
-#endif
-
- /* Lock module */
- u = ast_module_user_add(chan);
 
 #ifdef VIDEOCAPS
-   int oldnative = chan->nativeformats;
-   if ( chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK )
-   {
-        chan->nativeformats =  chan->channelcaps.cap;
-        ast_log(LOG_WARNING, "mp4_save: already received audio format %08x.\n",
-                chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK)  ;
-   }
-   else
-   {
-        ast_log(LOG_WARNING, "mp4_save: using original native formats.\n");
-   }
-
+	int oldnative = chan->nativeformats;
+	if ( chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK )
+	{
+		chan->nativeformats =  chan->channelcaps.cap;
+		ast_log(LOG_WARNING, "mp4_save: already received audio format %08x.\n",
+			chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK)  ;
+	}
+	else
+	{
+		ast_log(LOG_WARNING, "mp4_save: using original native formats.\n");
+	}
 #endif
 
 
- int length = strlen(data);
- if (!strcmp(data+length-4, ".3gp"))
- {
-	 if (ast_set_read_format(chan, AST_FORMAT_AMRNB))
-     ast_log(LOG_WARNING, "mp4_save: Unable to set read format to AMRNB!\n");
- }
- else
- {
-	 if (ast_set_read_format(chan, AST_FORMAT_ULAW|AST_FORMAT_ALAW|AST_FORMAT_AMRNB))
-     ast_log(LOG_WARNING, "mp4_save: Unable to set read format to ULAW|ALAW|AMRNB!\n");
- }     
+	int length = strlen(data);
+	if (!strcmp(data+length-4, ".3gp"))
+	{
+		if ( ast_set_read_format(chan, AST_FORMAT_AMRNB) )
+			ast_log(LOG_WARNING, "mp4_save: Unable to set read format to AMRNB!\n");
+	}
+	else
+	{
+		if ( ast_set_read_format(chan, AST_FORMAT_ALAW) )
+			ast_log(LOG_WARNING, "mp4_save: Unable to set read format to ALAW!\n");
+	}     
 
 #ifdef VIDEOCAPS
-    chan->nativeformats = oldnative;
+	chan->nativeformats = oldnative;
 #endif
 
+	/* no max duration */
+	if (maxduration <= 0) remainingduration = -1;
 
- videoTrack.sampleId = 0;
- videoTrack.frame    = NULL;		
- timestampVideo      = 0;
- timestampAudio      = 0;
- correctionVideo     = 0;
- lastdurationVideo   = 0;
- lastdurationAudio   = 0;
- lastdurationText    = 0;
- VideoDuration       = 0;
- AudioDuration       = 0;
- TextDuration        = 0;
+	/* Send video update */
+	ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 
- if (maxduration <= 0)
-   maxduration = -1;
-
- /* Send video update */
- ast_indicate(chan, AST_CONTROL_VIDUPDATE);
-
- /* Wait for data avaiable on channel */
- //while (ast_waitfor(chan, maxduration) > -1)
- while ((waitres = ast_waitfor(chan, maxduration)) > -1)
- { 
-	 if ( !(waitVideo) && (maxduration > 0)) 
-   {
-     if (waitres == 0) 
-     {
-       gottimeout = 1;
-       break;
-     }
-     maxduration = waitres;
-   }
-			
-   // ast_log(LOG_DEBUG, "maxduration=%d waires=%d!\n", maxduration, waitres); 
-   audio_tvn = video_tvn = text_tvn = ast_tvnow();
-   if ( !(video_tvs.tv_sec) && !(video_tvs.tv_usec ))
-   {
-     video_tvs = video_tvn ;	 
-   }
-       
-   if ( !(audio_tvs.tv_sec) && !(audio_tvs.tv_usec ))
-   {
-     audio_tvs = audio_tvn ;	 
-   }
-
-   if ( !(text_tvs.tv_sec) && !(text_tvs.tv_usec ))
-   {
-     text_tvs = text_tvn ;	 
-   }
-
-   /* Calculate elapsed */
-   //t = ast_tvdiff_ms(tvn,tv);
-   //ast_log(LOG_DEBUG, "delta = %d!\n", t);    
-
-
-   /* Read frame from channel */
-   f = ast_read(chan);
-
-   /* if it's null */
-		if (f == NULL)
-    { 
-      ast_log(LOG_DEBUG, "no frame \n");
-			break;
-    }
-
-
-    switch ( f->frametype )
-    {
-      case AST_FRAME_VOICE:
-        if ( lastAudioSeqno &&  ++lastAudioSeqno != f->seqno  ){
-          lostAudioPacket += ABS(f->seqno-lastAudioSeqno);
-          ast_log(LOG_WARNING, "%d packet lost (wait:%d recv:%d) on audio total lost[%d]\n",
-                  ABS(f->seqno-lastAudioSeqno),lastAudioSeqno , f->seqno ,lostAudioPacket);
-        }
-        lastAudioSeqno = f->seqno ;
-      break;
-      case AST_FRAME_VIDEO:
-        if ( lastVideoSeqno &&  ++lastVideoSeqno != f->seqno  ){
-          lostVideoPacket += ABS(f->seqno-lastVideoSeqno);
-          ast_log(LOG_WARNING, "%d packet lost (wait:%d recv:%d) on video stream, total lost[%d]\n",
-                  ABS(f->seqno-lastVideoSeqno),lastVideoSeqno , f->seqno ,lostVideoPacket);
-        }
-        lastVideoSeqno = f->seqno ;
-      break;
-      case AST_FRAME_TEXT:
-        if ( lastTextSeqno &&  ++lastTextSeqno != f->seqno   ){
-          lostTextPacket += ABS(f->seqno-lastTextSeqno);
-          ast_log(LOG_WARNING, "%d packet lost (wait:%d recv:%d) on text stream, total lost[%d]\n",
-                  ABS(f->seqno-lastTextSeqno),lastVideoSeqno , f->seqno ,lostTextPacket);
-        }
-        lastTextSeqno = f->seqno ;
-      break;
-      default :
-        break;
-    }
-
-
-		/* Check if we have to wait for video */
-		// if ((f->frametype == AST_FRAME_VOICE) && (videoTrack.sampleId != 0)) 
-		if (f->frametype == AST_FRAME_VOICE)
+	audioInQueue = AstFbCreate(3, 0);
+	videoInQueue = AstFbCreate(3, 0);
+	textInQueue = AstFbCreate(0, 0);
+	
+	queueTab[0] = audioInQueue;
+	queueTab[1] = videoInQueue;
+	queueTab[2] = textInQueue;
+	
+	while ( onrecord )
+	{
+	    waitres = ast_waitfor(chan, remainingduration);
+	    if ( waitres < 0 )
+	    {
+		/* hangup or error - trace ?*/
+		onrecord = 0;
+	    }
+	    
+	    if ( maxduration > 0 ) 
+	    {
+		if (waitres == 0) 
 		{
-#ifdef FIX_TIME 
-			long timeAudio;
-#endif
-			int notwrite = 0;
-
-      AudioDuration = ast_tvdiff_ms(audio_tvn,audio_tvs);			
-      audio_tvs = audio_tvn ;
-
-      // Build real time for ref .
-      gettimeofday( &CurrAudioTv , NULL ) ;
-      if ( !( LastAudioTv.tv_sec || LastAudioTv.tv_usec ))
-      {
-        // First packet 
-        LastAudioTv = CurrAudioTv ;
-        oldAudioTs = f->ts ;
-      }
-      DIFF_MS( LastAudioTv , CurrAudioTv , TimeDiff );
-      LastAudioTv = CurrAudioTv ;
-
-      if (option_debug > 4) 
-      {
-        ast_log(LOG_DEBUG, "AUDIO [%s] f->samples[%d] f->ts[%ld] f->len[%ld] Stack duration[%ld] Ref time[%lld]\n", 
-                (f->subclass & AST_FORMAT_G729A )?"G729A"
-                : (f->subclass &  AST_FORMAT_ULAW)?"ULAW"
-                : (f->subclass & AST_FORMAT_ALAW )?"ALAW"
-                : (f->subclass & AST_FORMAT_AMRNB)?"AMRNB":"??",
-                f->samples,f->ts, f->len ,AudioDuration,TimeDiff  );    
-      }
-   
-      if (waitVideo && videoTrack.sampleId == 0)
-      {
-        /* ignoring audio packet if wait video and video not started */
-        if (option_debug > 4) 
-        {
-          ast_log(LOG_DEBUG, "AUDIO delete packet : waitVideo && videoTrack.sampleId == 0\n");
-        }
-        oldAudioTs = f->ts ;
-        continue;
-      }
-
-      if (!waitVideo)
-      {
-        if (f->datalen!=7)
-          timestampAudio += f->samples;
-        else
-          notwrite = 1;
-      }
-
-#ifdef FIX_TIME 
-      if (synchroAudio)
-      {
-        f->samples = (AudioDuration - lastdurationAudio) * 8;
-        lastdurationAudio = AudioDuration;
-      }    
-
-      timeAudio = (timestampAudio/ 8);
-  
-      if (option_debug > 5)
-      {
-        ast_log(LOG_DEBUG, "Audio duration = %ld, %ld, (%d)!\n", AudioDuration, timeAudio, timestampAudio); 
-        if (f->subclass & AST_FORMAT_AMRNB)
-          ast_log(LOG_WARNING, "AMR datas = %d, %d!\n", f->datalen, f->samples);
-      }
-
-      if ( haveVideo )
-      {
-        if (audio != -1)
-        {
-          while (  (timeAudio +100) < AudioDuration )     
-          {
-            if (option_debug > 5 ) 
-            {
-              ast_log(LOG_WARNING,">mp4_save: Correct+ audio %ld < video %ld!\n",
-                      timeAudio,AudioDuration);
-            }
-            
-            if (f->subclass & AST_FORMAT_ULAW)
-              mp4_rtp_write_audio_silence(&audioTrack, 0, f2);
-            if (f->subclass & AST_FORMAT_ALAW)   
-              mp4_rtp_write_audio_silence(&audioTrack, 8, f2);
-            if (f->subclass & AST_FORMAT_AMRNB)   
-              mp4_rtp_write_audio_silence(&audioTrack, 32, f2);
-            
-            timestampAudio += 160;
-            timeAudio += 20;       
-          }
-
-          if (timeAudio > (AudioDuration + 100))
-          {
-            if (option_debug > 5) 
-            {
-              ast_log(LOG_WARNING, ">mp4_save: Correct- !\n");
-            }
-            timestampAudio -= f->samples;
-            notwrite = 1;
-          }
-        } 
-
-        if (autocorrectionAudio)
-        {
-          // Retard ou perte.
-          if ( AudioDuration > timeAudio )
-          {
-            if ((AudioDuration - timeAudio) > 160)
-            {
-              if (option_debug > 5) ast_log(LOG_WARNING, "Correction -!\n"); 
-              timestampAudio += f->samples;
-              f->samples += f->samples;       
-            }
-          }
-          // Avance.
-          if ( AudioDuration < timeAudio)
-          {
-            if ((timeAudio - AudioDuration ) > 160)
-            {
-              timestampAudio -= (f->samples - (f->samples / 2));
-              f->samples = (f->samples / 2);       
-              if (option_debug > 5) ast_log(LOG_WARNING, "Audio Correction f->samples[%d]\n",f->samples); 
-            }
-          }
-        }
-      }
-#endif
-     
-
-			/* Check if we have the audio track for track creation  */
-			if (audio == -1)
-			{
-				/* Check codec */
-				if (f->subclass & AST_FORMAT_ULAW)
-				{
-					/* Create audio track */
-					audio = MP4AddAudioTrack(mp4, 8000, 0, MP4_ULAW_AUDIO_TYPE);
-					MP4SetTrackIntegerProperty(mp4, audio, 
-                                     "mdia.minf.stbl.stsd.mp4a.channels", 1);
-					MP4SetTrackIntegerProperty(mp4, audio, 
-                                     "mdia.minf.stbl.stsd.mp4a.sampleSize", 8);
-					/* Create audio hint track */
-					hintAudio = MP4AddHintTrack(mp4, audio);
-					/* Set payload type for hint track */
-					type = 0;
-					audio_payload = 0;
-					MP4SetHintTrackRtpPayload(mp4, hintAudio, "PCMU", &type, 0, NULL, 1, 0);
-          ast_log(LOG_DEBUG, ">mp4_save: add audio track mulaw\n");
-				} 
-        else if (f->subclass & AST_FORMAT_ALAW) 
-        {
-					/* Create audio track */
-					audio = MP4AddAudioTrack(mp4, 8000, 0, MP4_ALAW_AUDIO_TYPE);
-					MP4SetTrackIntegerProperty(mp4, audio, 
-                                     "mdia.minf.stbl.stsd.mp4a.channels", 1);
-					MP4SetTrackIntegerProperty(mp4, audio, 
-                                     "mdia.minf.stbl.stsd.mp4a.sampleSize", 8);
-					/* Create audio hint track */
-					hintAudio = MP4AddHintTrack(mp4, audio);
-					/* Set payload type for hint track */
-					type = 8;
-					audio_payload = 0;
-					MP4SetHintTrackRtpPayload(mp4, hintAudio, "PCMA", &type, 0, NULL, 1, 0);
-          ast_log(LOG_DEBUG, ">mp4_save: add audio track alaw\n");
-				}
-        else if (f->subclass & AST_FORMAT_AMRNB) 
-        {
-					/* Create audio track */
-					audio = MP4AddAmrAudioTrack(mp4, 8000, 0, 0, 1, 0); /* Should check framesPerSample*/
-					/* Create audio hint track */
-					hintAudio = MP4AddHintTrack(mp4, audio);
-					/* Set payload type for hint track */
-					type = 98;
-					audio_payload = 1;
-					MP4SetHintTrackRtpPayload(mp4, hintAudio, "AMR", &type, 0, NULL, 1, 0);
-					/* Unknown things */
-					MP4SetAudioProfileLevel(mp4, 0xFE);
-          ast_log(LOG_DEBUG, ">mp4_save: add audio track amr\n");
-				} 
-        else 
-        {
-          ast_log(LOG_DEBUG, ">mp4_save: Unknown audio codec \n");
-					/* Unknown code free it*/
-					ast_frfree(f);
-					/* skip this one */
-					continue;
-				}
-
-				/* Set struct info */
-				audioTrack.mp4 = mp4;
-				audioTrack.track = audio;
-				audioTrack.hint = hintAudio;
-				audioTrack.length = 0;
-				audioTrack.sampleId = 0;
-				audioTrack.first = 1;
-			}
-
-			/* Check we have audio track */
-			if (audio != -1)
-				/* Save audio rtp packet */
-				if (!notwrite)
-        {
-#ifndef FIX_TIME 
-          // on met du silence si on en a perdu
-          while ( f->ts > (oldAudioTs + 20)  ) // 20 car ts audio pour les codec ici = 20 ms 
-          {
-            if (option_debug > 4) 
-            {
-              ast_log(LOG_WARNING, "Add audio silence frame %d\n",audioTrack.sampleId);
-            }
-            if (f->subclass & AST_FORMAT_ULAW)
-              mp4_rtp_write_audio_silence(&audioTrack, 0, f2);
-            if (f->subclass & AST_FORMAT_ALAW)   
-              mp4_rtp_write_audio_silence(&audioTrack, 8, f2);
-            if (f->subclass & AST_FORMAT_AMRNB)   
-              mp4_rtp_write_audio_silence(&audioTrack, 32, f2);
-
-            mp4_rtp_write_audio(&audioTrack, f, audio_payload);
-            oldAudioTs += 20 ; 
-          }
-#endif
-          if (option_debug >  4 ) 
-          {
-            ast_log(LOG_WARNING, "Write audio frame %d\n",audioTrack.sampleId);
-          }
-          mp4_rtp_write_audio(&audioTrack, f, audio_payload);
-          oldAudioTs = f->ts ;
-        }
-    } 
-    else if (f->frametype == AST_FRAME_VIDEO) 
-    {
-			/* No skip and no add */
-			int skip = 0;
-			unsigned char *prependBuffer = NULL;
-			unsigned char *frame = AST_FRAME_GET_BUFFER(f);
-			int prependLength = 0;
-			int intra = 0;
-			int first = 0;
-			int notwrite = 0;
-#ifdef FIX_TIME 
-			long timeVideo;
-#endif
-
-      VideoDuration = ast_tvdiff_ms(video_tvn,video_tvs);	
-      video_tvs = video_tvn ;
-
-      // Build real time for ref .
-      gettimeofday( &CurrVideoTv , NULL ) ;
-      if (  !(LastVideoTv.tv_sec) && !LastVideoTv.tv_usec )
-      {
-        LastVideoTv = CurrVideoTv ;
-      }
-      DIFF_MS( LastVideoTv , CurrVideoTv , TimeDiff );
-      LastVideoTv = CurrVideoTv ;
-
-      if (option_debug > 4) 
-      {
-        ast_log(LOG_DEBUG, "Video [%s] f->samples[%d]  f->ts[%ld] f->len[%ld] Stack dur[%ld] Ref time[%lld] frame dur[%lld]\n", 
-                (f->subclass & AST_FORMAT_H263)?"H263"
-                : (f->subclass & AST_FORMAT_H263_PLUS)?"H263+"
-                : (f->subclass & AST_FORMAT_H264)?"H264":"??",
-                f->samples  , f->ts, f->len ,VideoDuration,TimeDiff,frameDuration );    
-      }
-      frameDuration += TimeDiff  ;
-
-#ifdef FIX_TIME  
-      if (synchroVideo)
-      {
-        f->samples = (VideoDuration - lastdurationVideo) * 90;
-        lastdurationVideo = VideoDuration;
-      } 
-
-      if (option_debug > 4) 
-      {
-        ast_log(LOG_DEBUG, "Video duration = %ld, %ld, (%d)!\n", 
-               VideoDuration , lastdurationVideo, f->samples);    
-      }
-
-
-      if (!waitVideo)
-        timestampVideo += f->samples;
-   
-      timeVideo = (timestampVideo/ 90);
-  
-      if (option_debug > 4) 
-      {
-        ast_log(LOG_DEBUG, "timevideo[%ld]\n",timeVideo); 
-      }
-   
-      if (autocorrectionVideo)
-      {   
-        // Retard ou perte.
-        if ( VideoDuration > timeVideo)
-        {
-          if ((VideoDuration - timeVideo) > 9000)
-          {
-            ast_log(LOG_WARNING, "Correction - !\n"); 
-            timestampVideo += f->samples;
-            f->samples += f->samples;       
-          }
-        }
-        // Avance.
-        if (VideoDuration < timeVideo)
-        {
-          if ((timeVideo - VideoDuration ) > 9000)
-          {
-            ast_log(LOG_WARNING, "Correction + !\n"); 
-            timestampVideo -= (f->samples - (f->samples / 2));
-            f->samples = (f->samples / 2);       
-          }
-        }
-      }
-#endif
-			/* Check codec */
-			if (f->subclass & AST_FORMAT_H263)
-			{
-				/* Check if it's an intra frame */
-				intra = (frame[1] & 0x10) != 0;
-				/* Check PSC for first packet of frame */
-				if ( f->datalen>7 && (frame[4] == 0) && (frame[5] == 0) && ((frame[6] & 0xFC) == 0x80) )
-					/* It's first */
-					first = 1;
-				/* payload length */
-				video_payload = 4;
-			} 
-      else if (f->subclass & AST_FORMAT_H263_PLUS) 
-      {
-				/* Check if it's an intra frame */
-				unsigned char p = frame[0] & 0x04;
-				unsigned char v = frame[0] & 0x02;
-				unsigned char plen = ((frame[0] & 0x1 ) << 5 ) | (frame[1] >> 3);
-				//unsigned char pebit = frame[0] & 0x7;
-				/* payload length */
-				video_payload = 2;
-				/* skip rest of headers */
-				skip = plen + v;
-				/* If its first packet of frame*/
-				if (p)
-				{
-					/* it's first */
-					first = 1;
-					/* Check for intra in stream */
-					intra = !(frame[4] & 0x02);
-					/* Prepend open code */
-					prependBuffer = (unsigned char *)"\0\0";
-					prependLength = 2;
-				}
-			} 
-      else if (f->subclass & AST_FORMAT_H264) 
-      {
-				/* Get packet type */
-				unsigned char nal = frame[0];
-        unsigned char type = nal & 0x1f;
-					
-        /* All intra & first*/
-				intra = 0;
-				first = 0;
-				/* Set payload and skip */
-				video_payload = 0;
-				skip = 0;
-								
-				//if (type==H264_NAL_TYPE_IDR_SLICE)
-				//intra = 0;
-				//else
-				//intra = 1;
-
-				/* Check nal type */
-				if (type==H264_NAL_TYPE_SEQ_PARAM)
-				{
-          h264_decode_t h264_decode;
-				 
-          //waitVideo = 0;
-          notwrite = 1;
-				 
-					//ast_frfree(f);
-          //continue;
-          ast_log(LOG_DEBUG, "mp4_save: SPS length : %d!\n", f->datalen);
-          //f->datalen = 13;
-				
-          if (f->datalen < 50)
-          {
-            memcpy(h264_buffer+4, f->data, f->datalen);
-            h264_buffer[0] = 0;
-            h264_buffer[1] = 0;
-            h264_buffer[2] = 0;
-            h264_buffer[3] = 0;
-          }
-          else
-          {
-            ast_frfree(f);
-            continue;
-          }
-				
-          //dump_buffer_hex("h264_buffer", h264_buffer, f->datalen+4); 
-				
-          if (h264_read_seq_info(h264_buffer, f->datalen+4, &h264_decode) == -1)
-          {
-            ast_log(LOG_ERROR, "mp4_save: Could not decode Sequence header !\n");
-          }
-          else
-          {
-            ast_log(LOG_NOTICE, "mp4_save: H264 Size : %dx%d!\n",
-                    h264_decode.pic_width, h264_decode.pic_height);				
-            ast_log(LOG_NOTICE, "mp4_save: H264 Profile/Level : %d %d = %s!\n", 
-                    h264_decode.profile, h264_decode.level, 
-                    h264_get_profile_level_string(h264_decode.profile, 
-                                                  h264_decode.level));
-          }				
-				
-          if (video == -1)
-          {
-            /* Should parse video packet to get this values */
-            unsigned char AVCProfileIndication 	= h264_decode.profile; //2;
-            unsigned char AVCLevelIndication	= h264_decode.level; //1;
-            unsigned char AVCProfileCompat		= 1;
-            MP4Duration h264FrameDuration;
-					
-            h264FrameDuration		= 1.0/10;
-            /* Create video track */
-
-            video = MP4AddH264VideoTrack(mp4, 90000, h264FrameDuration, h264_decode.pic_width, h264_decode.pic_height, AVCProfileIndication, AVCProfileCompat, AVCLevelIndication,  3);
-
-
-            /* Create video hint track */
-            hintVideo = MP4AddHintTrack(mp4, video);
-            /* Set payload type for hint track */
-            type = 99;
-            MP4SetHintTrackRtpPayload(mp4, hintVideo, "H264", &type, 0, NULL, 1, 0);
-					
-            /* Set struct info */
-            videoTrack.mp4 = mp4;
-            videoTrack.track = video;
-            videoTrack.hint = hintVideo;
-            videoTrack.length = 0;
-            videoTrack.sampleId = 0;
-            videoTrack.first = 1;
-            videoTrack.frame = malloc(70000);
-          }				
-				
-          //dump_buffer_hex("H264_NAL_TYPE_SEQ_PARAM", f->data, f->datalen); 
-          MP4AddH264SequenceParameterSet(mp4,  video, f->data, f->datalen);
-				 
-          //ast_frfree(f);
-          //continue;
-				}
-
-        if (video != -1 && type==H264_NAL_TYPE_PIC_PARAM)
-        {
-          notwrite = 1;
-
-          //ast_frfree(f);
-          //continue;
-          ast_log(LOG_DEBUG, "mp4_save: PPS length : %d!\n", f->datalen);
-          //f->datalen = 
-
-          //dump_buffer_hex("H264_NAL_TYPE_PIC_PARAM", f->data, f->datalen); 				 
-          MP4AddH264PictureParameterSet(mp4, video,  f->data, f->datalen);
-				      
-          if ((video !=-1) && (waitVideo==1))
-          {
-            waitVideo = 0;
-            // video_tvs = ast_tvnow();
-            ast_log(LOG_WARNING, "mp4save: H264_NAL_TYPE_PIC_PARAM Unlock WaitVideo!\n");
-          }  				      
-				 
-          //ast_frfree(f);
-          //continue;
-        }
-
-				if (type==H264_NAL_TYPE_SEI)
-				{
-          //ast_frfree(f);
-          //continue;
-          notwrite = 1;
-				}
-
-        if (type == 0x01C)
-        {         
-          // these are the same as above, we just redo them here for clarity...
-          uint8_t fu_indicator = nal;
-          uint8_t fu_header = frame[1];   // read the fu_header.
-          uint8_t start_bit = fu_header >> 7;
-//            uint8_t end_bit = (fu_header & 0x40) >> 6;
-          uint8_t nal_type = (fu_header & 0x1f);
-          uint8_t reconstructed_nal;            
-          
-          // reconstruct this packet's true nal; only the data follows..
-          reconstructed_nal = fu_indicator & (0xe0);  // the original nal forbidden bit and NRI are stored in this packet's nal;
-          reconstructed_nal |= nal_type;
-            
-          //ast_log(LOG_DEBUG, "mp4recorder: start_bit In : %d, reconstructed_nal : %d !\n", start_bit, reconstructed_nal);
-
-          /* And add the data to the frame but not associated with the hint track */
-          if (start_bit)
-          {
-            fulength = f->datalen -1;
-            h264_buffer[0] = (fulength >> 24) & 0xFF;
-            h264_buffer[1] = (fulength >> 16) & 0xFF;
-            h264_buffer[2] = (fulength >> 8) & 0xFF;
-            h264_buffer[3] = (fulength & 0xFF);
-            h264_buffer[4] = reconstructed_nal;
-            prependBuffer = h264_buffer;
-            prependLength = -5;
-            intra = 1;
-             
-            if ((video != -1) && (waitVideo))
-            {
-              waitVideo = 0;
-              //  tvs = ast_tvnow();
-              ast_log(LOG_WARNING, "mp4save: Start_bit : Unlock WaitVideo!\n");
-            }            
-          } 
-          else         
-          {
-            fulength += (f->datalen -2);
-            h264_buffer[0] = (fulength >> 24) & 0xFF;
-            h264_buffer[1] = (fulength >> 16) & 0xFF;
-            h264_buffer[2] = (fulength >> 8) & 0xFF;
-            h264_buffer[3] = (fulength & 0xFF);
-            prependBuffer = h264_buffer;
-            prependLength = -4;
-            intra = 1;
-          } 
-            
-          /* Set payload and skip */
-          video_payload = 0;
-          skip = 2;            
-        }
-              				
-				if (type < H264_NAL_TYPE_SEI)
-				{
-					/* And add the data to the frame but not associated with the hint track */
-					int length = f->datalen;
-					
-					h264_buffer[0]=0;
-          h264_buffer[1]=(length >> 16) & 0xFF;
-          h264_buffer[2]=(length >> 8) & 0xFF;
-          h264_buffer[3]=(length & 0xFF);
-					
-					prependBuffer = h264_buffer;
-					prependLength = 4;
-					/* Set payload and skip */
-					video_payload = 0;
-					skip = 0;
-				}
-			} else {
-				/* Unknown code free it */
-				ast_frfree(f);
-				/* skip this one */
-				continue;
-			}
-
-#ifdef FIX_TIME
-			if (notwrite)
-			{
-			  correctionVideo += f->samples;
-        ast_log(LOG_DEBUG, "mp4save: correctionVideo %d!\n", correctionVideo);
-      }
-      else
-      {
-        if (videoTrack.first == 0)
-        {
-          correctionVideo += f->samples;
-          if (option_debug > 4) ast_log(LOG_DEBUG, "mp4save: correctionVideo %d!\n", correctionVideo);
-        }
-        else   
-          if (correctionVideo)
-          {
-            f->samples += correctionVideo;      
-            correctionVideo = 0;
-      
-            if (option_debug > 4) ast_log(LOG_DEBUG, "mp4save: correctionVideo %d -> %d!\n", correctionVideo, f->samples);
-          }
-      }
-#endif
-
-			/* Check if we have to wait for video */
-			if (waitVideo)
-			{
-				/* If it's the first packet of an intra frame */
-				if (first && intra)
-				{
-					/* no more waiting */
-					waitVideo = 0;
-					// tvs = ast_tvnow();
-          ast_log(LOG_WARNING, "mp4save: first && intra : Unlock WaitVideo!\n");
-				} else {
-					/* free frame */
-					ast_frfree(f);
-					/* Keep on waiting */
-          ast_log(LOG_WARNING, "mp4save: first && intra : Delete video frame\n");
-					continue;
-				}
-			}
-
-			/* Check if we have the video track */
-			if (video == -1)
-			{
-				/* Check codec */
-				if (f->subclass & AST_FORMAT_H263)
-				{
-					/* Create video track */
-					video = MP4AddH263VideoTrack(mp4, 90000, 0, 176, 144, 0, 0, 0, 0);									
-					/* Create video hint track */
-					hintVideo = MP4AddHintTrack(mp4, video);
-					/* Set payload type for hint track */
-					type = 34;
-					MP4SetHintTrackRtpPayload(mp4, hintVideo, "H263", &type, 0, NULL, 1, 0);
-
-					/* Set struct info */
-          videoTrack.mp4 = mp4;
-          videoTrack.track = video;
-          videoTrack.hint = hintVideo;
-          videoTrack.length = 0;
-          videoTrack.sampleId = 0;
-          videoTrack.first = 1;
-          videoTrack.frame = malloc(70000);
-          videoTrack.timeScale = 90000;
-				} 
-        else if (f->subclass & AST_FORMAT_H263_PLUS) {
-					/* Create video track */
-					video = MP4AddH263VideoTrack(mp4, 90000, 0, 176, 144, 0, 0, 0, 0);
-					/* Create video hint track */
-					hintVideo = MP4AddHintTrack(mp4, video);
-					/* Set payload type for hint track */
-					type = 96;
-					MP4SetHintTrackRtpPayload(mp4, hintVideo, "H263-1998", &type, 0, NULL, 1, 0);
-					
-					/* Set struct info */
-          videoTrack.mp4 = mp4;
-          videoTrack.track = video;
-          videoTrack.hint = hintVideo;
-          videoTrack.length = 0;
-          videoTrack.sampleId = 0;
-          videoTrack.first = 1;
-          videoTrack.frame = malloc(70000);
-          videoTrack.timeScale = 90000;
-				} 			
-			}
-
-			/* If we have created the track */
-			if (video != -1)
-        if (!notwrite)
-        {
-          if ( f->subclass & 0x1 )
-          {
-            if (option_debug > 4) ast_log(LOG_DEBUG, "mp4save:mark bit\n");
-          }
-
-          if ( videoTrack.first )
-          {
-            // 90 car sample = nombre d'echantillon , la video est exprimé a 90 000 000 en nano sec , soit 90 en milli 
-            // 1000 car temps exprime en micro et asterisk en milli 
-            f->samples = frameDuration * 90 / 1000 ; 
-            if (option_debug > 4) ast_log(LOG_DEBUG, "mp4save:first f->samples[%d]\n",f->samples);
-            frameDuration = 0 ;
-          }
-          else
-          {
-            f->samples = 0 ;
-          }
-
-          /* Write rtp video packet */
-          mp4_rtp_write_video(&videoTrack, f, video_payload, intra, skip, prependBuffer , prependLength);
-        }
-			/* If video loopback is activated */
-			if (loopVideo)
-			{
-				/* Send it back */
-				ast_write(chan, f);
-				/* Don't delete it */
-				f = NULL;
-			}
-
-		} 
-    else if (f->frametype == AST_FRAME_DTMF) 
-    {
-			/* If it's the dtmf param */
-			if (params && strchr(params,f->subclass))
-			{
-				/* free frame */
-				ast_frfree(f);
-				/* exit */
-				break;
-			}
+		    ast_log(LOG_NOTICE, "Max recording duration %d seconds elapsed. Recording will stop.\n", 
+			    maxduration/1000);
+		    onrecord = 0;
 		}
-		else if (f->frametype == AST_FRAME_TEXT) 
+		else
 		{
-        if (f->subclass == AST_FORMAT_RED)
-        {
-			    /* T140 redondant */
-			    struct ast_frame *pf, *red[MAX_REDUNDANCY_LEVEL];
-
-			    pf = decode_redundant_payload( f, red );
-			    if (pf != NULL && pf->datalen > 0 )  
-			    {
-            int idx = 0 ;
-            if ( (IdxTxtBuff + pf->datalen) < AST_MAX_TXT_SIZE )
-            {
-              pf->datalen = suppressT140BOM((unsigned char*)pf->data ,pf->datalen );
-              if (option_debug > 1)
-              {
-                char txt[200];
-                strncpy(txt, pf->data, 200);
-                txt[pf->datalen] = '\0';
-                ast_log(LOG_DEBUG, "Saving %d char of redundant text : [%s].\n", 
-                        pf->datalen, txt);
-              }
-
-              while ( idx <  pf->datalen )
-              {
-                if ( (((char*)pf->data)[idx] == 0x08) && ( IdxTxtBuff > 1 )  )
-                {
-                  // 08  == $(B!G(B\b$(B!G(B (effacement arrière)  
-                  IdxTxtBuff -- ;
-                }
-                else if (IdxTxtBuff < AST_MAX_TXT_SIZE )
-                {
-                  // write txt on tmp buff 
-                  txtBuff[IdxTxtBuff]= ((char*)pf->data)[idx];
-                  IdxTxtBuff ++ ;
-                  txtBuff[IdxTxtBuff]=0;
-                  ast_log(LOG_DEBUG, ">%s\n",txtBuff);
-                }
-                else
-                {
-                  ast_log(LOG_WARNING , "Size of buff are too small (%d) "
-                          "- or buff are emptye and char is 0x08,"
-                          " can't save all the text\n",AST_MAX_TXT_SIZE);
-                }
-                idx++;
-              }
-            }
-            else
-            {
-              ast_log(LOG_WARNING , "Size of buff are too small (%d),"
-                      " can't save all the text\n",AST_MAX_TXT_SIZE);
-              // buf too small , print a marker for futur information 
-              size_t szMark = sizeof(mark_cut_txt);
-              size_t szRes  = AST_MAX_TXT_SIZE - IdxTxtBuff  ;
-              // write begin of txt on tmp buff 
-              memcpy( &txtBuff[IdxTxtBuff],pf->data,szRes);
-              memcpy( &txtBuff[AST_MAX_TXT_SIZE - szMark], mark_cut_txt,szMark);
-              txtBuff[AST_MAX_TXT_SIZE]=0;
-              IdxTxtBuff = AST_MAX_TXT_SIZE ;
-            }
-			    }
-
-			    int i;
-			    for (i=0; i < MAX_REDUNDANCY_LEVEL; i++)
-			    {
-            if (red[i]) ast_frfree(red[i]);
-			    }
-        }
-        else
-        {
-			    if (f->datalen > 0) 
-			    {
-            int idx = 0 ;
-            f->datalen = suppressT140BOM( (unsigned char*)f->data , f->datalen );
-            if (option_debug > 1)
-              ast_log(LOG_DEBUG, "Saving %d [0x%X] char of text.\n", f->datalen,((char*)f->data)[0]);
-
-            while ( idx <  f->datalen )
-            {
-              if ( (((char*)f->data)[idx] == 0x08) && ( IdxTxtBuff > 1 )  )
-              {
-                // 08  == $(B!G(B\b$(B!G(B (effacement arrière)  
-                IdxTxtBuff -- ;
-              }
-              else if (IdxTxtBuff < AST_MAX_TXT_SIZE )
-              {
-                if ( isprint( ((char*)f->data)[idx]) )
-                {
-                  // write txt on tmp buff 
-                  txtBuff[IdxTxtBuff]= ((char*)f->data)[idx];
-                  IdxTxtBuff ++ ;
-                }
-                else  ast_log(LOG_WARNING , "Ignore char idx[%d] car. code[0x%x]\n",(int)IdxTxtBuff,((char*)f->data)[idx]);
-              }
-              else
-              {
-                ast_log(LOG_WARNING , "Size of buff are too small (%d) "
-                        "- or buff are emptye and char is 0x08,"
-                        " can't save all the text\n",AST_MAX_TXT_SIZE);
-              }
-              idx++;
-            }
-			    }
-        }
-
+		    remainingduration = waitres;
 		}
+	    }
 
-		/* If we have frame */
-		if (f)
-			/* free frame */
+	    /* Read frame from channel */
+	    f = ast_read(chan);
+
+	    /* if it's null */
+	    if (f == NULL)
+	    { 
+		ast_log(LOG_WARNING, "null frame: hangup ?\n");
+		    onrecord = 0;;
+	    }
+
+	    /* --- post all media frames in a reorder buffer --- */
+	    switch ( f->frametype )
+	    {
+		case AST_FRAME_VOICE:
+	           AstFbAddFrame( audioInQueue, f );
+		   ast_frfree(f);
+	           break;
+	       
+		case AST_FRAME_VIDEO:
+	            AstFbAddFrame( videoInQueue, f );
+		    ast_frfree(f);
+		    break;
+
+		case AST_FRAME_TEXT:
+	           AstFbAddFrame( textInQueue, f );
+		   ast_frfree(f);
+	           break;
+	    
+		case AST_FRAME_DTMF:
+	            if (strchr( stopDtmfs, f->subclass) )
+	            {
+			ast_log(LOG_NOTICE, 
+		            "mp4_save: recording stopping because DTMF %c was pressed.\n", 
+			    (char) f->subclass )
+			onrecord = 0;
 			ast_frfree(f);
+		    }
+		    break;
+		
+		default:
+	            ast_frfree(f);
+	            break;
+	    }
+	    
+	    /* -- now poll all the queues and record -- */
+	    for (int i=0; i<3; i++)
+	    {
+		f = AstFbAddFrame( queueTab[i] );
+		
+		// TODO if too many errors, exit
+		recorder->ProcessFrame(f);
+		
+		if (  f->frametype == AST_FRAME_VIDEO )
+		{
+		    // TODO: if there are lost packets, ask FIR
+		    if (videoLoopback) 
+		    {
+			/* -- ast_write() destroys the frame -- */
+			ast_write(chan, f);
+			f = NULL;
+		    }
+		}
+		
+		if ( f != NULL)  ast_frfree(f);
 	}
-
-	/* Save last video frame if needed */
-	if (videoTrack.sampleId > 0)
-	{	
-		//ast_log(LOG_DEBUG, "mp4_save: last pending sample.\n");
-		mp4_rtp_write_video_frame(&videoTrack, 9000);
-	}
-
-
-  if ( IdxTxtBuff > 1 )
-  {  
-    if (option_debug > 1)
-    {
-      ast_log(LOG_DEBUG, "Save text on mp4 : %s.\n", 
-             txtBuff );
-    }
-    if ( !MP4SetMetadataComment(mp4,txtBuff) )
-    {
-      ast_log(LOG_ERROR, "Save text on mp4 failed");
-    }
-  }
-
-  {    
-    char rtpStat[_STR_CODEC_SIZE]= { 0 } ;
-    snprintf( rtpStat , _STR_CODEC_SIZE , "Quality_stat_audLost=%d,__vidLost=%d,__txtLost=%d.",
-              lostAudioPacket, lostVideoPacket ,lostTextPacket );
-    if (lostAudioPacket||lostVideoPacket||lostTextPacket)
-    {
-      ast_log(LOG_WARNING, "%s\n",rtpStat );
-    }
-    if ( !MP4SetMetadataAlbum(mp4,rtpStat) )
-    {
-      ast_log(LOG_ERROR, "Save textrtp stat on mp4 failed");
-    }
-  }
-
+	
+mp4_save_cleanup:	    
+	    
+	
+	/* destroy resources */
+	if (recorder) Mp4RecorderDestroy(recorder);
+	if (audioInQueue) AstFbDestroy(audioInQueue);
+	if (videoInQueue) AstFbDestroy(videoInQueue);
+	if (textInQueue) AstFbDestroy(textInQueue);
+	
 	/* Close file */
 	MP4Close(mp4);
 
-	if (videoTrack.frame)
-	    free(videoTrack.frame);
-    
 	/* Unlock module*/
 	ast_module_user_remove(u);
 
@@ -3367,96 +1403,6 @@ static int mp4_save(struct ast_channel *chan, void *data)
 }
 
 
-static int suppressT140BOM(unsigned char* buff,int sz )
-{
-#define KEEP_ALIVE_BOM_UTF8         {0xEF,0xBB,0xBF}
-#define KEEP_ALIVE_BOM_UTF8_SZ      3
-
-#define KEEP_ALIVE_BOM_UTF16        { 0xFE , 0xFF }
-#define KEEP_ALIVE_BOM_UTF16_SZ     2
-
-	unsigned char bomUtf16[KEEP_ALIVE_BOM_UTF16_SZ]	= KEEP_ALIVE_BOM_UTF16;
-	unsigned char bomUtf8[KEEP_ALIVE_BOM_UTF8_SZ]	= KEEP_ALIVE_BOM_UTF8;
-  int len = sz ;
-
-  if (option_debug > 1)
-    ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%d]  [0x%X][0x%x][0x%x] \n",buff,len,buff[0],buff[1],buff[2]);
-
-  if (  buff != NULL && len > KEEP_ALIVE_BOM_UTF16_SZ ){
-    int i = 0 ;
-    for ( i = 0 ; i < len ; i++ )
-    {
-      if ( (i + KEEP_ALIVE_BOM_UTF8_SZ ) <= len )
-      {
-        if ( buff[i]==bomUtf8[0] && buff[i+1]==bomUtf8[1] && buff[i+2]==bomUtf8[2] )
-        {
-          ast_log(LOG_DEBUG, " UTF 8 BOM detected.\n");
-          int lgRestante = len - i - KEEP_ALIVE_BOM_UTF8_SZ ;
-          memmove(  &buff[i],  &buff[i + KEEP_ALIVE_BOM_UTF8_SZ], lgRestante );
-          len-=KEEP_ALIVE_BOM_UTF8_SZ;
-        }
-      }
-
-      if ( (i + KEEP_ALIVE_BOM_UTF16_SZ ) <= len ){
-        if ( buff[i]==bomUtf16[0] && buff[i+1]==bomUtf16[1]  )
-        {
-          ast_log(LOG_DEBUG, " UTF 16 BOM detected.\n");
-          int lgRestante = len - i - KEEP_ALIVE_BOM_UTF16_SZ ;
-          memmove(  &buff[i],  &buff[i + KEEP_ALIVE_BOM_UTF16_SZ], lgRestante );
-          len-=KEEP_ALIVE_BOM_UTF16_SZ;
-        }
-      }
-    }
-  }
- #if 0
-
-  unsigned char*  seq = buff;
-	while ( seq != NULL && buff != NULL && len > 0 )
-	{
-	
-		if (len >= KEEP_ALIVE_BOM_UTF16_SZ )
-		{
-			seq = strstr( buff, bomUtf16 );
-		}
-		else
-		{
-			seq = NULL;
-		}
-		if (seq != NULL)
-		{
-      ast_log(LOG_DEBUG, " UTF 16 BOM detected.\n");
-       // On decale le reste de la chaine pour supprimer le BOM
-       int lgRestante = len - ( seq + KEEP_ALIVE_BOM_UTF16_SZ - buff );
-       memmove( seq, seq + KEEP_ALIVE_BOM_UTF16_SZ, lgRestante );
-       len-=KEEP_ALIVE_BOM_UTF16_SZ;
-		}		
-	
-		
-		if (len >= KEEP_ALIVE_BOM_UTF8_SZ )
-		{
-			seq = strstr( buff, bomUtf8 );
-		}
-		else
-		{
-			seq = NULL;
-		}
-		
-		if (seq != NULL)
-		{
-      ast_log(LOG_DEBUG, " UTF 8 BOM detected.\n");
-			// On decale le reste de la chaine pour supprimer le BOM
-			int lgRestante = len - ( seq + KEEP_ALIVE_BOM_UTF8_SZ - buff );
-			memmove( seq, seq + KEEP_ALIVE_BOM_UTF8_SZ, lgRestante ) ;
-      len-=KEEP_ALIVE_BOM_UTF16_SZ;
-		}
-	}
-#endif
-  buff[len]=0;
-
-  if (option_debug > 1)
-    ast_log(LOG_DEBUG, "suppressT140BOM buff[%p] sz[%d]  [0x%X][0x%x][0x%x] \n",buff,len,buff[0],buff[1],buff[2]);
-  return len;
-}
 
 static int unload_module(void)
 {
@@ -3468,6 +1414,7 @@ static int unload_module(void)
 	ast_module_user_hangup_all();
 
 	return res;
+	
 }
 
 static int load_module(void)
