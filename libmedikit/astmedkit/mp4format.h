@@ -93,7 +93,8 @@ public:
     
     void SetParticipantName( const char * name )
     {
-        strcpy( participantName, name );
+        strncpy( partName, name, sizeof(partName) );
+	partName[sizeof(partName)-1] = 0;
     }
     
 private:
@@ -114,7 +115,6 @@ private:
     DWORD textSeqNo;
     DWORD videoSeqNo;
     
-    char participantName[8];
     BYTE audioBuff[800];
 };
 

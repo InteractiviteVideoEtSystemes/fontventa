@@ -792,11 +792,15 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
 {
     mp4recorder * r = new mp4recorder(chan, mp4, waitVideo);
     
-    if ( videoformat != NULL && strlen(videoformat) > 0 )
+    if ( r != NULL)
     {
-        // Hardcoded for now
-	r->AddTrack(VideoCodec::H264, 640, 480, 256, 
-	            chan->cid.cid_name ? chan->cid.cid_name: "unknown", false );
+        r->SetParticipantName( chan->cid.cid_name ? chan->cid.cid_name: "unknown participant" );
+        if ( videoformat != NULL && strlen(videoformat) > 0 )
+        {
+            // Hardcoded for now
+	    r->AddTrack(VideoCodec::H264, 640, 480, 256, 
+	                chan->cid.cid_name ? chan->cid.cid_name: "unknown", false );
+        }
     }
     
     return (struct mp4rec *) r;
