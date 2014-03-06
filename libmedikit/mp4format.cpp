@@ -526,7 +526,16 @@ int mp4recorder::AddTrack(TextCodec::Type codec, const char * trackName)
 	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4);
 	if ( mediatracks[MP4_TEXT_TRACK] != NULL )
 	{
+	    char introsubtitle[200];
+	    
 	    mediatracks[MP4_TEXT_TRACK]->Create( trackName, codec, 1000 );
+	    sprintf(introsubtitle, "[%s]\n", trackName);
+	    TextFrame tf(false);
+	    
+	    tf.SetMedia((const uint8_t*) introsubtitle, strlen(introsubtitle) );
+	    
+	    mediatracks[MP4_TEXT_TRACK]->ProcessFrame(&tf);
+	    
 	    return 1;
 	}
 	else
@@ -846,6 +855,13 @@ void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size
 
 struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat)
 {
+    if ( (chan->nativeformats & AST_FORMAT_VIDEO_MASK) == 0 )
+    {
+        waitVideo = false;
+	Log("-mp4recorder: disable video waiting as char %s does not support video.\n",
+	    chan->name);
+    }
+    
     mp4recorder * r = new mp4recorder(chan, mp4, waitVideo);
     
     if ( r != NULL)
@@ -856,6 +872,9 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
             // Hardcoded for now
 	    r->AddTrack(VideoCodec::H264, 640, 480, 256, 
 	                chan->cid.cid_name ? chan->cid.cid_name: "unknown", false );
+	
+	    if ( chan->nativeformats & AST_FORMAT_TEXT_MASK )
+	        r->AddTrack( TextCodec::T140, chan->cid.cid_name ? chan->cid.cid_name: "unknown" );
         }
     }
     
