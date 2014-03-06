@@ -1,7 +1,10 @@
 #include "medkit/log.h"
 #include "medkit/audio.h"
 #include "g711/g711codec.h"
+
+#ifdef G722_SUPPORT
 #include "g722/g722codec.h"
+#endif
 
 AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec)
 {
@@ -23,8 +26,11 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 			return new PCMAEncoder(properties);
 		case AudioCodec::PCMU:
 			return new PCMUEncoder(properties);
+#ifdef G722_SUPPORT
+
 		case AudioCodec::G722:
 			return new G722Encoder(properties);
+#endif
 	
 #if 0
 		case AudioCodec::GSM:
