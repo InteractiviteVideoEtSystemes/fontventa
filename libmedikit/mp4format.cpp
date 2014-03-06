@@ -424,7 +424,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	        frameduration = (f2->GetTimeStamp()-prevts);
 	}
 
-	Log("Process TEXT frame  ts:%lu, duration %u.\n",  f2->GetTimeStamp(), duration);
+	//Log("Process TEXT frame  ts:%lu, duration %u [%ls].\n",  f2->GetTimeStamp(), frameduration, f2->GetWString().c_str());
 	prevts = f->GetTimeStamp();	
 	duration = frameduration;
 	if (frameduration > MAX_SUBTITLE_DURATION) frameduration = MAX_SUBTITLE_DURATION;
@@ -433,7 +433,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	
 	encoder.Accumulate( f2->GetWString() );
 	encoder.GetSubtitle(subtitle);
-
+	
 	unsigned int subsize = subtitle.length();
 	BYTE* data = (BYTE*)malloc(subsize+2);
 
@@ -441,7 +441,6 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	data[0] = subsize>>8;
 	data[1] = subsize & 0xFF;
 	
-	Log("Wrote subtitle %s.\n", subtitle.c_str() );    
 	memcpy(data+2,subtitle.c_str(), subsize);
 	    
 	MP4WriteSample( mp4, mediatrack, data, subsize+2, frameduration, 0, false );
@@ -794,7 +793,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	    {
 		DWORD lost = 0, text_ts;
 	        TextCodec::Type tcodec;
-		TextFrame tf( false );
+		TextFrame tf( true );
 
 		//If not first
 		if (textSeqNo != 0xFFFF)
@@ -803,18 +802,16 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 
 		//Update last sequence number
 		textSeqNo = f->seqno;
-		Log("text frame seqno %d, lost %d\n", f->seqno, lost);
+		//Log("text frame seqno %d, lost %d\n", f->seqno, lost);
 
 		// Extract or generate timing INFO
 		if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
 		{
-			Log("got timing from text frame : TS=%u.\n", f->ts);
 			text_ts = f->ts ;
 		}
 		else
 		{
 			text_ts = getDifTime(&firstframets)/1000 ;
-			Log("generated timing for text frame : TS=%u.\n", text_ts);
 		}
 
 		if ( f->subclass == AST_FORMAT_RED )
@@ -839,15 +836,17 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 				ProcessFrame ( &tf );
 			}
 		    }
-		    
-		    Log("Primarin data len %d.\n", red.GetPrimaryPayloadSize() );
-		    tf.SetTimestamp( text_ts );
-		    tf.SetMedia( red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
+
+		    //char ttr[800];
+		    //
+		    // strncpy( ttr, (const char *) red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
+		    //ttr[  red.GetPrimaryPayloadSize() ] = '\0';
+		    //Log("Primary data [%s] len %d.\n", ttr, red.GetPrimaryPayloadSize() );
+		    tf.SetFrame( text_ts, red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
 		}
 		else /* assume plain text */
 		{
-		    tf.SetTimestamp( text_ts );
-		    tf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
+		    tf.SetFrame( text_ts, (const BYTE *) AST_FRAME_GET_BUFFER(f), f->datalen );
 		}
 		
 		return ProcessFrame( &tf );

@@ -148,9 +148,25 @@ public:
 		//Calculate new size
 		bufferSize = size;
 		//Realloc
-		buffer = (BYTE*) realloc(buffer,bufferSize);
-		
-		ownsbuffer = true;
+		if ( ownsbuffer )
+		{
+		    buffer = (BYTE*) realloc(buffer,bufferSize);
+		    if (length > bufferSize) length = bufferSize;
+		}
+		else
+		{
+			BYTE * nbuffer = (BYTE*) malloc(bufferSize);
+			ownsbuffer = true;
+			if (length <= bufferSize && buffer != NULL)
+			{
+				memcpy(nbuffer, buffer, length);
+			}
+			else
+			{
+				length = 0;
+			}
+			buffer = nbuffer;
+		}
 	}
 
 	bool SetMedia(const BYTE* data,DWORD size)

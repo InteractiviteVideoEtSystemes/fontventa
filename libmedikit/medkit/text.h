@@ -70,6 +70,7 @@ public:
 		//Parse
 		parser.Parse(buffer,bufferLen);
 		//Serialize to buffer
+		if ( GetMaxMediaLength() < parser.GetUTF8Size() ) Alloc( parser.GetUTF8Size() );
 		DWORD len = parser.Serialize(GetData(),GetMaxMediaLength());
 		//Set it
 		SetLength(len);
@@ -81,6 +82,8 @@ public:
 		SetTimestamp(ts);
 		//Parse
 		parser.SetWChar(data,size);
+
+		if ( GetMaxMediaLength() < parser.GetUTF8Size() ) Alloc( parser.GetUTF8Size() );
 		//Serialize to buffer
 		DWORD len = parser.Serialize(GetData(),GetMaxMediaLength());
 		//Set it
@@ -93,6 +96,7 @@ public:
 		SetTimestamp(ts);
 		//Parse
 		parser.SetWString(str);
+		if ( GetMaxMediaLength() < parser.GetUTF8Size() ) Alloc( parser.GetUTF8Size() );
 		//Serialize to buffer
 		DWORD len = parser.Serialize(GetData(),GetMaxMediaLength());
 		//Set it

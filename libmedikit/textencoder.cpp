@@ -51,6 +51,7 @@ int TextEncoder::Accumulate(const std::wstring & text)
 				case 0x0A:
 				case 0x2028:
 				case 0x2029:
+				case 0x0D:
 					//Append an end line
 					line.push_back(0x0A);
 					//push the line
@@ -122,6 +123,9 @@ void TextEncoder::GetSubtitle(std::wstring & sub)
 
 	//Check number of lines in scroll
 	while (scroll.size()>2) scroll.pop_front();
+
+//	Log("Subititle has %d lines. Content: %ls.\n",
+//	    scroll.size(), sub.c_str() );
 }
 
 void TextEncoder::GetSubtitle(std::string & sub)

@@ -1,4 +1,5 @@
 #include <medkit/text.h>
+#include <medkit/log.h>
 
 /****************************
  * Parser helper for UTF8
@@ -185,9 +186,11 @@ DWORD UTF8Parser::Serialize(BYTE* buffer,DWORD size)
 
 	//check length
 	if (size<utf8size)
+	{
+		Log("utf8parser: cannot serialize. Buffer too small len:%u, we need %u.\n", size, utf8size);
 		//Return error
 		return 0;
-
+	}
 	//for each wide char
 	for (size_t i = 0; i < value.size(); i++)
 	{
