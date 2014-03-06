@@ -66,7 +66,8 @@ private:
     bool intratrame;
     bool hasSPS;
     bool hasPPS;
-
+    timeval firstframets;
+    
     //H264 profile/level
     unsigned char AVCProfileIndication;
     unsigned char AVCLevelIndication;
@@ -276,6 +277,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		{
 		    videoStarted = true;
 		    Log("-mp4recorder: got the first I frame. Video recording starts.\n");
+		    gettimeofday(&firstframets,NULL);
 		}
 		else
 		{
@@ -283,6 +285,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	        }
 	    }
 	    
+	    f2->SetTimestamp( getDifTime(&firstframets)/1000 );
 	    if (sampleId == 0)
 	    {
 	        duration = 90/15;
