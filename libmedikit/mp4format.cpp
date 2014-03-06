@@ -295,6 +295,8 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	    prevts = f->GetTimeStamp();
 	    sampleId++;
 
+	    //Log("Process VIDEO frame  ts:%lu, duration %u.\n",  f2->GetTimeStamp(), duration);
+
     	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, f2->IsIntra());
 
 	    //Check if we have rtp data
@@ -422,6 +424,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	        frameduration = (f2->GetTimeStamp()-prevts);
 	}
 
+	Log("Process TEXT frame  ts:%lu, duration %u.\n",  f2->GetTimeStamp(), duration);
 	prevts = f->GetTimeStamp();	
 	duration = frameduration;
 	if (frameduration > MAX_SUBTITLE_DURATION) frameduration = MAX_SUBTITLE_DURATION;
@@ -437,7 +440,8 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	//Set size
 	data[0] = subsize>>8;
 	data[1] = subsize & 0xFF;
-	    
+	
+	Log("Wrote subtitle %s.\n", subtitle.c_str() );    
 	memcpy(data+2,subtitle.c_str(), subsize);
 	    
 	MP4WriteSample( mp4, mediatrack, data, subsize+2, frameduration, 0, false );
@@ -453,6 +457,8 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 		//Write sample
 		MP4WriteSample( mp4, mediatrack, data, 2, frameduration, 0, false );
 	}
+
+	free(data);
 
 	return 1;
     }
@@ -471,6 +477,10 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     depak = NULL;
     SetParticipantName( "participant" );
     gettimeofday(&firstframets,NULL);
+    for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
+    {
+	mediatracks[i] = NULL;
+    }
 }
 
 mp4recorder::~mp4recorder()
@@ -796,10 +806,17 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 
 		// Extract or generate timing INFO
 		if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
+		{
+			Log("got timing from text frame : TS=%u.\n", f->ts);
 			text_ts = f->ts ;
+		}
 		else
+		{
+			Log("generated timing for text frame : TS=%u.\n", f->ts);
 			text_ts = getDifTime(&firstframets)/1000 ;
-		
+		}
+
+		Log("text frame seqno %d, lost %d\n");
 		if ( f->subclass == AST_FORMAT_RED )
 		{
 		    // parse RED to recover lost packets
@@ -823,6 +840,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 			}
 		    }
 		    
+		    Log("Primarin data len %d.\n", red.GetPrimaryPayloadSize() );
 		    tf.SetTimestamp( text_ts );
 		    tf.SetMedia( red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
 		}
