@@ -5,53 +5,6 @@
 #include "h264/h264encoder.h"
 #include "h264/h264decoder.h"
 
-bool VideoFrame::GuessIsIntra()
-{
-    if ( length > 0 && buffer != NULL )
-    {
-	switch(codec)
-	{
-		case VideoCodec::H263_1996:
-		    if ( length > 7 && (buffer[1] & 0x10) != 0 )
-		    {
-			// Check PSC code to check if it is first packet of I-frame
-			if ( buffer[4] == 0 && buffer[5] == 0 && ((buffer[6] & 0xFC) == 0x80))
-			{
-			    SetIntra(true);
-			    return true;
-			}
-		    }
-		    break;
-		    
-		case VideoCodec::H263_1998:
-		    if ( length > 5 && (buffer[0] & 0x04) != 0 )
-		    {
-			if (buffer[4] & 0x02)
-			{
-			    SetIntra(true);
-			    return true;
-			}
-		    }
-		    break;
-
-		case VideoCodec::H264:
-		    // Check if NAL type is SEQUENCE PARAMETER SET (we could use the class to dedcode
-		    // but we just make a quick check here ...
-		    if ( length > 1 && (buffer[0] & 0x1f) == 0x07 )
-		    {
-		        SetIntra(true);
-		        return true;
-		    }
-		    break;
-		
-		default:
-		    // We don't know this codec so we do not decide
-		    return 0;
-	}
-   }
-   SetIntra(false);
-   return false;
-}
 VideoDecoder* VideoCodecFactory::CreateDecoder(VideoCodec::Type codec)
 {
 	Log("-CreateVideoDecoder[%d,%s]\n",codec,VideoCodec::GetNameFor(codec));

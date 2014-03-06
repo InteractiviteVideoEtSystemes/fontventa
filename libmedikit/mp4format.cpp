@@ -268,7 +268,6 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	if (f2->GetCodec() == (VideoCodec::Type) codec )
 	{	
 	    DWORD duration;
-	    f2->GuessIsIntra();
 
 	    // If video is not started, wait for the first I Frame
 	    if ( ! videoStarted )
@@ -281,6 +280,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		else
 		{
 		    // Drop frame
+		    Log("-mp4recorder: Dropping video frame as I frame has not been received.\n");
 		    return 0;
 	        }
 	    }
@@ -331,21 +331,6 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 				sps.Decode(nalData,nalSize);
 				//Dump
 				sps.Dump();
-				
-				// Recreate tracks
-				if (mediatrack != MP4_INVALID_TRACK_ID)
-				{
-				    MP4DeleteTrack( mp4, mediatrack );
-				    mediatrack = MP4_INVALID_TRACK_ID;
-				}
-				
-				if (hinttrack != MP4_INVALID_TRACK_ID)
-				{
-				    MP4DeleteTrack( mp4, hinttrack );
-				    hinttrack = MP4_INVALID_TRACK_ID;
-				}
-								
-				Log("-mp4recorder: got PPS recreating tracks with the parameters from the stream\n");
 				// Update size
 				width = sps.GetWidth();
 				height = sps.GetHeight();
@@ -361,7 +346,6 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 				
 				Log("-mp4recorder: new size: %lux%lu. H264_profile: %02x H264_level: %02x\n", 
 				    width, height, AVCProfileIndication, AVCLevelIndication);
-				Create(NULL, VideoCodec::H264, bitrate);
 				
 				//Update widht an ehight
 				MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());

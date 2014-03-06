@@ -55,7 +55,6 @@ public:
 	void SetWidth(DWORD width)		{ this->width = width;		}
 	void SetHeight(DWORD height)		{ this->height = height;	}
 	void SetIntra(bool isIntra)		{ this->isIntra = isIntra;	}
-	bool GuessIsIntra();
 	
 private:
 	VideoCodec::Type codec;
