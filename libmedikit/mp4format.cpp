@@ -409,7 +409,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
         TextFrame * f2 = ( TextFrame *) f;
 	DWORD duration = 0, frameduration = 0;
 	DWORD subtsize = 0;
-	std::wstring subtitle;
+	std::string subtitle;
 
 	if ( f2->GetLength() == 0 ) return 0;
 

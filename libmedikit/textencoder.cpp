@@ -123,3 +123,11 @@ void TextEncoder::GetSubtitle(std::wstring & sub)
 	//Check number of lines in scroll
 	while (scroll.size()>2) scroll.pop_front();
 }
+
+void TextEncoder::GetSubtitle(std::string & sub)
+{
+    std::wstring subw;
+    GetSubtitle(subw);
+    UTF8Parser p(subw);
+    p.Serialize(sub);
+}

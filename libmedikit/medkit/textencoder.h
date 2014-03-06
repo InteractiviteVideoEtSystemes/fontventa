@@ -11,6 +11,7 @@ public:
 
 	int Accumulate(const std::wstring & text);
 	void GetSubtitle(std::wstring & sub);
+	void GetSubtitle(std::string & sub);
 	TextFrame * GetSubTitle();
 private:
 	std::list<std::wstring> scroll;
