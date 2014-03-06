@@ -279,8 +279,6 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		}
 		else
 		{
-		    // Drop frame
-		    Log("-mp4recorder: Dropping video frame as I frame has not been received.\n");
 		    return 0;
 	        }
 	    }
@@ -378,9 +376,11 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 			//Add rtp data
 		    MP4AddRtpSampleData(mp4, hinttrack, sampleId, rtp->GetPos(), rtp->GetSize());
 
-		    //Save rtp
-		    MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());	
 		}
+		
+		//Save rtp
+		MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());	
+
 	    }
 	    return 1;
 	}
@@ -724,6 +724,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 				if (ismark)
 				{
 				    depak->SetTimestamp( f->ts );
+				    Log("H.264 - got mark. frame ts = %ld.\n", f->ts );
 				    ret = ProcessFrame( vfh264 );
 				    depak->ResetFrame();
 				}
