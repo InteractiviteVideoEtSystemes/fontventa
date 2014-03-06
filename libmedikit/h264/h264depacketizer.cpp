@@ -10,7 +10,7 @@
 #include "../medkit/log.h"
 
 /* 3 zero bytes syncword */
-//static uint8_t sync_bytes[] = { 0, 0, 0, 1 };
+static uint8_t sync_bytes[] = { 0, 0, 0, 1 };
 
 
 H264Depacketizer::H264Depacketizer() : frame(VideoCodec::H264,0)
@@ -222,8 +222,9 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 			DWORD pos = frame.GetLength();
 			//And data
 			frame.AppendMedia(payload, nalu_size);
-			//Add RTP packet
-			frame.AddRtpPacket(pos,nalu_size,NULL,0, mark);
+			//Add RTP packet -IVES added sync
+			//frame.AddRtpPacket(pos,nalu_size, sync_bytes, sizeof(sync_bytes), mark);
+			frame.AddRtpPacket(pos,nalu_size, NULL, 0, mark);
 			//Done
 			break;
 	}

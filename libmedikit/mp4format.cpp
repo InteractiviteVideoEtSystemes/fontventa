@@ -7,6 +7,7 @@
 #include "medkit/textencoder.h"
 #include "medkit/avcdescriptor.h"
 #include "h264/h264.h"
+#include "h264/h264depacketizer.h"
 
 #if ASTERISK_VERSION_NUM > 10000   // 10600
 #define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data.ptr))
@@ -167,7 +168,7 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 	        duration = (f->GetTimeStamp()-prevts)*f2->GetRate()/1000;
 	    }
 	    prevts = f2->GetTimeStamp();
-	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, 1);
+	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, 0 );
 	    sampleId++;
 
 	    if (hinttrack != MP4_INVALID_TRACK_ID)
@@ -270,9 +271,19 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	    f2->GuessIsIntra();
 
 	    // If video is not started, wait for the first I Frame
-	    if ( ! videoStarted && f2->IsIntra() ) return 0; 
-	    
-	    videoStarted = true;
+	    if ( ! videoStarted )
+	    {
+		if ( f2->IsIntra() )
+		{
+		    videoStarted = true;
+		    Log("-mp4recorder: got the first I frame. Video recording starts.\n");
+		}
+		else
+		{
+		    // Drop frame
+		    return 0;
+	        }
+	    }
 	    
 	    if (sampleId == 0)
 	    {
@@ -283,9 +294,9 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	        duration = (f2->GetTimeStamp()-prevts)*90;
 	    }
 	    prevts = f->GetTimeStamp();
-	    MP4WriteSample(mp4, mediatrack, f->GetData(), f->GetLength(), duration, 0, 1);
 	    sampleId++;
 
+	    Log("-mp4recorder: wrote videoframe TS=%lu, duration=%lu, size=%lu.\n", f2->GetTimeStamp(), duration, f2->GetLength() );
     	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, f2->IsIntra());
 
 	    //Check if we have rtp data
@@ -348,7 +359,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 				AVCProfileIndication 	= sps.GetProfile();
 				AVCLevelIndication	= sps.GetLevel();
 				
-				Log("-mp4recorder: new size: %luxlu. H264_profile: %02x H264_level: %02x\n", 
+				Log("-mp4recorder: new size: %lux%lu. H264_profile: %02x H264_level: %02x\n", 
 				    width, height, AVCProfileIndication, AVCLevelIndication);
 				Create(NULL, VideoCodec::H264, bitrate);
 				
@@ -472,7 +483,14 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     vtc = NULL;
     this->waitVideo = waitVideo;
     audioencoder = NULL;
+    depak = NULL;
     SetParticipantName( "participant" );
+}
+
+mp4recorder::~mp4recorder()
+{
+    if (audioencoder) delete audioencoder;
+    if (depak) delete depak;
 }
 
 int mp4recorder::AddTrack(AudioCodec::Type codec, DWORD samplerate, const char * trackName)
@@ -701,18 +719,49 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	    case AST_FRAME_VIDEO:
 	    {
 	        VideoCodec::Type vcodec;
+		int ret;
 		bool ismark = ( f->subclass & 0x01 ) != 0;
 		if ( AstFormatToCodec( f->subclass, vcodec ) )
 		{
-		    VideoFrame vf(vcodec, f->datalen, false);
-		    
-		    vf.SetTimestamp(f->ts);
-		    
-		    // Handle packetization here
-		    vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
-		    vf.AddRtpPacket( 0, f->datalen, NULL, 0, ismark);
-		    
-		    int ret = ProcessFrame( &vf );
+		    switch(vcodec)
+		    {
+		        case VideoCodec::H264:
+			    {
+			        MediaFrame * vfh264;
+			        if (depak == NULL)
+			        {
+			            depak = new H264Depacketizer();
+			        }
+				
+				// Accumulate NALs into the same frame until mark
+			        vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark); 
+				
+				// Do the same in case of lost frame
+				if (ismark)
+				{
+				    depak->SetTimestamp( f->ts );
+				    ret = ProcessFrame( vfh264 );
+				    depak->ResetFrame();
+				}
+				else
+				{
+				    // no mark ? will be processed later
+				    return 1;    
+				}    
+			    }
+			    break;
+			    
+			default:
+			    {
+				VideoFrame vf(vcodec, f->datalen, false);
+				vf.SetTimestamp(f->ts);
+				vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
+				vf.AddRtpPacket( 0, f->datalen, NULL, 0, ismark);
+				ret = ProcessFrame( &vf );
+			    }
+			    break;
+		
+		    }
 		    
 		    if ( ret == -1 && vtc != NULL)
 		    {

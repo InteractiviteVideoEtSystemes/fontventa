@@ -6,7 +6,6 @@
 #include <medkit/transcoder.h>
 #include <medkit/audio.h>
 
-
 class Mp4Basetrack
 {
 public:
@@ -32,6 +31,9 @@ protected:
      int sampleId;
      DWORD prevts;
 };
+
+
+class H264Depacketizer;
 
 #define MP4_AUDIO_TRACK		0
 #define MP4_VIDEO_TRACK		1
@@ -116,6 +118,8 @@ private:
     DWORD videoSeqNo;
     
     BYTE audioBuff[800];
+    
+    H264Depacketizer * depak;
 };
 
 #endif
