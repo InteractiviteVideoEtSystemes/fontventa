@@ -209,6 +209,9 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 		default:
 			/* 1-23	 NAL unit	Single NAL unit packet per H.264	 5.6 */
 			//Check it
+			
+			if (nal_unit_type==0x07)
+			    Log("H.264 got PPS\n");
 			if (nal_unit_type==0x05)
 				//It is intra
 				frame.SetIntra(true);
