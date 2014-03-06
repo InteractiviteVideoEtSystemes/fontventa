@@ -177,8 +177,11 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 				BYTE nalType = nal_header & 0x1f;
 				//Check it
 				if (nalType==0x05)
+				{
 					//It is intra
 					frame.SetIntra(true);
+					Log("H.264 FU-A - I frame\n");
+				}
 
 				//Get init of the nal
 				iniFragNALU = frame.GetLength();
@@ -213,8 +216,11 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 			if (nal_unit_type==0x07)
 			    Log("H.264 got PPS\n");
 			if (nal_unit_type==0x05)
+			{
 				//It is intra
+				Log("H.264 single NAL - I frame\n");
 				frame.SetIntra(true);
+			}
 			/* the entire payload is the output buffer */
 			nalu_size = payload_len;
 			//Set size
