@@ -29,6 +29,9 @@ protected:
      MP4TrackId mediatrack;
      MP4TrackId hinttrack;
      int sampleId;
+     
+     // In case we need to generate a clock
+     timeval firstframets;
      DWORD prevts;
 };
 

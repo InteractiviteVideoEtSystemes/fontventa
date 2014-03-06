@@ -66,7 +66,6 @@ private:
     bool intratrame;
     bool hasSPS;
     bool hasPPS;
-    timeval firstframets;
     
     //H264 profile/level
     unsigned char AVCProfileIndication;
@@ -277,7 +276,6 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		{
 		    videoStarted = true;
 		    Log("-mp4recorder: got the first I frame. Video recording starts.\n");
-		    gettimeofday(&firstframets,NULL);
 		}
 		else
 		{
@@ -285,19 +283,20 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	        }
 	    }
 	    
-	    f2->SetTimestamp( getDifTime(&firstframets)/1000 );
+	    
 	    if (sampleId == 0)
 	    {
 	        duration = 90/15;
+		gettimeofday(&firstframets,NULL);
 	    }
 	    else
 	    {
+	        if (f2->GetTimeStamp() == 0) f2->SetTimestamp( getDifTime(&firstframets)/1000 );
 	        duration = (f2->GetTimeStamp()-prevts)*90;
 	    }
 	    prevts = f->GetTimeStamp();
 	    sampleId++;
 
-	    Log("-mp4recorder: wrote videoframe TS=%lu, duration=%lu, size=%lu.\n", f2->GetTimeStamp(), duration, f2->GetLength() );
     	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, f2->IsIntra());
 
 	    //Check if we have rtp data
@@ -419,12 +418,15 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	if (sampleId == 0)
 	{
 	        frameduration = 20;
+		gettimeofday(&firstframets,NULL);
 	}
 	else
 	{
+		if (f2->GetTimeStamp() == 0) f2->SetTimestamp( getDifTime(&firstframets)/1000 );
 	        frameduration = (f2->GetTimeStamp()-prevts);
 	}
-	
+
+	prevts = f->GetTimeStamp();	
 	duration = frameduration;
 	if (frameduration > MAX_SUBTITLE_DURATION) frameduration = MAX_SUBTITLE_DURATION;
 	
