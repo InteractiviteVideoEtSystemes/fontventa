@@ -166,6 +166,7 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 		if ( initialDelay > 0 )
 		{
 			duration = initialDelay*f2->GetRate()/1000;
+			Log("Adding %d ms of initial delay on audio track.\n", initialDelay);
 		}
 		else
 		{
@@ -308,6 +309,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		if ( initialDelay > 0 )
 		{
 			duration = initialDelay*90;
+			Log("Adding %d ms of initial delay on video track.\n", initialDelay);
 		}
 		else
 		{
@@ -455,6 +457,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 		if ( initialDelay > 0 )
 		{
 			duration = initialDelay;
+			Log("Adding %d ms of initial delay on text track.\n", initialDelay);
 		}
 		else
 		{
@@ -930,7 +933,7 @@ void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size
     }
 }    
 
-struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat)
+struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat, const char * partName)
 {
     if ( (chan->nativeformats & AST_FORMAT_VIDEO_MASK) == 0 )
     {
@@ -940,19 +943,20 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
     }
     
     mp4recorder * r = new mp4recorder(chan, mp4, waitVideo);
-    
+    if ( partName == NULL ) partName = chan->cid.cid_name ? chan->cid.cid_name: "unknown";
     if ( r != NULL)
     {
-        r->SetParticipantName( chan->cid.cid_name ? chan->cid.cid_name: "unknown participant" );
+        r->SetParticipantName( partName );
         if ( videoformat != NULL && strlen(videoformat) > 0 )
         {
             // Hardcoded for now
-	    r->AddTrack(VideoCodec::H264, 640, 480, 256, 
-	                chan->cid.cid_name ? chan->cid.cid_name: "unknown", false );
+	    r->AddTrack(VideoCodec::H264, 640, 480, 256, partName, false );
 	
-	    if ( chan->nativeformats & AST_FORMAT_TEXT_MASK )
-	        r->AddTrack( TextCodec::T140, chan->cid.cid_name ? chan->cid.cid_name: "unknown" );
         }
+	
+	if ( chan->nativeformats & AST_FORMAT_TEXT_MASK )
+	        r->AddTrack( TextCodec::T140, partName );
+	
     }
     
     return (struct mp4rec *) r;
