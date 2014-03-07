@@ -9,12 +9,13 @@
 class Mp4Basetrack
 {
 public:
-    Mp4Basetrack(MP4FileHandle mp4) 
+    Mp4Basetrack(MP4FileHandle mp4, unsigned long initialDelay) 
     { 
         this->mp4 = mp4;
 	sampleId = 0;
 	mediatrack = MP4_INVALID_TRACK_ID;
 	hinttrack = MP4_INVALID_TRACK_ID;
+	this->initialDelay = initialDelay;
     }
 
     virtual ~Mp4Basetrack() {};
@@ -29,6 +30,7 @@ protected:
      MP4TrackId mediatrack;
      MP4TrackId hinttrack;
      int sampleId;
+     unsigned long initialDelay;
      
      DWORD prevts;
 };
@@ -100,6 +102,8 @@ public:
 	partName[sizeof(partName)-1] = 0;
     }
     
+    void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
+    
 private:
     char partName[80];
     
@@ -114,6 +118,7 @@ private:
     AudioEncoder * audioencoder;
 
     bool waitVideo;
+    unsigned long initialDelay;
     
     DWORD textSeqNo;
     DWORD videoSeqNo;
@@ -138,6 +143,10 @@ extern "C"
  * Create one MP4 recording or playing session for a given asterisk channel
  * @param chan: asterisk channel that will be recorded
  * @param mp4: MP4 file handle (see MP4V2 lib) to use for recording. Must already be OPEN in the proper mode
+ *
+ * @param waitVideo: if true, no media will be recorded before the first valid I frame is recieved. If channel
+ * does not support video, this flag is ignored.
+ *
  * @param video format specification for transcoder
  * @return MP4 participant context for recording.
  */
@@ -152,6 +161,25 @@ extern "C"
  **/
     int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f );
 
+/**
+ * Return whether the recorder has started recording video. This is useful when a mp4 recorder
+ * is created with the waitVideo flag set to true.
+ *
+ * @param r: instance of mp4 recorder
+ * @return :  2 - we were not waiting for video
+ *            1 - video has started
+ *            0 - we are still waiting for the first I frame
+ *           -1 - video is not expected by this recorder
+ **/
+
+    int Mp4RecorderHasVideoStarted( struct mp4rec * r );
+    
+    void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms);
+    /**
+     *  destoy one instance of mp4 recorder
+     *  
+     *  @param r: instance of mp4 recorder
+     */
     void Mp4RecorderDestroy( struct mp4rec * r );
  
 #ifdef __cplusplus

@@ -18,7 +18,7 @@
 class Mp4AudioTrack : public Mp4Basetrack
 {
 public:
-    Mp4AudioTrack(MP4FileHandle mp4) : Mp4Basetrack(mp4) { }
+    Mp4AudioTrack(MP4FileHandle mp4, unsigned long delay) : Mp4Basetrack(mp4, delay) { }
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
     
@@ -30,7 +30,7 @@ private:
 class Mp4VideoTrack : public Mp4Basetrack
 {
 public:
-    Mp4VideoTrack(MP4FileHandle mp4) : Mp4Basetrack(mp4)
+    Mp4VideoTrack(MP4FileHandle mp4, unsigned long delay) : Mp4Basetrack(mp4, delay)
     {
         width = 0;
 	height =0;
@@ -81,7 +81,7 @@ private:
 class Mp4TextTrack : public Mp4Basetrack
 {
 public:
-    Mp4TextTrack(MP4FileHandle mp4) : Mp4Basetrack(mp4) { }
+    Mp4TextTrack(MP4FileHandle mp4, unsigned long delay) : Mp4Basetrack(mp4, delay) { }
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
     
@@ -161,7 +161,20 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 	    
 	    if (sampleId == 0)
 	    {
-	        duration = 20*f2->GetRate()/1000;
+		//const AudioFrame * f3 = AudioFrame::GetSilentFrame(codec);
+		
+		if ( initialDelay > 0 )
+		{
+			duration = initialDelay*f2->GetRate()/1000;
+		}
+		else
+		{
+			duration = 20*f2->GetRate()/1000;
+		}
+	    }
+	    else if (sampleId == 1 && initialDelay > 0)
+	    {
+		duration = 20*f2->GetRate()/1000;
 	    }
 	    else
 	    {
@@ -186,6 +199,12 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 		MP4WriteRtpHint(mp4, hinttrack, duration, 1);
 	    
 	    }
+	    
+	    if ( sampleId > 1 ) return 1;
+	    
+	    //Initial duration - repeat the fisrt frame
+	    if ( initialDelay > 0 ) ProcessFrame(f);
+	    
 	    return 1;
 	}
 	else
@@ -286,7 +305,19 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	    
 	    if (sampleId == 0)
 	    {
-	        duration = 90/15;
+		if ( initialDelay > 0 )
+		{
+			duration = initialDelay*90;
+		}
+		else
+		{
+			// 20 fps = (1000 / 20) * 90
+			duration = 50*90;
+		}
+	    }
+	    else if (sampleId == 1 && initialDelay > 0)
+	    {
+		duration = initialDelay*90;
 	    }
 	    else
 	    {
@@ -384,7 +415,11 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());	
 
 	    }
-	    return 1;
+	    
+	    if ( sampleId > 1 ) return 1;
+	    
+	    //Initial duration - repeat the fisrt frame
+	    if ( initialDelay > 0 ) ProcessFrame(f);
 	}
 	else
 	{
@@ -417,7 +452,19 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	
 	if (sampleId == 0)
 	{
-	        frameduration = 20;
+		if ( initialDelay > 0 )
+		{
+			duration = initialDelay;
+		}
+		else
+		{
+		
+			duration = 20;
+		}
+	}
+	else if (sampleId == 1 && initialDelay > 0)
+	{
+		duration = initialDelay;
 	}
 	else
 	{
@@ -458,6 +505,10 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	}
 
 	free(data);
+	    if ( sampleId > 1 ) return 1;
+	    
+	    //Initial duration - repeat the first frame
+	    if ( initialDelay > 0 ) ProcessFrame(f);
 
 	return 1;
     }
@@ -476,6 +527,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     depak = NULL;
     SetParticipantName( "participant" );
     gettimeofday(&firstframets,NULL);
+    initialDelay = 0;
     for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
     {
 	mediatracks[i] = NULL;
@@ -492,7 +544,7 @@ int mp4recorder::AddTrack(AudioCodec::Type codec, DWORD samplerate, const char *
 {
     if ( mediatracks[MP4_AUDIO_TRACK] == NULL )
     {
-	mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4);
+	mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4, initialDelay);
 	if ( mediatracks[MP4_AUDIO_TRACK] != NULL )
 	{
 	    mediatracks[MP4_AUDIO_TRACK]->Create( trackName, (int) codec, samplerate );
@@ -512,7 +564,7 @@ int mp4recorder::AddTrack(VideoCodec::Type codec, DWORD width, DWORD height, DWO
     
     if ( mediatracks[trackidx] == NULL )
     {
-        Mp4VideoTrack * vtr = new Mp4VideoTrack(mp4);
+        Mp4VideoTrack * vtr = new Mp4VideoTrack(mp4, initialDelay);
 	mediatracks[trackidx] = vtr;
 	if ( mediatracks[trackidx] != NULL )
 	{
@@ -532,7 +584,7 @@ int mp4recorder::AddTrack(TextCodec::Type codec, const char * trackName)
 {
     if ( mediatracks[MP4_TEXT_TRACK] == NULL )
     {
-	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4);
+	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4, initialDelay);
 	if ( mediatracks[MP4_TEXT_TRACK] != NULL )
 	{
 	    char introsubtitle[200];
@@ -915,3 +967,9 @@ int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f )
 	return -5;
 }
 
+void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms)
+{
+	mp4recorder * r2 = (mp4recorder *) r;
+	
+	r2->SetInitialDelay(ms);
+}
