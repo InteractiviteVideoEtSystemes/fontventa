@@ -166,7 +166,7 @@ extern "C"
  * @param video format specification for transcoder
  * @return MP4 participant context for recording.
  */
-    struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat);
+    struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat, const char * partName);
 
 /**
  * Process one ast_frame and record it into the MP4 file. Warning: packets must be reordered

@@ -107,6 +107,8 @@ all: libmedkit.a
 libmedkit.a: $(OBJS)
 	ar r $@ $(OBJS)
 
+mp4format.o: astmedkit/mp4format.h medkit/media.h
+
 clean:
 	rm -f $(OBJS) libmedkit.a
 
