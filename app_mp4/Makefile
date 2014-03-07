@@ -12,7 +12,7 @@
 #
 
 .EXPORT_ALL_VARIABLES:
-include ../Makeinclude
+#include ../Makeinclude
 
 #
 # app_mp4 defines which can be passed on the command-line
@@ -30,7 +30,7 @@ ASTERISK_INCLUDE_DIR := $(ASTERISKDIR)/include
 # app_mp4 objects to build
 #
 
-OBJS = app_mp4.o
+OBJS = app_mp4.o h263packetizer.o
 SHAREDOS = app_mp4.so
 
 #
@@ -41,10 +41,10 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc  
 
-LIBS = -L../libmedikit/lib -Wl,-Bstatic -lmedkit -lmp4v2 -lavcodec -lavformat -lswscale -lx264  -Wl,-Bdynamic -lspeexdsp
+LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -lmp4v2 -lavcodec -lavformat -lswscale -lx264  -Wl,-Bdynamic 
 DEBUG := -g 
 
-CFLAGS = -I../libmedikit/include -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
+CFLAGS = -I../libmedikit -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
 
 #
 # targets

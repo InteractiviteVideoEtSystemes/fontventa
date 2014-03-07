@@ -49,10 +49,22 @@
 #include <asterisk/utils.h>
 #include <asterisk/app.h>
 #include <asterisk/version.h>
+#include <asterisk/speech.h>
 
 #include <mp4v2/mp4v2.h>
 #include <astmedkit/mp4format.h>
 #include <astmedkit/framebuffer.h>
+#include <astmedkit/frameutils.h>
+
+#include "h263packetizer.h"
+
+#undef i6net
+#undef i6net_lock
+
+#ifdef i6net_lock
+#include <app_vxml.h>
+#endif
+
 
 #ifndef AST_FORMAT_AMRNB
 #define AST_FORMAT_AMRNB 	(1 << 13)
@@ -62,15 +74,11 @@
 #define _STR_CODEC_SIZE         512
 #endif
 
-#define AST_FRAME_GET_BUFFER(fr)        ((unsigned char*)((fr)->data))
-
-
-#define PKT_PAYLOAD	1450
-#define PKT_SIZE 	(sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET + PKT_PAYLOAD)
 #define PKT_OFFSET	(sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET)
 #define AST_MAX_TXT_SIZE 0x8000 
 #define NO_CODEC         -1
 #define MS_2_SEC         1000000   // Micro secondes -> Sec 
+#define MAX_DTMF_BUFFER_SIZE 25
 
 #define TIMEVAL_TO_MS( tv , ms ) \
   { \
@@ -94,12 +102,6 @@
 /* ========================================================================= */
 /* Structures et enums                                                       */
 /* ========================================================================= */
-#ifdef VIDEOCAPS
-/*! \brief codec video dans le fichier 
- */
-
-
-
 
 static const char mark_cut_txt[]=" Buff too small supress end of text";
 static const char h263VideoName[]="H.263" ; 
@@ -139,14 +141,14 @@ static const char *des_save = "  mp4save(filename,[options]):  Record mp4 file. 
         " mp4save(/tmp/save.3gp,v)  activate loopback of video\n"
         " mp4save(/tmp/save.3gp,V)  wait for first videoto start recording\n"
         " mp4save(/tmp/save.3gp,V9) wait for first videoto start recording\n"
+	"                           and stop on '9' dtmf\n";
 
-enum 
+enum _mp4play_exec_option_flags
 {
         OPT_DFTMINTOVAR 	=	(1 << 0),
         OPT_NOOFDTMF 		=	(1 << 1),
 	OPT_STOPDTMF		=	(1 << 2),
-} 
-mp4play_exec_option_flags;
+} mp4play_exec_option_flags;
 
 enum {
         OPT_ARG_DFTMINTOVAR =          0,
@@ -156,13 +158,227 @@ enum {
 	OPT_ARG_ARRAY_SIZE,
 } mp4play_exec_option_args;
 
-AST_APP_OPTIONS(mp4play_exec_options, 
-{
+AST_APP_OPTIONS(mp4play_exec_options, {
         AST_APP_OPTION_ARG('S', OPT_DFTMINTOVAR, OPT_ARG_DFTMINTOVAR),
         AST_APP_OPTION_ARG('n', OPT_NOOFDTMF, OPT_ARG_NOOFDTMF),
 	AST_APP_OPTION_ARG('s', OPT_STOPDTMF, OPT_ARG_STOPDTMF),
 });
 
+struct mp4rtp {
+	struct ast_channel *chan;
+	MP4FileHandle mp4;
+	MP4TrackId hint;
+	MP4TrackId track;
+	unsigned int timeScale;
+	unsigned int sampleId;
+	unsigned short numHintSamples;
+	unsigned short packetIndex;
+	unsigned int frameSamples;
+	int frameSize;
+	int frameTime;
+	int frameType;
+	int frameSubClass;
+	char *name;
+	char *src;
+	unsigned char type;
+
+};
+
+#ifdef VIDEOCAPS
+/*! \brief codec video dans le fichier 
+ *  */
+typedef enum 
+{
+  NATIVE_VIDEO_CODEC_H264 = 0 ,
+  NATIVE_VIDEO_CODEC_H263P ,
+  NATIVE_VIDEO_CODEC_H263 ,
+  NATIVE_VIDEO_CODEC_LAST // Always last 
+} NativeCodec;
+#endif
+
+
+static int mp4_video_read(struct mp4rtp *p)
+{
+	int          next = 0;
+	int          last = 0;
+	int          first = 1;
+	u_int8_t*    data  = NULL  ;
+  // MP4Timestamp StartTime ;
+  MP4Duration  Duration ; 
+  // MP4Duration  RenderingOffset;
+  // bool         IsSyncSample = false ;
+  uint32_t     NumBytes = 0;
+  uint32_t     len      = 0;
+  uint32_t     sent     = 0;
+
+  double       fps      = MP4GetTrackVideoFrameRate(p->mp4 , p->track );
+  if (  !MP4ReadSample(p->mp4, 
+                       p->track, 
+                       p->sampleId++,
+                       &data,
+                       &NumBytes,
+                       0,
+                       &Duration,
+                       0,
+                       0) ) 
+  {
+     if ( option_debug > 1 )
+       ast_log(LOG_ERROR, "Error reading H263 packet [%d]\n", p->track);
+    return -1;
+  }
+
+ 
+
+  Duration  = Duration / 90 ;
+  if ( option_debug > 4 )
+    ast_log(LOG_DEBUG, "MP4ReadSample Duration[%d] lenght[%d] @%d \n",(int)Duration,NumBytes,(int)fps );
+
+  while(sent<NumBytes)
+  {
+    if (sent+H263_FRAME_SIZE>NumBytes)
+    {
+      last = 1;
+      len = NumBytes-sent;
+    } else 
+      len = H263_FRAME_SIZE;
+
+    SendVideoFrameH263(p->chan, &data[sent], len, first, last,fps);
+    first = 0;
+    sent += len;
+  }
+
+  free(data);
+  
+  next = (Duration)?(int)Duration:(int)(900/fps);
+
+	if (option_debug > 4)
+		ast_log(LOG_DEBUG, "mp4_video_read return [%d]\n", next);
+
+	/* exit next send time */
+	return next;
+}
+
+static int mp4_rtp_read(struct mp4rtp *p, struct ast_frame *f)
+{
+	//unsigned char buffer[PKT_SIZE];
+
+//#define BUFFERLEN (sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET + 1500)
+	//unsigned char buffer[BUFFERLEN + 1];
+	//struct ast_frame *f = (struct ast_frame *) buffer;
+  	
+	int next = 0;
+	int last = 0;
+	int first = 0;
+	uint8_t* data;
+	
+	/* If it's first packet of a frame */
+	if (!p->numHintSamples) {
+		/* Get number of rtp packets for this sample */
+		if (!MP4ReadRtpHint(p->mp4, p->hint, p->sampleId, &p->numHintSamples)) {
+			ast_log(LOG_DEBUG, "MP4ReadRtpHint failed [%d,%d]\n", p->hint,p->sampleId);
+			return -1;
+		}
+
+		/* Get number of samples for this sample */
+		p->frameSamples = MP4GetSampleDuration(p->mp4, p->hint, p->sampleId);
+
+		/* Get size of sample */
+		p->frameSize = MP4GetSampleSize(p->mp4, p->hint, p->sampleId);
+
+		/* Get sample timestamp */
+		p->frameTime = MP4GetSampleTime(p->mp4, p->hint, p->sampleId);
+
+		/* Set first flag */
+		first = 1;
+	}
+
+	/* if it's the last */
+	if (p->packetIndex + 1 == p->numHintSamples)
+		last = 1;
+
+	/* Unset */
+	memset(f, 0, PKT_SIZE);
+
+	/* Let mp4 lib allocate memory */
+	AST_FRAME_SET_BUFFER(f,f,PKT_OFFSET,PKT_PAYLOAD);
+	f->src = strdup(p->src);
+
+	/* Set type */
+	f->frametype = p->frameType;
+	f->subclass = p->frameSubClass;
+
+	f->delivery.tv_usec = 0;
+	f->delivery.tv_sec = 0;
+	/* Don't free the frame outside */
+	f->mallocd = 0;
+
+	/* If it's video set the mark of last rtp packet */
+	
+  if (f->frametype == AST_FRAME_VIDEO)
+	{
+		/* Set mark bit */
+		f->subclass |= last;
+		/* If it's the first packet of the frame */
+		if (first)
+			/* Set number of samples */
+			f->samples = p->frameSamples * (90000 / p->timeScale);
+	} else {
+		/* Set number of samples */
+		f->samples = p->frameSamples;
+	}
+
+
+	/* Get data pointer */
+	data = AST_FRAME_GET_BUFFER(f);
+
+	/* Read next rtp packet */
+	if (!MP4ReadRtpPacket(
+				p->mp4,				/* MP4FileHandle hFile */
+				p->hint,			/* MP4TrackId hintTrackId */
+				p->packetIndex++,		/* u_int16_t packetIndex */
+				(u_int8_t **) &data,		/* u_int8_t** ppBytes */
+				(u_int32_t *) &f->datalen,	/* u_int32_t* pNumBytes */
+				0,				/* u_int32_t ssrc DEFAULT(0) */
+				0,				/* bool includeHeader DEFAULT(true) */
+				1				/* bool includePayload DEFAULT(true) */
+			)) {
+		ast_log(LOG_ERROR, "Error reading packet [%d,%d]\n", p->hint, p->track);
+		return -1;
+	}
+
+	if (option_debug > 6)
+		ast_log(LOG_DEBUG, "MP4ReadRtpHint samples/lenght [%d,%d]\n", f->samples, f->datalen);
+
+	/* Write frame */
+	ast_write(p->chan, f);
+
+	/* Are we the last packet in a hint? */
+	if (last) {
+		/* The first hint */
+		p->packetIndex = 0;
+		/* Go for next sample */
+		p->sampleId++;
+		p->numHintSamples = 0;
+	}
+
+	/* Set next send time */
+	if ((!last) && (f->frametype == AST_FRAME_VIDEO))
+		/* Send next now if it's not the last packet of the frame */
+		/* This will send all the packets from the same frame without pausing between them */
+		/* FIX: should wait depending on bandwith */
+		next = 0;
+	else if (p->timeScale)
+		/* If it's from a different frame or it's audio */
+		next = (p->frameSamples * 1000) / p->timeScale;
+	else
+		next = -1;
+
+	if (option_debug > 5)
+		ast_log(LOG_DEBUG, "MP4ReadRtpHint return [%d]\n", next);
+
+	/* exit next send time */
+	return next;
+}
 
 
 static int mp4_play(struct ast_channel *chan, void *data)
@@ -198,10 +414,10 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	int autohint = 0;
 	
 	char *name;
-  int audioBestId = NO_CODEC;
-  int audioULAWId = NO_CODEC;  
-  int audioLastId = NO_CODEC;  
-  int videoBestId = NO_CODEC;
+	int audioBestId = NO_CODEC;
+	int audioULAWId = NO_CODEC;  
+	int audioLastId = NO_CODEC;  
+	int videoBestId = NO_CODEC;
 
 #ifdef VIDEOCAPS
   int VideoNativeID[NATIVE_VIDEO_CODEC_LAST] ;
@@ -210,6 +426,10 @@ static int mp4_play(struct ast_channel *chan, void *data)
   int videoLastId = NO_CODEC;  
 #endif
 
+	//int laststate = 0xFF; 
+	//int lastflags = 0xFF; 
+	char cformat1[_STR_CODEC_SIZE] = {0};
+	char cformat2[_STR_CODEC_SIZE] = {0};
 
 	unsigned char buffer[PKT_SIZE];
 	unsigned char buffer2[PKT_SIZE];
@@ -227,16 +447,6 @@ static int mp4_play(struct ast_channel *chan, void *data)
     return -1;
   }
 #endif
-
-#ifndef i6net
- struct ast_speech *speech = find_speech(chan);
- int laststate = 0xFF; 
- int lastflags = 0xFF; 
- char cformat1[_STR_CODEC_SIZE] = {0};
- char cformat2[_STR_CODEC_SIZE] = {0};
- if (speech != NULL)
- ast_log(LOG_WARNING, "mp4_play:	Found speech enabled!\n");
-#endif	
 
 	/* Check for data */
 	if (!data || ast_strlen_zero(data)) {
@@ -323,21 +533,20 @@ static int mp4_play(struct ast_channel *chan, void *data)
 
 	/* Open mp4 file */
 	if (autohint)
-	mp4 = MP4Modify((char *) args.filename, 9, 0);
+	mp4 = MP4Modify((char *) args.filename, 0);
 	else
-	mp4 = MP4Read((char *) args.filename, 9);
+		mp4 = MP4Read((char *) args.filename);
 	
 	/* If not valid */
 	if (mp4 == MP4_INVALID_FILE_HANDLE)
 	{
-		ast_log(LOG_WARNING, "mp4play invalide file.\n");
+		ast_log(LOG_WARNING, "mp4play: failed to open file %s.\n", args.filename);
 		/* exit */
 		res = -1;
 		goto clean;
 	}
 
 	/* Disable Verbosity */
-	MP4SetVerbosity(mp4, 5);
 	idxTrack=0;
 
 	ast_log(LOG_DEBUG, "Native formats:%s , Chann capability ( videocaps.cap ):%s\n", 
@@ -707,7 +916,6 @@ static int mp4_play(struct ast_channel *chan, void *data)
  if (!video.name)
  {
    const char *media_data_name;
-   int rc;
    
    ast_log(LOG_DEBUG, "Autohint the video track\n");
 
@@ -728,22 +936,12 @@ static int mp4_play(struct ast_channel *chan, void *data)
 			  if (media_data_name != NULL)
      ast_log(LOG_DEBUG, "Found track %s !\n", media_data_name);
      
-     if (strcasecmp(media_data_name, "avc1") == 0) {
-      // h264;
-      rc = MP4AV_H264Hinter(mp4, trackId, 1460);
-     }
-      
-     if (strcasecmp(media_data_name, "s263") == 0) {
-      // h263;
-      rc = MP4AV_Rfc2429Hinter(mp4, trackId, 1460);
-     }     
-          
      /* Get the next hint track */
      idxTrack++;
      ast_log(LOG_NOTICE, "Find next track %d\n",idxTrack);
      trackId = MP4FindTrackId(mp4, idxTrack, MP4_VIDEO_TRACK_TYPE, 0);
    }
-   MP4Close(mp4);     
+   MP4Close(mp4, 0);     
  }
 #endif
 
@@ -858,7 +1056,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		int ms = t;
 		
 	  if (option_debug > 5)
-      ast_log(LOG_DEBUG, "mp4play Time to wait %d\n", ms);		
+      		ast_log(LOG_DEBUG, "mp4play Time to wait %d\n", ms);		
 
 		/* Read from channel and wait timeout */
 		while (ms > 0) {
@@ -884,91 +1082,6 @@ static int mp4_play(struct ast_channel *chan, void *data)
 					/* exit */
 					goto end;
         }
-#ifndef i6net
-    if (speech != NULL)
-    if (stopChars != NULL)
-    if (strchr(stopChars,'S'))
-    /* If it's a voice frame */
-				if (f->frametype == AST_FRAME_VOICE)		
-    {			
-     ast_mutex_lock(&speech->lock);
-        				 
-     if (speech->state == AST_SPEECH_STATE_READY)
-     {
-      ast_speech_write(speech, f->data, f->datalen);
-     }
-
-     if (speech->state != laststate)
-     {
-       if (speech->state == AST_SPEECH_STATE_NOT_READY)
- 		   ast_log(LOG_DEBUG, "Speech not ready : state '%d'\n", speech->state);
- 		   else
-       if (speech->state == AST_SPEECH_STATE_READY)
- 		   ast_log(LOG_DEBUG, "Speech ready : state '%d'\n", speech->state);
- 		   else
-       if (speech->state == AST_SPEECH_STATE_WAIT)
- 		   ast_log(LOG_DEBUG, "Speech wait : state '%d'\n", speech->state);
- 		   else
-       if (speech->state == AST_SPEECH_STATE_DONE)
- 		   ast_log(LOG_DEBUG, "Speech done : state '%d'\n", speech->state);
- 		   else
- 		   ast_log(LOG_DEBUG, "Speech ? : state '%d'\n", speech->state);
- 		   
-		   laststate = speech->state; 
-     }
-     if (speech->flags != lastflags)
-     {
-       if (speech->flags & AST_SPEECH_HAVE_RESULTS)
- 		   ast_log(LOG_DEBUG, "Speech flags results : flag '%d'\n", speech->flags);
- 		   else
-       if (speech->flags & AST_SPEECH_QUIET)
- 		   ast_log(LOG_DEBUG, "Speech flags quiet : flag '%d'\n", speech->flags);
- 		   else
-       if (speech->flags & AST_SPEECH_SPOKE)
- 		   ast_log(LOG_DEBUG, "Speech flags spoke  : flag '%d'\n", speech->flags);
- 		   
-		   lastflags = speech->flags; 
-     }       
-          
-     if (speech->state == AST_SPEECH_STATE_DONE)
-     {
-		  ast_clear_flag(chan, AST_FLAG_END_DTMF_ONLY);
-
-  		ast_log(LOG_DEBUG, "SPEECH interruption!\n");
-      strcpy(dtmfBuffer,"S");
-
-			if (varName)
-			/* Build variable */
-			pbx_builtin_setvar_helper(chan, varName, dtmfBuffer);
-
-      ast_mutex_unlock(&speech->lock);       
-					
-      /* Free frame */						
-      ast_frfree(f);
-	  	/* exit */
-			goto end;  
-     }		
-     
-     if (speech->flags & AST_SPEECH_QUIET)
-     {
-  		ast_log(LOG_DEBUG, "SPEECH interruption!\n");
-      strcpy(dtmfBuffer,"s");
-
-			if (varName)
-			/* Build variable */
-			pbx_builtin_setvar_helper(chan, varName, dtmfBuffer);
-
-      ast_mutex_unlock(&speech->lock);       
-					
-      /* Free frame */						
-      ast_frfree(f);
-	  	/* exit */
-			goto end;  
-     }
-     	 
-     ast_mutex_unlock(&speech->lock);
-    }    
-#endif
 
 				/* If it's a dtmf */
 				if (f->frametype == AST_FRAME_DTMF) {
@@ -1104,7 +1217,7 @@ end:
 	ast_log(LOG_DEBUG, "<app_mp4\n");
 
 	/* Close file */
-	MP4Close(mp4);
+	MP4Close(mp4, 0);
 
 clean:
 	/* Unlock module*/
@@ -1128,6 +1241,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	char stopDtmfs[20] = "#";
 	struct mp4rec * recorder;
 	char metadata[100];
+	MP4FileHandle mp4;
 	
 	/*  whether we send back the video packets to the caller */
 	int videoLoopback = 0;
@@ -1138,9 +1252,6 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	/*  Recording is on man! */
 	int onrecord = 1;
 	
-	long VideoDuration;
-	long AudioDuration;
-	long TextDuration;
   
 	int haveAudio           =  chan->nativeformats & AST_FORMAT_AUDIO_MASK ;
 	int haveVideo           =  chan->nativeformats & AST_FORMAT_VIDEO_MASK ;  
@@ -1184,8 +1295,8 @@ static int mp4_save(struct ast_channel *chan, void *data)
 			waitVideo = 1;
 		}
 		
-		int j = strlen(stopDtmfs);
-		for (int i=0; i < strlen(params); i++)
+		int i, j = strlen(stopDtmfs);
+		for (i=0; i < strlen(params); i++)
 		{
 		
 			if ( (params[i] >= '0' && params[i] <= '9') 
@@ -1210,7 +1321,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	u = ast_module_user_add(chan);
 
 	/* Create mp4 file */
-	mp4 = MP4CreateEx((char *) data, 9, 0, 1, 1, 0, 0, 0, 0);
+	mp4 = MP4Create((char *) data,  0);
 
 	/* If failed */
 	if (mp4 == MP4_INVALID_FILE_HANDLE)
@@ -1219,35 +1330,29 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    goto mp4_save_cleanup;
 	}
 
-	recorder = Mp4RecorderCreate(chan, mp4, waitVideo, "h264@vga");
+	time_t now;
+	struct tm *tmvalue; 
+	const MP4Tags * tags = MP4TagsAlloc();
+
+	time(&now);
+	tmvalue = localtime(&now);
+	MP4TagsSetEncodingTool(tags, "mp4save asterisk application");
+	MP4TagsSetArtist(tags, chan->cid.cid_name );
+
+        sprintf(metadata, "%04d/%02d/%02d %02d:%02d:%02d",
+           tmvalue->tm_year+1900, tmvalue->tm_mon+1, tmvalue->tm_mday,
+           tmvalue->tm_hour, tmvalue->tm_min, tmvalue->tm_sec);
+
+	MP4TagsSetReleaseDate (tags, metadata);
+	MP4TagsStore(tags, mp4);
+
+	recorder = Mp4RecorderCreate(chan, mp4, waitVideo, "h264@vga", NULL);
 
 	if ( recorder == NULL )
 	{
 	    ast_log(LOG_ERROR, "Fail to create MP4 recorder. Exiting\n");
 	    goto mp4_save_cleanup;
 	}
-
-	time_t now;
-	struct tm *tmvalue; 
-
-	time(&now);
-	tmvalue = localtime(&now);
-
-	MP4SetMetadataTool(mp4, "app_mp4");	  
-	ast_copy_string(metadata, chan->cdr->dst, sizeof(chan->cdr->dst));
-	MP4SetMetadataWriter(mp4,metadata);
-	ast_copy_string(metadata, chan->cdr->src, sizeof(chan->cdr->src));
-	MP4SetMetadataArtist(mp4,metadata);
-	sprintf(metadata, "%04d/%02d/%02d %02d:%02d:%02d",
-		tmvalue->tm_year+1900, tmvalue->tm_mon+1, tmvalue->tm_mday,
-		tmvalue->tm_hour, tmvalue->tm_min, tmvalue->tm_sec);
-
-	MP4SetMetadataAlbum(mp4,metadata);
-
-
-	/* Disable verbosity */
-	MP4SetVerbosity(mp4, 0);
-
 
 #ifdef VIDEOCAPS
 	int oldnative = chan->nativeformats;
@@ -1350,7 +1455,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	            {
 			ast_log(LOG_NOTICE, 
 		            "mp4_save: recording stopping because DTMF %c was pressed.\n", 
-			    (char) f->subclass )
+			    (char) f->subclass );
 			onrecord = 0;
 			ast_frfree(f);
 		    }
@@ -1362,12 +1467,13 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    }
 	    
 	    /* -- now poll all the queues and record -- */
-	    for (int i=0; i<3; i++)
+	    int i;
+	    for (i=0; i<3; i++)
 	    {
-		f = AstFbAddFrame( queueTab[i] );
+		f = AstFbGetFrame( queueTab[i] );
 		
 		// TODO if too many errors, exit
-		recorder->ProcessFrame(f);
+		Mp4RecorderFrame(recorder, f);
 		
 		if (  f->frametype == AST_FRAME_VIDEO )
 		{
@@ -1394,7 +1500,7 @@ mp4_save_cleanup:
 	if (textInQueue) AstFbDestroy(textInQueue);
 	
 	/* Close file */
-	MP4Close(mp4);
+	MP4Close(mp4, 0);
 
 	/* Unlock module*/
 	ast_module_user_remove(u);
