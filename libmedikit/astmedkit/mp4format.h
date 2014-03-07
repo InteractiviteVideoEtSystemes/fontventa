@@ -24,6 +24,7 @@ public:
     virtual int ProcessFrame( const MediaFrame * f ) = 0;
     
     inline bool IsOpen() { return ( mediatrack != MP4_INVALID_TRACK_ID ); }
+    void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
     
 protected:
      MP4FileHandle mp4;
@@ -109,7 +110,7 @@ public:
      *  @param delay: delay in ms
      */
     
-    void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
+    void SetInitialDelay(unsigned long delay);
 
     /**
      * Return whether video has started for this recorder

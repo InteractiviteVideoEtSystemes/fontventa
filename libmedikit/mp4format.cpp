@@ -98,7 +98,7 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
     switch (codec)
     {
         case AudioCodec::PCMA:
-	    mediatrack = MP4AddALawAudioTrack(mp4,samplerate);
+	    mediatrack = MP4AddALawAudioTrack(mp4, 8000);
 	    // Set channel and sample properties
 	    MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.alaw.channels", 1);
 	    MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.alaw.sampleSize", 8);
@@ -110,7 +110,7 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
 	    break;
 	
 	case AudioCodec::PCMU:
-	    mediatrack = MP4AddULawAudioTrack(mp4,samplerate);
+	    mediatrack = MP4AddULawAudioTrack(mp4, 8000);
 	    // Create audio hint track
 	    hinttrack = MP4AddHintTrack(mp4, mediatrack);
 			// Set payload type for hint track
@@ -273,8 +273,8 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 			MP4SetTrackName( mp4, mediatrack, this->trackName.c_str() );
 	}
 	
-	Log("-mp4recorder: created VIDEO track %d, hinttrack %d using codec %s.\n", 
-	    mediatrack, hinttrack, VideoCodec::GetNameFor( (VideoCodec::Type) codec));
+	Log("-mp4recorder: created VIDEO track %s ID %d, hinttrack %d using codec %s.\n", 
+	    this->trackName.c_str(), mediatrack, hinttrack, VideoCodec::GetNameFor( (VideoCodec::Type) codec));
 
 }
 
@@ -319,7 +319,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	    }
 	    else if (sampleId == 1 && initialDelay > 0)
 	    {
-		duration = initialDelay*90;
+		duration = 50*90;
 	    }
 	    else
 	    {
@@ -539,6 +539,11 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
 
 mp4recorder::~mp4recorder()
 {
+    for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
+    {
+        if ( mediatracks[i] ) delete mediatracks[i];
+    }
+
     if (audioencoder) delete audioencoder;
     if (depak) delete depak;
 }
@@ -653,8 +658,9 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    if ( mediatracks[trackidx] )
 	    {
 	        int ret = mediatracks[trackidx]->ProcessFrame(f);
-		if ( ( (Mp4VideoTrack *) mediatracks[trackidx])->IsVideoStarted() )
+		if ( waitVideo && ( (Mp4VideoTrack *) mediatracks[trackidx])->IsVideoStarted() )
 		{
+		    Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
 		    waitVideo = false;
 		}
 		return ret;
@@ -737,6 +743,16 @@ bool AstFormatToCodec( int format, VideoCodec::Type & codec )
     return true;
 }
 
+void  mp4recorder::SetInitialDelay(unsigned long delay)
+{
+    initialDelay = delay;
+
+    for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
+    {
+        if ( mediatracks[i] )  mediatracks[i]->SetInitialDelay(delay);
+    }
+
+}
 	
 int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 {
