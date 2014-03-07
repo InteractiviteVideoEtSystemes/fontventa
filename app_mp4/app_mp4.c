@@ -32,10 +32,6 @@
  */
 #include <sys/time.h>
 
-#include <asterisk.h>
-#include <mp4v2/mp4v2.h>
-#include <astmedkit/framebuffer.h>
-#include <astmedkit/framebuffer.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -54,6 +50,9 @@
 #include <asterisk/app.h>
 #include <asterisk/version.h>
 
+#include <mp4v2/mp4v2.h>
+#include <astmedkit/mp4format.h>
+#include <astmedkit/framebuffer.h>
 
 #ifndef AST_FORMAT_AMRNB
 #define AST_FORMAT_AMRNB 	(1 << 13)
@@ -146,7 +145,8 @@ enum
         OPT_DFTMINTOVAR 	=	(1 << 0),
         OPT_NOOFDTMF 		=	(1 << 1),
 	OPT_STOPDTMF		=	(1 << 2),
-} mp4play_exec_option_flags;
+} 
+mp4play_exec_option_flags;
 
 enum {
         OPT_ARG_DFTMINTOVAR =          0,

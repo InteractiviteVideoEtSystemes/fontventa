@@ -41,10 +41,10 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc  
 
-LIBS = -L/opt/ives/lib -Wl,-Bstatic -lmedkit -lmp4v2 -lavcodec -lavformat -lswscale -lx264  -Wl,-Bdynamic -lspeexdsp
+LIBS = -L../libmedikit/lib -Wl,-Bstatic -lmedkit -lmp4v2 -lavcodec -lavformat -lswscale -lx264  -Wl,-Bdynamic -lspeexdsp
 DEBUG := -g 
 
-CFLAGS = -I/opt/ives/include -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
+CFLAGS = -I../libmedikit/include -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
 
 #
 # targets
