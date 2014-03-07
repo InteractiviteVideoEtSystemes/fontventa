@@ -102,8 +102,24 @@ public:
 	partName[sizeof(partName)-1] = 0;
     }
     
-    void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
+    /**
+     *  Set the initial time offset to add when starting to record the media
+     *  THis allows to create a participant that comes after some time in the
+     *  recorded conversation
+     *  @param delay: delay in ms
+     */
     
+    void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
+
+    /**
+     * Return whether video has started for this recorder
+     *
+     * @return 2: we were not waiting for video
+     * 	       1: video has started
+     *         0: still waiting for vide
+     *        -1: this recorder does not record video
+     */
+     int IsVideoStarted();
 private:
     char partName[80];
     

@@ -607,6 +607,14 @@ int mp4recorder::AddTrack(TextCodec::Type codec, const char * trackName)
     return 0;
 }
 
+int mp4recorder::IsVideoStarted()
+{
+    if ( mediatracks[MP4_VIDEO_TRACK] != NULL )
+    {
+	return  ( ( (Mp4VideoTrack *) mediatracks[MP4_VIDEO_TRACK])->IsVideoStarted() ) ? 1 : 0;
+    }
+    return -1;
+}
 
 int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 {
@@ -965,6 +973,13 @@ int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f )
 	return r2->ProcessFrame(f);
    else
 	return -5;
+}
+
+int Mp4RecorderHasVideoStarted( struct mp4rec * r )
+{
+    mp4recorder * r2 = (mp4recorder *) r;
+
+    return r2->IsVideoStarted();
 }
 
 void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms)

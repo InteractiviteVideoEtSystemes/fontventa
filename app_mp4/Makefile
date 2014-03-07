@@ -22,8 +22,8 @@ INSTALL_PREFIX := /usr
 INSTALL_MODULES_DIR := $(INSTALL_PREFIX)/lib/asterisk/modules
 
 ASTERISK_INCLUDE_DIR := $(ASTERISKDIR)/include
-#MPEG4IP_DIR := /root/voicebrowser/mpeg4ip-1.5.0.1
-MPEG4IP_DIR := $(MPEG4IPDIR)
+
+
 
 
 #
@@ -41,10 +41,10 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc  
 
-LIBS = -lmp4 -lmp4v2 -lmp4av
+LIBS = -L/opt/ives/lib -Wl,-Bstatic -lmedkit -lmp4v2 -lavcodec -lavformat -lswscale -lx264  -Wl,-Bdynamic -lspeexdsp
 DEBUG := -g 
 
-CFLAGS =  -fPIC -DPIC -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -D_GNU_SOURCE -DVIDEOCAPS
+CFLAGS = -I/opt/ives/include -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
 
 #
 # targets
@@ -62,12 +62,12 @@ install: all
 	@if [ "`uname -m`" == "x86_64" ] ; then make install64 ; else make install32 ; fi
 
 install32:
-	mkdir -p $(DESTDIR)/usr/lib/asterisk/modules
-	cp $(SHAREDOS) $(DESTDIR)/usr/lib/asterisk/modules
+	install -d $(DESTDIR)/usr/lib/asterisk/modules
+	install $(SHAREDOS) $(DESTDIR)/usr/lib/asterisk/modules
 	echo "32 bits install"
 
 install64:
-	mkdir -p $(DESTDIR)/usr/lib64/asterisk/modules
-	cp $(SHAREDOS) $(DESTDIR)/usr/lib64/asterisk/modules
+	install -d $(DESTDIR)/usr/lib64/asterisk/modules
+	install $(SHAREDOS) $(DESTDIR)/usr/lib64/asterisk/modules
 	echo "64 bits install"
 
