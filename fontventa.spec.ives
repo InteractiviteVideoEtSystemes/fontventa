@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   0.5.6
+Version:   1.0.0
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -13,8 +13,19 @@ BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 1.5.2   
 BuildRequires: ffmpeg-devel = 0.4.2, asteriskv-devel, SDL-devel, gcc-c++, mpeg4ip-devel = 1.5.2   
 
+%package devel
+Summary: Libraries, includes to develop applications with %{name}.
+Group: Development/Libraries
+Requires: %{name} = %{version}
+
+
 %description
-Un ensemble de librairies partag�es pour asterisk de Fontventa.
+Un ensemble d'application pour asterisk de Fontventa. mp4save() pour enregistrer une conversation TC
+dans un fichier mP4 avec hint. mp4play() pour diffuser un fichier mp4. Transcode() pour transcoder la vidéo
+entre deux channels.
+
+%description devel
+Fournit la libmedkit pour le développement d'paplication media sur asterisk
   
 %clean
 echo "############################# Clean"
@@ -52,7 +63,16 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /usr/sbin/astlog
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
+%files devel
+/opt/ives/include/medkit/*.h
+/opt/ives/include/astmedkit/*.h
+/opt/ives/%{_lib}/libmedkit.a
+
 %changelog
+* Fri Mar 14 2014 Emmanuel BUU <emmanuel.buu@ives.fr>
+- created libmedkit from mediaserver project
+- reimplemented mp4save with medkit
+
 * Wed Dec 5 2013 Philippe Verney <philippe.verney@ives.fr>
 - Fix pb de synchro audio / video h264
 - version 0.5.6

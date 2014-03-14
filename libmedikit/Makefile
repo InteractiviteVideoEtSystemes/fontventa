@@ -112,11 +112,26 @@ mp4format.o: astmedkit/mp4format.h medkit/media.h
 clean:
 	rm -f $(OBJS) libmedkit.a
 
+
+install32:
+	install -d $(DESTDIR)/opt/ives/lib
+	install libmedkit.a $(DESTDIR)/opt/ives/lib
+	echo "32 bits install"
+
+install64:
+	install -d $(DESTDIR)/opt/ives/lib64
+	install libmedkit.a $(DESTDIR)/opt/ives/lib64
+	echo "64 bits install"
+
+	
 install: libmedkit.a
-	rm -rf $(INSTALLPREFIX)/opt/ives/include
-	install -d $(INSTALLPREFIX)/opt/ives/lib
-	install -d $(INSTALLPREFIX)/opt/ives/include
-	install libmedkit.a $(INSTALLPREFIX)/opt/ives/lib
-	cp -rp medkit $(INSTALLPREFIX)/opt/ives/include
-	cp -rp astmedkit $(INSTALLPREFIX)/opt/ives/include
 	echo LIBMEDKIT installer
+	rm -rf $(DESTDIR)/opt/ives/include/medkit $(DESTDIR)/opt/ives/include/astmedkit
+	install -d $(DESTDIR)/opt/ives/include
+	cp -rp medkit $(DESTDIR)/opt/ives/include
+	cp -rp astmedkit $(DESTDIR)/opt/ives/include
+	@if [ "`uname -m`" == "x86_64" ] ; then make install64 ; else make install32 ; fi
+
+uninstall:
+	rm -rf $(DESTDIR)/opt/ives/include/medkit $(DESTDIR)/opt/ives/include/astmedkit
+	rm -f $(DESTDIR)/opt/ives/lib/libmedkit.a -f $(DESTDIR)/opt/ives/lib64/libmedkit.a
