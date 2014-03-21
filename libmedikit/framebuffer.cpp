@@ -40,7 +40,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 
 	//Add event
 	f2 = ast_frdup(f);
-	if (ignore_cseq) f2->seqno = dummtCseq++;
+	if (ignore_cseq) f2->seqno = dummyCseq++;
 	packets[seq] = f2;
 
 	//Unlock

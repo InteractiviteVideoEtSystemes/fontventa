@@ -50,7 +50,7 @@ public:
 		pthread_mutex_destroy(&mutex);
 	}
 
-	bool Add(const ast_frame * f, , bool ignore_cseq = false);
+	bool Add(const ast_frame * f, bool ignore_cseq = false);
 
 	void Cancel()
 	{
