@@ -32,6 +32,7 @@ public:
 		cancel = false;
 		//No next
 		next = (DWORD)-1;
+		dummyCseq = 0;
 		//Crete mutex
 		pthread_mutex_init(&mutex,NULL);
 		//Create condition
@@ -49,7 +50,7 @@ public:
 		pthread_mutex_destroy(&mutex);
 	}
 
-	bool Add(const ast_frame * f);
+	bool Add(const ast_frame * f, , bool ignore_cseq = false);
 
 	void Cancel()
 	{
@@ -141,6 +142,7 @@ private:
 	pthread_mutex_t		mutex;
 	pthread_cond_t		cond;
 	DWORD			next;
+	DWORD			dummyCseq;
 	DWORD			maxWaitTime;
 	int			bigJumps;
 	bool			blocking;
@@ -161,7 +163,8 @@ extern "C"
       *  @param fb jitterbuffer instance to consider
       *  @param[in]  f frame to post. f->ts must be correctly set.       
       */
-     int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f );
+     int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f );     
+     int AstFbAddFrameNoCseq( struct AstFb *fb, const struct ast_frame *f );
      struct ast_frame * AstFbGetFrame(struct AstFb *fb);
      uint32_t AstFbLength(struct AstFb *fb);
      void AstFbCancel(struct AstFb *fb);     

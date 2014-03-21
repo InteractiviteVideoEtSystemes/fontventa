@@ -2,11 +2,16 @@
 #include <astmedkit/framebuffer.h>
 
 
-bool AstFrameBuffer::Add(const ast_frame * f)
+bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 {
 	DWORD seq;
+	ast_frame * f2;
 		    
-	seq = f->seqno;
+	if (ignore_cseq)
+		seq = dummyCseq;
+	else
+		seq = f->seqno;
+		
 	
 	//Lock
 	pthread_mutex_lock(&mutex);
@@ -34,7 +39,9 @@ bool AstFrameBuffer::Add(const ast_frame * f)
 	}
 
 	//Add event
-	packets[seq] = ast_frdup(f);
+	f2 = ast_frdup(f);
+	if (ignore_cseq) f2->seqno = dummtCseq++;
+	packets[seq] = f2;
 
 	//Unlock
 	pthread_mutex_unlock(&mutex);
@@ -141,7 +148,12 @@ struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking)
 
 int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f )
 {
-	return ((AstFrameBuffer *) fb)->Add( f );
+	return ((AstFrameBuffer *) fb)->Add( f, false );
+}
+
+int AstFbAddFrameNoCseq( struct AstFb *fb, const struct ast_frame *f )
+{
+	return ((AstFrameBuffer *) fb)->Add( f, true );
 }
 
 struct ast_frame * AstFbGetFrame(struct AstFb *fb)
