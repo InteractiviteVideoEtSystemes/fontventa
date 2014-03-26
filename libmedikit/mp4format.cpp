@@ -154,7 +154,6 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
     if ( f->GetType() == MediaFrame::Audio )
     {
         const AudioFrame * f2 = ( AudioFrame *) f;
-		
 	if ( f2->GetCodec() == codec )
 	{
 	    DWORD duration;
@@ -210,6 +209,9 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 	}
 	else
 	{
+	    Log("Cannot process audio frame with codec %s. Track codec is set to %s.\n",
+		GetNameForCodec(MediaFrame::Audio, f2->GetCodec()), 
+		GetNameForCodec(MediaFrame::Audio, codec ) );		
 	    return -1;
 	}
     }
@@ -526,6 +528,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     textSeqNo = 0;
     vtc = NULL;
     this->waitVideo = waitVideo;
+    if ( !this->waitVideo ) Log("mp4recorder: created with waitVideo disabled.\n");
     audioencoder = NULL;
     depak = NULL;
     SetParticipantName( "participant" );
@@ -716,6 +719,8 @@ bool AstFormatToCodec( int format, AudioCodec::Type & codec )
 	    break;
 	
 	default:
+	    Log("AstFormatToCodec: unsupported ast_format %08lu.\n",
+		((unsigned int) format) & 0xFFFFFFFE );
 	    return false;
     }
     return true;
