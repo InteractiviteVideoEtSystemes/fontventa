@@ -95,7 +95,7 @@ public:
      *        -5 = could not record data (probably incorect MP4 file handle)
      **/
     int ProcessFrame( const MediaFrame * f, bool secondary = false );
-    void * GetCtxDate() { return ctxdata; }
+    void * GetCtxData() { return ctxdata; }
     
     void SetParticipantName( const char * name )
     {
@@ -121,6 +121,9 @@ public:
      *        -1: this recorder does not record video
      */
      int IsVideoStarted();
+
+
+     void SetWaitForVideo( bool wait ) { waitVideo = wait; }
 private:
     char partName[80];
     

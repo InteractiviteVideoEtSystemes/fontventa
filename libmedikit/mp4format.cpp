@@ -140,7 +140,8 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
     
     if ( mediatrack != MP4_INVALID_TRACK_ID )
     {
-	Log("-mp4recorder: opened audio track id:%d and hint track id:%d codec %s.\n", 
+	Log("-mp4recorder: opened audio track [%s] id:%d and hinttrack id:%d codec %s.\n", 
+	    (trackName != NULL) ? trackName : "unnamed",
 	    mediatrack, hinttrack, AudioCodec::GetNameFor((AudioCodec::Type) codec));
     }
     if ( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
@@ -275,7 +276,7 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 			MP4SetTrackName( mp4, mediatrack, this->trackName.c_str() );
 	}
 	
-	Log("-mp4recorder: created VIDEO track %s ID %d, hinttrack %d using codec %s.\n", 
+	Log("-mp4recorder: created video track [%s] id:%d, hinttrack id:%d using codec %s.\n", 
 	    this->trackName.c_str(), mediatrack, hinttrack, VideoCodec::GetNameFor( (VideoCodec::Type) codec));
 
 }
@@ -528,7 +529,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     textSeqNo = 0;
     vtc = NULL;
     this->waitVideo = waitVideo;
-    if ( !this->waitVideo ) Log("mp4recorder: created with waitVideo disabled.\n");
+    Log("mp4recorder: created with waitVideo %s.\n", waitVideo ? "enabled" : "disabled" );
     audioencoder = NULL;
     depak = NULL;
     SetParticipantName( "participant" );
@@ -968,7 +969,7 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
     if ( r != NULL)
     {
         r->SetParticipantName( partName );
-        if ( videoformat != NULL && strlen(videoformat) > 0 )
+        if ( videoformat != NULL && strlen(videoformat) > 0 && (chan->nativeformats & AST_FORMAT_VIDEO_MASK) != 0 )
         {
             // Hardcoded for now
 	    r->AddTrack(VideoCodec::H264, 640, 480, 256, partName, false );
@@ -995,7 +996,26 @@ int Mp4RecorderFrame( struct mp4rec * r, struct ast_frame * f )
    mp4recorder * r2 = (mp4recorder *) r;
 
    if (r2)
-	return r2->ProcessFrame(f);
+   {
+	int rez = r2->ProcessFrame(f);
+
+	if (rez == 0)
+	{
+	    struct ast_channel * chan = (struct ast_channel *) r2->GetCtxData();
+	    if ( chan != NULL && (chan->nativeformats & AST_FORMAT_VIDEO_MASK) == 0 )
+	    {
+		/* AUdio frame ignored because we are waiting for video but no video on this chan
+		 * do not wait for video anymore and ... process the frame.
+		 */
+		r2->SetWaitForVideo(false);
+		Log("-mp4recorder: disable video waiting as chan %s does not support video (process frame).\n",
+		    chan->name);
+		rez = r2->ProcessFrame(f);
+	    }
+	}
+
+	return rez;
+   }
    else
 	return -5;
 }
