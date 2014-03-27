@@ -183,7 +183,7 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 		}
 	    }
 	    prevts = f2->GetTimeStamp();
-	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, 0 );
+	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, 1 );
 	    sampleId++;
 
 	    if (hinttrack != MP4_INVALID_TRACK_ID)
