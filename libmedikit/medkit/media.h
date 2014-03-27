@@ -186,7 +186,8 @@ public:
 	    {
 	        buffer = (BYTE*) data;
 		length = size;
-	    }	
+	    }
+	    return true;
 	}
 
 	DWORD AppendMedia(const BYTE* data,DWORD size)

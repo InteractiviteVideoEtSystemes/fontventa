@@ -1,3 +1,5 @@
+#include <medkit/audiosilence.h>
+
 static unsigned char silence_alaw[] = 
 {
  0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 0xF5, 
@@ -52,3 +54,30 @@ static unsigned char silence_amr[] =
 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
+
+
+AudioFrame * GetSilenceFrame( AudioCodec::Type codec )
+{
+    AudioFrame * f;
+    switch (codec)
+    {
+        case AudioCodec::PCMU
+	    f = new AudioFrame(codec, 8000, false);
+	    f->SetMedia( (BYTE *) silence_ulaw, sizeof(silence_ulaw) );
+	    break;
+	    
+	case AudioCodec::AMR:
+	    f = new AudioFrame(codec, 8000, false);
+	    f->SetMedia( (BYTE *) silence_amr, sizeof(silence_amr) );
+	    break;
+
+	case AudioCodec::PCMA
+	    f = new AudioFrame(codec, 8000, false);
+	    f->SetMedia( (BYTE *) silence_alaw, sizeof(silence_alaw) );
+	    break;
+	    
+	default:
+	    f = null;
+    }
+    return f;
+}

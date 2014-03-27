@@ -6,6 +6,7 @@
 #include "medkit/log.h"
 #include "medkit/textencoder.h"
 #include "medkit/avcdescriptor.h"
+#include "medkit/audiosilence.h"
 #include "h264/h264.h"
 #include "h264/h264depacketizer.h"
 
@@ -161,21 +162,19 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 	    
 	    if (sampleId == 0)
 	    {
-		//const AudioFrame * f3 = AudioFrame::GetSilentFrame(codec);
-		
 		if ( initialDelay > 0 )
 		{
+			AudioFrame *silence = GetSilenceFrame( codec )
+			if (silence == NULL) silence = f;
 			duration = initialDelay*f2->GetRate()/1000;
 			Log("Adding %d ms of initial delay on audio track.\n", initialDelay);
+			MP4WriteSample(mp4, mediatrack, silence->GetData(), silence->GetLength(), duration, 0, 0 );
+			sampleId++;
 		}
 		else
 		{
 			duration = 20*f2->GetRate()/1000;
 		}
-	    }
-	    else if (sampleId == 1 && initialDelay > 0)
-	    {
-		duration = 20*f2->GetRate()/1000;
 	    }
 	    else
 	    {
@@ -459,18 +458,19 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	{
 		if ( initialDelay > 0 )
 		{
+			BYTE silence[4];
 			duration = initialDelay;
+			//Set size
+			data[0] = 0;
+			data[1] = 1;
+			data[2] = ' ';
+			MP4WriteSample( mp4, mediatrack, silence, 3, duration, 0, false );
 			Log("Adding %d ms of initial delay on text track.\n", initialDelay);
 		}
 		else
 		{
-		
-			duration = 20;
+			duration = 1;
 		}
-	}
-	else if (sampleId == 1 && initialDelay > 0)
-	{
-		duration = initialDelay;
 	}
 	else
 	{
@@ -511,10 +511,8 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	}
 
 	free(data);
-	    if ( sampleId > 1 ) return 1;
+	if ( sampleId > 1 ) return 1;
 	    
-	    //Initial duration - repeat the first frame
-	    if ( initialDelay > 0 ) ProcessFrame(f);
 
 	return 1;
     }
