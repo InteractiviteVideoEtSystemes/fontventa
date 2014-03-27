@@ -164,8 +164,8 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 	    {
 		if ( initialDelay > 0 )
 		{
-			AudioFrame *silence = GetSilenceFrame( codec )
-			if (silence == NULL) silence = f;
+			const AudioFrame *silence = GetSilenceFrame( codec );
+			if (silence == NULL) silence = f2;
 			duration = initialDelay*f2->GetRate()/1000;
 			Log("Adding %d ms of initial delay on audio track.\n", initialDelay);
 			MP4WriteSample(mp4, mediatrack, silence->GetData(), silence->GetLength(), duration, 0, 0 );
@@ -461,10 +461,9 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 			BYTE silence[4];
 			duration = initialDelay;
 			//Set size
-			data[0] = 0;
-			data[1] = 1;
-			data[2] = ' ';
-			MP4WriteSample( mp4, mediatrack, silence, 3, duration, 0, false );
+			silence[0] = 0;
+			silence[1] = 0;
+			MP4WriteSample( mp4, mediatrack, silence, 2, duration, 0, false );
 			Log("Adding %d ms of initial delay on text track.\n", initialDelay);
 		}
 		else

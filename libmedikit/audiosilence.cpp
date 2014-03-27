@@ -61,7 +61,7 @@ AudioFrame * GetSilenceFrame( AudioCodec::Type codec )
     AudioFrame * f;
     switch (codec)
     {
-        case AudioCodec::PCMU
+        case AudioCodec::PCMU:
 	    f = new AudioFrame(codec, 8000, false);
 	    f->SetMedia( (BYTE *) silence_ulaw, sizeof(silence_ulaw) );
 	    break;
@@ -71,13 +71,13 @@ AudioFrame * GetSilenceFrame( AudioCodec::Type codec )
 	    f->SetMedia( (BYTE *) silence_amr, sizeof(silence_amr) );
 	    break;
 
-	case AudioCodec::PCMA
+	case AudioCodec::PCMA:
 	    f = new AudioFrame(codec, 8000, false);
 	    f->SetMedia( (BYTE *) silence_alaw, sizeof(silence_alaw) );
 	    break;
 	    
 	default:
-	    f = null;
+	    f = NULL;
     }
     return f;
 }
