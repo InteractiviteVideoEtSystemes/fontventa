@@ -171,14 +171,16 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 			MP4WriteSample(mp4, mediatrack, silence->GetData(), silence->GetLength(), duration, 0, 0 );
 			sampleId++;
 		}
-		else
-		{
-			duration = 20*f2->GetRate()/1000;
-		}
+		duration = 20*f2->GetRate()/1000;
 	    }
 	    else
 	    {
 	        duration = (f->GetTimeStamp()-prevts)*f2->GetRate()/1000;
+		if ( duration > (200 *f2->GetRate()/1000 || prevts > f->GetTimeStamp() )
+		{
+		    // Inconsistend duration
+		    duration = 20*f2->GetRate()/1000;
+		}
 	    }
 	    prevts = f2->GetTimeStamp();
 	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, 0 );
