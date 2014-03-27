@@ -176,7 +176,7 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 	    else
 	    {
 	        duration = (f->GetTimeStamp()-prevts)*f2->GetRate()/1000;
-		if ( duration > (200 *f2->GetRate()/1000 || prevts > f->GetTimeStamp() )
+		if ( duration > (200 *f2->GetRate()/1000) || prevts > f->GetTimeStamp() )
 		{
 		    // Inconsistend duration
 		    duration = 20*f2->GetRate()/1000;
