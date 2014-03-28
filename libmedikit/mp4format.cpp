@@ -167,8 +167,8 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 			const AudioFrame *silence = GetSilenceFrame( codec );
 			if (silence == NULL) silence = f2;
 			duration = initialDelay*f2->GetRate()/1000;
-			Log("Adding %d ms of initial delay on audio track.\n", initialDelay);
-			MP4WriteSample(mp4, mediatrack, silence->GetData(), silence->GetLength(), duration, 0, 0 );
+			Log("Adding %d ms of initial delay on audio track id:%d.\n", initialDelay, mediatrack);
+			MP4WriteSample(mp4, mediatrack, silence->GetData(), silence->GetLength(), duration, 0, 1 );
 			sampleId++;
 		}
 		duration = 20*f2->GetRate()/1000;
@@ -313,7 +313,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		if ( initialDelay > 0 )
 		{
 			duration = initialDelay*90;
-			Log("Adding %d ms of initial delay on video track.\n", initialDelay);
+			Log("Adding %d ms of initial delay on video track id:%d.\n", initialDelay, mediatrack);
 		}
 		else
 		{
@@ -465,8 +465,8 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 			//Set size
 			silence[0] = 0;
 			silence[1] = 0;
-			MP4WriteSample( mp4, mediatrack, silence, 2, duration, 0, false );
-			Log("Adding %d ms of initial delay on text track.\n", initialDelay);
+			MP4WriteSample( mp4, mediatrack, silence, 2, duration, 0, true );
+			Log("Adding %d ms of initial delay on text track id:%d.\n", initialDelay, mediatrack);
 		}
 		else
 		{
@@ -497,7 +497,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	
 	memcpy(data+2,subtitle.c_str(), subsize);
 	    
-	MP4WriteSample( mp4, mediatrack, data, subsize+2, frameduration, 0, false );
+	MP4WriteSample( mp4, mediatrack, data, subsize+2, frameduration, 0, true );
 	    
 	if (duration > MAX_SUBTITLE_DURATION)
 	{
@@ -639,7 +639,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		if (waitVideo) 
 		    return 0;
 		    
-		if ( mediatracks[MP4_AUDIO_TRACK]->IsEmpty() && initialDelay > 0 )
+		if ( mediatracks[MP4_AUDIO_TRACK]->IsEmpty() )
 		{
 		    // adjust initial delay
 		    mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
@@ -654,6 +654,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		
 		if ( mediatracks[MP4_AUDIO_TRACK] )
 		{
+		    mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    if (waitVideo)  return 0;
 		    return mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
 		}
@@ -666,7 +667,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
 	    if ( mediatracks[trackidx] )
 	    {
-		if ( mediatracks[trackidx]->IsEmpty() && initialDelay > 0 )
+		if ( mediatracks[trackidx]->IsEmpty() )
 		{
 		    // adjust initial delay
 		    mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
@@ -689,6 +690,11 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	case MediaFrame::Text:
 	    if ( mediatracks[MP4_TEXT_TRACK] )
 	    {
+		if ( mediatracks[MP4_TEXT_TRACK]->IsEmpty() )
+		{
+		    // adjust initial delay
+		    mediatracks[MP4_TEXT_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
+		}
 	        if (waitVideo) return 0;
 	        return mediatracks[MP4_TEXT_TRACK]->ProcessFrame(f);
 	    }
@@ -699,6 +705,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		
 		if ( mediatracks[MP4_TEXT_TRACK] )
 		{
+		    mediatracks[MP4_TEXT_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    if (waitVideo)  return 0;
 		    if ( mediatracks[MP4_TEXT_TRACK]->IsEmpty() && initialDelay > 0 )
 		    {
@@ -770,7 +777,7 @@ void  mp4recorder::SetInitialDelay(unsigned long delay)
 {
     initialDelay = delay;
 
-    for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
+    for (int i =0; i < (MP4_TEXT_TRACK + 1); i++)
     {
         if ( mediatracks[i] )  mediatracks[i]->SetInitialDelay(delay);
     }
