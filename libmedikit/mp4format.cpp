@@ -299,7 +299,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		if ( f2->IsIntra() )
 		{
 		    videoStarted = true;
-		    Log("-mp4recorder: got the first I frame. Video recording starts.\n");
+		    Log("-mp4recorder: got the first I frame. Video recording starts on track id:%d.\n", mediatrack);
 		}
 		else
 		{
