@@ -1,0 +1,49 @@
+Name:      fontventa
+Version:   1.0.0
+#Ne pas enlever le .ives a la fin de la release !
+#Cela est utilise par les scripts de recherche de package.
+Release:   1.ives_distrib
+Summary:   [IVeS] librairies partag�es pour asterisk de Fontventa.
+Vendor:   IVeS
+Group:     Applications/Internet
+License: GPL
+URL:       http://www.ives.fr
+BuildArchitectures: ives_archi
+BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
+Requires:  ivespkg 
+BuildRequires: ffmpeg-devel >= 0.4.2, gcc-c++, asteriskv-devel
+
+%description
+Un ensemble de librairies partag�es pour asterisk de Fontventa.
+  
+%clean
+echo "############################# Clean"
+echo Clean du repertoire $RPM_BUILD_ROOT
+[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf "$RPM_BUILD_ROOT"
+
+%prep
+echo "Export du SVN ives"
+svn export http://svn.ives.fr/svn-libs-dev/asterisk/%name/tags/%version
+
+%build
+echo "Build"
+cd %version
+cd libmedikit
+make
+
+%install
+echo "############################# Install"
+cd %version
+make DESTDIR=$RPM_BUILD_ROOT install
+
+%files
+%defattr(-,root,root,-)
+%{_libdir}/
+#/usr/include/*.h
+/usr/bin/*
+/usr/sbin/astlog
+#%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
+
+%changelog
+* Wed May 7 2014 Emmanuel BUU <emmanuel.buu@ives.fr>
+- packaging of libmedkit
