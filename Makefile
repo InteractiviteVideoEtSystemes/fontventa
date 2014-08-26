@@ -1,12 +1,11 @@
 include ./Makeinclude
 
-all: app_mp4.so app_transcoder.so app_rtsp.so astlog 
-	echo "FOntventa compile"
+all: app_mp4.so  app_rtsp.so astlog 
+	echo "Fontventa compile"
 
 libmedikit:
-	cd libmedikit: make
-	
-	
+	cd libmedikit; make
+
 app_mp4.so:
 	cd app_mp4; make
 
@@ -21,15 +20,13 @@ astlog:
 
 install: all
 	cd app_mp4; make install
-	cd app_transcoder; make install
 	cd app_rtsp ; make install
 	cd tools ; make install
 	cd astlog ; make install
-	cd libmedikit: make install
+	cd libmedikit; make install
 
 clean:
 	cd app_mp4; make clean
-	cd app_transcoder; make clean
 	cd app_rtsp; make clean
 	cd astlog ; make clean
-	cd libmedikit: make clean
+	cd libmedikit; make clean

@@ -12,6 +12,7 @@ else
 fi
 echo "SYS_LIB=$DESTDIR_LIB" >Makeinclude
 
+
 #RPepertoire d'installation des fichiers so
 DESTDIR_MOD=$DESTDIR_LIB/asterisk/modules
 #Repertoire d'installation du fichier mp4tool
@@ -78,8 +79,8 @@ function copy_rpmInstall
     pwd
     cp $PROJET/app_mp4/app_mp4.so $1/$DESTDIR_MOD/app_mp4.so 
     chmod 755 $1/$DESTDIR_MOD/app_mp4.so
-    cp $PROJET/app_transcoder/app_transcoder.so $1/$DESTDIR_MOD/app_transcoder.so 
-    chmod 755 $1/$DESTDIR_MOD/app_transcoder.so
+    #cp $PROJET/app_transcoder/app_transcoder.so $1/$DESTDIR_MOD/app_transcoder.so 
+    #chmod 755 $1/$DESTDIR_MOD/app_transcoder.so
     cp $PROJET/app_rtsp/app_rtsp.so $1/$DESTDIR_MOD/app_rtsp.so 
     chmod 755 $1/$DESTDIR_MOD/app_rtsp.so
     cp $PROJET/tools/mp4tool $1/$DESTDIR_BIN/mp4tool

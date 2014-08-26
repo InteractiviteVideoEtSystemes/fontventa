@@ -1385,29 +1385,16 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 		vtc->encoderCtx->refs = 1;
 		vtc->encoderCtx->scenechange_threshold = 0;
 		vtc->encoderCtx->me_subpel_quality = 0;
-		vtc->encoderCtx->partitions = X264_PART_I8X8 | X264_PART_I8X8;
 		vtc->encoderCtx->me_method = ME_EPZS;
 		vtc->encoderCtx->trellis = 0;
   }
   else
+#endif
   {
     vtc->encoder = avcodec_find_encoder(CODEC_ID_H263);
     vtc->encoderCtx->mb_decision = FF_MB_DECISION_SIMPLE;
-    vtc->encoderCtx->flags |= CODEC_FLAG_PASS1;                 //PASS1
-    vtc->encoderCtx->flags &= ~CODEC_FLAG_H263P_UMV;            //unrestricted motion vector
-    vtc->encoderCtx->flags &= ~CODEC_FLAG_4MV;                  //advanced prediction
-    vtc->encoderCtx->flags &= ~CODEC_FLAG_AC_PRED;            //advanced intra coding*/
-    vtc->encoderCtx->flags |= CODEC_FLAG_H263P_SLICE_STRUCT;
+    vtc->encoderCtx->flags |= CODEC_FLAG_QSCALE;                 
   }
-#else
-	vtc->encoder = avcodec_find_encoder(CODEC_ID_H263);
-  vtc->encoderCtx->mb_decision = FF_MB_DECISION_SIMPLE;
-  vtc->encoderCtx->flags |= CODEC_FLAG_PASS1;                 //PASS1
-  vtc->encoderCtx->flags &= ~CODEC_FLAG_H263P_UMV;            //unrestricted motion vector
-  vtc->encoderCtx->flags &= ~CODEC_FLAG_4MV;                  //advanced prediction
-  vtc->encoderCtx->flags &= ~CODEC_FLAG_H263P_AIC;            //advanced intra coding*/
-  vtc->encoderCtx->flags |= CODEC_FLAG_H263P_SLICE_STRUCT;
-#endif
 	
 	/* Open encoder */
 	vtc->encoderOpened = avcodec_open(vtc->encoderCtx, vtc->encoder) != -1;
@@ -1509,7 +1496,6 @@ static void VideoTranscoderSetDecoder(struct VideoTranscoder *vtc,int codec)
   /* Set context parameters*/
   vtc->decoderCtx->workaround_bugs    = 1;
   vtc->decoderCtx->error_concealment  = FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
-	vtc->decoderCtx->flags |= CODEC_FLAG_PART;
 
   /* Open */
   avcodec_open(vtc->decoderCtx, vtc->decoder);

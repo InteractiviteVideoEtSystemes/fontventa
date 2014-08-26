@@ -22,8 +22,13 @@ INSTALL_PREFIX := /usr
 INSTALL_MODULES_DIR := $(INSTALL_PREFIX)/lib/asterisk/modules
 
 ASTERISK_INCLUDE_DIR := $(ASTERISKDIR)/include
-
-
+MACHINE := $(shell uname -m)
+ifeq ($(MACHINE), x86_64)
+libdir = /usr/lib64
+endif
+ifeq ($(MACHINE), i686)
+libdir = /usr/lib
+endif
 
 
 #
@@ -42,10 +47,10 @@ INSTALL = install
 CC = gcc 
 
 INCLUDE = 
-LIBS = $(SYS_LIB)/libswscale.a  $(SYS_LIB)/libavcodec.a $(SYS_LIB)/libavutil.a 
+LIBS = -L$(libdir)  -Wl,-Bstatic -lswscale  -lavcodec -lavutil   -Wl,-Bdynamic
 DEBUG := -g 
 
-CFLAGS =  -fPIC -DPIC -DAST_MODULE=\"app_transcoder\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -D_GNU_SOURCE -DVIDEOCAPS
+CFLAGS = -fPIC -fpic  -DAST_MODULE=\"app_transcoder\" -pipe -Wall $(DEBUG) -DVIDEOCAPS
 
 #
 # targets
@@ -57,7 +62,7 @@ clean:
 	rm -f *.so *.o $(OBJS)
 
 app_transcoder.so : $(OBJS)
-	$(CC) $(LIBS) -g -shared -Xlinker -x -o $@ $(OBJS)  
+	$(CC)  -g -shared -Xlinker -x  -o $@ $(OBJS)  $(LIBS) -fPIC 
 
 
 install: all
