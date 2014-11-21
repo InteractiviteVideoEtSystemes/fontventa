@@ -3284,27 +3284,23 @@ static int mp4_save(struct ast_channel *chan, void *data)
         {
 			    if (f->datalen > 0) 
 			    {
-            int idx = 0 ;
-            f->datalen = suppressT140BOM( (unsigned char*)f->data , f->datalen );
-            if (option_debug > 1)
-              ast_log(LOG_DEBUG, "Saving %d [0x%X] char of text.\n", f->datalen,((char*)f->data)[0]);
+		int idx = 0 ;
+		f->datalen = suppressT140BOM( (unsigned char*)f->data , f->datalen );
+		if (option_debug > 3)
+			ast_log(LOG_DEBUG, "Saving %d [0x%X] char of text.\n", f->datalen,((char*)f->data)[0]);
 
-            while ( idx <  f->datalen )
-            {
-              if ( (((char*)f->data)[idx] == 0x08) && ( IdxTxtBuff > 1 )  )
-              {
+		while ( idx <  f->datalen )
+		{
+		    if ( (((char*)f->data)[idx] == 0x08) && ( IdxTxtBuff > 1 )  )
+		    {
                 // 08  == $(B!G(B\b$(B!G(B (effacement arrière)  
                 IdxTxtBuff -- ;
               }
               else if (IdxTxtBuff < AST_MAX_TXT_SIZE )
               {
-                if ( isprint( ((char*)f->data)[idx]) )
-                {
                   // write txt on tmp buff 
                   txtBuff[IdxTxtBuff]= ((char*)f->data)[idx];
                   IdxTxtBuff ++ ;
-                }
-                else  ast_log(LOG_WARNING , "Ignore char idx[%d] car. code[0x%x]\n",(int)IdxTxtBuff,((char*)f->data)[idx]);
               }
               else
               {
