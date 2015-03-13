@@ -9,13 +9,24 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		    
 	if (ignore_cseq)
 	{
-		seq = dummyCseq & 0xFFFF;
+		seq = dummyCseq;
 		dummyCseq++;
 	}
 	else
 	{
-		dummyCseq = seq;
-		seq = f->seqno;
+		seq = f->seqno + cycle*0x10000;
+		if (f->seqno == 0xFFFF)
+		{
+			cycle++;
+		}
+		else if (seq < dummyCseq && dummyCseq-seq > 0xF000 )
+		{
+			// We missed the cycle because of packet loss ... 
+			cycle++;
+			// We need to reecompute seq
+			seq = f->seqno + cycle*0x10000;
+		}
+		dummyCseq = seq + 1;
 	}
 		
 	
@@ -23,7 +34,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	pthread_mutex_lock(&mutex);
 
 	//If already past
-	if (next!=(DWORD)-1 && seq < next)
+	if (next != (DWORD)-1 && seq < next)
 	{
 		bigJumps++;
 		//Unlock
@@ -46,7 +57,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 
 	//Add event
 	f2 = ast_frdup(f);
-	if (ignore_cseq) f2->seqno = seq;
+	if (ignore_cseq) f2->seqno = (seq & 0xFFFF);
 	packets[seq] = f2;
 
 	//Unlock

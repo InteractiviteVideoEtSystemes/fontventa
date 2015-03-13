@@ -38,6 +38,7 @@ public:
 		//Create condition
 		pthread_cond_init(&cond,NULL);
 		bigJumps = 0;
+		cycle = 0;
 		
 		this->blocking = blocking;
 	}
@@ -143,6 +144,7 @@ private:
 	pthread_cond_t		cond;
 	DWORD			next;
 	DWORD			dummyCseq;
+	DWORD			cycle;
 	DWORD			maxWaitTime;
 	int			bigJumps;
 	bool			blocking;
