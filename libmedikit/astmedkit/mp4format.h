@@ -9,6 +9,9 @@
 class Mp4Basetrack
 {
 public:
+    /**
+     *  Constructor to use when creating a new track on an MP4 file
+     */
     Mp4Basetrack(MP4FileHandle mp4, unsigned long initialDelay) 
     { 
         this->mp4 = mp4;
@@ -16,6 +19,7 @@ public:
 	mediatrack = MP4_INVALID_TRACK_ID;
 	hinttrack = MP4_INVALID_TRACK_ID;
 	this->initialDelay = initialDelay;
+	reading = false;
     }
 
     virtual ~Mp4Basetrack() {};
@@ -27,15 +31,22 @@ public:
     void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
     void IncreateInitialDelay(unsigned long delay) { initialDelay = initialDelay + delay; }
     bool IsEmpty() { return (sampleId == 0); }
+
+protected:
+    /**
+     *  Constructor to use when reading an existing track on an MP4 file
+     */
+    Mp4Basetrack(MP4FileHandle mp4, MP4TrackId trackId);
     
 protected:
-     MP4FileHandle mp4;
+     MP4FileHandle mp4;		
      MP4TrackId mediatrack;
      MP4TrackId hinttrack;
      int sampleId;
      unsigned long initialDelay;
      
      DWORD prevts;
+     bool reading;
 };
 
 
@@ -46,6 +57,9 @@ class H264Depacketizer;
 #define MP4_VIDEODOC_TRACK	2
 #define MP4_TEXT_TRACK  	3
 
+/**
+ *  Class that records a media stream into an MP4 file
+ */
 class mp4recorder 
 {
 public:
@@ -64,8 +78,11 @@ public:
     
     /**
      * Create a text track
+     * @param codec: codec to use
+     * @param trackName: name of MP4 track to create.
+     * @param textfile: file descriptor
      **/
-    int AddTrack(TextCodec::Type codec, const char * trackName);
+    int AddTrack(TextCodec::Type codec, const char * trackName, int textfile);
     
     /**
      * Process ONE asterisk frame and record it into the MP4 file
@@ -153,6 +170,36 @@ private:
     timeval firstframets;
 };
 
+/**
+ *  Class plays an MP4 file
+ */
+
+class mp4player 
+{
+public:
+    mp4player(void * ctxdata, MP4FileHandle mp4);
+    ~mp4player();
+
+    int OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs, bool cantranscode );
+    int OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs, bool cantranscode, bool secondary = false );
+   
+   /**
+    *  @param c: text codec to use
+    *  @param rendering : 0 = render as subtitles, 1 = render as realtime text, 2= render as video
+    */
+    int OpenTrack(TexttCodec::Type c, int rendering);
+    
+    /**
+     *  Obtain the next frame to play and the time to wait after having pushed the file.
+     */
+    int GetNextFrame( struct ast_frame * f, unsigned long & waittime );
+
+    int Rewind();
+    
+private:
+    void * ctxdata;
+    Mp4Basetrack * mediatracks[5];
+}
 #endif
 
 #ifdef __cplusplus
@@ -160,6 +207,7 @@ extern "C"
 {
 #endif
     struct mp4rec;
+    struct mp4play;
 
 /**
  * Create one MP4 recording or playing session for a given asterisk channel
@@ -170,9 +218,10 @@ extern "C"
  * does not support video, this flag is ignored.
  *
  * @param video format specification for transcoder
+ * @param textfile: file discriptor for a text file to record  
  * @return MP4 participant context for recording.
  */
-    struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat, const char * partName);
+    struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat, const char * partName, int textfile);
 
 /**
  * Process one ast_frame and record it into the MP4 file. Warning: packets must be reordered
@@ -204,6 +253,11 @@ extern "C"
      */
     void Mp4RecorderDestroy( struct mp4rec * r );
  
+    struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, bool transcodeVideo, int renderText);
+
+    int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p);
+    
+    void Mp4PlayerDestroy( struct mp4play * p );
 #ifdef __cplusplus
 }
 #endif

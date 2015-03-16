@@ -39,6 +39,7 @@ int TextEncoder::Accumulate(const std::wstring & text)
 	//If it has content
 	if (! text.empty())
 	{
+		int ret = 1;
 		//Search each character
 		for (int i=0;i<text.length();i++)
 		{
@@ -58,6 +59,7 @@ int TextEncoder::Accumulate(const std::wstring & text)
 					scroll.push_back(line);
 					//Empty it
 					line.clear();
+					ret = 2;
 					break;
 				//Check backspace
 				case 0x08:
@@ -84,6 +86,7 @@ int TextEncoder::Accumulate(const std::wstring & text)
 						scroll.push_back(line);
 						//Empty it
 						line.clear();
+						ret = 2;
 					}
 					else
 					{
@@ -100,6 +103,7 @@ int TextEncoder::Accumulate(const std::wstring & text)
 						scroll.push_back(line);
 						//Empty it
 						line.clear();
+						ret = 2;
 					}
 					break;
 
@@ -108,7 +112,9 @@ int TextEncoder::Accumulate(const std::wstring & text)
 					line.push_back(ch);
 			}
 		}
+		return ret;
 	}
+	return 0;
 }
 
 void TextEncoder::GetSubtitle(std::wstring & sub)
@@ -135,3 +141,31 @@ void TextEncoder::GetSubtitle(std::string & sub)
     UTF8Parser p(subw);
     p.Serialize(sub);
 }
+
+void TextEncoder::GetFirstHistoryLine(std::string & hist)
+{
+    if ( scroll.size() > 0 )
+    {
+	std::wstring & subw = scroll.back();
+	UTF8Parser p(subw);
+	p.Serialize(hist);
+    }
+    else
+    {
+	hist.clear();
+    }
+}
+
+void TextEncoder::GetCurrentLine(std::string & curline)
+{
+    if ( line.size() > 0 )
+    {
+	UTF8Parser p(line);
+	p.Serialize(curline);
+    }
+    else
+    {
+	curline.clear();
+    }
+}
+

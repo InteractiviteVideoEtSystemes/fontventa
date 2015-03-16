@@ -109,7 +109,7 @@ AACEncoder::~AACEncoder()
 		av_freep(&samples);
 }
 
-int AACEncoder::Encode (SWORD *in,int inLen,BYTE* out,int outLen)
+int AACEncoder::Encode(SWORD *in,int inLen,BYTE* out,int outLen)
 {
 	if (!inLen)
 		return 0;

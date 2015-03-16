@@ -10,6 +10,8 @@ public:
 	~TextEncoder();
 
 	int Accumulate(const std::wstring & text);
+	void GetCurrentLine(std::string & hist);
+	void GetFirstHistoryLine(std::string & hist);
 	void GetSubtitle(std::wstring & sub);
 	void GetSubtitle(std::string & sub);
 	TextFrame * GetSubTitle();

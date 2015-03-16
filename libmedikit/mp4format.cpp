@@ -82,13 +82,31 @@ private:
 class Mp4TextTrack : public Mp4Basetrack
 {
 public:
-    Mp4TextTrack(MP4FileHandle mp4, unsigned long delay) : Mp4Basetrack(mp4, delay) { }
+    Mp4TextTrack(MP4FileHandle mp4, int textfile, unsigned long delay) : Mp4Basetrack(mp4, delay) 
+    { 
+	this->textfile = textfile;
+    }
+    
+    virtual ~Mp4TextTrack(();
+    {
+	std::string curline;
+	
+	if ( textfile >= 0 ) 
+	{
+		// If there is an active text file, write it before closing
+		encoder.GetCurrentLine(curline);
+		if ( curline.length() > 0 )
+		    write( textfile, curline.c_str(); curline.length() );
+	}
+    }
+    
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
     
 private:
     TextEncoder encoder;
     MP4TrackId rawtexttrack;
+    int textfile;
 };
 
 int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
@@ -485,10 +503,20 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	
 	sampleId++;
 	
-	encoder.Accumulate( f2->GetWString() );
-	encoder.GetSubtitle(subtitle);
 	
+	if ( encoder.Accumulate( f2->GetWString() ) == 2)
+	{
+	    // Current line has just been flushed into history
+	    if ( textfile >= 0 ) 
+	    {
+	        // If there is an active text file, write it
+		encoder.GetFirstHistoryLine(subtitle);
+		write( textfile, subtitle.c_str(); subtitle.length() );
+	    }
+	}
+	encoder.GetSubtitle(subtitle);
 	unsigned int subsize = subtitle.length();
+	
 	BYTE* data = (BYTE*)malloc(subsize+2);
 
 	//Set size
@@ -591,11 +619,11 @@ int mp4recorder::AddTrack(VideoCodec::Type codec, DWORD width, DWORD height, DWO
     return 0;
 }
 
-int mp4recorder::AddTrack(TextCodec::Type codec, const char * trackName)
+int mp4recorder::AddTrack(TextCodec::Type codec, const char * trackName, int textfile)
 {
     if ( mediatracks[MP4_TEXT_TRACK] == NULL )
     {
-	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4, initialDelay);
+	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4, textfile, initialDelay);
 	if ( mediatracks[MP4_TEXT_TRACK] != NULL )
 	{
 	    char introsubtitle[200];
@@ -979,7 +1007,8 @@ void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size
     }
 }    
 
-struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, const char * videoformat, const char * partName)
+struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, bool waitVideo, 
+				  const char * videoformat, const char * partName, int textfile)
 {
     if ( (chan->nativeformats & AST_FORMAT_VIDEO_MASK) == 0 )
     {
@@ -1001,7 +1030,7 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
         }
 	
 	if ( chan->nativeformats & AST_FORMAT_TEXT_MASK )
-	        r->AddTrack( TextCodec::T140, partName );
+	        r->AddTrack( TextCodec::T140, partName, textfile );
 	
     }
     
@@ -1056,4 +1085,108 @@ void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms)
 	mp4recorder * r2 = (mp4recorder *) r;
 	
 	r2->SetInitialDelay(ms);
+}
+
+
+static int AstFormatToCodecList(int format, AudioCodec::Type codecList[], unsigned int maxSize)
+{
+    int i = 0;
+    
+    if ( i < maxSize && (format & AST_FORMAT_ULAW) )
+    {
+        codecList[i++] = AudioCodec::PCMU; 
+    }
+    
+    if ( i < maxSize && (format & AST_FORMAT_ALAW) )
+    {
+        codecList[i++] = AudioCodec::PCMA; 
+    }
+    
+    if ( i < maxSize && (format & AST_FORMAT_AMRNB) )
+    {
+        codecList[i++] = AudioCodec::AMR; 
+    }
+    
+    return i;
+}
+
+static int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsigned int maxSize)
+{
+    int i = 0;
+    
+    if ( i < maxSize && (format & AST_FORMAT_H264) )
+    {
+        codecList[i++] = VideoCodec::H264; 
+    }
+    
+    if ( i < maxSize && (format & AST_FORMAT_H263P) )
+    {
+        codecList[i++] = VideoCodec::H263_1998; 
+    }
+    
+    if ( i < maxSize && (format & AST_FORMAT_H263) )
+    {
+        codecList[i++] = VideoCodec::H263; 
+    }
+    
+    return i;
+}
+
+
+struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, bool transcodeVideo, int renderText)
+{
+	mp4player * p = new mp4player(vchan, mp4);
+	
+	if (p)
+	{
+	    int haveAudio           =  chan->nativeformats & AST_FORMAT_AUDIO_MASK ;
+	    int haveVideo           =  chan->nativeformats & AST_FORMAT_VIDEO_MASK ;  
+	    int haveText            =  chan->nativeformats & AST_FORMAT_TEXT_MASK ;  
+	    
+	    AudioCodec::Type acodecList[3];
+	    unsigned int nbACodecs = 0;
+	    AudioCodec::Type ac = -1;
+	    
+	    VideoCodec::Type vcodecList[3];
+	    unsigned int nbVCodecs = 0;
+	    VideoCodec::Type vc -1;
+	    
+	    TextCodec::Type tc = -1;
+	    
+	    if ( haveAudio )
+	    {
+		nbACodecs = AstFormatToCodecList(chan->nativeformats, acodecList, 3);
+	    }
+	    
+	    if ( haveVideo )
+	    {
+		nbVCodecs = AstFormatToCodecList(chan->nativeformats, vcodecList, 3);
+	    }
+	    
+	    if ( haveText )
+	    {
+	        if ( chan->nativeformats & AST_FORMAT_RED )
+		    tc = TextCodec::RED;
+		else
+		    tc = TextCodec::T140;
+	    }
+	    
+	    // Now iterate over tracks to open them
+	    MP4TrackId hintId = MP4FindTrackId(mp4, idxTrack, MP4_HINT_TRACK_TYPE, 0);
+	    MP4TrackId trackId;
+ 
+	    if (hintId == MP4_INVALID_TRACK_ID)
+	    {
+		Error("This MP4 files does not have any hint track. Cannot stream it.\n");
+		delete p;
+		return NULL;
+	    }
+	    
+	    while (hintId != MP4_INVALID_TRACK_ID)
+	    {
+	        /* Get associated track */
+		trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
+
+	    }
+        }	    
 }
