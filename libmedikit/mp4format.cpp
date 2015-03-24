@@ -728,8 +728,9 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    }
 	    else
 	    {
-	        /* auto create audi track if needed */
-	        AddTrack( TextCodec::T140, partName );
+	        /* auto create text track if needed */
+		const char * n = &partName[0];
+	        AddTrack( TextCodec::T140, n , 0);
 		
 		if ( mediatracks[MP4_TEXT_TRACK] )
 		{
@@ -1119,14 +1120,14 @@ static int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsign
         codecList[i++] = VideoCodec::H264; 
     }
     
-    if ( i < maxSize && (format & AST_FORMAT_H263P) )
+    if ( i < maxSize && (format & AST_FORMAT_H263_PLUS) )
     {
         codecList[i++] = VideoCodec::H263_1998; 
     }
     
     if ( i < maxSize && (format & AST_FORMAT_H263) )
     {
-        codecList[i++] = VideoCodec::H263; 
+        codecList[i++] = VideoCodec::H263_1996; 
     }
     
     return i;
@@ -1135,7 +1136,7 @@ static int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsign
 
 struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, bool transcodeVideo, int renderText)
 {
-	mp4player * p = new mp4player(vchan, mp4);
+	mp4player * p = new mp4player(chan, mp4);
 	
 	if (p)
 	{
@@ -1145,13 +1146,13 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 	    
 	    AudioCodec::Type acodecList[3];
 	    unsigned int nbACodecs = 0;
-	    AudioCodec::Type ac = -1;
+	    AudioCodec::Type ac = (AudioCodec::Type) -1;
 	    
 	    VideoCodec::Type vcodecList[3];
 	    unsigned int nbVCodecs = 0;
-	    VideoCodec::Type vc -1;
+	    VideoCodec::Type vc = (VideoCodec::Type)-1;
 	    
-	    TextCodec::Type tc = -1;
+	    TextCodec::Type tc = (TextCodec::Type) -1;
 	    
 	    if ( haveAudio )
 	    {
@@ -1166,7 +1167,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 	    if ( haveText )
 	    {
 	        if ( chan->nativeformats & AST_FORMAT_RED )
-		    tc = TextCodec::RED;
+		    tc = TextCodec::T140RED;
 		else
 		    tc = TextCodec::T140;
 	    }
