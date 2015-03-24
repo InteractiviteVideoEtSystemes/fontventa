@@ -187,7 +187,7 @@ public:
     *  @param c: text codec to use
     *  @param rendering : 0 = render as subtitles, 1 = render as realtime text, 2= render as video
     */
-    int OpenTrack(TexttCodec::Type c, int rendering);
+    int OpenTrack(TextCodec::Type c, int rendering);
     
     /**
      *  Obtain the next frame to play and the time to wait after having pushed the file.
@@ -199,7 +199,8 @@ public:
 private:
     void * ctxdata;
     Mp4Basetrack * mediatracks[5];
-}
+};
+
 #endif
 
 #ifdef __cplusplus

@@ -87,19 +87,7 @@ public:
 	this->textfile = textfile;
     }
     
-    virtual ~Mp4TextTrack(();
-    {
-	std::string curline;
-	
-	if ( textfile >= 0 ) 
-	{
-		// If there is an active text file, write it before closing
-		encoder.GetCurrentLine(curline);
-		if ( curline.length() > 0 )
-		    write( textfile, curline.c_str(); curline.length() );
-	}
-    }
-    
+    virtual ~Mp4TextTrack();
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
     
@@ -511,7 +499,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	    {
 	        // If there is an active text file, write it
 		encoder.GetFirstHistoryLine(subtitle);
-		write( textfile, subtitle.c_str(); subtitle.length() );
+		write( textfile, subtitle.c_str(), subtitle.length() );
 	    }
 	}
 	encoder.GetSubtitle(subtitle);
@@ -548,6 +536,18 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
     return 0;
 }
 
+Mp4TextTrack::~Mp4TextTrack()
+{
+        std::string curline;
+
+        if ( textfile >= 0 )
+        {
+                // If there is an active text file, write it before closing
+                encoder.GetCurrentLine(curline);
+                if ( curline.length() > 0 )
+                	write( textfile, curline.c_str(), curline.length() );
+        }
+}
 
 mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
 {

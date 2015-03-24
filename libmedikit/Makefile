@@ -3,7 +3,7 @@
 ###########################################
 MACHINE := $(shell uname -m)
 
-CUSTOM_ASTPATH=/cygdrive/d/svn/asterisk-1.4.x-videocaps/include
+#CUSTOM_ASTPATH=/cygdrive/d/svn/asterisk-1.4.x-videocaps/include
 
 ifeq ($(MACHINE), x86_64)
 libdir = /usr/lib64
