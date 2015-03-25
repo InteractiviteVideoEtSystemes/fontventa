@@ -9,10 +9,6 @@
 #include <pthread.h>
 #include <sys/time.h>
 
-extern FILE * logfile;
-extern FILE * errfile;
-
-
 #ifdef __cplusplus
 #include "tools.h"
 extern "C"
@@ -25,77 +21,14 @@ void LogCloseFile(void);
 }
 #endif
 
-#ifdef localtime_r
-#undef localtime_r
-#endif
 
-static inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
-{
-	struct timeval tv2;
+typedef int (*logfunc) (const char *msg, va_list arg );
 
-	struct tm tm;
-	char msstr[20];
-	gettimeofday(&tv2,NULL);
+void SetLogFunctions(logfunc dbg, logfunc log, logfunc err);
 
-	long ms = tv2.tv_usec/1000;
-	sprintf( msstr, "%03ld", ms );
-	localtime_r(&tv2.tv_sec, &tm);
-	strftime( buffer, bufSize, "%Y-%m-%dT%H:%M:%S.", &tm );
-	strcat(buffer, msstr); 
-	return buffer;
-}
-
-static inline int Log(const char *msg, ...)
-{
-	char buf[80];
-	
-	if (logfile == NULL) return 0;
-	va_list ap;
-	fprintf(logfile, "[0x%lx][%s][LOG]", (long) pthread_self(),LogFormatDateTime(buf, sizeof(buf)));
-	va_start(ap, msg);
-	vfprintf(logfile, msg, ap);
-	va_end(ap);
-	fflush(logfile);
-	return 1;
-}
-
-static inline int Log2(const char* prefix,const char *msg, ...)
-{
-	struct timeval tv2;
-	va_list ap;
-	
-	if (logfile == NULL) return 0;
-	gettimeofday(&tv2,NULL);
-	fprintf(logfile, "[0x%lx][%.10ld.%.3ld][LOG]%s ", (long) pthread_self(),(long)tv2.tv_sec,(long)tv2.tv_usec/1000,prefix);
-	va_start(ap, msg);
-	vfprintf(logfile, msg, ap);
-	va_end(ap);
-	fflush(logfile);
-	return 1;
-}
-
-static inline void Debug(const char *msg, ...)
-{
-	va_list ap;
-	va_start(ap, msg);
-	vprintf(msg, ap);
-	va_end(ap);
-	return ;
-}
-
-static inline int Error(const char *msg, ...)
-{
-	struct timeval tv2;
-	va_list ap;
-	
-	if (errfile == NULL) return 0;
-	gettimeofday(&tv2,NULL);
-	fprintf(errfile, "[0x%lx][%.10ld.%.3ld][ERR]", (long) pthread_self(),(long)tv2.tv_sec,(long)tv2.tv_usec/1000);
-	va_start(ap, msg);
-	vfprintf(errfile, msg, ap);
-	va_end(ap);
-	return 0;
-}
+int Log(const char *msg, ...);
+void Debug(const char *msg, ...);
+int Error(const char *msg, ...);
 
 static inline char PC(uint8_t b)
 {

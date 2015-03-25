@@ -916,8 +916,8 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    
 		    if ( ret == -1 && vtc != NULL)
 		    {
-			/* we need to transcode */
-			return VideoTranscoderProcessFrame( vtc, f );
+				/* we need to transcode */
+				return VideoTranscoderProcessFrame( vtc, f );
 		    }
 		    return ret;
 		}
@@ -1156,12 +1156,12 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 	    
 	    if ( haveAudio )
 	    {
-		nbACodecs = AstFormatToCodecList(chan->nativeformats, acodecList, 3);
+			nbACodecs = AstFormatToCodecList(chan->nativeformats, acodecList, 3);
 	    }
 	    
 	    if ( haveVideo )
 	    {
-		nbVCodecs = AstFormatToCodecList(chan->nativeformats, vcodecList, 3);
+			nbVCodecs = AstFormatToCodecList(chan->nativeformats, vcodecList, 3);
 	    }
 	    
 	    if ( haveText )
@@ -1172,22 +1172,25 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 		    tc = TextCodec::T140;
 	    }
 	    
-	    // Now iterate over tracks to open them
+		/* Get the first hint track */
 	    MP4TrackId hintId = MP4FindTrackId(mp4, idxTrack, MP4_HINT_TRACK_TYPE, 0);
 	    MP4TrackId trackId;
+		idxTrack = 0;
  
 	    if (hintId == MP4_INVALID_TRACK_ID)
 	    {
-		Error("This MP4 files does not have any hint track. Cannot stream it.\n");
-		delete p;
-		return NULL;
+			Error("This MP4 files does not have any hint track. Cannot stream it.\n");
+			delete p;
+			return NULL;
 	    }
 	    
 	    while (hintId != MP4_INVALID_TRACK_ID)
 	    {
+			// Now iterate over tracks to open them
 	        /* Get associated track */
-		trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
+			const char* nm = MP4GetTrackMediaDataName(mp4, hintId) ;
+			trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
 
 	    }
-        }	    
+    }	    
 }

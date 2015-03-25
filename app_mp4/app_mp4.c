@@ -481,7 +481,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	/* Parse input data */
 	if (!ast_strlen_zero(args.options) &&
 			ast_app_parse_options(mp4play_exec_options, &opts, opt_args, args.options)) {
-		ast_log(LOG_WARNING, "mp4play cannot partse options\n");
+		ast_log(LOG_WARNING, "mp4play cannot parse options\n");
 		res = -1;
 		goto clean;
 	}
@@ -614,8 +614,6 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		
 		if (ms > 0)
 		{
-		    
-		    
 		    int proctime;
 		    struct ast_frame * f = ast_read(chan);
 		    res = mp4_play_process_frame(f, dtmfBuffer);
@@ -955,7 +953,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 		            "mp4_save: recording stopping because DTMF %c was pressed.\n", 
 			    (char) f->subclass );
 			onrecord = 0;
-<<<			ast_frfree(f);
+			ast_frfree(f);
 		    }
 		    break;
 		
