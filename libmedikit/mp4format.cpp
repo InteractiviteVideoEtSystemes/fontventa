@@ -172,8 +172,16 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 		{
 			const AudioFrame *silence = GetSilenceFrame( codec );
 			if (silence == NULL) silence = f2;
-			duration = initialDelay*f2->GetRate()/1000;
+			// Add frame of 80 ms
 			Log("Adding %d ms of initial delay on audio track id:%d.\n", initialDelay, mediatrack);
+			for ( DWORD d = 0; d < initialDelay; d += 80 )
+			{
+			    if ( initialDelay - d > 80 )
+				duration = 80;
+			    else
+				duration = initialDelay - d;
+			}
+			duration = duration*f2->GetRate()/1000;
 			MP4WriteSample(mp4, mediatrack, silence->GetData(), silence->GetLength(), duration, 0, 1 );
 			sampleId++;
 		}

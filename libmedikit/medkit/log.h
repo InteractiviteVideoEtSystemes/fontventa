@@ -27,7 +27,7 @@ typedef int (*logfunc) (const char *msg, va_list arg );
 void SetLogFunctions(logfunc dbg, logfunc log, logfunc err);
 
 int Log(const char *msg, ...);
-void Debug(const char *msg, ...);
+int Debug(const char *msg, ...);
 int Error(const char *msg, ...);
 
 static inline char PC(uint8_t b)
