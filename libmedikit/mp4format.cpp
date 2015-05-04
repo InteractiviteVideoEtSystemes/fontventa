@@ -16,6 +16,9 @@
 #define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data))
 #endif
 
+static int AstFormatToCodecList(int format, AudioCodec::Type codecList[], unsigned int maxSize);
+static int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsigned int maxSize);
+
 class Mp4AudioTrack : public Mp4Basetrack
 {
 public:
@@ -1169,7 +1172,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			unsigned int nbACodecs = 0;
 			AudioCodec::Type ac = (AudioCodec::Type) -1;
 
-			if ( ! AstFormatToCodecList(chan->writeformat, ac) )
+			if ( ! AstFormatToCodecList(chan->writeformat, ac, 3) )
 			{
 				delete p;
 				Error("mp4play: Failed to obtain preferred audio codec for chan %s\n", chan->name);
@@ -1190,7 +1193,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			unsigned int nbVCodecs = 0;
 			VideoCodec::Type vc = (VideoCodec::Type)-1;
 
-			if ( AstFormatToCodecList(chan->writeformat, vc) )
+			if ( AstFormatToCodecList(chan->writeformat, vc, 3) )
 			{
 				delete p;
 				Error("mp4play: Failed to obtain preferred video codec for chan %s\n", chan->name);
