@@ -1177,7 +1177,6 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 {
 	mp4player * p2 = (mp4player *) p;
-	MediaFrame * f;
 	unsigned long wait = 0;
 	int ret;
 	
@@ -1187,22 +1186,22 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 	{		
 		if ( f->HasRtpPacketizationInfo() )
 		{
-			MediaFrame::RtpPacketizationInfo pinfo = f->GetRtpPacketizationInfo();
+			MediaFrame::RtpPacketizationInfo & pinfo = f->GetRtpPacketizationInfo();
 			struct ast_frame f2;
-			if ( ! MediaFrameToAstFrame(f, &f2) )
+			if ( ! MediaFrameToAstFrame(f, f2) )
 			{
 				return -5; /* incompatible codec read from MP4 file or unsupported media */
 			}
 			
 			for( MediaFrame::RtpPacketizationInfo::iterator it = pinfo.begin() ;
-				 it != pinfo.end ;
+				 it != pinfo.end() ;
 				 it++ )
 			
 			{
-				MediaFrame::RtpPacketization & rtp = *it;
-				f2.data = f->GetData() + rtp.GetPos();
-				f2.datalen = rtp.GetSize();
-				if ( rtp.IsMark() ) f2.subclass |= 1;
+				MediaFrame::RtpPacketization * rtp = *it;
+				f2.data = f->GetData() + rtp->GetPos();
+				f2.datalen = rtp->GetSize();
+				if ( rtp->IsMark() ) f2.subclass |= 1;
 				
 				if ( ast_write(chan, &f2) < 0)
 				{

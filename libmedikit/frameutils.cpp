@@ -1,6 +1,11 @@
 #include <asterisk/frame.h>
+#include "medkit/astcpp.h"
 #include "medkit/media.h"
+#include "medkit/audio.h"
+#include "medkit/video.h"
+#include "medkit/text.h"
 #include "medkit/codecs.h"
+#include "medkit/log.h"
 
 int AstFormatToCodecList(int format, AudioCodec::Type codecList[], unsigned int maxSize)
 {
@@ -46,6 +51,50 @@ int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsigned int 
     return i;
 }
 
+int CodecToAstFormat( AudioCodec::Type ac, int & fmt )
+{
+    switch(ac)
+    {
+	case AudioCodec::PCMU:
+	    fmt |= AST_FORMAT_ULAW;
+	    break;
+
+	case AudioCodec::PCMA:
+	    fmt |= AST_FORMAT_ALAW;
+	    break;
+
+	case AudioCodec::AMR:
+	    fmt |= AST_FORMAT_AMRNB;
+	    break;
+
+	default:
+	    return 0;
+    }
+    return 1;
+}
+
+int CodecToAstFormat( VideoCodec::Type vc, int & fmt )
+{
+    switch(vc)
+    {
+	case VideoCodec::H264:
+	    fmt |= AST_FORMAT_H264;
+	    break;
+
+	case VideoCodec::H263_1996:
+	    fmt |= AST_FORMAT_H263;
+	    break;
+
+	case VideoCodec::H263_1998:
+	    fmt |= AST_FORMAT_H263_PLUS;
+	    break;
+
+	default:
+	    return 0;
+    }
+    return 1;
+}
+
 bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 {
 	static const char *MP4PLAYSRC = "mp4play";
@@ -78,13 +127,10 @@ bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 			break;
 			
 		case MediaFrame::Text:
+			/* todo = passer un argument suppa */
 			tf = (TextFrame *) mf;
 			astf.frametype = AST_FRAME_TEXT;
-			if ( ! CodecToAstFormat(tf->GetCodec(), astf.subclass ) )
-			{
-				Debug("Codec %s is not supported by asterisk.\n", TextCodec::GetNameFor(tf->GetCodec()) );
-				return false;
-			}
+		   	astf.subclass = AST_FORMAT_RED;
 			break;
 		
 		default:
@@ -94,6 +140,6 @@ bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 	
 	astf.flags = 0; /* nothing is malloc'ed */
 	astf.data = mf->GetData();
-	astf.datalen = mf->GetSize();
+	astf.datalen = mf->GetLength();
 	return true;
 }

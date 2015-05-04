@@ -1,5 +1,5 @@
 #include <medkit/log.h>
-#include <mp4v2/general.h>
+#include <mp4v2/mp4v2.h>
 
 #ifdef localtime_r
 #undef localtime_r
@@ -157,7 +157,7 @@ static void  MP4LogCB(MP4LogLevel loglevel, const char* fmt, va_list ap)
 			break;
 			
 		default:
-			FunctionDebug(msg, ap);
+			FunctionDebug(fmt, ap);
 			break;
 	}
 }

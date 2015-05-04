@@ -22,3 +22,7 @@ int AstFormatToCodecList(int format, VideoCodec::Type & vc)
 }
 
 bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf);
+
+int CodecToAstFormat( AudioCodec::Type ac, int & fmt );
+int CodecToAstFormat( VideoCodec::Type vc, int & fmt );
+
