@@ -1237,8 +1237,8 @@ static bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 	{
 		case MediaFrame::Audio:
 			af = (AudioFrame *) mf;
-			astf->frametype = AST_FRAME_VOICE;
-			if ( ! CodecToAstFormat(af->GetCodec(), astf->subclass ) )
+			astf.frametype = AST_FRAME_VOICE;
+			if ( ! CodecToAstFormat(af->GetCodec(), astf.subclass ) )
 			{
 				Debug("Codec %s is not supported by asterisk.\n", AudioCodec::GetNameFor(af->GetCodec()) );
 				return false;
@@ -1247,8 +1247,8 @@ static bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 			
 		case MediaFrame::Video:
 			vf = (VideoFrame *) mf;
-			astf->frametype = AST_FRAME_VIDEO;
-			if ( ! CodecToAstFormat(vf->GetCodec(), astf->subclass ) )
+			astf.frametype = AST_FRAME_VIDEO;
+			if ( ! CodecToAstFormat(vf->GetCodec(), astf.subclass ) )
 			{
 				Debug("Codec %s is not supported by asterisk.\n", VideoCodec::GetNameFor(vf->GetCodec()) );
 				return false;
@@ -1257,8 +1257,8 @@ static bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 			
 		case MediaFrame::Text:
 			tf = (TextFrame *) mf;
-			astf->frametype = AST_FRAME_TEXT;
-			if ( ! CodecToAstFormat(tf->GetCodec(), astf->subclass ) )
+			astf.frametype = AST_FRAME_TEXT;
+			if ( ! CodecToAstFormat(tf->GetCodec(), astf.subclass ) )
 			{
 				Debug("Codec %s is not supported by asterisk.\n", TextCodec::GetNameFor(tf->GetCodec()) );
 				return false;
@@ -1270,6 +1270,9 @@ static bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 			return false;
 	}
 	
+	astf.flags = 0; /* nothing is malloc'ed */
+	astf.data = mf->GetData();
+	astf.data = mf->GetDataLen();
 	return true;
 }
 
