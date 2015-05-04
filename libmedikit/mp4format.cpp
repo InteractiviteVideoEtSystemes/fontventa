@@ -2,6 +2,7 @@
 #include <asterisk/channel.h>
 #include "medkit/astcpp.h"
 #include "astmedkit/mp4format.h"
+#include "astmedkit/frameutils.h"
 #include "medkit/red.h"
 #include "medkit/log.h"
 #include "medkit/textencoder.h"
@@ -9,25 +10,6 @@
 #include "medkit/audiosilence.h"
 #include "h264/h264.h"
 #include "h264/h264depacketizer.h"
-
-#if ASTERISK_VERSION_NUM > 10000   // 10600
-#define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data.ptr))
-#else
-#define AST_FRAME_GET_BUFFER(fr)        ((uint8_t *)((fr)->data))
-#endif
-
-static int AstFormatToCodecList(int format, AudioCodec::Type codecList[], unsigned int maxSize);
-static int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsigned int maxSize);
-
-static inline int AstFormatToCodecList(int format, AudioCodec::Type & ac)
-{
-	return AstFormatToCodecList(format, &ac, 1);
-}
-
-static int AstFormatToCodecList(int format, VideoCodec::Type & vc)
-{
-	return AstFormatToCodecList(format, &vc, 1);
-}
 
 class Mp4AudioTrack : public Mp4Basetrack
 {
@@ -1116,52 +1098,6 @@ void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms)
 	r2->SetInitialDelay(ms);
 }
 
-
-static int AstFormatToCodecList(int format, AudioCodec::Type codecList[], unsigned int maxSize)
-{
-    int i = 0;
-    
-    if ( i < maxSize && (format & AST_FORMAT_ULAW) )
-    {
-        codecList[i++] = AudioCodec::PCMU; 
-    }
-    
-    if ( i < maxSize && (format & AST_FORMAT_ALAW) )
-    {
-        codecList[i++] = AudioCodec::PCMA; 
-    }
-    
-    if ( i < maxSize && (format & AST_FORMAT_AMRNB) )
-    {
-        codecList[i++] = AudioCodec::AMR; 
-    }
-    
-    return i;
-}
-
-static int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsigned int maxSize)
-{
-    int i = 0;
-    
-    if ( i < maxSize && (format & AST_FORMAT_H264) )
-    {
-        codecList[i++] = VideoCodec::H264; 
-    }
-    
-    if ( i < maxSize && (format & AST_FORMAT_H263_PLUS) )
-    {
-        codecList[i++] = VideoCodec::H263_1998; 
-    }
-    
-    if ( i < maxSize && (format & AST_FORMAT_H263) )
-    {
-        codecList[i++] = VideoCodec::H263_1996; 
-    }
-    
-    return i;
-}
-
-
 struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, bool transcodeVideo, int renderText)
 {
 	mp4player * p = new mp4player(chan, mp4);
@@ -1237,57 +1173,6 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 
 
 
-static bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
-{
-	static const char *MP4PLAYSRC = "mp4play";
-	AudioFrame * af;
-	VideoFrame * vf;
-	TextFrame  * tf;
-	
-	memset(&astf, 0, sizeof(astf));
-	astf.src = MP4PLAYSRC;
-	switch( mf->GetType() )
-	{
-		case MediaFrame::Audio:
-			af = (AudioFrame *) mf;
-			astf.frametype = AST_FRAME_VOICE;
-			if ( ! CodecToAstFormat(af->GetCodec(), astf.subclass ) )
-			{
-				Debug("Codec %s is not supported by asterisk.\n", AudioCodec::GetNameFor(af->GetCodec()) );
-				return false;
-			}
-			break;
-			
-		case MediaFrame::Video:
-			vf = (VideoFrame *) mf;
-			astf.frametype = AST_FRAME_VIDEO;
-			if ( ! CodecToAstFormat(vf->GetCodec(), astf.subclass ) )
-			{
-				Debug("Codec %s is not supported by asterisk.\n", VideoCodec::GetNameFor(vf->GetCodec()) );
-				return false;
-			}
-			break;
-			
-		case MediaFrame::Text:
-			tf = (TextFrame *) mf;
-			astf.frametype = AST_FRAME_TEXT;
-			if ( ! CodecToAstFormat(tf->GetCodec(), astf.subclass ) )
-			{
-				Debug("Codec %s is not supported by asterisk.\n", TextCodec::GetNameFor(tf->GetCodec()) );
-				return false;
-			}
-			break;
-		
-		default:
-			Debug("Media %s is not supported by asterisk.\n", MediaFrame::TypeToString(mf->GetType()) );
-			return false;
-	}
-	
-	astf.flags = 0; /* nothing is malloc'ed */
-	astf.data = mf->GetData();
-	astf.data = mf->GetSize();
-	return true;
-}
 
 int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 {

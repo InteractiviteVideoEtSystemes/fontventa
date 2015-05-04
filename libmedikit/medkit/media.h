@@ -206,6 +206,14 @@ public:
 		//Return previous pos
 		return pos;
 	}
+
+	/*
+	 * Create packetization info by parsing media
+	 */
+	virtual bool Packetize()
+	{
+		return false;
+	}
 	
 protected:
 	Type type;
