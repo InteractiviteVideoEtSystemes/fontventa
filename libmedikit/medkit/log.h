@@ -14,8 +14,10 @@
 extern "C"
 {
 #endif
+
 int LogOpenFile(const char * filename);
 void LogCloseFile(void);
+void LogActivateLogsOfExtLibs(int level);
 
 #ifdef __cplusplus
 }

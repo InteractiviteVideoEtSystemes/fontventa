@@ -1,9 +1,11 @@
 #include <medkit/log.h>
+#include <mp4v2/general.h>
 
 #ifdef localtime_r
 #undef localtime_r
 #endif
 
+static void  MP4LogCB(MP4LogLevel loglevel, const char* fmt, va_list ap);
 
 FILE * logfile = NULL;
 FILE * errfile = NULL;
@@ -33,6 +35,32 @@ void LogCloseFile()
         logfile = stdout;
     }
     errfile = stderr;
+}
+
+void LogActivateLogsOfExtLibs(int level)
+{
+	MP4LogCallback(MP4LogCB);
+	
+	switch (level)
+	{
+		case 0:
+			MP4LogSetLevel(MP4_LOG_NONE);
+			break;
+			
+		case 1:
+			MP4LogSetLevel(MP4_LOG_ERROR);
+			break;
+			
+		case 2:
+			MP4LogSetLevel(MP4_LOG_INFO);
+			break;
+			
+		case 3:
+		default:
+			MP4LogSetLevel(MP4_LOG_VERBOSE3);
+			break;
+			
+	}
 }
 
 static inline const char *LogFormatDateTime(char *buffer, size_t bufSize)
@@ -112,4 +140,24 @@ int Error(const char *msg, ...)
 	FunctionError(msg, ap);
 	va_end(ap);
 	return 0;
+}
+
+static void  MP4LogCB(MP4LogLevel loglevel, const char* fmt, va_list ap)
+{
+	switch (loglevel)
+	{
+		case MP4_LOG_ERROR:
+		case MP4_LOG_NONE:
+			FunctionError(fmt, ap);
+			break;
+			
+		case MP4_LOG_WARNING:
+		case MP4_LOG_INFO:
+			FunctionLog(fmt, ap);
+			break;
+			
+		default:
+			FunctionDebug(msg, ap);
+			break;
+	}
 }

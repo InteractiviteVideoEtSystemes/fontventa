@@ -15,13 +15,22 @@ public:
     Mp4Basetrack(MP4FileHandle mp4, unsigned long initialDelay) 
     { 
         this->mp4 = mp4;
-	sampleId = 0;
-	mediatrack = MP4_INVALID_TRACK_ID;
-	hinttrack = MP4_INVALID_TRACK_ID;
-	this->initialDelay = initialDelay;
-	reading = false;
+		sampleId = 0;
+		mediatrack = MP4_INVALID_TRACK_ID;
+		hinttrack = MP4_INVALID_TRACK_ID;
+		this->initialDelay = initialDelay;
+		reading = false;
     }
 
+	Mp4Basetrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack)
+	{
+		this->mp4 = mp4;
+		this->mediatrack = mediaTrack;
+		this->hinttrack = hinttrack;
+		reading = true;
+		this->initialDelay = 0;
+	}
+	
     virtual ~Mp4Basetrack() {};
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate) = 0;
@@ -180,8 +189,8 @@ public:
     mp4player(void * ctxdata, MP4FileHandle mp4);
     ~mp4player();
 
-    int OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs, bool cantranscode );
-    int OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs, bool cantranscode, bool secondary = false );
+    int OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs, AudioCodec::Type prefCodec, bool cantranscode );
+    int OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs, VideoCodec::Type prefCodec, bool cantranscode, bool secondary = false );
    
    /**
     *  @param c: text codec to use
@@ -190,9 +199,10 @@ public:
     int OpenTrack(TextCodec::Type c, int rendering);
     
     /**
-     *  Obtain the next frame to play and the time to wait after having pushed the file.
+     *  Obtain the next frame to play and the time to wait after having pushed the frame.
+	 * DO NOT RELEASE OBTAINED MEDIA FRAME, memmory is managed by mediatrack
      */
-    int GetNextFrame( struct ast_frame * f, unsigned long & waittime );
+    MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime );
 
     int Rewind();
     
@@ -253,7 +263,14 @@ extern "C"
      *  @param r: instance of mp4 recorder
      */
     void Mp4RecorderDestroy( struct mp4rec * r );
- 
+
+	/**
+	 * Create an instance of MP4 player
+	 * @param chan asterisk channel to associate with this player. nativeformats and writeformat needs to be correctly set
+	 * @param mp4 MP4 File handle
+	 * @param transcodeVideo true if video transcoding is authorized (takes more CPU)
+	 * @param renderText 0 = render as subtitle (ocompelte sencences) 1 = render as realtime text, 2 = render in video (not supported yet)
+	 */
     struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, bool transcodeVideo, int renderText);
 
     int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p);

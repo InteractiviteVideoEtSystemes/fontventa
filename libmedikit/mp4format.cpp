@@ -34,13 +34,13 @@ public:
     Mp4VideoTrack(MP4FileHandle mp4, unsigned long delay) : Mp4Basetrack(mp4, delay)
     {
         width = 0;
-	height =0;
-	videoStarted = false;
-	AVCProfileIndication 	= 0x42;	//Baseline
-	AVCLevelIndication	= 0x0D;	//1.3
-	AVCProfileCompat	= 0xC0;
-	hasSPS = false;
-	hasPPS = false;
+		height =0;
+		videoStarted = false;
+		AVCProfileIndication 	= 0x42;	//Baseline
+		AVCLevelIndication	= 0x0D;	//1.3
+		AVCProfileCompat	= 0xC0;
+		hasSPS = false;
+		hasPPS = false;
     }
     
     void SetSize(DWORD width, DWORD height)
@@ -1001,6 +1001,13 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
     }
 }
 
+
+int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs, AudioCodec::Type prefCodec, bool cantranscode )
+{
+	
+}
+
+
 /* ---- callbeck used for video transcoding --- */
 
 void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size_t outputlen)
@@ -1152,24 +1159,51 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 	    int haveVideo           =  chan->nativeformats & AST_FORMAT_VIDEO_MASK ;  
 	    int haveText            =  chan->nativeformats & AST_FORMAT_TEXT_MASK ;  
 	    
-	    AudioCodec::Type acodecList[3];
-	    unsigned int nbACodecs = 0;
-	    AudioCodec::Type ac = (AudioCodec::Type) -1;
 	    
-	    VideoCodec::Type vcodecList[3];
-	    unsigned int nbVCodecs = 0;
-	    VideoCodec::Type vc = (VideoCodec::Type)-1;
 	    
 	    TextCodec::Type tc = (TextCodec::Type) -1;
 	    
 	    if ( haveAudio )
 	    {
+			AudioCodec::Type acodecList[3];
+			unsigned int nbACodecs = 0;
+			AudioCodec::Type ac = (AudioCodec::Type) -1;
+
+			if ( ! AstFormatToCodecList(chan->writeformat, ac) )
+			{
+				delete p;
+				Error("mp4play: Failed to obtain preferred audio codec for chan %s\n", chan->name);
+				return NULL;
+			}
+			
 			nbACodecs = AstFormatToCodecList(chan->nativeformats, acodecList, 3);
+			
+			if ( p->OpenTrack(acodecList, nbACodecs, ac, true) < 0 )
+			{
+				Error("mp4play: [%s] No suitable audio track found.\n", chan->name);
+			}
 	    }
 	    
 	    if ( haveVideo )
 	    {
+			VideoCodec::Type vcodecList[3];
+			unsigned int nbVCodecs = 0;
+			VideoCodec::Type vc = (VideoCodec::Type)-1;
+
+			if ( AstFormatToCodecList(chan->writeformat, vc) )
+			{
+				delete p;
+				Error("mp4play: Failed to obtain preferred video codec for chan %s\n", chan->name);
+				return NULL;
+			}
+			
+			vc = vcodecList[0];
 			nbVCodecs = AstFormatToCodecList(chan->nativeformats, vcodecList, 3);
+			
+			if ( p->OpenTrack(acodecList, nbVCodecs, vc, transcodeVideo, false) < 0 )
+			{
+				Error("mp4play: [%s]  No suitable video track found.\n", chan->name);
+			}			
 	    }
 	    
 	    if ( haveText )
@@ -1179,26 +1213,117 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 		else
 		    tc = TextCodec::T140;
 	    }
-	    
-		/* Get the first hint track */
-	    MP4TrackId hintId = MP4FindTrackId(mp4, idxTrack, MP4_HINT_TRACK_TYPE, 0);
-	    MP4TrackId trackId;
-		idxTrack = 0;
- 
-	    if (hintId == MP4_INVALID_TRACK_ID)
-	    {
-			Error("This MP4 files does not have any hint track. Cannot stream it.\n");
-			delete p;
-			return NULL;
-	    }
-	    
-	    while (hintId != MP4_INVALID_TRACK_ID)
-	    {
-			// Now iterate over tracks to open them
-	        /* Get associated track */
-			const char* nm = MP4GetTrackMediaDataName(mp4, hintId) ;
-			trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
+		
+		if ( p->OpenTrack(tc, renderText) < 0 )
+		{
+			Error("mp4play: [%s]  No suitable video track found.\n", chan->name);
+		}			
+    }
+	return p;
+}
 
-	    }
-    }	    
+
+
+static bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
+{
+	static char *MP4PLAYSRC = "mp4play";
+	AudioFrame * af;
+	VideoFrame * vf;
+	TextFrame  * tf;
+	
+	memset(astf, 0, sizeof(*astf));
+	astf->src = MP4PLAYSRC;
+	switch( mf->GetType() )
+	{
+		case MediaFrame::Audio:
+			af = (AudioFrame *) mf;
+			astf->frametype = AST_FRAME_VOICE;
+			if ( ! CodecToAstFormat(af->GetCodec(), astf->subclass ) )
+			{
+				Debug("Codec %s is not supported by asterisk.\n", AudioCodec::GetNameFor(af->GetCodec()) );
+				return false;
+			}
+			break;
+			
+		case MediaFrame::Video:
+			vf = (VideoFrame *) mf;
+			astf->frametype = AST_FRAME_VIDEO;
+			if ( ! CodecToAstFormat(vf->GetCodec(), astf->subclass ) )
+			{
+				Debug("Codec %s is not supported by asterisk.\n", VideoCodec::GetNameFor(vf->GetCodec()) );
+				return false;
+			}
+			break;
+			
+		case MediaFrame::Text:
+			tf = (TextFrame *) mf;
+			astf->frametype = AST_FRAME_TEXT;
+			if ( ! CodecToAstFormat(tf->GetCodec(), astf->subclass ) )
+			{
+				Debug("Codec %s is not supported by asterisk.\n", TextCodec::GetNameFor(tf->GetCodec()) );
+				return false;
+			}
+			break;
+		
+		default:
+			Debug("Media %s is not supported by asterisk.\n", MediaFrame::TypeToString(mf->GetType()) );
+			return false;
+	}
+	
+	return true;
+}
+
+int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
+{
+	mp4player * p2 = (mp4player *) p;
+	MediaFrame * f;
+	unsigned long wait = 0;
+	
+	MediaFrame * f = p2->GetNextFrame(ret, wait);
+	
+	if ( ret >= 0 )
+	{		
+		if ( f->HasRtpPacketizationInfo() )
+		{
+			MediaFrame::RtpPacketizationInfo pinfo = f->GetRtpPacketizationInfo();
+			struct ast_frame f2;
+			if ( ! MediaFrameToAstFrame(f, &f2) )
+			{
+				return -5; /* incompatible codec read from MP4 file or unsupported media */
+			}
+			
+			for( MediaFrame::RtpPacketizationInfo::iterator it = pinfo.begin() ;
+				 it != pinfo.end ;
+				 it++ )
+			
+			{
+				MediaFrame::RtpPacketization & rtp = *it;
+				f2.data = f->GetData() + rtp.GetPos();
+				f2.datalen = rtp.GetSize();
+				if ( rtp.IsMark() ) f->subclass |= 1;
+				
+				if ( ast_write(chan, &f2) < 0)
+				{
+					return -6; /* write error */ 
+				}
+			}
+			return (int) wait;
+		}
+		else
+		{
+			Debug("mp4play: Failed to build packetization info for frame.\n");
+			return 0;
+		}
+	}
+	else
+	{
+		/* report error */
+		return ret;
+	}
+}
+
+void Mp4PlayerDestroy( struct mp4play * p )
+{
+	mp4player * p2 = (mp4player *) p;
+	if (p2) delete p2;
 }
