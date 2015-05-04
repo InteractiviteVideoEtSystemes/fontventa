@@ -1213,7 +1213,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			vc = vcodecList[0];
 			nbVCodecs = AstFormatToCodecList(chan->nativeformats, vcodecList, 3);
 			
-			if ( p->OpenTrack(acodecList, nbVCodecs, vc, transcodeVideo, false) < 0 )
+			if ( p->OpenTrack(vcodecList, nbVCodecs, vc, transcodeVideo, false) < 0 )
 			{
 				Error("mp4play: [%s]  No suitable video track found.\n", chan->name);
 			}			
@@ -1232,20 +1232,20 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			Error("mp4play: [%s]  No suitable video track found.\n", chan->name);
 		}			
     }
-	return p;
+    return (mp4play *) p;
 }
 
 
 
 static bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 {
-	static char *MP4PLAYSRC = "mp4play";
+	static const char *MP4PLAYSRC = "mp4play";
 	AudioFrame * af;
 	VideoFrame * vf;
 	TextFrame  * tf;
 	
-	memset(astf, 0, sizeof(*astf));
-	astf->src = MP4PLAYSRC;
+	memset(&astf, 0, sizeof(astf));
+	astf.src = MP4PLAYSRC;
 	switch( mf->GetType() )
 	{
 		case MediaFrame::Audio:
@@ -1285,7 +1285,7 @@ static bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 	
 	astf.flags = 0; /* nothing is malloc'ed */
 	astf.data = mf->GetData();
-	astf.data = mf->GetDataLen();
+	astf.data = mf->GetSize();
 	return true;
 }
 
@@ -1294,6 +1294,7 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 	mp4player * p2 = (mp4player *) p;
 	MediaFrame * f;
 	unsigned long wait = 0;
+	int ret;
 	
 	MediaFrame * f = p2->GetNextFrame(ret, wait);
 	
@@ -1316,7 +1317,7 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 				MediaFrame::RtpPacketization & rtp = *it;
 				f2.data = f->GetData() + rtp.GetPos();
 				f2.datalen = rtp.GetSize();
-				if ( rtp.IsMark() ) f->subclass |= 1;
+				if ( rtp.IsMark() ) f2.subclass |= 1;
 				
 				if ( ast_write(chan, &f2) < 0)
 				{
