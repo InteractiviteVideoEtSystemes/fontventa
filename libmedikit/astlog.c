@@ -1,4 +1,6 @@
 #include <astmedkit/astlog.h>
+#include <asterisk/logger.h>
+#include <asterisk/options.h>
 #include <medkit/log.h>
 
 static int medkitdbglvl = 0;
@@ -8,7 +10,7 @@ static int LogToAst(const char *msg, va_list ap)
 	char t[800];
 
 	vsprintf(t, msg, ap);
-	ast_log(LOG_INFO, "%s", t);
+	ast_log(LOG_NOTICE, "%s", t);
 	return 1;
 } 
 	 
@@ -17,7 +19,7 @@ static int ErrorToAst(const char *msg, va_list ap)
 	char t[800];
 
 	vsprintf(t, msg, ap);
-	ast_log(LOG_ERR, "%s", t);
+	ast_log(LOG_ERROR, "%s", t);
 	return 1;
 } 
 

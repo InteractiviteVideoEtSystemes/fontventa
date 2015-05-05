@@ -1,5 +1,3 @@
-#include <asterisk/log.h>
-
 
 /**
  * Link libmedkit log facility with Asterik logs

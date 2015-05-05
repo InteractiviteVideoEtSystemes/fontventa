@@ -19,11 +19,6 @@ int LogOpenFile(const char * filename);
 void LogCloseFile(void);
 void LogActivateLogsOfExtLibs(int level);
 
-#ifdef __cplusplus
-}
-#endif
-
-
 typedef int (*logfunc) (const char *msg, va_list arg );
 
 void SetLogFunctions(logfunc dbg, logfunc log, logfunc err);
@@ -31,6 +26,10 @@ void SetLogFunctions(logfunc dbg, logfunc log, logfunc err);
 int Log(const char *msg, ...);
 int Debug(const char *msg, ...);
 int Error(const char *msg, ...);
+
+#ifdef __cplusplus
+}
+#endif
 
 static inline char PC(uint8_t b)
 {
