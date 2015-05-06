@@ -169,16 +169,31 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 			if (silence == NULL) silence = f2;
 			// Add frame of 80 ms
 			Log("Adding %d ms of initial delay on audio track id:%d.\n", initialDelay, mediatrack);
-			for ( DWORD d = 0; d < initialDelay; d += 80 )
+			for ( DWORD d = 0; d < initialDelay; d += 20 )
 			{
-			    if ( initialDelay - d > 80 )
-				duration = 80;
+			    if ( initialDelay - d > 20 )
+				duration = 20;
 			    else
 				duration = initialDelay - d;
+			     duration = duration*f2->GetRate()/1000;
+			     MP4WriteSample(mp4, mediatrack, silence->GetData(), silence->GetLength(), duration, 0, 1 );
+			     sampleId++;
+	    		    if (hinttrack != MP4_INVALID_TRACK_ID)
+	    		    {
+				// Add rtp hint
+				MP4AddRtpHint(mp4, hinttrack);
+
+				///Create packet
+				MP4AddRtpPacket(mp4, hinttrack, 0, 0);
+
+				// Set full frame as data
+				MP4AddRtpSampleData(mp4, hinttrack, sampleId, 0, f->GetLength());
+
+				// Write rtp hint
+				MP4WriteRtpHint(mp4, hinttrack, duration, 1);
+			    }
+	    
 			}
-			duration = duration*f2->GetRate()/1000;
-			MP4WriteSample(mp4, mediatrack, silence->GetData(), silence->GetLength(), duration, 0, 1 );
-			sampleId++;
 		}
 		duration = 20*f2->GetRate()/1000;
 	    }
@@ -470,17 +485,13 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 		if ( initialDelay > 0 )
 		{
 			BYTE silence[4];
-			duration = initialDelay;
 			//Set size
 			silence[0] = 0;
 			silence[1] = 0;
-			MP4WriteSample( mp4, mediatrack, silence, 2, duration, 0, true );
+			MP4WriteSample( mp4, mediatrack, silence, 2, initialDelay, 0, true );
 			Log("Adding %d ms of initial delay on text track id:%d.\n", initialDelay, mediatrack);
 		}
-		else
-		{
-			duration = 1;
-		}
+		frameduration = 100; 
 	}
 	else
 	{
@@ -488,7 +499,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	}
 
 	//Log("Process TEXT frame  ts:%lu, duration %lu [%ls].\n",  f2->GetTimeStamp(), frameduration, f2->GetWString().c_str());
-	Log("Process TEXT frame  ts:%lu, duration %lu.\n",  f2->GetTimeStamp(), frameduration );
+	Log("Process TEXT frame  ts:%lu, duration %lu. sampleId=%d\n",  f2->GetTimeStamp(), frameduration, sampleId );
 	prevts = f->GetTimeStamp();	
 	duration = frameduration;
 	if (frameduration > MAX_SUBTITLE_DURATION) frameduration = MAX_SUBTITLE_DURATION;
@@ -531,6 +542,8 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 		MP4WriteSample( mp4, mediatrack, data, 2, frameduration, 0, false );
 	}
 
+	sampleId++;
+
 	free(data);
 	if ( sampleId > 1 ) return 1;
 	    
@@ -557,7 +570,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
 {
     this->ctxdata = ctxdata;
     this->mp4 = mp4;
-    textSeqNo = 0;
+    textSeqNo = 0xFFFF;
     vtc = NULL;
     this->waitVideo = waitVideo;
     Log("mp4recorder: created with waitVideo %s.\n", waitVideo ? "enabled" : "disabled" );
@@ -946,15 +959,8 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		textSeqNo = f->seqno;
 		//Log("text frame seqno %d, lost %d\n", f->seqno, lost);
 
-		// Extract or generate timing INFO
-		if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
-		{
-			text_ts = f->ts ;
-		}
-		else
-		{
-			text_ts = getDifTime(&firstframets)/1000 ;
-		}
+		// Generate timing INFO
+		text_ts = getDifTime(&firstframets)/1000 ;
 
 		if ( f->subclass == AST_FORMAT_RED )
 		{

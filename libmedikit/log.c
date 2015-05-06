@@ -121,6 +121,8 @@ void SetLogFunctions(logfunc dbg, logfunc log, logfunc err)
 int Log(const char *msg, ...)
 {
 	va_list ap;
+
+	va_start(ap, msg);
 	FunctionLog(msg, ap);
 	va_end(ap);
 	return 0;
@@ -129,6 +131,8 @@ int Log(const char *msg, ...)
 int Debug(const char *msg, ...)
 {
 	va_list ap;
+
+	va_start(ap, msg);
 	FunctionDebug(msg, ap);
 	va_end(ap);
 	return 0;	
@@ -137,6 +141,8 @@ int Debug(const char *msg, ...)
 int Error(const char *msg, ...)
 {
 	va_list ap;
+
+	va_start(ap, msg);
 	FunctionError(msg, ap);
 	va_end(ap);
 	return 0;
