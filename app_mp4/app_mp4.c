@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <asterisk/lock.h>
 #include <asterisk/file.h>
@@ -47,6 +48,7 @@
 #include <asterisk/options.h>
 #include <asterisk/config.h>
 #include <asterisk/utils.h>
+#include <asterisk/paths.h>
 #include <asterisk/app.h>
 #include <asterisk/version.h>
 #include <asterisk/speech.h>
@@ -66,9 +68,6 @@
 #endif
 
 
-#ifndef AST_FORMAT_AMRNB
-#define AST_FORMAT_AMRNB 	(1 << 13)
-#endif
 
 #ifndef _STR_CODEC_SIZE
 #define _STR_CODEC_SIZE         512
@@ -178,191 +177,12 @@ typedef enum
 #endif
 
 
-static int mp4_video_read(struct mp4rtp *p)
+
+static int mp4_play_process_frame(struct ast_channel * chan, struct ast_frame *f, char * dtmfBuffer, const char * stopChars,
+				  int numberofDigits, const char * varName)
 {
-	int          next = 0;
-	int          last = 0;
-	int          first = 1;
-	u_int8_t*    data  = NULL  ;
-  // MP4Timestamp StartTime ;
-  MP4Duration  Duration ; 
-  // MP4Duration  RenderingOffset;
-  // bool         IsSyncSample = false ;
-  uint32_t     NumBytes = 0;
-  uint32_t     len      = 0;
-  uint32_t     sent     = 0;
+	int res;
 
-  double       fps      = MP4GetTrackVideoFrameRate(p->mp4 , p->track );
-  if (  !MP4ReadSample(p->mp4, 
-                       p->track, 
-                       p->sampleId++,
-                       &data,
-                       &NumBytes,
-                       0,
-                       &Duration,
-                       0,
-                       0) ) 
-  {
-     if ( option_debug > 1 )
-       ast_log(LOG_ERROR, "Error reading H263 packet [%d]\n", p->track);
-    return -1;
-  }
-
- 
-
-  Duration  = Duration / 90 ;
-  if ( option_debug > 4 )
-    ast_log(LOG_DEBUG, "MP4ReadSample Duration[%d] lenght[%d] @%d \n",(int)Duration,NumBytes,(int)fps );
-
-  while(sent<NumBytes)
-  {
-    if (sent+H263_FRAME_SIZE>NumBytes)
-    {
-      last = 1;
-      len = NumBytes-sent;
-    } else 
-      len = H263_FRAME_SIZE;
-
-    SendVideoFrameH263(p->chan, &data[sent], len, first, last,fps);
-    first = 0;
-    sent += len;
-  }
-
-  free(data);
-  
-  next = (Duration)?(int)Duration:(int)(900/fps);
-
-	if (option_debug > 4)
-		ast_log(LOG_DEBUG, "mp4_video_read return [%d]\n", next);
-
-	/* exit next send time */
-	return next;
-}
-
-static int mp4_rtp_read(struct mp4rtp *p, struct ast_frame *f)
-{
-	//unsigned char buffer[PKT_SIZE];
-
-//#define BUFFERLEN (sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET + 1500)
-	//unsigned char buffer[BUFFERLEN + 1];
-	//struct ast_frame *f = (struct ast_frame *) buffer;
-  	
-	int next = 0;
-	int last = 0;
-	int first = 0;
-	uint8_t* data;
-	
-	/* If it's first packet of a frame */
-	if (!p->numHintSamples) {
-		/* Get number of rtp packets for this sample */
-		if (!MP4ReadRtpHint(p->mp4, p->hint, p->sampleId, &p->numHintSamples)) {
-			ast_log(LOG_DEBUG, "MP4ReadRtpHint failed [%d,%d]\n", p->hint,p->sampleId);
-			return -1;
-		}
-
-		/* Get number of samples for this sample */
-		p->frameSamples = MP4GetSampleDuration(p->mp4, p->hint, p->sampleId);
-
-		/* Get size of sample */
-		p->frameSize = MP4GetSampleSize(p->mp4, p->hint, p->sampleId);
-
-		/* Get sample timestamp */
-		p->frameTime = MP4GetSampleTime(p->mp4, p->hint, p->sampleId);
-
-		/* Set first flag */
-		first = 1;
-	}
-
-	/* if it's the last */
-	if (p->packetIndex + 1 == p->numHintSamples)
-		last = 1;
-
-	/* Unset */
-	memset(f, 0, PKT_SIZE);
-
-	/* Let mp4 lib allocate memory */
-	AST_FRAME_SET_BUFFER(f,f,PKT_OFFSET,PKT_PAYLOAD);
-	f->src = strdup(p->src);
-
-	/* Set type */
-	f->frametype = p->frameType;
-	f->subclass = p->frameSubClass;
-
-	f->delivery.tv_usec = 0;
-	f->delivery.tv_sec = 0;
-	/* Don't free the frame outside */
-	f->mallocd = 0;
-
-	/* If it's video set the mark of last rtp packet */
-	
-  if (f->frametype == AST_FRAME_VIDEO)
-	{
-		/* Set mark bit */
-		f->subclass |= last;
-		/* If it's the first packet of the frame */
-		if (first)
-			/* Set number of samples */
-			f->samples = p->frameSamples * (90000 / p->timeScale);
-	} else {
-		/* Set number of samples */
-		f->samples = p->frameSamples;
-	}
-
-
-	/* Get data pointer */
-	data = AST_FRAME_GET_BUFFER(f);
-
-	/* Read next rtp packet */
-	if (!MP4ReadRtpPacket(
-				p->mp4,				/* MP4FileHandle hFile */
-				p->hint,			/* MP4TrackId hintTrackId */
-				p->packetIndex++,		/* u_int16_t packetIndex */
-				(u_int8_t **) &data,		/* u_int8_t** ppBytes */
-				(u_int32_t *) &f->datalen,	/* u_int32_t* pNumBytes */
-				0,				/* u_int32_t ssrc DEFAULT(0) */
-				0,				/* bool includeHeader DEFAULT(true) */
-				1				/* bool includePayload DEFAULT(true) */
-			)) {
-		ast_log(LOG_ERROR, "Error reading packet [%d,%d]\n", p->hint, p->track);
-		return -1;
-	}
-
-	if (option_debug > 6)
-		ast_log(LOG_DEBUG, "MP4ReadRtpHint samples/lenght [%d,%d]\n", f->samples, f->datalen);
-
-	/* Write frame */
-	ast_write(p->chan, f);
-
-	/* Are we the last packet in a hint? */
-	if (last) {
-		/* The first hint */
-		p->packetIndex = 0;
-		/* Go for next sample */
-		p->sampleId++;
-		p->numHintSamples = 0;
-	}
-
-	/* Set next send time */
-	if ((!last) && (f->frametype == AST_FRAME_VIDEO))
-		/* Send next now if it's not the last packet of the frame */
-		/* This will send all the packets from the same frame without pausing between them */
-		/* FIX: should wait depending on bandwith */
-		next = 0;
-	else if (p->timeScale)
-		/* If it's from a different frame or it's audio */
-		next = (p->frameSamples * 1000) / p->timeScale;
-	else
-		next = -1;
-
-	if (option_debug > 5)
-		ast_log(LOG_DEBUG, "MP4ReadRtpHint return [%d]\n", next);
-
-	/* exit next send time */
-	return next;
-}
-
-static int mp4_play_process_frame(struct ast_frame *f, char * dtmfBuffer, const char * stopChars)
-{
 	if ( f == NULL) return -2;
 	
 	/* If it's a dtmf */
@@ -386,7 +206,7 @@ static int mp4_play_process_frame(struct ast_frame *f, char * dtmfBuffer, const 
 			/* Continue after exit */
 			res = 0;
 			/* Log */
-			ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play interrupted bv DTMF %s\n", dtmf);
+			ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play interrupted by DTMF %s\n", dtmf);
 
 			
 					/* Check if we have to append the DTMF and wait for more than one digit */
@@ -400,7 +220,7 @@ static int mp4_play_process_frame(struct ast_frame *f, char * dtmfBuffer, const 
 				res = 0;
 				/* Stop */
 				stop = true;	
-				ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play stops: all expected DTMF have been input.\n", dtmf);
+				ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play stops: all expected %d DTMF have been input.\n", numberofDigits);
 			}
 		} 
 		/* Check for dtmf extension in context */
@@ -438,9 +258,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	struct ast_module_user *u = NULL;
 	MP4FileHandle mp4;
 	struct mp4play * player;
-	const char *type = NULL;
-	int totalAudio = 0;
-	int totalVideo = 0;
+	//const char *type = NULL;
 
 	char *parse;
 	int numberofDigits = -1;
@@ -454,7 +272,8 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	char cformat2[_STR_CODEC_SIZE] = {0};
 	struct timeval tv, tvs;
 	int ms = 0;
-	
+	int res;
+
 	//struct ast_frame *f = (struct ast_frame *) buffer;
 	AST_DECLARE_APP_ARGS(args, AST_APP_ARG(filename); AST_APP_ARG(options););
 
@@ -585,7 +404,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	
 	while ( ms >= 0 )
 	{
-	    ms = Mp4PlayerPlayNextFrame(player,chan);
+	    ms = Mp4PlayerPlayNextFrame(chan,player);
 	    
 	    if (ms < 0)
 	    {
@@ -616,7 +435,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		{
 		    int proctime;
 		    struct ast_frame * f = ast_read(chan);
-		    res = mp4_play_process_frame(f, dtmfBuffer);
+		    res = mp4_play_process_frame(chan, f, dtmfBuffer, stopChars, numberofDigits, varName);
 		    if (res < 0)
 		    {
 			if (res == -3) 
@@ -657,79 +476,6 @@ clean:
 	return res;
 }
 
-
-			/* Calculate elapsed time */
-			ms = t - ast_tvdiff_ms(ast_tvnow(),tv);
-	    if (option_debug > 5)
-			ast_log(LOG_DEBUG, "mp4play New time to wait %d\n", ms);					
-		}
-
-		/* Get new time */
-		tvn = ast_tvnow();
-
-		/* Calculate elapsed */
-		t = ast_tvdiff_ms(tvn,tv);
-		
-	  if (option_debug > 5) 
-		ast_log(LOG_DEBUG, "mp4play Delta time %d\n", t);					
-
-		/* Set new time */
-		tv = tvn;
-
-		/* Remove time */
-		if (audioNext > 0)
-			audioNext -= t;
-		if (videoNext > 0)
-			videoNext -= t;
-
-    f = (struct ast_frame *) buffer;
-
-		/* if we have to send audio */
-		//if (audioNext<=0 && audio.name)
-		if (audioNext<=0 && (audio.mp4 != MP4_INVALID_FILE_HANDLE))
-	  {
-	  	/* Send audio */
-	  	audioNext = mp4_rtp_read(&audio, f);
-	  	if (audioNext > 0)
-      totalAudio += audioNext;
-    }
-
-    f = (struct ast_frame *) buffer2;
-  
-		/* or video */
-		//if (videoNext<=0 && video.name)
-		if (videoNext<=0 && (video.mp4 != MP4_INVALID_FILE_HANDLE))
-		{
-			videoNext = h263Play?mp4_video_read(&video):mp4_rtp_read(&video, f);
-			if (videoNext > 0)
-      totalVideo += videoNext;
-		}
-
-		total = ast_tvdiff_ms(ast_tvnow(),tvs);
-
-	  if (option_debug > 5)
-		ast_log(LOG_DEBUG, "mp4play total %d (audio %d, video %d)\n", total, totalAudio, totalVideo);
-	  
-    // Shift correction
-    if (videoNext > 0)
-      if (totalVideo < total)
-      {
-        videoNext = 0;
-        if (option_debug > 5)
-          ast_log(LOG_DEBUG, "mp4play Video correction !\n");
-      }
-		if (audioNext > 0)
-      if (totalAudio < total)
-      {
-        audioNext = 0;
-        if (option_debug > 5)
-          ast_log(LOG_DEBUG, "mp4play Audio correction !\n");
-      }
-
-	}
-
-
-
 static int mp4_save(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u = NULL;
@@ -752,17 +498,12 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	/*  Recording is on man! */
 	int onrecord = 1;
 	
-  
-	int haveAudio           =  chan->nativeformats & AST_FORMAT_AUDIO_MASK ;
-	int haveVideo           =  chan->nativeformats & AST_FORMAT_VIDEO_MASK ;  
-	int haveText            =  chan->nativeformats & AST_FORMAT_TEXT_MASK ;  
-	
-	
 	struct AstFb * audioInQueue;
 	struct AstFb * videoInQueue;
 	struct AstFb * textInQueue;
 
 	struct AstFb * queueTab[3];
+	unsigned int vidseqno = 0;
 	
 	/* Check for file */
 	if (!data) return -1;
@@ -842,7 +583,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	MP4TagsSetReleaseDate (tags, metadata);
 	MP4TagsStore(tags, mp4);
 
-	recorder = Mp4RecorderCreate(chan, mp4, waitVideo, "h264@vga", NULL);
+	recorder = Mp4RecorderCreate(chan, mp4, waitVideo, "h264@vga", chan->cid.cid_name, 1);
 
 	if ( recorder == NULL )
 	{
@@ -969,12 +710,19 @@ static int mp4_save(struct ast_channel *chan, void *data)
 		f = AstFbGetFrame( queueTab[i] );
 		
 		// TODO if too many errors, exit
+		// TODO: if there are lost packets, ask FIR
 		Mp4RecorderFrame(recorder, f);
 		
-		if (  f->frametype == AST_FRAME_VIDEO )
+		if ( f->frametype == AST_FRAME_VIDEO )
 		{
-		    // TODO: if there are lost packets, ask FIR
-		    if (videoLoopback) 
+		    if ( f->seqno != 0xFFFF && f->seqno != 0 && strcmp(f->src, "RTP") == 0)
+		    {
+			if (vidseqno + 1 !=  f->seqno )
+			{
+			    ast_indicate(chan, AST_CONTROL_VIDUPDATE);
+			}
+		    }
+		    if (videoLoopback)
 		    {
 			/* -- ast_write() destroys the frame -- */
 			ast_write(chan, f);
