@@ -551,7 +551,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	}
 
 	ast_verbose(VERBOSE_PREFIX_3 
-		    " -- MP4Save [%s], maxduration=%ds", 
+		    "MP4Save [%s], maxduration=%ds", 
 		   (char*)data, maxduration/1000);
 
 	/* Lock module */
@@ -666,7 +666,8 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    if (f == NULL)
 	    { 
 		ast_log(LOG_WARNING, "null frame: hangup ?\n");
-		    onrecord = 0;;
+		onrecord = 0;;
+		break;
 	    }
 
 	    /* --- post all media frames in a reorder buffer --- */
@@ -711,26 +712,29 @@ static int mp4_save(struct ast_channel *chan, void *data)
 		
 		// TODO if too many errors, exit
 		// TODO: if there are lost packets, ask FIR
-		Mp4RecorderFrame(recorder, f);
-		
-		if ( f->frametype == AST_FRAME_VIDEO )
+		if (f != NULL)
 		{
-		    if ( f->seqno != 0xFFFF && f->seqno != 0 && strcmp(f->src, "RTP") == 0)
-		    {
-			if (vidseqno + 1 !=  f->seqno )
-			{
-			    ast_indicate(chan, AST_CONTROL_VIDUPDATE);
-			}
-		    }
-		    if (videoLoopback)
-		    {
-			/* -- ast_write() destroys the frame -- */
-			ast_write(chan, f);
-			f = NULL;
-		    }
-		}
+		    Mp4RecorderFrame(recorder, f);
 		
-		if ( f != NULL)  ast_frfree(f);
+		    if ( f->frametype == AST_FRAME_VIDEO )
+		    {
+		        if ( f->seqno != 0xFFFF && f->seqno != 0 && strcmp(f->src, "RTP") == 0)
+		        {
+			    if (vidseqno + 1 !=  f->seqno )
+			    {
+			        ast_indicate(chan, AST_CONTROL_VIDUPDATE);
+			    }
+		        }
+		        if (videoLoopback)
+		        {
+			    /* -- ast_write() destroys the frame -- */
+			    ast_write(chan, f);
+			    f = NULL;
+		        }
+		    }
+		
+		    if ( f != NULL)  ast_frfree(f);
+		}
 	    }
 	}
 	
@@ -745,6 +749,15 @@ mp4_save_cleanup:
 	
 	/* Close file */
 	MP4Close(mp4, 0);
+	if (option_verbose > 2)
+	{
+	    char * inf = MP4FileInfo( (char *) data, MP4_INVALID_TRACK_ID );
+	    if (inf)
+	    {
+	         ast_verbose(VERBOSE_PREFIX_3 "Information about the recorded MP4 file: %s\n%s\n", (char *) data, inf ) ;
+		 free(inf);
+	    }
+	}
 
 	/* Unlock module*/
 	ast_module_user_remove(u);
@@ -774,6 +787,7 @@ static int load_module(void)
 
 	res = ast_register_application(app_save, mp4_save, syn_save, des_save);
 	res &= ast_register_application(app_play, mp4_play, syn_play, des_play);
+	RedirectLogToAsterisk(2);
 	return 0;
 }
 
