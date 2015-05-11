@@ -56,7 +56,7 @@ clean:
 	rm -f *.so *.o $(OBJS)
 
 app_mp4.so : $(OBJS)
-	$(CC) -pg -shared -Xlinker -x -o $@ $(OBJS) $(LIBS) $(RPATH)
+	$(CC) -g -shared -Xlinker -x -o $@ $(OBJS) $(LIBS) $(RPATH)
 
 install: all
 	@if [ "`uname -m`" == "x86_64" ] ; then make install64 ; else make install32 ; fi

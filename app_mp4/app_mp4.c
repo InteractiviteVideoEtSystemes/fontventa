@@ -376,6 +376,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		strcpy( cformat1, args.filename );
 	}
 	
+	ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play [%s].\n", cformat1);
 	mp4 = MP4Read(cformat1);
 	
 	/* If not valid */
@@ -497,6 +498,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	
 	/*  Recording is on man! */
 	int onrecord = 1;
+	int textfile = 0;
 	
 	struct AstFb * audioInQueue;
 	struct AstFb * videoInQueue;
@@ -567,6 +569,29 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    goto mp4_save_cleanup;
 	}
 
+	if ( (chan->nativeformats & AST_FORMAT_TEXT_MASK) != 0)
+	{
+	    char textFileName[200];
+
+	    strcpy( textFileName, (char *) data );
+	    strcat( textFileName, ".txt" );
+
+	    textfile = open( textFileName, O_CREAT );
+	    if (textfile == -1)
+	    {
+	        ast_log(LOG_WARNING, "Fail to create text file %s.\n", textFileName);
+	    }
+	    else
+	    {
+	        ast_log(LOG_DEBUG, "Created text file %s. fd = %d\n", textFileName, textfile);
+	    }
+	}
+	else
+	{
+	    ast_log(LOG_DEBUG, "No need to create text file\n" );
+	}
+	      
+
 	time_t now;
 	struct tm *tmvalue; 
 	const MP4Tags * tags = MP4TagsAlloc();
@@ -583,7 +608,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	MP4TagsSetReleaseDate (tags, metadata);
 	MP4TagsStore(tags, mp4);
 
-	recorder = Mp4RecorderCreate(chan, mp4, waitVideo, "h264@vga", chan->cid.cid_name, 1);
+	recorder = Mp4RecorderCreate(chan, mp4, waitVideo, "h264@vga", chan->cid.cid_name, textfile);
 
 	if ( recorder == NULL )
 	{
@@ -665,7 +690,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    /* if it's null */
 	    if (f == NULL)
 	    { 
-		ast_log(LOG_WARNING, "null frame: hangup ?\n");
+		ast_log(LOG_DEBUG, "null frame: hangup.\n");
 		onrecord = 0;;
 		break;
 	    }
@@ -725,6 +750,8 @@ static int mp4_save(struct ast_channel *chan, void *data)
 			        ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 			    }
 		        }
+			vidseqno = f->seqno;
+
 		        if (videoLoopback)
 		        {
 			    /* -- ast_write() destroys the frame -- */
@@ -749,6 +776,11 @@ mp4_save_cleanup:
 	
 	/* Close file */
 	MP4Close(mp4, 0);
+	if (textfile >= 0) 
+	{
+	    ast_log(LOG_DEBUG, "Closed text file fd %d\n", textfile);
+	    close(textfile);
+	}
 	if (option_verbose > 2)
 	{
 	    char * inf = MP4FileInfo( (char *) data, MP4_INVALID_TRACK_ID );
