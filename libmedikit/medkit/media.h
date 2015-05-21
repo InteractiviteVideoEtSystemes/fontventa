@@ -37,6 +37,7 @@ public:
 		DWORD GetTotalLength()	{ return size+prefixLen;}
 		bool IsMark() { return mark; }
 		
+		
 	private:
 		DWORD	pos;
 		DWORD	size;
@@ -217,7 +218,6 @@ public:
 	
 protected:
 	Type type;
-	DWORD ts;
 	RtpPacketizationInfo rtpInfo;
 	BYTE	*buffer;
 	DWORD	length;

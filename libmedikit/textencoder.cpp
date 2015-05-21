@@ -148,10 +148,13 @@ void TextEncoder::GetFirstHistoryLine(std::string & hist)
     {
 	std::wstring & subw = scroll.back();
 	UTF8Parser p(subw);
+	Log("First line: %ls.\n", subw.c_str() );
+
 	p.Serialize(hist);
     }
     else
     {
+	Log("No history.\n" );
 	hist.clear();
     }
 }
@@ -165,6 +168,7 @@ void TextEncoder::GetCurrentLine(std::string & curline)
     }
     else
     {
+	    Log("Cur line is empty.\n" );
 	curline.clear();
     }
 }

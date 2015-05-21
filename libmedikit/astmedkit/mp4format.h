@@ -1,64 +1,11 @@
 #include <mp4v2/mp4v2.h>
 
-
 #ifdef __cplusplus
 
 #include <medkit/transcoder.h>
 #include <medkit/audio.h>
 
-class Mp4Basetrack
-{
-public:
-    /**
-     *  Constructor to use when creating a new track on an MP4 file
-     */
-    Mp4Basetrack(MP4FileHandle mp4, unsigned long initialDelay) 
-    { 
-        this->mp4 = mp4;
-		sampleId = 0;
-		mediatrack = MP4_INVALID_TRACK_ID;
-		hinttrack = MP4_INVALID_TRACK_ID;
-		this->initialDelay = initialDelay;
-		reading = false;
-    }
-
-	Mp4Basetrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack)
-	{
-		this->mp4 = mp4;
-		this->mediatrack = mediaTrack;
-		this->hinttrack = hinttrack;
-		reading = true;
-		this->initialDelay = 0;
-	}
-	
-    virtual ~Mp4Basetrack() {};
-    
-    virtual int Create(const char * trackName, int codec, DWORD bitrate) = 0;
-    virtual int ProcessFrame( const MediaFrame * f ) = 0;
-    
-    inline bool IsOpen() { return ( mediatrack != MP4_INVALID_TRACK_ID ); }
-    void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
-    void IncreateInitialDelay(unsigned long delay) { initialDelay = initialDelay + delay; }
-    bool IsEmpty() { return (sampleId == 0); }
-
-protected:
-    /**
-     *  Constructor to use when reading an existing track on an MP4 file
-     */
-    Mp4Basetrack(MP4FileHandle mp4, MP4TrackId trackId);
-    
-protected:
-     MP4FileHandle mp4;		
-     MP4TrackId mediatrack;
-     MP4TrackId hinttrack;
-     int sampleId;
-     unsigned long initialDelay;
-     
-     DWORD prevts;
-     bool reading;
-};
-
-
+class Mp4Basetrack;
 class H264Depacketizer;
 
 #define MP4_AUDIO_TRACK		0
@@ -205,10 +152,14 @@ public:
     MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime );
 
     int Rewind();
+
+protected:
+    //MP4TrackId IterateTracks(int trackIdx, const char * trackType, bool useHint = true);
     
 private:
     void * ctxdata;
     Mp4Basetrack * mediatracks[5];
+    MP4FileHandle mp4;
 };
 
 #endif

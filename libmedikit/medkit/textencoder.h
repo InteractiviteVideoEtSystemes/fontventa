@@ -21,5 +21,18 @@ private:
 	TextFrame f;
 };
 
+class SubtitleToRtt
+{
+public:
+	SubtitleToRtt();
+	~SubtitleToRtt();
+	
+	void GetTextDiff(const std::wstring & sub, unsigned int & nbdel, std::wstring & diff);
+
+private:
+	std::wstring line;
+};
+
+
 #endif	/* TEXTENCODER_H */
 

@@ -26,6 +26,31 @@ public:
 			default:	return "unknown";
 		}
 	}
+	
+	static bool GetCodecFor(const char * name, Type & c)
+	{
+	    if (name == NULL) return false;
+	    
+	    if ( strcmp(name, "PCMA") == 0)
+	    {
+		c = PCMA;
+		return true;
+	    }
+	    
+	    if ( strcmp(name, "PCMU") == 0)
+	    {
+		c = PCMA;
+		return true;
+	    }
+
+	    if ( strcmp(name, "AMR") == 0)
+	    {
+		c = AMR;
+		return true;
+	    }
+	    
+	    return false;
+	}
 	typedef std::map<int,Type> RTPMap;
 };
 
@@ -47,6 +72,48 @@ public:
 			default:	return "unknown";
 		}
 	}
+	
+	static bool GetCodecFor(const char * name, Type & c)
+	{
+	    if (name == NULL) return false;
+	    
+	    if ( strcmp(name, "H264") == 0)
+	    {
+		c = H264;
+		return true;
+	    }
+	    
+	    if ( strcmp(name, "H263_1996") == 0
+	         ||
+		 strcmp(name, "H263") == 0
+		 ||
+		 strcmp(name, "H263-1996") == 0)
+	    {
+		c = H263_1996;
+		return true;
+	    }
+
+	    if ( strcmp(name, "H263_1998") == 0
+	         ||
+		 strcmp(name, "H263P") == 0
+		 ||
+		 strcmp(name, "H263-1998") == 0
+		 ||
+		 strcmp("H263-2000") == 0)
+	    {
+		c = H263_1998;
+		return true;
+	    }
+	    
+	    if ( strcmp(name, "VP8") == 0)
+	    {
+		c = VP8;
+		return true;
+	    }
+
+	    return false;
+	}
+	
 	typedef std::map<int,Type> RTPMap;
 };
 
