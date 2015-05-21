@@ -21,6 +21,19 @@ Mp4Basetrack::Mp4Basetrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId 
 	frame = NULL;
 	numHintSamples = 0;
 }
+
+
+Mp4Basetrack::Mp4Basetrack(MP4FileHandle mp4, unsigned long initialDelay) 
+{ 
+	this->mp4 = mp4;
+	sampleId = 0;
+	mediatrack = MP4_INVALID_TRACK_ID;
+	hinttrack = MP4_INVALID_TRACK_ID;
+	this->initialDelay = initialDelay;
+	reading = false;
+	frame = NULL;
+}
+
 	
 QWORD Mp4Basetrack::GetNextFrameTime()
 {
@@ -633,7 +646,62 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 
 const MediaFrame * Mp4TextTrack::ReadFrame()
 {
-    
+	int next = 0;
+	int last = 0;
+	int first = 0;
+
+	// Get number of samples for this sample
+	frameSamples = MP4GetSampleDuration(mp4, track, sampleId);
+
+	// Get size of sample
+	frameSize = MP4GetSampleSize(mp4, track, sampleId);
+
+	// Get sample timestamp
+	frameTime = MP4GetSampleTime(mp4, track, sampleId);
+	//Convert to miliseconds
+	frameTime = MP4ConvertFromTrackTimestamp(mp4, track, frameTime, 1000);
+
+	// Get data pointer
+	BYTE *data = (BYTE*)malloc(frameSize);
+	//Get max data lenght
+	DWORD dataLen = frameSize;
+
+	MP4Timestamp	startTime;
+	MP4Duration	duration;
+	MP4Duration	renderingOffset;
+
+	// Read next rtp packet
+	if (!MP4ReadSample(
+				mp4,				// MP4FileHandle hFile
+				mediatrack,				// MP4TrackId hintTrackId
+				sampleId++,			// MP4SampleId sampleId,
+				(u_int8_t **) &data,		// u_int8_t** ppBytes
+				(u_int32_t *) &dataLen,		// u_int32_t* pNumBytes
+				&startTime,			// MP4Timestamp* pStartTime
+				&duration,			// MP4Duration* pDuration
+				&renderingOffset,		// MP4Duration* pRenderingOffset
+				NULL				// bool* pIsSyncSample
+	))
+		//Last
+		return MP4_INVALID_TIMESTAMP;
+
+	//Log("Got text frame [time:%d,start:%d,duration:%d,lenght:%d,offset:%d\n",frameTime,startTime,duration,dataLen,renderingOffset);
+	//Dump(data,dataLen);
+	//Get length
+	if (dataLen>2)
+	{
+		//Get string length
+		DWORD len = data[0]<<8 | data[1];
+		//Set frame
+		frame.SetFrame(startTime,data+2+renderingOffset,len-renderingOffset-2);
+		//call listener
+		if (listener)
+			//Call it
+			listener->onTextFrame(frame);
+	}
+	
+	// exit next send time
+	return GetNextFrameTime();    
 }
 
 Mp4TextTrack::~Mp4TextTrack()

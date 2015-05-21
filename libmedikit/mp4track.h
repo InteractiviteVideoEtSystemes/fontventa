@@ -8,16 +8,7 @@ public:
     /**
      *  Constructor to use when creating a new track on an MP4 file
      */
-    Mp4Basetrack(MP4FileHandle mp4, unsigned long initialDelay) 
-    { 
-        this->mp4 = mp4;
-	sampleId = 0;
-	mediatrack = MP4_INVALID_TRACK_ID;
-	hinttrack = MP4_INVALID_TRACK_ID;
-	this->initialDelay = initialDelay;
-	reading = false;
-	frame = NULL;
-    }
+    Mp4Basetrack(MP4FileHandle mp4, unsigned long initialDelay); 
 
     /**
      * Constructor to use when reading an MP4 file
