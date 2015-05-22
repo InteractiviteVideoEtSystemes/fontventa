@@ -1,5 +1,6 @@
 #include <mp4v2/mp4v2.h>
 
+
 class SubtitleToRtt;
 
 class Mp4Basetrack
@@ -139,10 +140,12 @@ public:
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
     virtual const MediaFrame * ReadFrame();
+    void RenderAsReatimeText(bool render);
     
 private:
     TextEncoder encoder;
     MP4TrackId rawtexttrack;
     int textfile;
     SubtitleToRtt * conv1;
+    BYTE buffer[600];
 };

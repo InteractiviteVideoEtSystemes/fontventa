@@ -54,4 +54,41 @@ protected:
 	BYTE*	redundantData;
 };
 
+class RTPRedundantEncoder
+{
+    RTPRedundantEncoder(BYTE ptype);
+    ~RTPRedundantEncoder();
+    
+    Encode( MediaFrame * frame);
+    EncodeBOM();
+    EncodeNULL();
+    MediaFrame * GetRedundantPayload();
+
+ private:
+    typedef std::deque<MediaFrame*> RedFrames;
+    
+    /**
+     * Last req number of received pacckets
+     */
+    DWORD	lastSeq;
+
+    /**
+     * Previous frames for redundency
+     */
+    RedFrames	reds;
+
+    /**
+     * Last time a packet is encoded
+     */
+    DWORD       lastTime;
+
+    /**
+     * If we were idle before
+     */
+    bool        idle;
+
+}
+
 #endif
+
+

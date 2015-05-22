@@ -28,9 +28,11 @@ public:
 	~SubtitleToRtt();
 	
 	void GetTextDiff(const std::wstring & sub, unsigned int & nbdel, std::wstring & diff);
+	void GetTextDiff(const std::string & sub, unsigned int & nbdel, std::string & diff);
 
 private:
 	std::wstring line;
+	UTF8Parser parser;
 };
 
 

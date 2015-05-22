@@ -457,6 +457,7 @@ mp4player::mp4player(void * ctxdata, MP4FileHandle mp4)
 	mediatracks[MP4_VIDEO_TRACK] = NULL;
 	mediatracks[MP4_VIDEODOC_TRACK] = NULL
 	mediatracks[MP4_TEXT_TRACK]  = NULL;
+	redenc = NULL;
 }
 
 
@@ -657,6 +658,32 @@ vided_track_loop:
     }
 }
 
+int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
+{
+    if (mediatracks[MP4_TEXT_TRACK] != NULL)
+    {
+        Error("Audio track is already open.\n");
+        return 0;
+    }
+
+    if ( c == TextCodec::T140RED)
+    {
+	redenc = new RTPRedundantEncoder(pt)
+    }
+    
+    MP4TrackId textId = MP4FindTrackId(mp4, 0, MP4_TEXT_TRACK_TYPE, 0);
+    
+    if (textId != MP4_INVALID_TRACK_ID)
+    {
+	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4, textId);
+	Log("Opened text track ID %d.\n", textId);
+	return 1;
+    }
+    else
+    {
+	return Error("Could not find any text track in this file.\n");
+    }
+}
 
 /* ---- callbeck used for video transcoding --- */
 

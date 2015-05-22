@@ -651,58 +651,102 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 	int first = 0;
 
 	// Get number of samples for this sample
-	frameSamples = MP4GetSampleDuration(mp4, track, sampleId);
+	frameSamples = MP4GetSampleDuration(mp4, mediatrack, sampleId);
 
 	// Get size of sample
-	frameSize = MP4GetSampleSize(mp4, track, sampleId);
+	frameSize = MP4GetSampleSize(mp4, mediatrack, sampleId);
 
 	// Get sample timestamp
-	frameTime = MP4GetSampleTime(mp4, track, sampleId);
+	frameTime = MP4GetSampleTime(mp4, mediatrack, sampleId);
 	//Convert to miliseconds
-	frameTime = MP4ConvertFromTrackTimestamp(mp4, track, frameTime, 1000);
+	frameTime = MP4ConvertFromTrackTimestamp(mp4, mediatrack, frameTime, 1000);
 
-	// Get data pointer
-	BYTE *data = (BYTE*)malloc(frameSize);
-	//Get max data lenght
-	DWORD dataLen = frameSize;
+	if ( frameSize <= sizeof(buffer))
+	{
+		// Get data pointer
+		//Get max data lenght
+		DWORD dataLen = frameSize;
 
-	MP4Timestamp	startTime;
-	MP4Duration	duration;
-	MP4Duration	renderingOffset;
+		MP4Timestamp	startTime;
+		MP4Duration	duration;
+		MP4Duration	renderingOffset;
 
-	// Read next rtp packet
-	if (!MP4ReadSample(
+		// Read next rtp packet
+		if (!MP4ReadSample(
 				mp4,				// MP4FileHandle hFile
 				mediatrack,				// MP4TrackId hintTrackId
 				sampleId++,			// MP4SampleId sampleId,
-				(u_int8_t **) &data,		// u_int8_t** ppBytes
+				(u_int8_t **) &buffer,		// u_int8_t** ppBytes
 				(u_int32_t *) &dataLen,		// u_int32_t* pNumBytes
 				&startTime,			// MP4Timestamp* pStartTime
 				&duration,			// MP4Duration* pDuration
 				&renderingOffset,		// MP4Duration* pRenderingOffset
 				NULL				// bool* pIsSyncSample
-	))
-		//Last
-		return MP4_INVALID_TIMESTAMP;
+			))
+			//Last
+			return NULL;
 
-	//Log("Got text frame [time:%d,start:%d,duration:%d,lenght:%d,offset:%d\n",frameTime,startTime,duration,dataLen,renderingOffset);
-	//Dump(data,dataLen);
-	//Get length
-	if (dataLen>2)
+		//Log("Got text frame [time:%d,start:%d,duration:%d,lenght:%d,offset:%d\n",frameTime,startTime,duration,dataLen,renderingOffset);
+		//Dump(data,dataLen);
+		//Get length
+		if (dataLen>2)
+		{
+			//Get string length
+			dataLen = bufffer[0]<<8 | bufffer[1];
+			//Set frame
+			//frame->SetFrame(startTime,data+2+renderingOffset,len-renderingOffset-2);
+		}
+		else
+		{
+			dataLen = 0;
+		}
+	}
+	else
 	{
-		//Get string length
-		DWORD len = data[0]<<8 | data[1];
-		//Set frame
-		frame.SetFrame(startTime,data+2+renderingOffset,len-renderingOffset-2);
-		//call listener
-		if (listener)
-			//Call it
-			listener->onTextFrame(frame);
+		Log("Subtitle too long.\n");
+		dataLen = 0;
+	}
+		
+	if (dataLen > 0)
+	{
+	// If SubtitleToRtt converter is allocated, it means that we
+	// need to compute the difference between the previous subtile and
+	// the current one in order to render this as real time text
+		
+	    if ( conv1 != NULL )
+	    {	
+		std::string txtsample(buffer + 2 + renderingOffset, dataLen - renderingOffset);
+		std::string rttstr;
+		unsigned int nbdel = 0;
+		
+		conv1->GetTextDiff(txtsample, nbdel, rttstr);
+		if (nbdel > 0) rttstr.insert(0, 0x08, nbdel);
+		
+		if ( frame->Alloc( rttstr.length()) )
+		{
+		    frame->SetFrame(startTime, rttstr.data(), rttstr.length() );
+		    if (nbdel > 0)
+		    {
+			frame->AddRtpPacket(0, nbdel, NULL, 0, true);
+			frame->AddRtpPacket(nbdel, rttstr.length() - nbdel, NULL, 0, true);
+		    }
+		}
+	    }
+	    else
+	    {
+		frame->SetFrame(startTime, buffer + 2 + renderingOffset, dataLen - renderingOffset);
+	    }
+	}
+	else
+	{
+		 frame->SetLength(0);
+		 frame->SetTimestamp(startTime);
 	}
 	
-	// exit next send time
-	return GetNextFrameTime();    
+	return frame;
 }
+
+
 
 Mp4TextTrack::~Mp4TextTrack()
 {
@@ -715,4 +759,6 @@ Mp4TextTrack::~Mp4TextTrack()
                 if ( curline.length() > 0 )
                 	write( textfile, curline.c_str(), curline.length() );
         }
+	
+	if (conv1) delete conv1;
 }

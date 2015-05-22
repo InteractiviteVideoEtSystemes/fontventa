@@ -7,6 +7,7 @@
 
 class Mp4Basetrack;
 class H264Depacketizer;
+class RTPRedundantEncoder;
 
 #define MP4_AUDIO_TRACK		0
 #define MP4_VIDEO_TRACK		1
@@ -143,7 +144,7 @@ public:
     *  @param c: text codec to use
     *  @param rendering : 0 = render as subtitles, 1 = render as realtime text, 2= render as video
     */
-    int OpenTrack(TextCodec::Type c, int rendering);
+    int OpenTrack(TextCodec::Type c, BYTE pt, int rendering);
     
     /**
      *  Obtain the next frame to play and the time to wait after having pushed the frame.
@@ -160,6 +161,9 @@ private:
     void * ctxdata;
     Mp4Basetrack * mediatracks[5];
     MP4FileHandle mp4;
+    
+    RTPRedundantEncoder * redenc;
+
 };
 
 #endif
