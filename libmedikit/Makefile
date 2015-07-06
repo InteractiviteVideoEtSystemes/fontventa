@@ -77,7 +77,7 @@ G722OBJ=g722codec.o
 
 OBJS=audio.o video.o transcoder.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o
 OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ)
-OBJS+=mp4track.o mp4format.o framebuffer.o frameutils.o astlog.o
+OBJS+=mp4track.o mp4format.o framebuffer.o frameutils.o astlog.o logo.o
 
 VPATH =  %.cpp $(H263DIR)
 VPATH += %.cpp $(H264DIR)

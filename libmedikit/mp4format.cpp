@@ -458,6 +458,11 @@ mp4player::mp4player(void * ctxdata, MP4FileHandle mp4)
 	mediatracks[MP4_VIDEODOC_TRACK] = NULL
 	mediatracks[MP4_TEXT_TRACK]  = NULL;
 	redenc = NULL;
+	
+	audioNext = 0;
+	videoNext = 0;
+	video2Next = 0;
+	textNext = 0;
 }
 
 
@@ -685,6 +690,28 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
     }
 }
 
+bool mp4player::EOF()
+{
+    if ( mediatracks[MP4_AUDIO_TRACK] && audioNext != MP4_INVALID_TIMESTAMP )
+	return false;
+
+    if ( mediatracks[MP4_VIDEO_TRACK] && videoNext != MP4_INVALID_TIMESTAMP )
+	return false;
+
+    if ( mediatracks[MP4_TEXT_TRACK] && textNext != MP4_INVALID_TIMESTAMP )
+	return false;
+
+    return true;
+}
+MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime )
+{    
+    timeval tv ;
+    timespec ts;
+
+    
+    
+
+}
 /* ---- callbeck used for video transcoding --- */
 
 void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size_t outputlen)

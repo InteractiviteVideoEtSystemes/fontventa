@@ -153,6 +153,8 @@ public:
     MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime );
 
     int Rewind();
+    
+    bool EOF();
 
 protected:
     //MP4TrackId IterateTracks(int trackIdx, const char * trackType, bool useHint = true);
@@ -163,6 +165,11 @@ private:
     MP4FileHandle mp4;
     
     RTPRedundantEncoder * redenc;
+
+    QWORD audioNext;
+    QWORD videoNext;
+    QWORD video2Next;
+    QWORD textNext;
 
 };
 
