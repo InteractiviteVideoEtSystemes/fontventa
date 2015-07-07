@@ -1,5 +1,5 @@
-#include "log.h"
-#include "logo.h"
+#include "medkit/log.h"
+#include "medkit/logo.h"
 #include <stdlib.h>
 extern "C" {
 #include <libswscale/swscale.h>
@@ -49,7 +49,7 @@ Logo & Logo::operator =(const Logo& l)
    
 }
 
-int Logo::Load(const char* fileName)
+int Logo::Load(const char* fileName, unsigned int pwidth = 0, unsigned int pheight = 0)
 {
 	AVFormatContext *fctx = NULL;
 	AVCodecContext *ctx = NULL;
@@ -152,8 +152,32 @@ int Logo::Load(const char* fileName)
 	}
 
 	//Get frame sizes
-	width = ctx->width;
-	height = ctx->height;
+	if ( pwidth > 0)
+	{
+		width = pwidth;
+		if (pheight > 0)
+		{
+			height = pheight;
+		}
+		else
+		{
+			// Compute height to keep aspect ratio
+			height = (ctx->height * pwidth) / ctx->width;
+		}
+	}
+	else
+	{
+		if (  pheight > 0 )
+		{
+			height = pheight;
+			width = (ctx->width * pheight) / ctx->height;
+		}
+		else
+		{
+			width = ctx->width;
+			height = ctx->height;
+		}
+	}
 
 	// Create YUV rescaller cotext
 	if (!(sws = sws_alloc_context()))
@@ -166,8 +190,8 @@ int Logo::Load(const char* fileName)
 
 	// Set property's of YUV rescaller context
 	av_opt_set_defaults(sws);
-	av_opt_set_int(sws, "srcw",       width			,AV_OPT_SEARCH_CHILDREN);
-	av_opt_set_int(sws, "srch",       height		,AV_OPT_SEARCH_CHILDREN);
+	av_opt_set_int(sws, "srcw",       ctx->width		,AV_OPT_SEARCH_CHILDREN);
+	av_opt_set_int(sws, "srch",       ctx->height		,AV_OPT_SEARCH_CHILDREN);
 	av_opt_set_int(sws, "src_format", ctx->pix_fmt		,AV_OPT_SEARCH_CHILDREN);
 	av_opt_set_int(sws, "dstw",       width			,AV_OPT_SEARCH_CHILDREN);
 	av_opt_set_int(sws, "dsth",       height		,AV_OPT_SEARCH_CHILDREN);
@@ -189,7 +213,7 @@ int Logo::Load(const char* fileName)
 		free(frame);
 
 	//Get size with padding
-	size = (((width/32+1)*32)*((height/32+1)*32)*3)/2;
+	size = GetSize();
 
 	//And numer of pixels
 	numpixels = width*height;
@@ -262,8 +286,8 @@ void Logo::Clean()
 	else
 	{
 		//Get size with padding
-		DWORD size = (((width/32+1)*32)*((height/32+1)*32)*3)/2;
-
+		//DWORD size = (((width/32+1)*32)*((height/32+1)*32)*3)/2;
+		DWORD size =  GetSize();
 		//Allocate frame
 		if (frame == NULL) frame = (BYTE*)malloc(size); /* size for YUV 420 */
 		memset(frame, 0, size);
