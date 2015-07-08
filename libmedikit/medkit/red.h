@@ -3,6 +3,10 @@
 
 #include <medkit/config.h>
 #include <vector>
+#include <deque>
+
+class MediaFrame;
+
 
 class RTPRedundantPayload
 {
@@ -56,15 +60,16 @@ protected:
 
 class RTPRedundantEncoder
 {
+public:
     RTPRedundantEncoder(BYTE ptype);
     ~RTPRedundantEncoder();
     
-    Encode( MediaFrame * frame);
-    EncodeBOM();
-    EncodeNULL();
+    void Encode( MediaFrame * frame);
+    void EncodeBOM();
+    void EncodeNULL();
     MediaFrame * GetRedundantPayload();
 
- private:
+private:
     typedef std::deque<MediaFrame*> RedFrames;
     
     /**
@@ -87,7 +92,7 @@ class RTPRedundantEncoder
      */
     bool        idle;
 
-}
+};
 
 #endif
 

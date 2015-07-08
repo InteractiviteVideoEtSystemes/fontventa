@@ -99,7 +99,7 @@ public:
 		 ||
 		 strcmp(name, "H263-1998") == 0
 		 ||
-		 strcmp("H263-2000") == 0)
+		 strcmp(name, "H263-2000") == 0)
 	    {
 		c = H263_1998;
 		return true;

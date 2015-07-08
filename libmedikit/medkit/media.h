@@ -218,6 +218,7 @@ public:
 	
 protected:
 	Type type;
+	DWORD ts;
 	RtpPacketizationInfo rtpInfo;
 	BYTE	*buffer;
 	DWORD	length;
