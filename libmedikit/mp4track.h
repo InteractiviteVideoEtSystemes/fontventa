@@ -1,5 +1,9 @@
 #include <mp4v2/mp4v2.h>
-
+#include "medkit/log.h"
+#include "medkit/codecs.h"
+#include "medkit/audio.h"
+#include "medkit/video.h"
+#include "medkit/text.h"
 
 class SubtitleToRtt;
 
@@ -41,6 +45,7 @@ protected:
      int sampleId;
      unsigned long initialDelay;
      unsigned int timeScale;
+     WORD numHintSamples;
      
      DWORD prevts;
      bool reading;
@@ -54,7 +59,7 @@ public:
     
     Mp4AudioTrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack, AudioCodec::Type codec) : Mp4Basetrack(mp4, mediaTrack, hintTrack) 
     {
-	const char* nm = MP4GetTrackMediaDataName(mp4,lastHintMatch);
+	const char* nm = MP4GetTrackMediaDataName(mp4,mediaTrack);
 	this->codec = codec;    
 	Log("Opened audio track %s ID %d Hint %d\n", nm, mediaTrack, hintTrack);
 	frame = new AudioFrame(codec,8000);

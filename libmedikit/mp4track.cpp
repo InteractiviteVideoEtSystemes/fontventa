@@ -2,6 +2,8 @@
 #include "medkit/log.h"
 #include "medkit/textencoder.h"
 #include "medkit/avcdescriptor.h"
+#include "h264/h264.h"
+#include "h264/h264depacketizer.h"
 #include "mp4track.h"
 
 Mp4Basetrack::Mp4Basetrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack)
@@ -39,13 +41,13 @@ QWORD Mp4Basetrack::GetNextFrameTime()
 {
     if (hinttrack != MP4_INVALID_TRACK_ID)
     {
-	QWORD ts = MP4GetSampleTime(mp4, hint, sampleId);
+	QWORD ts = MP4GetSampleTime(mp4, hinttrack, sampleId);
 	//Check it
 	if (ts==MP4_INVALID_TIMESTAMP)
 		//Return it
 		return ts;
 	//Convert to miliseconds
-	ts = MP4ConvertFromTrackTimestamp(mp4, hint, ts, 1000);
+	ts = MP4ConvertFromTrackTimestamp(mp4, hinttrack, ts, 1000);
 	return ts;
     }
     else
@@ -59,7 +61,7 @@ const MediaFrame * Mp4Basetrack::ReadFrame()
     	int last = 0;
 	uint8_t* data;
 	bool isSyncSample;
-	unsigned int numHintSamples;
+	//unsigned int numHintSamples;
 	unsigned short packetIndex;
 	unsigned int frameSamples;
 	int frameSize;
@@ -94,7 +96,6 @@ const MediaFrame * Mp4Basetrack::ReadFrame()
 	frameTime = MP4ConvertFromTrackTimestamp(mp4, hinttrack, frameTime, 1000);
 
 	//Get max data lenght
-	BYTE *data = NULL;
 	DWORD dataLen = 0;
 	MP4Timestamp	startTime;
 	MP4Duration	duration;
@@ -116,9 +117,9 @@ const MediaFrame * Mp4Basetrack::ReadFrame()
 		&renderingOffset,		// MP4Duration* pRenderingOffset
 		&isSyncSample			/* bool* pIsSyncSample */ ))
 	{
-		Error("Error reading sample");
+		Error("Error reading sample ID %d on track %d.\n", sampleId, mediatrack);
 		//Last
-		return MP4_INVALID_TIMESTAMP;
+		return NULL;
 	}
 
 	//Set lenght & duration
@@ -148,7 +149,7 @@ const MediaFrame * Mp4Basetrack::ReadFrame()
 	// Add packetization info from hint track
 	for (packetIndex = 0; packetIndex < numHintSamples; packetIndex++ )
 	{
-	    u_int32_t pos = ( rtpdata - data )
+	    u_int32_t pos = ( rtpdata - data );
 	    u_int32_t rtpLen = dataLen - pos;
 	    bool last = ( packetIndex+1 == numHintSamples );
 	    
@@ -649,6 +650,8 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 	int next = 0;
 	int last = 0;
 	int first = 0;
+
+	u_int32_t dataLen;
 
 	// Get number of samples for this sample
 	frameSamples = MP4GetSampleDuration(mp4, mediatrack, sampleId);

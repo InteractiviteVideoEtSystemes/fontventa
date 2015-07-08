@@ -8,8 +8,6 @@
 #include "medkit/textencoder.h"
 #include "medkit/avcdescriptor.h"
 #include "medkit/audiosilence.h"
-#include "h264/h264.h"
-#include "h264/h264depacketizer.h"
 
 
 mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
