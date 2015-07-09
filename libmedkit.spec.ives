@@ -1,5 +1,5 @@
 Name:      libmedkit
-Version:   1.1.0
+Version:   1.2.0
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -45,7 +45,12 @@ make DESTDIR=$RPM_BUILD_ROOT install
 
 %changelog
 * Wed Jul 7 2015 Emmanuel BUU <emmanuel.buu@ives.fr>
+- ajout lecture fichier MP4 dans mp4format.cpp
+- version 1.2.0
+
+* Wed Jul 7 2015 Emmanuel BUU <emmanuel.buu@ives.fr>
 - ajout classe PictureStreamer
+- separation mp4format en deux fichiers
 - version 1.1.0
 
 * Wed May 7 2014 Emmanuel BUU <emmanuel.buu@ives.fr>
