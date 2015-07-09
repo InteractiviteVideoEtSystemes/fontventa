@@ -424,7 +424,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		if ( initialDelay > 0 )
 		{
 			duration = initialDelay*90;
-			Log("Adding %d ms of initial delay on video track id:%d.\n", initialDelay, mediatrack);
+			Log("Adding %d ms of initial delay on video track id:%d.\n", initialDelay, mediatrack);			
 		}
 		else
 		{

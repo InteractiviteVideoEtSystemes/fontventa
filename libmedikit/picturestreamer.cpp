@@ -20,6 +20,17 @@ bool PictureStreamer::SetCodec(VideoCodec::Type codec, const Properties &propert
 	encoder = VideoCodecFactory(codec, properties);
 }
 
+
+bool PictureStreamer::SetFrameRate(int fps,int kbits,int intraPeriod);
+{
+	if (encoder)
+	{
+		return encoder->SetFrameRate(fps, kbits, intraPeriod);
+	}
+	
+	return false;
+}
+
 VideoFrame* PictureStreamer::Stream(bool askiframe)
 {
 	if ( GetFrame() == NULL)
@@ -36,3 +47,4 @@ VideoFrame* PictureStreamer::Stream(bool askiframe)
 	
 	return encoder->EncodeFrame( GetFrame(), GetSize() );
 }
+

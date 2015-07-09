@@ -110,6 +110,8 @@ public:
 	AVCProfileCompat = constraint;
 	AVCLevelIndication = level;
     }
+    
+    VideoCodec GetCodec() { return codec; }
 
 private:
     DWORD width, height, bitrate;

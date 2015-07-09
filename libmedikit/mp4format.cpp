@@ -156,17 +156,49 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
 	    if ( mediatracks[trackidx] )
 	    {
+		VideoFrame * f2 = (VideoFrame *) f;
+		
 		if ( mediatracks[trackidx]->IsEmpty() )
 		{
-		    // adjust initial delay
-		    mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-		}
-	    
-	        int ret = mediatracks[trackidx]->ProcessFrame(f);
-		if ( waitVideo && ( (Mp4VideoTrack *) mediatracks[trackidx])->IsVideoStarted() )
-		{
-		    Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
+		    PictureStreamer pcstream;
+		    Properties properties;
+			
+		    if ( !f2->IsIntra() )
+		    {
+			return -4; // Drop inter fframe : track must start with intrafrae
+		    }
+		    
 		    waitVideo = false;
+		    // add still picture until initial delay
+		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
+		    QWORD toAdd = initialDelay + (getDifTime(&firstframets)/1000);
+		    pcstream.SetCodec(codec, properties);
+		    pcstream.SetFrameRate(2, 100, 2);
+		    pcstream.PaintBlackRectangle(640, 480);
+		    mediatracks[trackidx]->SetInitialDelay(0);
+		    Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
+		    Log("-mp4recorder: need to add %lu ms offset.\n", toAdd );
+		    
+		    // Add black video at 2 fps during the whole delay 
+		    int nb = 0;
+		    for (QWORD tsdelta = 0; tsdelta < toAdd; tsDelta + = 500 )
+		    {
+			VideoFrame * f3 = pcstream.Stream(false);
+			
+			if (f3 == NULL)
+			{
+				Error("Cannot create video prologue frame.\n");
+				mediatracks[trackidx]->SetInitialDelay( toAdd - tsdelta);
+				break;
+			}
+			else
+			{
+				f3->SetTimestamp(f2->GetTimestamp() + tsdelta - toAdd );
+				mediatracks[trackidx]->ProcessFrame(f3);
+				nb++;
+			}
+		    }
+		    if (nb > 0) Log("-mp4recorder: Added %d still videoframes to offset dealy.\n", nb );
 		}
 		return ret;
 	    }

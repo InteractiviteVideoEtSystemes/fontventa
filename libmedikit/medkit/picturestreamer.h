@@ -27,6 +27,12 @@ public:
 	 * Create an encoder and configure it to stream the pricture
 	 **/
 	bool SetCodec(VideoCodec::Type codec, const Properties &properties);
+
+	/**
+	 * Set Frame rate of the encoder
+	 */
+	 
+	bool SetFrameRate(int fps,int kbits,int intraPeriod);
 	
 	/**
 	 * Create an encoded videoframe

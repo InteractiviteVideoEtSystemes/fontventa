@@ -17,6 +17,7 @@ public:
 	
 	unsigned int GetSize() { return (((width/32+1)*32)*((height/32+1)*32)*3)/2; }
 
+	void PaintBlackRectangle(unsigned int width, unsigned int height);
 private:
 	BYTE*	 frame;
 	int width;

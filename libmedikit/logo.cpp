@@ -293,3 +293,32 @@ void Logo::Clean()
 		memset(frame, 0, size);
 	}
 }
+
+void Logo::PaintBlackRectangle(unsigned int pwidth, unsigned int pheight)
+{
+	if ( pwidth == 0 || pheight == 0)
+	{
+		return;
+	}
+
+	if (frame != NULL)
+	{
+		free(frame);
+		frame = NULL;
+	}
+	
+	unsigned int size =  GetSize();
+	unsigned int mosaicNumPixels = pwidth*pheight;
+	frame = (BYTE*)malloc(size); /* size for YUV 420 */
+	
+	if ( frame )
+	{
+	    BYTE *lineaY = frame;
+	    BYTE *lineaU = frame + mosaicNumPixels;
+	    BYTE *lineaV = lineaU + mosaicNumPixels/4;
+	    
+	    memset(lineaY, 0, mosaicNumPixels);
+	    memset(lineaU, (BYTE) -128, mosaicNumPixels/4);
+	    memset(lineaV, (BYTE) -128, mosaicNumPixels/4);
+	}
+}
