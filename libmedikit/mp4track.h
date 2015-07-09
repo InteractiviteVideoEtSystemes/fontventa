@@ -111,7 +111,7 @@ public:
 	AVCLevelIndication = level;
     }
     
-    VideoCodec GetCodec() { return codec; }
+    VideoCodec::Type GetCodec() { return codec; }
 
 private:
     DWORD width, height, bitrate;

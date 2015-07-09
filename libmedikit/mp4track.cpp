@@ -171,7 +171,7 @@ const MediaFrame * Mp4Basetrack::ReadFrame()
 		return NULL;
 	    }
 	    
-	    frame.AddRtpPacket(pos, rtpLen , NULL, 0, last);
+	    frame->AddRtpPacket(pos, rtpLen , NULL, 0, last);
 	    
 	}
 
@@ -653,23 +653,26 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 	int first = 0;
 
 	u_int32_t dataLen;
+	unsigned int frameSamples;
+	int frameTime;
+	int frameType;
 
 	// Get number of samples for this sample
 	frameSamples = MP4GetSampleDuration(mp4, mediatrack, sampleId);
 
 	// Get size of sample
-	frameSize = MP4GetSampleSize(mp4, mediatrack, sampleId);
+	DWORD dataLen = MP4GetSampleSize(mp4, mediatrack, sampleId);
 
 	// Get sample timestamp
 	frameTime = MP4GetSampleTime(mp4, mediatrack, sampleId);
 	//Convert to miliseconds
 	frameTime = MP4ConvertFromTrackTimestamp(mp4, mediatrack, frameTime, 1000);
 
-	if ( frameSize <= sizeof(buffer))
+	if ( dataLen <= sizeof(buffer))
 	{
 		// Get data pointer
 		//Get max data lenght
-		DWORD dataLen = frameSize;
+		
 
 		MP4Timestamp	startTime;
 		MP4Duration	duration;
@@ -732,8 +735,9 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 		    if (nbdel > 0)
 		    {
 			frame->AddRtpPacket(0, nbdel, NULL, 0, true);
-			frame->AddRtpPacket(nbdel, rttstr.length() - nbdel, NULL, 0, true);
 		    }
+		    
+		    frame->AddRtpPacket(nbdel, rttstr.length() - nbdel, NULL, 0, true);
 		}
 	    }
 	    else
