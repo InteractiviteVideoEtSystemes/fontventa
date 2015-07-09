@@ -154,7 +154,7 @@ public:
 
     int Rewind();
     
-    bool EOF();
+    bool Eof();
 
 protected:
     //MP4TrackId IterateTracks(int trackIdx, const char * trackType, bool useHint = true);

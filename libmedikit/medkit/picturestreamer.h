@@ -43,6 +43,6 @@ private:
 	VideoEncoder * encoder;
 	
 	bool HandleSizeChange();
-}
+};
 
 #endif

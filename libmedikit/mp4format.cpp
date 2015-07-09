@@ -2,12 +2,14 @@
 #include <asterisk/channel.h>
 #include "medkit/astcpp.h"
 #include "astmedkit/mp4format.h"
+#include "mp4track.h"
+#include "medkit/picturestreamer.h"
 #include "astmedkit/frameutils.h"
 #include "medkit/red.h"
 #include "medkit/log.h"
 #include "medkit/textencoder.h"
 #include "medkit/avcdescriptor.h"
-
+#include "h264/h264depacketizer.h"
 
 mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
 {
@@ -156,8 +158,9 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    if ( mediatracks[trackidx] )
 	    {
 		VideoFrame * f2 = (VideoFrame *) f;
+		Mp4VideoTrack * tr = (Mp4VideoTrack *)  mediatracks[trackidx];
 		
-		if ( mediatracks[trackidx]->IsEmpty() )
+		if ( tr->IsEmpty() )
 		{
 		    PictureStreamer pcstream;
 		    Properties properties;
@@ -171,34 +174,35 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    // add still picture until initial delay
 		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    QWORD toAdd = initialDelay + (getDifTime(&firstframets)/1000);
-		    pcstream.SetCodec(codec, properties);
+		    pcstream.SetCodec(tr->GetCodec(), properties);
 		    pcstream.SetFrameRate(2, 100, 2);
 		    pcstream.PaintBlackRectangle(640, 480);
-		    mediatracks[trackidx]->SetInitialDelay(0);
+		    tr->SetInitialDelay(0);
 		    Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
 		    Log("-mp4recorder: need to add %lu ms offset.\n", toAdd );
 		    
 		    // Add black video at 2 fps during the whole delay 
 		    int nb = 0;
-		    for (QWORD tsdelta = 0; tsdelta < toAdd; tsDelta + = 500 )
+		    for (QWORD tsDelta = 0; tsDelta < toAdd; tsDelta += 500 )
 		    {
 			VideoFrame * f3 = pcstream.Stream(false);
 			
 			if (f3 == NULL)
 			{
 				Error("Cannot create video prologue frame.\n");
-				mediatracks[trackidx]->SetInitialDelay( toAdd - tsdelta);
+				tr->SetInitialDelay( toAdd - tsDelta);
 				break;
 			}
 			else
 			{
-				f3->SetTimestamp(f2->GetTimestamp() + tsdelta - toAdd );
-				mediatracks[trackidx]->ProcessFrame(f3);
+				f3->SetTimestamp(f2->GetTimeStamp() + tsDelta - toAdd );
+				tr->ProcessFrame(f3);
 				nb++;
 			}
 		    }
 		    if (nb > 0) Log("-mp4recorder: Added %d still videoframes to offset dealy.\n", nb );
 		}
+		int ret = tr->ProcessFrame(f2);
 		return ret;
 	    }
 	    else
@@ -484,7 +488,7 @@ mp4player::mp4player(void * ctxdata, MP4FileHandle mp4)
 	this->ctxdata = ctxdata;
 	mediatracks[MP4_AUDIO_TRACK] = NULL;
 	mediatracks[MP4_VIDEO_TRACK] = NULL;
-	mediatracks[MP4_VIDEODOC_TRACK] = NULL
+	mediatracks[MP4_VIDEODOC_TRACK] = NULL;
 	mediatracks[MP4_TEXT_TRACK]  = NULL;
 	redenc = NULL;
 	
@@ -499,7 +503,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 {
     if (nbCodecs > 0)
     {
-	MP4TrackId hintId = NO_CODEC ;
+	MP4TrackId hintId = -1 ;
 	MP4TrackId trackId = -1;
 	MP4TrackId lastHintMatch = -1;
 	MP4TrackId lastTrackMatch = -1;
@@ -524,7 +528,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 	    if (trackId != MP4_INVALID_TRACK_ID)
 	    {
 		/* Get type */
-		type = MP4GetTrackType(mp4, trackId);
+		MP4Type type = MP4GetTrackType(mp4, trackId);
 
 		if (type != NULL && strcmp(type, MP4_AUDIO_TRACK_TYPE) == 0)
 		{
@@ -596,7 +600,7 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 {
     if (nbCodecs > 0)
     {
-	MP4TrackId hintId = NO_CODEC ;
+	MP4TrackId hintId = -1 ;
 	MP4TrackId trackId = -1;
 	MP4TrackId lastHintMatch = -1;
 	MP4TrackId lastTrackMatch = -1;

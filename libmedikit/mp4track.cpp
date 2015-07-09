@@ -551,6 +551,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 Mp4TextTrack::Mp4TextTrack(MP4FileHandle mp4, MP4TrackId mediaTrack) : Mp4Basetrack(mp4, mediaTrack, -1) 
 {
     conv1 = new SubtitleToRtt();
+    frame = new TextFrame(true);
     
 }
 int Mp4TextTrack::Create(const char * trackName, int codec, DWORD bitrate)
@@ -656,12 +657,15 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 	unsigned int frameSamples;
 	int frameTime;
 	int frameType;
+	MP4Timestamp	startTime;
+	MP4Duration	duration;
+	MP4Duration	renderingOffset;
 
 	// Get number of samples for this sample
 	frameSamples = MP4GetSampleDuration(mp4, mediatrack, sampleId);
 
 	// Get size of sample
-	DWORD dataLen = MP4GetSampleSize(mp4, mediatrack, sampleId);
+	dataLen = MP4GetSampleSize(mp4, mediatrack, sampleId);
 
 	// Get sample timestamp
 	frameTime = MP4GetSampleTime(mp4, mediatrack, sampleId);
@@ -673,11 +677,6 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 		// Get data pointer
 		//Get max data lenght
 		
-
-		MP4Timestamp	startTime;
-		MP4Duration	duration;
-		MP4Duration	renderingOffset;
-
 		// Read next rtp packet
 		if (!MP4ReadSample(
 				mp4,				// MP4FileHandle hFile
@@ -699,7 +698,8 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 		if (dataLen>2)
 		{
 			//Get string length
-			dataLen = bufffer[0]<<8 | bufffer[1];
+			dataLen = buffer[0]<<8 | buffer[1];
+			if (dataLen > sizeof(buffer) ) dataLen = sizeof(buffer);
 			//Set frame
 			//frame->SetFrame(startTime,data+2+renderingOffset,len-renderingOffset-2);
 		}
@@ -720,9 +720,11 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 	// need to compute the difference between the previous subtile and
 	// the current one in order to render this as real time text
 		
+	    TextFrame * tf = (  TextFrame * ) frame;
+
 	    if ( conv1 != NULL )
 	    {	
-		std::string txtsample(buffer + 2 + renderingOffset, dataLen - renderingOffset);
+		std::string txtsample((const char *) &buffer[2+renderingOffset], dataLen - renderingOffset);
 		std::string rttstr;
 		unsigned int nbdel = 0;
 		
@@ -731,7 +733,7 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 		
 		if ( frame->Alloc( rttstr.length()) )
 		{
-		    frame->SetFrame(startTime, rttstr.data(), rttstr.length() );
+		    tf->SetFrame(startTime, (const BYTE *)rttstr.data(), rttstr.length() );
 		    if (nbdel > 0)
 		    {
 			frame->AddRtpPacket(0, nbdel, NULL, 0, true);
@@ -742,7 +744,8 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 	    }
 	    else
 	    {
-		frame->SetFrame(startTime, buffer + 2 + renderingOffset, dataLen - renderingOffset);
+		tf->SetFrame(startTime, buffer + 2 + renderingOffset, dataLen - renderingOffset);
+		frame->AddRtpPacket(0, renderingOffset, NULL, 0, true);
 	    }
 	}
 	else

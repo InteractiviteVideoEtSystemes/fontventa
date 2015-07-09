@@ -4,6 +4,7 @@
 #include "medkit/audio.h"
 #include "medkit/video.h"
 #include "medkit/text.h"
+#include "medkit/textencoder.h"
 
 class SubtitleToRtt;
 
