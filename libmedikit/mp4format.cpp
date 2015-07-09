@@ -7,7 +7,6 @@
 #include "medkit/log.h"
 #include "medkit/textencoder.h"
 #include "medkit/avcdescriptor.h"
-#include "medkit/audiosilence.h"
 
 
 mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)

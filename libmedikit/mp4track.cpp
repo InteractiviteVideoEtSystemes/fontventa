@@ -5,6 +5,7 @@
 #include "h264/h264.h"
 #include "h264/h264depacketizer.h"
 #include "mp4track.h"
+#include "medkit/audiosilence.h"
 
 Mp4Basetrack::Mp4Basetrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack)
 {
