@@ -31,18 +31,31 @@ public:
 	{
 	    if (name == NULL) return false;
 	    
-	    if ( strcmp(name, "PCMA") == 0)
+	    if ( strcmp(name, "PCMA" || strcmp(name, "alaw")) == 0)
 	    {
 		c = PCMA;
 		return true;
 	    }
 	    
-	    if ( strcmp(name, "PCMU") == 0)
+	    if ( strcmp(name, "PCMU") == 0 || strcmp(name, "ulaw") == 0)
 	    {
 		c = PCMA;
 		return true;
 	    }
 
+	    if ( strcmp(name, "AAC") == 0)
+	    {
+		c = AAC;
+		return true;
+	    }
+
+	    if ( strcmp(name, "OPUS") == 0)
+	    {
+		c = OPUS;
+		return true;
+	    }
+
+	    
 	    if ( strcmp(name, "AMR") == 0)
 	    {
 		c = AMR;

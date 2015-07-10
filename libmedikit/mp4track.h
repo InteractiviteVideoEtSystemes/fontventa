@@ -38,6 +38,8 @@ public:
     
 protected:
     QWORD GetNextFrameTime();
+    const MediaFrame * ReadFrameFromHint();
+    const MediaFrame * ReadFrameWithoutHint();
 
 protected:
      MP4FileHandle mp4;		

@@ -59,6 +59,14 @@ QWORD Mp4Basetrack::GetNextFrameTime()
 
 const MediaFrame * Mp4Basetrack::ReadFrame()
 {
+    if (hinttrack != MP4_INVALID_TRACK_ID)
+	return ReadFrameFromHint();
+    else
+	return ReadFrameWithoutHint();
+}
+
+const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
+{
     	int last = 0;
 	uint8_t* data;
 	bool isSyncSample;
@@ -174,6 +182,102 @@ const MediaFrame * Mp4Basetrack::ReadFrame()
 	    frame->AddRtpPacket(pos, rtpLen , NULL, 0, last);
 	    
 	}
+
+	sampleId++;
+
+	return frame;
+}
+
+const MediaFrame * Mp4Basetrack::ReadFrameWithoutHint()
+{
+    	int last = 0;
+	uint8_t* data;
+	bool isSyncSample;
+	//unsigned int numHintSamples;
+	unsigned short packetIndex;
+	unsigned int frameSamples;
+	int frameSize;
+	int frameTime;
+	int frameType;
+
+	if ( frame == NULL )
+	{
+	    Error("Buffer not initialized. Cannot read sample.\n");
+	    return NULL;
+	}
+	
+	// Get number of rtp packets for this sample
+	if (!MP4ReadRtpHint(mp4, hinttrack, sampleId, &numHintSamples))
+	{
+		//Print error
+		Error("Error reading hint track ID %d\n", hinttrack);
+		//Exit
+		return NULL;
+	}
+
+	// Get number of samples for this sample
+	frameSamples = MP4GetSampleDuration(mp4, mediatrack, sampleId);
+
+	// Get size of sample
+	frameSize = MP4GetSampleSize(mp4, mediatrack, sampleId);
+
+	// Get sample timestamp
+	frameTime = MP4GetSampleTime(mp4, mediatrack, sampleId);
+	
+	//Convert to miliseconds
+	frameTime = MP4ConvertFromTrackTimestamp(mp4, mediatrack, frameTime, 1000);
+
+	//Get max data lenght
+	DWORD dataLen = 0;
+	MP4Timestamp	startTime;
+	MP4Duration	duration;
+	MP4Duration	renderingOffset;
+
+	//Get values
+	data	= frame->GetData();
+	dataLen = frame->GetMaxMediaLength();
+		
+	// Read next frame packet
+	if (!MP4ReadSample(
+		mp4,				// MP4FileHandle hFile
+		mediatrack,				// MP4TrackId hintTrackId
+		sampleId,			// MP4SampleId sampleId,
+		(u_int8_t **) &data,		// u_int8_t** ppBytes
+		(u_int32_t *) &dataLen,		// u_int32_t* pNumBytes
+		&startTime,			// MP4Timestamp* pStartTime
+		&duration,			// MP4Duration* pDuration
+		&renderingOffset,		// MP4Duration* pRenderingOffset
+		&isSyncSample			/* bool* pIsSyncSample */ ))
+	{
+		Error("Error reading sample ID %d on track %d.\n", sampleId, mediatrack);
+		//Last
+		return NULL;
+	}
+
+	//Set lenght & duration
+	frame->SetLength(dataLen);
+	frame->SetDuration(duration);
+	VideoFrame *video = NULL;
+
+	//Set media specific properties
+	switch ( frame->GetType() )
+	{
+	    case MediaFrame::Video:
+	        video = (VideoFrame*)frame;
+		frame->SetTimestamp(startTime*90000/timeScale);
+		video->SetIntra(isSyncSample);
+		break;
+		
+	    case MediaFrame::Audio:
+	       frame->SetTimestamp(startTime*8000/timeScale);
+	       break;
+	       
+	    case MediaFrame::Text:
+	       // Never used as read method will be overrienden for text tracks
+	       break;
+	}
+	
+	frame->Packetize();
 
 	sampleId++;
 
