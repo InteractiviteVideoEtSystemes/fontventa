@@ -49,7 +49,7 @@ Logo & Logo::operator =(const Logo& l)
    
 }
 
-int Logo::Load(const char* fileName, unsigned int pwidth = 0, unsigned int pheight = 0)
+int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 {
 	AVFormatContext *fctx = NULL;
 	AVCodecContext *ctx = NULL;
