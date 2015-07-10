@@ -54,7 +54,7 @@ VideoFrame* PictureStreamer::Stream(bool askiframe)
 		return NULL;
 	}
 	
-	VideoFrame * f = encoder->EncodeFrame( GetFrame(), GetSize() );;
+	VideoFrame * f = encoder->EncodeFrame( GetFrame(), (GetWidth()*GetHeight()*3)/2 );
 	
 	if (f == NULL) Error("-PictureStreamer: fail to encode picture. Cannot stream.\n");
 	

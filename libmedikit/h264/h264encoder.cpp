@@ -282,7 +282,7 @@ VideoFrame* H264Encoder::EncodeFrame(BYTE *buffer,DWORD bufferSize)
 	//Comprobamos el tama�o
 	if (numPixels*3/2 != bufferSize)
 	{
-		Error("-EncodeFrame length error [%d,%d]\n",numPixels*5/4,bufferSize);
+		Error("-EncodeFrame length error [%d,%d]\n",numPixels*3/2,bufferSize);
 		return NULL;
 	}
 
