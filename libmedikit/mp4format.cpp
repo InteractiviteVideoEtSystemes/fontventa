@@ -546,7 +546,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 			if ( ! AudioCodec::GetCodecFor(name, c) )
 			{
 			    Log("Unsupported audio codec %d for hint track ID %d.\n", name, hintId);
-			    goto audio_track_loop;
+			    goto audio_track_loop1;
 			}
 		    }
 		    
@@ -571,8 +571,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 			    }
 			}
 		    }
-		}
-		
+		}		
 	    }
 	    else
 	    {
@@ -587,7 +586,8 @@ audio_track_loop1:
 	if ( lastTrackMatch == -1)
 	{
 	    Log("Try reopening audio track without hint.\n");
-	    trackId = MP4FindTrackId(mp4, idxTrack, MP4_MEDIA_TRACK_TYPE, 0);
+	    idxTrack = 0;
+	    trackId = MP4FindTrackId(mp4, idxTrack, MP4_AUDIO_TRACK_TYPE, 0);
 	    while (trackId != MP4_INVALID_TRACK_ID)
 	    {
 	        const char* nm = MP4GetTrackMediaDataName(mp4,trackId);
@@ -609,7 +609,7 @@ audio_track_loop1:
 			if ( ! AudioCodec::GetCodecFor(name, c) )
 			{
 			    Log("Unsupported audio codec %d for hint track ID %d.\n", name, hintId);
-			    goto audio_track_loop;
+			    goto audio_track_loop2;
 			}
 		    }
 		    
@@ -635,6 +635,10 @@ audio_track_loop1:
 			}
 		    }
 		}
+audio_track_loop2:		
+		idxTrack++;
+		trackId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
+
 	    }
 	}
 	
@@ -659,6 +663,7 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 	MP4TrackId lastHintMatch = -1;
 	MP4TrackId lastTrackMatch = -1;
 	int idxTrack = 0;
+	VideoCodec::Type c;
 	
 	if (mediatracks[MP4_VIDEO_TRACK] != NULL)
 	{
@@ -684,13 +689,13 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 		if (tt != NULL && strcmp(tt, MP4_VIDEO_TRACK_TYPE) == 0)
 		{
 		    char *name;
-		    AudioCodec::Type c;
 		    
 		    MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
 		    
 		    if (name == NULL)
 		    {
-			c = AudioCodec::AMR;
+			    Log("No video codec %d for hint track ID %d.\n", name, hintId);
+			    goto video_track_loop;
 		    }
 		    else 
 		    {
@@ -738,9 +743,9 @@ vided_track_loop:
 	if ( lastTrackMatch >= 0)
 	{
 	     if (secondary)
-		mediatracks[MP4_VIDEO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch);
+		mediatracks[MP4_VIDEO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
 	     else
-		mediatracks[MP4_VIDEODOC_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch);
+		mediatracks[MP4_VIDEODOC_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
 	     return 1;
 	}
 	else
