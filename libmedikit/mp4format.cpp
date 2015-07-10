@@ -528,9 +528,9 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 	    if (trackId != MP4_INVALID_TRACK_ID)
 	    {
 		/* Get type */
-		MP4Type type = MP4GetTrackType(mp4, trackId);
+		const char * tt = MP4GetTrackType(mp4, trackId);
 
-		if (type != NULL && strcmp(type, MP4_AUDIO_TRACK_TYPE) == 0)
+		if (tt != NULL && strcmp(tt, MP4_AUDIO_TRACK_TYPE) == 0)
 		{
 		    char *name;
 		    AudioCodec::Type c;
@@ -625,9 +625,9 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 	    if (trackId != MP4_INVALID_TRACK_ID)
 	    {
 		/* Get type */
-		type = MP4GetTrackType(mp4, trackId);
+		const char * tt = MP4GetTrackType(mp4, trackId);
 
-		if (type != NULL && strcmp(type, MP4_VIDEO_TRACK_TYPE) == 0)
+		if (tt != NULL && strcmp(tt, MP4_VIDEO_TRACK_TYPE) == 0)
 		{
 		    char *name;
 		    AudioCodec::Type c;
