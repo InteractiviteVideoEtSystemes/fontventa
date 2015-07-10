@@ -18,6 +18,13 @@ bool PictureStreamer::SetCodec(VideoCodec::Type codec, const Properties &propert
 	if (encoder) delete encoder;
 	
 	encoder = VideoCodecFactory::CreateEncoder(codec, properties);
+	
+	if (encoder != NULL)
+	{
+		HandleSizeChange();
+		return true;
+	}
+	return false;
 }
 
 
@@ -48,3 +55,16 @@ VideoFrame* PictureStreamer::Stream(bool askiframe)
 	return encoder->EncodeFrame( GetFrame(), GetSize() );
 }
 
+bool PictureStreamer::HandleSizeChange()
+{
+	if (width == 0 || height == 0) return false;
+	
+	if (encoder)
+	{
+		return encoder->SetSize(width, height);
+	}
+	else
+	{
+		return true;
+	}
+}

@@ -18,9 +18,15 @@ public:
 	{
 		if (Logo::Load(filename, pwidth, pheight))
 		{
-			if (HandleSizeChange() ) return 1;
+			if ( HandleSizeChange() ) return 1;
 		}
 		return 0;
+	}
+	
+	void PaintBlackRectangle(unsigned int pwidth, unsigned int pheight)
+	{
+		Logo::PaintBlackRectangle(pwidth, pheight);
+		HandleSizeChange();
 	}
 	
 	/**
