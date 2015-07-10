@@ -17,11 +17,11 @@ bool PictureStreamer::SetCodec(VideoCodec::Type codec, const Properties &propert
 {
 	if (encoder) delete encoder;
 	
-	encoder = VideoCodecFactory(codec, properties);
+	encoder = VideoCodecFactory::CreateEncoder(codec, properties);
 }
 
 
-bool PictureStreamer::SetFrameRate(int fps,int kbits,int intraPeriod);
+bool PictureStreamer::SetFrameRate(int fps,int kbits,int intraPeriod)
 {
 	if (encoder)
 	{

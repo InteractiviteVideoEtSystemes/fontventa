@@ -94,11 +94,12 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 
 bool AudioFrame::Packetize()
 {
-	
 	ClearRTPPacketizationInfo();
 	for (unsigned int i=0; i<GetLength(); i+= packetization )
 	{
-		AddRtpPacket(i, )
+		unsigned int rtplen = GetLength() - i;
+
+		if (rtplen > packetization ) rtplen = packetization;
+		AddRtpPacket(i, rtplen, 0, NULL, false);
 	}
-	
 }
