@@ -57,11 +57,11 @@ VideoFrame* PictureStreamer::Stream(bool askiframe)
 
 bool PictureStreamer::HandleSizeChange()
 {
-	if (width == 0 || height == 0) return false;
+	if (GetWidth() == 0 || GetHeight() == 0) return false;
 	
 	if (encoder)
 	{
-		return encoder->SetSize(width, height);
+		return encoder->SetSize(GetWidth(), GetHeight());
 	}
 	else
 	{

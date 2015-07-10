@@ -307,7 +307,7 @@ void Logo::PaintBlackRectangle(unsigned int pwidth, unsigned int pheight)
 		frame = NULL;
 	}
 	
-	witdh = pwidth;
+	width = pwidth;
 	height = pheight;
 	unsigned int size =  GetSize();
 	unsigned int numPixels = pwidth*pheight;
