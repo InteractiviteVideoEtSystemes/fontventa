@@ -743,9 +743,9 @@ vided_track_loop:
 	if ( lastTrackMatch >= 0)
 	{
 	     if (secondary)
-		mediatracks[MP4_VIDEO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
+		mediatracks[MP4_VIDEO_TRACK] = new Mp4VideoTrack(mp4, lastTrackMatch, lastHintMatch, c);
 	     else
-		mediatracks[MP4_VIDEODOC_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
+		mediatracks[MP4_VIDEODOC_TRACK] = new Mp4VideoTrack(mp4, lastTrackMatch, lastHintMatch, c);
 	     return 1;
 	}
 	else
