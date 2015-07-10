@@ -50,13 +50,13 @@ VideoFrame* PictureStreamer::Stream(bool askiframe)
 	if (encoder == NULL)
 	{
 		// No encoder
-		Error("-PictureStreamer: no video encoder configured. Cannot stream.\n")
+		Error("-PictureStreamer: no video encoder configured. Cannot stream.\n");
 		return NULL;
 	}
 	
 	VideoFrame * f = encoder->EncodeFrame( GetFrame(), GetSize() );;
 	
-	if (f == NULL) Error("-PictureStreamer: fail to encode picture. Cannot stream.\n")
+	if (f == NULL) Error("-PictureStreamer: fail to encode picture. Cannot stream.\n");
 	
 	return f;
 }
