@@ -307,18 +307,20 @@ void Logo::PaintBlackRectangle(unsigned int pwidth, unsigned int pheight)
 		frame = NULL;
 	}
 	
+	witdh = pwidth;
+	height = pheight;
 	unsigned int size =  GetSize();
-	unsigned int mosaicNumPixels = pwidth*pheight;
+	unsigned int numPixels = pwidth*pheight;
 	frame = (BYTE*)malloc(size); /* size for YUV 420 */
 	
 	if ( frame )
 	{
 	    BYTE *lineaY = frame;
-	    BYTE *lineaU = frame + mosaicNumPixels;
-	    BYTE *lineaV = lineaU + mosaicNumPixels/4;
+	    BYTE *lineaU = frame + numPixels;
+	    BYTE *lineaV = lineaU + numPixels/4;
 	    
-	    memset(lineaY, 0, mosaicNumPixels);
-	    memset(lineaU, (BYTE) -128, mosaicNumPixels/4);
-	    memset(lineaV, (BYTE) -128, mosaicNumPixels/4);
+	    memset(lineaY, 0, numPixels);
+	    memset(lineaU, (BYTE) -128, numPixels/4);
+	    memset(lineaV, (BYTE) -128, numPixels/4);
 	}
 }

@@ -6,6 +6,7 @@
 #include "g722/g722codec.h"
 #endif
 
+
 AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec)
 {
 	//Empty properties
@@ -89,4 +90,15 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 	}
 
 	return NULL;
+}
+
+bool AudioFrame::Packetize()
+{
+	
+	ClearRTPPacketizationInfo();
+	for (unsigned int i=0; i<GetLength(); i+= packetization )
+	{
+		AddRtpPacket(i, )
+	}
+	
 }

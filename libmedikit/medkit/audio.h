@@ -11,6 +11,7 @@ public:
 	virtual DWORD TrySetRate(DWORD rate)=0;
 	virtual DWORD GetRate()=0;
 	virtual DWORD GetClockRate()=0;
+
 	AudioCodec::Type	type;
 	int			numFrameSamples;
 	int			frameLength;
@@ -36,6 +37,15 @@ public:
 		this->codec = codec;
 		//Set default rate
 		this->rate = rate;
+		
+		switch(codec)
+		{
+			case AudioCodec::PCMA:
+			case AudioCodec::PCMU:
+			default:
+				packetization = 160;
+				break;
+		}
 	}
 
 	virtual MediaFrame* Clone()
@@ -48,6 +58,8 @@ public:
 		frame->SetDuration(duration);
 		//Set timestamp
 		frame->SetTimestamp(GetTimeStamp());
+		
+		frame->packetization = this->packetization;
 		//Return it
 		return (MediaFrame*)frame;
 	}
@@ -55,10 +67,13 @@ public:
 	AudioCodec::Type GetCodec() const			{ return codec;		}
 	void	SetCodec(AudioCodec::Type codec)	{ this->codec = codec;	}
 	DWORD	GetRate() const				{ return rate;		}
+	
+	virtual bool Packetize();
 
 private:
 	AudioCodec::Type codec;
 	DWORD		 rate;
+	unsigned int packetization;
 };
 
 class AudioCodecFactory
