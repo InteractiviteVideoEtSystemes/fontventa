@@ -735,7 +735,7 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 		Log("No media track associated with hint track ID %d.\n", hintId);
 	    }
 	    
-vided_track_loop:
+video_track_loop:
 	    idxTrack++;
 	    hintId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
 	}
@@ -765,7 +765,7 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
 
     if ( c == TextCodec::T140RED)
     {
-	redenc = new RTPRedundantEncoder(pt)
+	redenc = new RTPRedundantEncoder(pt);
     }
     
     MP4TrackId textId = MP4FindTrackId(mp4, 0, MP4_TEXT_TRACK_TYPE, 0);
@@ -782,7 +782,7 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
     }
 }
 
-bool mp4player::EOF()
+bool mp4player::Eof(void)
 {
     if ( mediatracks[MP4_AUDIO_TRACK] && audioNext != MP4_INVALID_TIMESTAMP )
 	return false;
@@ -962,12 +962,11 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 		    tc = TextCodec::T140RED;
 		else
 		    tc = TextCodec::T140;
-	    }
-		
-		if ( p->OpenTrack(tc, renderText) < 0 )
+		if ( p->OpenTrack(tc, renderText, 1) < 0 )
 		{
 			Error("mp4play: [%s]  No suitable video track found.\n", chan->name);
 		}			
+	    }
     }
     return (mp4play *) p;
 }
