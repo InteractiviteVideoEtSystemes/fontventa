@@ -441,7 +441,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		// Generate timing INFO
 		text_ts = getDifTime(&firstframets)/1000 ;
 
-		if ( f->subclass == AST_FORMAT_RED )
+		if ( (f->subclass  & AST_FORMAT_TEXT_MASK) == AST_FORMAT_RED )
 		{
 		    // parse RED to recover lost packets
 		    RTPRedundantPayload red( AST_FRAME_GET_BUFFER(f), f->datalen );
