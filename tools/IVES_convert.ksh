@@ -1438,7 +1438,6 @@ CopyIn2tmp()
 MakeMp4()
 {
     HaveAllTrack
-    ExtractTextFromMp4
     CopyIn2tmp
     if [ $haveAudio -ne 0 ] 
          then create_pcm_track 
@@ -1555,6 +1554,7 @@ Execut()
     test_input_file $inFile
     MakeOutFilename
     start_line
+    ExtractTextFromMp4
     WhatThisFile $inFile std_out_ok
     MakeTempFilename
     clean_ctx
