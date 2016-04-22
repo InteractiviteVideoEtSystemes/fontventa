@@ -116,7 +116,7 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 	}
 
 	//Alloc frame
-	if (!(logoRGB = avcodec_alloc_frame()))
+	if (!(logoRGB = av_frame_alloc()))
 	{
 		//Set errror
 		res = Error("Couldn't alloc frame\n");
@@ -143,7 +143,7 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 	}
 
 	//Allocate new one
-	if (!(logo = avcodec_alloc_frame()))
+	if (!(logo = av_frame_alloc()))
 	{
 		//Set errror
 		res = Error("Couldn't alloc frame\n");
@@ -251,7 +251,7 @@ end:
 		sws_freeContext(sws);
 
 	if (fctx)
-		av_close_input_file(fctx);
+		avformat_close_input(&fctx);
 
 	//Exit
 	return res;	
