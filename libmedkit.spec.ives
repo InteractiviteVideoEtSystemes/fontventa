@@ -1,5 +1,5 @@
 Name:      libmedkit
-Version:   1.2.1
+Version:   1.2.2
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -44,6 +44,15 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
+* Fri Oct 28 2016 Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected a locking issue in jitter buffer
+- version 1.2.2
+
+* Thu Apr 21 2016 Emmanuel BUU <emmanuel.buu@ives.fr>
+- finished packaging
+- updated dependencies to ffmpeg 2.4.x
+- version 1.2.1
+
 * Wed Jul 7 2015 Emmanuel BUU <emmanuel.buu@ives.fr>
 - ajout lecture fichier MP4 dans mp4format.cpp
 - version 1.2.0
