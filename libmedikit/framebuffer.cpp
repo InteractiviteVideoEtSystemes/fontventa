@@ -37,8 +37,6 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	if (next != (DWORD)-1 && seq < next)
 	{
 		bigJumps++;
-		//Unlock
-		pthread_mutex_unlock(&mutex);
 		//Delete pacekt
 		//Skip it and lost forever
 		if ( bigJumps > 20)
@@ -50,7 +48,10 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		{
 			//Delete pacekt
 			//ast_frfree(f);
-			ast_log(LOG_WARNING, "-Out of order non recoverable packet: seq=%d, next=%d\n");
+			//Unlock
+			pthread_mutex_unlock(&mutex);
+			ast_log(LOG_WARNING, "-Out of order non recoverable packet: seq=%ld, next=%ld\n",
+					seq, next);
 			return false;
 		}
 	}
