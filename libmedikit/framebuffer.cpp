@@ -33,8 +33,8 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	//Lock
 	pthread_mutex_lock(&mutex);
 
-	//If already past
-	if (next != (DWORD)-1 && seq < next)
+	//If already past more than 40 packets old
+	if (next != (DWORD)-1 && seq < next && next-seq > 40)
 	{
 		bigJumps++;
 		//Delete pacekt
@@ -46,7 +46,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 			bigJumps = 0;
 			
 		}
-		else
+		else 
 		{
 			//Delete pacekt
 			//ast_frfree(f);
@@ -88,8 +88,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 	{
 		//Check if we have somethin in queue. In non blocking mode
 		//we need three packets at least
-		packready = blocking ? packets.empty() : ( Length() > maxWaitTime );
-		if (packready)
+		if ( ! packets.empty() )
 		{
 			int ret = ETIMEDOUT;
 			//Get first
@@ -99,10 +98,20 @@ struct ast_frame * AstFrameBuffer::Wait()
 			//Get packet
 			struct ast_frame * candidate = it->second;
 			//Get time of the packet
+			
 			QWORD time = candidate->ts;
+			
+			if (blocking)
+			{
+				packready = ( time+maxWaitTime<getTime()/1000 );
+			}
+			else
+			{
+				packready = ( seq <= next ) || Length() > maxWaitTime ) 
+			}
 
 			//Check if first is the one expected or wait if not
-			if (next==(DWORD)-1 || seq==next || time+maxWaitTime<getTime()/1000 || hurryUp)
+			if (next==(DWORD)-1 || seq==next || packready || hurryUp)
 			{
 				//We have it!
 				rtp = candidate;
