@@ -112,7 +112,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 			}
 			else
 			{
-				packready = ( seq <= next ) || Length() > maxWaitTime ) 
+				packready = ( seq <= next ) || (Length() > maxWaitTime ); 
 			}
 
 			//Check if first is the one expected or wait if not

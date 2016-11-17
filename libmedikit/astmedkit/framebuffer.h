@@ -160,7 +160,7 @@ extern "C"
 #endif
      struct AstFb;
 
-     struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking, int fifo)
+     struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking, int fifo);
      /**
       *  Add an ast_frame into the jitterbuffer. Frame is duplicated.
       *  
