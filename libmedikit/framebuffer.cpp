@@ -43,6 +43,8 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		{
 			ast_log(LOG_WARNING, "Too many out of sequence packet. Resyncing.\n");
 			next=(DWORD)-1;
+			bigJumps = 0;
+			
 		}
 		else
 		{
@@ -50,8 +52,8 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 			//ast_frfree(f);
 			//Unlock
 			pthread_mutex_unlock(&mutex);
-			ast_log(LOG_WARNING, "-Out of order non recoverable packet: seq=%ld, next=%ld\n",
-					seq, next);
+			ast_log(LOG_WARNING, "-Out of order non recoverable packet: seq=%ld, next=%ld diff=%ld\n",
+					seq, next, next-seq);
 			return false;
 		}
 	}
