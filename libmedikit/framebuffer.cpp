@@ -170,7 +170,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 	return rtp;
 }
 
-struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking, int fifo)
+struct AstFb *AstFbCreate(unsigned long maxWaitTime, int blocking, int fifo)
 {
 	AstFrameBuffer * fb = new AstFrameBuffer((bool) blocking, (bool) fifo);
 	if (fb)
