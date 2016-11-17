@@ -33,8 +33,8 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	//Lock
 	pthread_mutex_lock(&mutex);
 
-	//If already past more than 40 packets old
-	if (next != (DWORD)-1 && seq < next && next-seq > 40)
+	//If already past
+	if (next != (DWORD)-1 && seq < next)
 	{
 		bigJumps++;
 		//Delete pacekt
@@ -60,7 +60,12 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 
 	//Add event
 	f2 = ast_frdup(f);
-	if (ignore_cseq) f2->seqno = (seq & 0xFFFF);
+	
+	// 0 = use native CSEQ
+	// 1 = overwrite CSEQ
+	// 2 = behave as simple fifo but do NOT rewrite CSEQ
+
+	if (ignore_cseq == 1) f2->seqno = (seq & 0xFFFF);
 	packets[seq] = f2;
 
 	//Unlock
