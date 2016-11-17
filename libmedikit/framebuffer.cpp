@@ -7,7 +7,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	DWORD seq;
 	ast_frame * f2;
 		    
-	if (ignore_cseq)
+	if (ignore_cseq || isfifo)
 	{
 		seq = dummyCseq;
 		dummyCseq++;
@@ -65,7 +65,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	// 1 = overwrite CSEQ
 	// 2 = behave as simple fifo but do NOT rewrite CSEQ
 
-	if (ignore_cseq == 1) f2->seqno = (seq & 0xFFFF);
+	if (ignore_cseq) f2->seqno = (seq & 0xFFFF);
 	packets[seq] = f2;
 
 	//Unlock
@@ -170,9 +170,9 @@ struct ast_frame * AstFrameBuffer::Wait()
 	return rtp;
 }
 
-struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking)
+struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking, int fifo)
 {
-	AstFrameBuffer * fb = new AstFrameBuffer((bool) blocking);
+	AstFrameBuffer * fb = new AstFrameBuffer((bool) blocking, (bool) fifo);
 	if (fb)
 	{
 		fb->SetMaxWaitTime(maxWaitTime);

@@ -22,7 +22,7 @@
 class AstFrameBuffer 
 {
 public:
-	AstFrameBuffer(bool blocking)
+	AstFrameBuffer(bool blocking, bool fifo)
 	{
 		//NO wait time
 		maxWaitTime = 0;
@@ -41,6 +41,7 @@ public:
 		cycle = 0;
 		
 		this->blocking = blocking;
+		this->isfifo = fifo;
 	}
 
 	virtual ~AstFrameBuffer()
@@ -146,8 +147,9 @@ private:
 	DWORD			dummyCseq;
 	DWORD			cycle;
 	DWORD			maxWaitTime;
-	int			bigJumps;
+	int				bigJumps;
 	bool			blocking;
+	bool			isfifo;
 };
 
 #endif
@@ -158,7 +160,7 @@ extern "C"
 #endif
      struct AstFb;
 
-     struct AstFb *AstFbCreate(uint32_t maxWaitTime, int blocking);
+     struct AstFb *AstFbCreate(DWORD maxWaitTime, int blocking, int fifo)
      /**
       *  Add an ast_frame into the jitterbuffer. Frame is duplicated.
       *  
@@ -167,6 +169,7 @@ extern "C"
       */
      int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f );     
      int AstFbAddFrameNoCseq( struct AstFb *fb, const struct ast_frame *f );
+
      struct ast_frame * AstFbGetFrame(struct AstFb *fb);
      uint32_t AstFbLength(struct AstFb *fb);
      void AstFbCancel(struct AstFb *fb);     
