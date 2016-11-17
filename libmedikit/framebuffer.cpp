@@ -84,10 +84,11 @@ struct ast_frame * AstFrameBuffer::Wait()
 	bool packready = false;
 	//Get default wait time
 	DWORD timeout = maxWaitTime;
+	unsigned int len;
 
 	//Lock
 	pthread_mutex_lock(&mutex);
-
+	len = packets.size();
 	//While we have to wait
 	while (!cancel)
 	{
@@ -112,7 +113,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 			}
 			else
 			{
-				packready = ( seq <= next ) || (Length() > maxWaitTime ); 
+				packready = ( seq <= next ) || (len > maxWaitTime ); 
 			}
 
 			//Check if first is the one expected or wait if not
