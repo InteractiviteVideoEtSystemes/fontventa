@@ -16,84 +16,46 @@
 
 #include <medkit/astcpp.h>
 #include <medkit/config.h>
-#include <pthread.h>
+#include <mutex>
+#include <atomic> 
 #include <map>
 
 class AstFrameBuffer 
 {
 public:
-	AstFrameBuffer(bool blocking, bool fifo)
-	{
-		//NO wait time
-		maxWaitTime = 0;
-		//No hurring up
-		hurryUp = false;
-		//No canceled
-		cancel = false;
-		//No next
-		next = (DWORD)-1;
-		dummyCseq = 0;
-		//Crete mutex
-		pthread_mutex_init(&mutex,NULL);
-		//Create condition
-		pthread_cond_init(&cond,NULL);
-		bigJumps = 0;
-		cycle = 0;
-		
-		this->blocking = blocking;
-		this->isfifo = fifo;
-	}
+	AstFrameBuffer(bool blocking, bool fifo);
 
 	virtual ~AstFrameBuffer()
 	{
 		//Free packets
 		Clear();
 		//Destroy mutex
-		pthread_mutex_destroy(&mutex);
 	}
 
 	bool Add(const ast_frame * f, bool ignore_cseq = false);
 
-	void Cancel()
-	{
-		//Lock
-		pthread_mutex_lock(&mutex);
-
-		//Canceled
-		cancel = true;
-
-		//Unlock
-		pthread_mutex_unlock(&mutex);
-
-		//Signal condition
-		pthread_cond_signal(&cond);
-	}
+	void Cancel();
 
 	struct ast_frame * Wait();
 
 	void Clear()
 	{
 		//Lock
-		pthread_mutex_lock(&mutex);
+		mutex.lock();
 
 		//And remove all from queue
 		ClearPackets();
 
 		//UnLock
-		pthread_mutex_unlock(&mutex);
+		mutex.unlock();
 	}
 
-	void HurryUp()
-	{
-		//Set flag
-		hurryUp = true;
-		pthread_cond_signal(&cond);
-	}
+	void HurryUp();
 
 	void Reset(bool clear = true)
 	{
 		//Lock
-		pthread_mutex_lock(&mutex);
+		mutex.lock();
 
 		//And remove cancel
 		cancel = false;
@@ -109,7 +71,7 @@ public:
 		bigJumps = 0;
 		
 		//UnLock
-		pthread_mutex_unlock(&mutex);
+		mutex.unlock();
 	}
 
 	DWORD Length()
@@ -122,16 +84,13 @@ public:
 	{
 		this->maxWaitTime = maxWaitTime;
 	}
+	
+	static int FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, struct pollfd fds[], AstFrameBuffer * jbTabOut[]) 
+	static int WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbFb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[]);
+
 private:
-	void ClearPackets()
-	{
-		//For each item, list shall be locked before
-		for (RTPOrderedPackets::iterator it=packets.begin(); it!=packets.end(); ++it)
-			//Delete rtp
-			delete(it->second);
-		//Clear all list
-		packets.clear();
-	}
+	void ClearPackets();
+	void Notify();
 
 private:
 	typedef std::map<DWORD,struct ast_frame *> RTPOrderedPackets;
@@ -140,16 +99,18 @@ private:
 	//The event list
 	RTPOrderedPackets	packets;
 	bool			cancel;
+	bool			signalled;
 	bool			hurryUp;
-	pthread_mutex_t		mutex;
-	pthread_cond_t		cond;
+	std::mutex		mutex;
 	DWORD			next;
 	DWORD			dummyCseq;
 	DWORD			cycle;
 	DWORD			maxWaitTime;
+	DWORD			prevTs;
 	int				bigJumps;
 	bool			blocking;
 	bool			isfifo;
+	int				pipe[2];
 };
 
 #endif
@@ -176,6 +137,8 @@ extern "C"
      void AstFbReset(struct AstFb *fb);
      void AstFbDestroy(struct AstFb *fb);
 
+	int AstFbWaitMulti(struct AstFb * fbTab[], unsigned long nbFb, unsigned long maxWaitTime, struct AstFb * fbTabOut[]);
+	 
 #ifdef __cplusplus
 }
 #endif

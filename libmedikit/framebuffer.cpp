@@ -1,12 +1,53 @@
 #include <medkit/log.h>
 #include <astmedkit/framebuffer.h>
 
+AstFrameBuffer::AstFrameBuffer(bool blocking, bool fifo)
+{
+	//NO wait time
+	maxWaitTime = 0;
+	//No hurring up
+	hurryUp = false;
+	//No canceled
+	cancel = false;
+	//No next
+	next = (DWORD)-1;
+	dummyCseq = 0;
+
+	//Create condition
+	bigJumps = 0;
+	cycle = 0;
+	
+	this->blocking = blocking;
+	this->isfifo = fifo;
+	
+	if ( pipe(this->pipe, O_NONBLOCK ) != 0 )
+	{
+		cancel = true;
+	}
+	signalled = false;
+}
+
+void AstFrameBuffer::Notify()
+{
+	if (blocking)
+	{
+		char c = 1;
+		::write(this->pipe[0], &c, 1);
+		signalled = true;
+	}
+}
+
+
 
 bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 {
 	DWORD seq;
 	ast_frame * f2;
-		    
+	
+	std::lock_guard<std::mutex> guard(mutex);
+	
+	if (cancel) return false;
+	
 	if (ignore_cseq || isfifo)
 	{
 		seq = dummyCseq;
@@ -29,12 +70,9 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		dummyCseq = seq + 1;
 	}
 		
-	
-	//Lock
-	pthread_mutex_lock(&mutex);
 
 	//If already past
-	if (next != (DWORD)-1 && seq < next)
+	if (next != (DWORD)-1 && seq < next && isfifo == 0)
 	{
 		bigJumps++;
 		//Delete pacekt
@@ -51,7 +89,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 			//Delete pacekt
 			//ast_frfree(f);
 			//Unlock
-			pthread_mutex_unlock(&mutex);
+			mutex.unlock();
 			ast_log(LOG_WARNING, "-Out of order non recoverable packet: seq=%ld, next=%ld diff=%ld\n",
 					seq, next, next-seq);
 			return false;
@@ -68,13 +106,34 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	if (ignore_cseq) f2->seqno = (seq & 0xFFFF);
 	packets[seq] = f2;
 
-	//Unlock
-	pthread_mutex_unlock(&mutex);
-
 	//Signal
-	pthread_cond_signal(&cond);
+	Notify();
 
 	return true;
+}
+
+void  AstFrameBuffer::Cancel()
+{
+	//Lock
+	mutex.lock();
+
+	//Canceled
+	cancel = true;
+
+	//Unlock
+	mutex.unlock();
+
+	//Signal condition
+	Notify();
+}
+
+void AstFrameBuffer::HurryUp()
+{
+	//Set flag
+	mutex.lock();
+	hurryUp = true;
+	mutex.unlock();
+	Notify();
 }
 
 struct ast_frame * AstFrameBuffer::Wait()
@@ -87,8 +146,9 @@ struct ast_frame * AstFrameBuffer::Wait()
 	unsigned int len;
 
 	//Lock
-	pthread_mutex_lock(&mutex);
-	len = packets.size();
+	std::unique_lock<std::mutex> lock(mutex);
+	
+	len = 0;
 	//While we have to wait
 	while (!cancel)
 	{
@@ -96,31 +156,29 @@ struct ast_frame * AstFrameBuffer::Wait()
 		//we need three packets at least
 		if ( ! packets.empty() )
 		{
-			int ret = ETIMEDOUT;
-			//Get first
 			RTPOrderedPackets::iterator it = packets.begin();
 			//Get first seq num
 			DWORD seq = it->first;
 			//Get packet
 			struct ast_frame * candidate = it->second;
 			//Get time of the packet
-			
-			QWORD time = candidate->ts;
-			
+
 			if (blocking)
 			{
-				packready = ( time+maxWaitTime<getTime()/1000 );
+				packready = false;                             
 			}
 			else
 			{
-				packready = ( seq <= next ) || (len > maxWaitTime ); 
+				packready = (packets.size() > maxWaitTime ); 
 			}
-
+			
 			//Check if first is the one expected or wait if not
-			if (next==(DWORD)-1 || seq==next || packready || hurryUp)
+			if (next==(DWORD)-1 || seq==next || hurryUp || packready)
 			{
 				//We have it!
-				rtp = candidate;
+				rtp = it->second;
+				if (seq==next) bigJumps = 0;
+				
 				//Update next
 				next = seq+1;
 				//Remove it
@@ -128,47 +186,112 @@ struct ast_frame * AstFrameBuffer::Wait()
 				//Return it!
 				break;
 			}
-
-			//We have to wait
-			timespec ts;
-			//Calculate until when we have to sleep
-			ts.tv_sec  = (time_t) ((time+maxWaitTime) / 1e6) ;
-			ts.tv_nsec = (long) ((time+maxWaitTime) - ts.tv_sec*1e6);
 			
-			//Wait with time out
-			if (blocking) ret = pthread_cond_timedwait(&cond,&mutex,&ts);
-			//Check if there is an errot different than timeout
-			if (ret && ret!=ETIMEDOUT)
-				//Print error
-				Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
-			
-		} 
-		else 
-		{
-			int ret = ETIMEDOUT;
-			//Not hurryUp more
-			hurryUp = false;
-			//Wait until we have a new rtp pacekt
-			if (blocking) 
-				ret = pthread_cond_wait(&cond,&mutex);
-			else
-				break;
-				
-			//Check error
-			if (ret && ret!=ETIMEDOUT)
+			if (seq < next)
 			{
-				//Print error
-				Error("-WaitQueue cond timedwait error [%rd,%d]\n",ret,errno);
+				packets.erase(it);
+				continue;
+			}
+		} 
+		
+		if (blocking) 
+		{
+			char buff[4];
+			
+			mutex.unlock();
+			ufds[0].fd = pipe[1];
+			ufds[0].events = POLLIN | POLLERR | POLLHUP;
+			int ret;
+			
+			if (maxWaitTime > 0)
+			{
+				struct pollfd ufds[1];
+				
+				ret = poll(ufds, 1, maxWaitTime);
+				if (ret == 0)
+				{
+					// timeout
+					next = (DWORD)-1;
+				}
+			}
+			else
+			{
+				ret = poll(ufds, 1, -1);	
+			}
+			
+			if (ret < 0)
+			{
 				break;
 			}
+
+			read(pipe[1], buff, 4);
+			
+		}
+		else
+		{
+			break;
 		}
 	}
 	
-	//Unlock
-	pthread_mutex_unlock(&mutex);
-
 	//canceled
 	return rtp;
+}
+
+void AstFrameBuffer::ClearPackets()
+{
+       //For each item, list shall be locked before
+        for (RTPOrderedPackets::iterator it=packets.begin(); it!=packets.end(); ++it)
+        {
+                //Delete rtp
+                ast_frfree(it->second);
+        }
+
+        //Clear all list
+		packets.clear();
+}
+
+int AstFrameBuffer::FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, struct pollfd fds[], AstFrameBuffer * jbTabOut[])
+{
+	if (nbjb > 0)
+	{
+		int nb = 0;
+		for (unsigned long i=0; i<nbjb; i++)
+		{
+			if ( jbTab[i] != NULL && !jbTab[i]->cancel )
+			{
+				fds[nb].fd = jbTab[i]->pipe[1];
+				fds[nb].events = POLLIN | POLLERR | POLLHUP;
+				jbTabOut[nb] = jbTab[i];
+				nb++;
+			}
+			return nb;
+		}
+	}
+	return nbjb;
+}
+
+#define MAX_FDS_FOR_JB 50
+
+int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWORD maxWaitTime)
+{
+	struct pollfd fds[MAX_FDS_FOR_JB];
+	int nb;
+	
+	if (nbjb > MAX_FDS_FOR_JB) nbjb = MAX_FDS_FOR_JB;
+	if (nbjb > 0)
+	{
+		nb = AstFrameBuffer::FillFdTab(jbTab, fds, nbjb);
+		if ( nb > 0 )
+		{
+			int ret = poll(pollfd, nb, maxWaitTime);
+			if (ret > 0)
+			{
+				for (int i =0 ;i < nb; i++)
+				{
+				}
+				
+		}
+	}
 }
 
 struct AstFb *AstFbCreate(unsigned long maxWaitTime, int blocking, int fifo)
