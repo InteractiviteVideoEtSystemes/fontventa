@@ -85,7 +85,7 @@ public:
 		this->maxWaitTime = maxWaitTime;
 	}
 	
-	static int FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, struct pollfd fds[], AstFrameBuffer * jbTabOut[]) 
+	static int FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, struct pollfd fds[], int idxMap[]); 
 	static int WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbFb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[]);
 
 private:

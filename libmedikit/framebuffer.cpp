@@ -250,18 +250,20 @@ void AstFrameBuffer::ClearPackets()
 		packets.clear();
 }
 
-int AstFrameBuffer::FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, struct pollfd fds[], AstFrameBuffer * jbTabOut[])
+int AstFrameBuffer::FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, struct pollfd fds[], int idxMap[])
 {
 	if (nbjb > 0)
 	{
 		int nb = 0;
 		for (unsigned long i=0; i<nbjb; i++)
 		{
+			if ( jbTab[i] == NULL ) return -3;
+			
 			if ( jbTab[i] != NULL && !jbTab[i]->cancel )
 			{
 				fds[nb].fd = jbTab[i]->pipe[1];
 				fds[nb].events = POLLIN | POLLERR | POLLHUP;
-				jbTabOut[nb] = jbTab[i];
+				idxMap[nb] = i;
 				nb++;
 			}
 			return nb;
@@ -272,26 +274,54 @@ int AstFrameBuffer::FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, stru
 
 #define MAX_FDS_FOR_JB 50
 
-int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWORD maxWaitTime)
+int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[])
 {
 	struct pollfd fds[MAX_FDS_FOR_JB];
+	int idxMap[MAX_FDS_FOR_JB];
 	int nb;
 	
 	if (nbjb > MAX_FDS_FOR_JB) nbjb = MAX_FDS_FOR_JB;
 	if (nbjb > 0)
 	{
-		nb = AstFrameBuffer::FillFdTab(jbTab, fds, nbjb);
+		for (int i=0; i<nbjb; i++)
+		{
+			jbTabOut[i] = NULL;
+		}
+		
+		nb = AstFrameBuffer::FillFdTab(jbTab, nbjb, fds, idxMap);
 		if ( nb > 0 )
 		{
-			int ret = poll(pollfd, nb, maxWaitTime);
+			int ret = poll(fds, nb, maxWaitTime);
 			if (ret > 0)
 			{
 				for (int i =0 ;i < nb; i++)
 				{
+					if (fds[i].revents & POLLIN)
+					{
+						 jbTabOut[idxMap[i]] = jbTab[idxMap[i]];
+					}
+					
+					if (fds[i].revents & POLLERR)
+					{
+						return -20;
+					}
 				}
-				
+			}
+			else if (ret == 0)
+			{
+				for (int i=0; i<nbjb; i++)
+				{
+					if (jbTab[i]) = jbTab[i]->HurryUp();
+				}
+			}
+			else
+			{
+				return ret;
+			}
 		}
+		return -4;
 	}
+	return -5;
 }
 
 struct AstFb *AstFbCreate(unsigned long maxWaitTime, int blocking, int fifo)
