@@ -44,6 +44,7 @@ AstFrameBuffer::~AstFrameBuffer()
      ::close(this->pipe[1]);
      Clear();
 }
+
 void AstFrameBuffer::Notify()
 {
 	if (blocking)
@@ -157,7 +158,7 @@ void AstFrameBuffer::HurryUp()
 	Notify();
 }
 
-struct ast_frame * AstFrameBuffer::Wait()
+struct ast_frame * AstFrameBuffer::Wait(bool block)
 {
 	//NO packet
 	struct ast_frame * rtp = NULL;
@@ -165,6 +166,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 	//Get default wait time
 	DWORD timeout = maxWaitTime;
 	unsigned int len;
+	char buff[4];
 
 	//Lock
 	std::unique_lock<std::mutex> lock(mutex);
@@ -215,9 +217,8 @@ struct ast_frame * AstFrameBuffer::Wait()
 			}
 		} 
 		
-		if (blocking) 
+		if (blocking && block) 
 		{
-			char buff[4];
 			struct pollfd ufds[1];
 			
 			mutex.unlock();
@@ -244,17 +245,19 @@ struct ast_frame * AstFrameBuffer::Wait()
 			if (ret < 0)
 			{
 				break;
-			}
-			else
-			{
-			    if (ret > 0) read(pipe[1], buff, 4);
-			}
+			}		
 		}
 		else
 		{
 			// Non blocking
 			break;
 		}
+	}
+	
+	if (signalled) 
+	{
+		read(pipe[1], buff, 4);
+		signalled = false;
 	}
 	
 	//canceled
@@ -338,10 +341,7 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 					if (jbTab[i]) jbTab[i]->HurryUp();
 				}
 			}
-			else
-			{
-				return ret;
-			}
+			return ret;
 		}
 		return -4;
 	}
@@ -372,7 +372,12 @@ int AstFbAddFrameNoCseq( struct AstFb *fb, const struct ast_frame *f )
 
 struct ast_frame * AstFbGetFrame(struct AstFb *fb)
 {
-	return ((AstFrameBuffer *) fb)->Wait();
+	return ((AstFrameBuffer *) fb)->Wait(false);
+}
+
+struct ast_frame * AstFbWaitFrame(struct AstFb *fb)
+{
+	return ((AstFrameBuffer *) fb)->Wait(true);
 }
 
 void AstFbCancel(struct AstFb *fb)

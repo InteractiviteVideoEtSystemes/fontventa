@@ -30,7 +30,7 @@ public:
 
 	void Cancel();
 
-	struct ast_frame * Wait();
+	struct ast_frame * Wait(bool block);
 
 	void Clear()
 	{
@@ -125,7 +125,12 @@ extern "C"
      int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f );     
      int AstFbAddFrameNoCseq( struct AstFb *fb, const struct ast_frame *f );
 
-     struct ast_frame * AstFbGetFrame(struct AstFb *fb);
+	// Always non blocking
+    struct ast_frame * AstFbGetFrame(struct AstFb *fb);
+	 
+	//Blocking if Jb is created blocking otherwise, behave as AstFbGetFrame()
+	struct ast_frame * AstFbWaitFrame(struct AstFb *fb);
+	
      uint32_t AstFbLength(struct AstFb *fb);
      void AstFbCancel(struct AstFb *fb);     
      void AstFbReset(struct AstFb *fb);
