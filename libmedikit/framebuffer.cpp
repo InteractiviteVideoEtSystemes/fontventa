@@ -38,6 +38,12 @@ AstFrameBuffer::AstFrameBuffer(bool blocking, bool fifo)
 	signalled = false;
 }
 
+AstFrameBuffer::~AstFrameBuffer()
+{
+     ::close(this->pipe[0]);
+     ::close(this->pipe[1]);
+     Clear();
+}
 void AstFrameBuffer::Notify()
 {
 	if (blocking)
@@ -79,6 +85,12 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 			seq = f->seqno + cycle*0x10000;
 		}
 		dummyCseq = seq + 1;
+
+		if (packets.find(seq) != packets.end())
+		{
+			ast_log(LOG_DEBUG, "Received duplicate packet %ld.\n", seq);
+			return false;
+		}
 	}
 		
 
@@ -91,14 +103,12 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		if ( bigJumps > 20)
 		{
 			ast_log(LOG_WARNING, "Too many out of sequence packet. Resyncing.\n");
-			next=(DWORD)-1;
+			hurryUp  = true;
 			bigJumps = 0;
 			
 		}
 		else 
 		{
-			//Delete pacekt
-			//ast_frfree(f);
 			//Unlock
 			mutex.unlock();
 			ast_log(LOG_WARNING, "-Out of order non recoverable packet: seq=%ld, next=%ld diff=%ld\n",
@@ -223,7 +233,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 				if (ret == 0)
 				{
 					// timeout
-					next = (DWORD)-1;
+					hurryUp = true;
 				}
 			}
 			else
@@ -235,12 +245,14 @@ struct ast_frame * AstFrameBuffer::Wait()
 			{
 				break;
 			}
-
-			read(pipe[1], buff, 4);
-			
+			else
+			{
+			    if (ret > 0) read(pipe[1], buff, 4);
+			}
 		}
 		else
 		{
+			// Non blocking
 			break;
 		}
 	}

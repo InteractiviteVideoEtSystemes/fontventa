@@ -24,12 +24,7 @@ class AstFrameBuffer
 public:
 	AstFrameBuffer(bool blocking, bool fifo);
 
-	virtual ~AstFrameBuffer()
-	{
-		//Free packets
-		Clear();
-		//Destroy mutex
-	}
+	virtual ~AstFrameBuffer();
 
 	bool Add(const ast_frame * f, bool ignore_cseq = false);
 
