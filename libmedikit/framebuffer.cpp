@@ -324,6 +324,8 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 	return -5;
 }
 
+/* ------------------------ C API ------------------------------------ */
+
 struct AstFb *AstFbCreate(unsigned long maxWaitTime, int blocking, int fifo)
 {
 	AstFrameBuffer * fb = new AstFrameBuffer((bool) blocking, (bool) fifo);
@@ -363,8 +365,17 @@ DWORD AstFbLength(struct AstFb *fb)
 {
 	return ((AstFrameBuffer *) fb)->Length();
 }
+
 void AstFbDestroy(struct AstFb *fb)
 {
 	AstFrameBuffer * fb2 = (AstFrameBuffer *) fb;
 	if (fb2) delete fb2;
 }
+
+int AstFbWaitMulti(struct AstFb * fbTab[], unsigned long nbFb, unsigned long maxWaitTime, struct AstFb * fbTabOut[])
+{
+	fbTab2 = (AstFrameBuffer **) fbTab;
+	fbTabOut2 = (AstFrameBuffer **) fbTabOut;
+	return AstFrameBuffer::WaitMulti(fbTab2, nbFb, maxWaitTime, fbTabOut2);
+}
+
