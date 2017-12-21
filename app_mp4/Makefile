@@ -41,7 +41,7 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc  
 
-LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -lmp4v2 -lavcodec -lavformat -lswscale -lx264  -Wl,-Bdynamic 
+LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -lmp4v2 -Wl,-Bdynamic -lavcodec -lavformat -lswscale -lx264
 DEBUG := -g 
 
 CFLAGS = -I../libmedikit -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
