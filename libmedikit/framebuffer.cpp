@@ -1,8 +1,11 @@
+#include <poll.h>
+#include <fcntl.h>
 #include <medkit/log.h>
 #include <astmedkit/framebuffer.h>
 
 AstFrameBuffer::AstFrameBuffer(bool blocking, bool fifo)
 {
+	int flags;
 	//NO wait time
 	maxWaitTime = 0;
 	//No hurring up
@@ -20,10 +23,18 @@ AstFrameBuffer::AstFrameBuffer(bool blocking, bool fifo)
 	this->blocking = blocking;
 	this->isfifo = fifo;
 	
-	if ( pipe(this->pipe, O_NONBLOCK ) != 0 )
+	if ( ::pipe(this->pipe) != 0 )
 	{
 		cancel = true;
 	}
+	else
+	{
+		flags = fcntl(pipe[0], F_GETFL);
+		fcntl(pipe[0], F_SETFL, flags | O_NONBLOCK);
+		flags = fcntl(pipe[1], F_GETFL);
+		fcntl(pipe[1], F_SETFL, flags | O_NONBLOCK);
+	}
+
 	signalled = false;
 }
 
@@ -197,6 +208,7 @@ struct ast_frame * AstFrameBuffer::Wait()
 		if (blocking) 
 		{
 			char buff[4];
+			struct pollfd ufds[1];
 			
 			mutex.unlock();
 			ufds[0].fd = pipe[1];
@@ -311,7 +323,7 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 			{
 				for (int i=0; i<nbjb; i++)
 				{
-					if (jbTab[i]) = jbTab[i]->HurryUp();
+					if (jbTab[i]) jbTab[i]->HurryUp();
 				}
 			}
 			else
@@ -374,8 +386,8 @@ void AstFbDestroy(struct AstFb *fb)
 
 int AstFbWaitMulti(struct AstFb * fbTab[], unsigned long nbFb, unsigned long maxWaitTime, struct AstFb * fbTabOut[])
 {
-	fbTab2 = (AstFrameBuffer **) fbTab;
-	fbTabOut2 = (AstFrameBuffer **) fbTabOut;
+	AstFrameBuffer ** fbTab2 = (AstFrameBuffer **) fbTab;
+	AstFrameBuffer ** fbTabOut2 = (AstFrameBuffer **) fbTabOut;
 	return AstFrameBuffer::WaitMulti(fbTab2, nbFb, maxWaitTime, fbTabOut2);
 }
 

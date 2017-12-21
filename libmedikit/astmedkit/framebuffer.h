@@ -17,7 +17,6 @@
 #include <medkit/astcpp.h>
 #include <medkit/config.h>
 #include <mutex>
-#include <atomic> 
 #include <map>
 
 class AstFrameBuffer 

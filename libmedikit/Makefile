@@ -90,7 +90,7 @@ LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lx264  -lbz2 -lssl -lcrypto -
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC
 #OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS 
 CFLAGS  += $(INCLUDE) $(OPTS)
-CXXFLAGS+= $(INCLUDE) $(OPTS)
+CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x
 
 
 %.o: %.c
