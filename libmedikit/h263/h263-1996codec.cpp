@@ -40,7 +40,7 @@ H263Decoder1996::H263Decoder1996()
 
 	//Alocamos el contxto y el picture
 	ctx = avcodec_alloc_context3(codec);
-	picture = avcodec_alloc_frame();
+	picture = av_frame_alloc();
 
 	//Alocamos el buffer
 	bufSize = 1024*756*3/2;

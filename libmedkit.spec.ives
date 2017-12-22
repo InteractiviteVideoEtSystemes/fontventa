@@ -29,7 +29,7 @@ svn export http://svn.ives.fr/svn-libs-dev/asterisk/fontventa/tags/%version
 echo "Build"
 cd %version
 cd libmedikit
-make
+make all
 
 %install
 echo "############################# Install"

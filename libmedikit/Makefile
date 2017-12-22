@@ -93,6 +93,8 @@ CFLAGS  += $(INCLUDE) $(OPTS)
 #CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x
 CXXFLAGS+= $(INCLUDE) $(OPTS) 
 
+all: libmedkit.a
+
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -105,7 +107,6 @@ framebuffer.o: framebuffer.cpp
 ############################################
 #Targets
 ############################################
-all: libmedkit.a
 
 libmedkit.a: $(OBJS)
 	ar r $@ $(OBJS)
