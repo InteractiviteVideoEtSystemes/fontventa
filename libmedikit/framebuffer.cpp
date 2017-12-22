@@ -50,7 +50,7 @@ void AstFrameBuffer::Notify()
 	if (blocking)
 	{
 		char c = 1;
-		::write(this->pipe[0], &c, 1);
+		::write(this->pipe[1], &c, 1);
 		signalled = true;
 	}
 }
@@ -222,7 +222,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			struct pollfd ufds[1];
 			
 			mutex.unlock();
-			ufds[0].fd = pipe[1];
+			ufds[0].fd = pipe[0];
 			ufds[0].events = POLLIN | POLLERR | POLLHUP;
 			int ret;
 			
@@ -256,7 +256,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 	
 	if (signalled) 
 	{
-		read(pipe[1], buff, 4);
+		read(pipe[0], buff, 4);
 		signalled = false;
 	}
 	
@@ -286,15 +286,19 @@ int AstFrameBuffer::FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, stru
 		{
 			if ( jbTab[i] == NULL ) return -3;
 			
-			if ( jbTab[i] != NULL && !jbTab[i]->cancel )
+			if ( !jbTab[i]->cancel )
 			{
-				fds[nb].fd = jbTab[i]->pipe[1];
+				fds[nb].fd = jbTab[i]->pipe[0];
 				fds[nb].events = POLLIN | POLLERR | POLLHUP;
 				idxMap[nb] = i;
 				nb++;
 			}
-			return nb;
+			else
+			{
+				ast_log(LOG_DEBUG, "Stopped JB #%d will be ignored\n");
+			}
 		}
+		return nb;
 	}
 	return nbjb;
 }
@@ -330,6 +334,7 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 					
 					if (fds[i].revents & POLLERR)
 					{
+						ast_log(LOG_DEBUG, "fd %d error.\n", i);
 						return -20;
 					}
 				}
