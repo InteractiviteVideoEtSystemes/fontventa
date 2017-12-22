@@ -90,11 +90,14 @@ LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lx264  -lbz2 -lssl -lcrypto -
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC
 #OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS 
 CFLAGS  += $(INCLUDE) $(OPTS)
-CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x
-
+#CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x
+CXXFLAGS+= $(INCLUDE) $(OPTS) 
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+framebuffer.o: framebuffer.cpp
+	$(CXX) $(CXXFLAGS) -std=c++0x -c $< -o $@
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@

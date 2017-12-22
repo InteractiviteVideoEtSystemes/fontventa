@@ -114,7 +114,7 @@ private:
     AudioEncoder * audioencoder;
 
     bool waitVideo;
-	bool waitNextVideoFrame;
+    bool waitNextVideoFrame;
     unsigned long initialDelay;
     
     DWORD textSeqNo;

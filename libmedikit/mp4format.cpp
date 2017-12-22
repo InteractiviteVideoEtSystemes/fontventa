@@ -1,5 +1,8 @@
-#include <asterisk/frame.h>
-#include <asterisk/channel.h>
+extern "C"
+{
+    #include <asterisk/frame.h>
+    #include <asterisk/channel.h>
+}
 #include "medkit/astcpp.h"
 #include "astmedkit/mp4format.h"
 #include "mp4track.h"
@@ -16,7 +19,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     this->ctxdata = ctxdata;
     this->mp4 = mp4;
     textSeqNo = 0xFFFF;
-	videoSeqNo = 0xFFFF
+    videoSeqNo = 0xFFFF;
     vtc = NULL;
     this->waitVideo = waitVideo;
     Log("mp4recorder: created with waitVideo %s.\n", waitVideo ? "enabled" : "disabled" );
