@@ -16,6 +16,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     this->ctxdata = ctxdata;
     this->mp4 = mp4;
     textSeqNo = 0xFFFF;
+	videoSeqNo = 0xFFFF
     vtc = NULL;
     this->waitVideo = waitVideo;
     Log("mp4recorder: created with waitVideo %s.\n", waitVideo ? "enabled" : "disabled" );
@@ -200,7 +201,8 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				nb++;
 			}
 		    }
-		    if (nb > 0) Log("-mp4recorder: Added %d still videoframes to offset dealy.\n", nb );
+		    if (nb > 0) Log("-mp4recorder: Added %d still videoframes to offset delay.\n", nb );
+			
 		}
 		int ret = tr->ProcessFrame(f2);
 		return ret;
@@ -357,71 +359,97 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	    case AST_FRAME_VIDEO:
 	    {
 	        VideoCodec::Type vcodec;
-		int ret;
-		bool ismark = ( f->subclass & 0x01 ) != 0;
-		if ( AstFormatToCodec( f->subclass, vcodec ) )
-		{
-		    switch(vcodec)
-		    {
-		        case VideoCodec::H264:
-			    {
-			        MediaFrame * vfh264;
-			        if (depak == NULL)
-			        {
-			            depak = new H264Depacketizer();
-			        }
-				
-				// Accumulate NALs into the same frame until mark
-			        vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark); 
-				
-				// Do the same in case of lost frame
-				if (ismark)
+			int ret;
+			bool ismark = ( f->subclass & 0x01 ) != 0;
+			bool loss_detected = false;
+			if ( AstFormatToCodec( f->subclass, vcodec ) )
+			{
+				if (videoSeqNo != 0xFFFF)
 				{
-				    if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
-				        depak->SetTimestamp( f->ts );
-				    else
-				        depak->SetTimestamp( getDifTime(&firstframets)/1000 );
-				   
-				    //Log("H.264 - got mark. frame ts = %ld.\n", f->ts );
-				    ret = ProcessFrame( vfh264 );
-				    depak->ResetFrame();
+					if (f->seqno != 0xFFFF)
+					{
+						if (f->seqno != videoSeqNo+1) loss_detected = true;
+					}
 				}
-				else
+				
+				if (loss_detected)
 				{
-				    // no mark ? will be processed later
-				    return 1;    
-				}    
-			    }
-			    break;
-			    
-			default:
-			    {
-				VideoFrame vf(vcodec, f->datalen, false);
-				if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
-				        vf.SetTimestamp( f->ts );
-				    else
-				        vf.SetTimestamp( getDifTime(&firstframets)/1000 );
+					Log("video packet lost detected seqno=%d, exected =\n", f->seqno, videoSeqNo+1);
+				}
 
-				vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
-				vf.AddRtpPacket( 0, f->datalen, NULL, 0, ismark);
-				ret = ProcessFrame( &vf );
-			    }
-			    break;
-		
-		    }
-		    
-		    if ( ret == -1 && vtc != NULL)
-		    {
-				/* we need to transcode */
-				return VideoTranscoderProcessFrame( vtc, f );
-		    }
-		    return ret;
-		}
-		else
-		{
-		    return -4;
-		}
-	    }		
+				videoSeqNo = f->seqno;
+				
+				switch(vcodec)
+				{
+					case VideoCodec::H264:
+					{
+						MediaFrame * vfh264;
+						if (depak == NULL)
+						{
+							depak = new H264Depacketizer();
+						}
+						
+						if (loss_detected)
+						{
+							waitNextVideoFrame = true;
+							depak->ResetFrame();
+						}
+						else
+						{
+							// Accumulate NALs into the same frame until mark
+							vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark); 
+						}
+
+						// Do the same in case of lost frame
+						if (ismark)
+						{
+							if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
+								depak->SetTimestamp( f->ts );
+							else
+								depak->SetTimestamp( getDifTime(&firstframets)/1000 );
+						   
+							//Log("H.264 - got mark. frame ts = %ld.\n", f->ts );
+							if (!waitNextVideoFrame) ret = ProcessFrame( vfh264 );
+							depak->ResetFrame();
+							waitNextVideoFrame = false;
+						}
+						else
+						{
+							// no mark ? will be processed later
+							return 1;    
+						}    
+					}
+					break;
+					
+				default:
+					{
+					VideoFrame vf(vcodec, f->datalen, false);
+					if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
+							vf.SetTimestamp( f->ts );
+						else
+							vf.SetTimestamp( getDifTime(&firstframets)/1000 );
+
+					vf.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
+					vf.AddRtpPacket( 0, f->datalen, NULL, 0, ismark);
+					ret = ProcessFrame( &vf );
+					}
+					break;
+			
+				}
+				
+				if ( ret == -1 && vtc != NULL)
+				{
+					/* we need to transcode */
+					return VideoTranscoderProcessFrame( vtc, f );
+				}
+				return ret;
+			}
+			else
+			{
+				return -4;
+			}
+	    }
+		break;
 		
 	    case AST_FRAME_TEXT:
 	    {
@@ -430,7 +458,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		TextFrame tf( true );
 
 		//If not first
-		if (textSeqNo != 0xFFFF)
+		if (textSeqNo != 0xFFFF && f->seqno != 0xFFFF)
 			//Calculate losts
 			lost = f->seqno - textSeqNo-1;
 
