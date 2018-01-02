@@ -97,7 +97,7 @@ int CodecToAstFormat( VideoCodec::Type vc, int & fmt )
 
 bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 {
-	return ediaFrameToAstFrame(mf, NULL, astf, NULL, 0);
+	return MediaFrameToAstFrame(mf, NULL, astf, NULL, 0);
 }
 
 bool MediaFrameToAstFrame(const MediaFrame * mf, MediaFrame::RtpPacketization * rtppak, ast_frame & astf, void * buffer, int len)
@@ -176,6 +176,7 @@ bool MediaFrameToAstFrame(const MediaFrame * mf, MediaFrame::RtpPacketization * 
 	// Copy frame timestamp
 	ast_set_flag(&astf, AST_FRFLAG_HAS_TIMING_INFO);
 	astf.ts = frame->GetTimeStamp();
-
+	if (rtp->IsMark() ) astf.subclass |= 0x1;
+	
 	return true;	
 }

@@ -25,7 +25,14 @@ int AstFormatToCodecList(int format, VideoCodec::Type & vc)
 
 bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf);
 
-bool MediaFrameToAstFrame(const MediaFrame * mf, MediaFrame::RtpPacketization * rtp, ast_frame * astf, void * buffer, int len);
+/**
+ * Convert an internal media frame into an asterisk frame. Buffer passed is used if packetization info contains
+ * data to add to the payload. Generated frame will use this buffer to hold the data
+ *
+ * @param mf: media frame to convert
+ *
+ **/
+bool MediaFrameToAstFrame(const MediaFrame * mf, MediaFrame::RtpPacketization * rtp, ast_frame & astf, void * buffer, int len);
 
 int CodecToAstFormat( AudioCodec::Type ac, int & fmt );
 int CodecToAstFormat( VideoCodec::Type vc, int & fmt );
