@@ -149,29 +149,37 @@ public:
     
     /**
      *  Obtain the next frame to play and the time to wait after having pushed the frame.
-	 * DO NOT RELEASE OBTAINED MEDIA FRAME, memmory is managed by mediatrack
+	 * DO NOT RELEASE OBTAINED MEDIA FRAME, memmory is managed by mediatrack. Rewind MUST be called after tracks are open 
+	 * before calling this fonction to render frames
+	 * @param now: rendering time 
+	 * @param [out] errcode: error code. 0 mean no frame ready. 1=returned a frame. -2 = EOF, -3, invalid track, negative give details on failure
+	 * @param [out] waittime: time to wait before the next frame. Can be 0. In this case 
+	 * @return NULL or the next frame to render
      */
-    MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime );
+    MediaFrame * GetNextFrame( QWORD now, int & errcode, unsigned long & waittime );
 
+	
+	/**
+	 * Reset MP4 stream to read
+	 **/
     int Rewind();
     
     bool Eof();
 
 protected:
     //MP4TrackId IterateTracks(int trackIdx, const char * trackType, bool useHint = true);
+	bool GetNextTrackAndTs(int & trackId, QWORD & ts);
     
 private:
     void * ctxdata;
     Mp4Basetrack * mediatracks[5];
+	QWORD next[5];
     MP4FileHandle mp4;
     
     RTPRedundantEncoder * redenc;
 
-    QWORD audioNext;
-    QWORD videoNext;
-    QWORD video2Next;
-    QWORD textNext;
-
+	timeval startPlaying;
+	BYTE buffer[2000];
 };
 
 #endif

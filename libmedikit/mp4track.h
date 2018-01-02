@@ -23,7 +23,7 @@ public:
 	
     virtual ~Mp4Basetrack() 
     {
-	if (frame) delete frame;    
+		if (frame) delete frame;    
     }
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate) = 0;
@@ -33,26 +33,28 @@ public:
     void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
     void IncreateInitialDelay(unsigned long delay) { initialDelay = initialDelay + delay; }
     bool IsEmpty() { return (sampleId == 0); }
+	void Reset() { sampleId = 1; }
 
     virtual const MediaFrame * ReadFrame();
-    
-protected:
     QWORD GetNextFrameTime();
+	
+protected:
+    
     const MediaFrame * ReadFrameFromHint();
     const MediaFrame * ReadFrameWithoutHint();
 
 protected:
-     MP4FileHandle mp4;		
-     MP4TrackId mediatrack;
-     MP4TrackId hinttrack;
-     int sampleId;
-     unsigned long initialDelay;
-     unsigned int timeScale;
-     WORD numHintSamples;
+    MP4FileHandle mp4;		
+    MP4TrackId mediatrack;
+    MP4TrackId hinttrack;
+    int sampleId;
+    unsigned long initialDelay;
+    unsigned int timeScale;
+    WORD numHintSamples;
      
-     DWORD prevts;
-     bool reading;
-     MediaFrame * frame;
+    DWORD prevts;
+    bool reading;
+    MediaFrame * frame;
 };
 
 class Mp4AudioTrack : public Mp4Basetrack

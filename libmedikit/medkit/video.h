@@ -56,12 +56,16 @@ public:
 	void SetHeight(DWORD height)		{ this->height = height;	}
 	void SetIntra(bool isIntra)		{ this->isIntra = isIntra;	}
 	
+	virtual bool Packetize(unsigned int mtu);
+
 private:
 	VideoCodec::Type codec;
 	bool	isIntra;
 	DWORD	width;
 	DWORD	height;
 
+	bool PacketizeH264(unsigned int mtu);
+	bool PacketizeH263(unsigned int mtu);
 };
 
 

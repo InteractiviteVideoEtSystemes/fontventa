@@ -66,8 +66,14 @@ public:
     
     void Encode( MediaFrame * frame);
     void EncodeBOM();
-    void EncodeNULL();
+    //void EncodeNULL();
+	
+	/**
+	 * Get redundent frame with packetizaltion info.
+	 * Do not free the frame as it is managed by the encoder itself
+	 **/
     MediaFrame * GetRedundantPayload();
+
 
 private:
     typedef std::deque<MediaFrame*> RedFrames;
@@ -91,8 +97,12 @@ private:
      * If we were idle before
      */
     bool        idle;
-
+	BYTE		ptype;
+	
+	MediaFrame * redFrame;
+	
 };
+
 
 #endif
 

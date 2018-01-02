@@ -518,15 +518,14 @@ mp4player::mp4player(void * ctxdata, MP4FileHandle mp4)
 	this->mp4 = mp4;
 	this->ctxdata = ctxdata;
 	mediatracks[MP4_AUDIO_TRACK] = NULL;
+	next[MP4_AUDIO_TRACK] = MP4_INVALID_TIMESTAMP;
 	mediatracks[MP4_VIDEO_TRACK] = NULL;
+	next[MP4_VIDEO_TRACK] = MP4_INVALID_TIMESTAMP;
 	mediatracks[MP4_VIDEODOC_TRACK] = NULL;
+	next[MP4_VIDEODOC_TRACK] = MP4_INVALID_TIMESTAMP;
 	mediatracks[MP4_TEXT_TRACK]  = NULL;
-	redenc = NULL;
-	
-	audioNext = 0;
-	videoNext = 0;
-	video2Next = 0;
-	textNext = 0;
+	next[MP4_TEXT_TRACK] = MP4_INVALID_TIMESTAMP;
+	redenc = NULL;	
 }
 
 
@@ -534,154 +533,155 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 {
     if (nbCodecs > 0)
     {
-	MP4TrackId hintId = -1 ;
-	MP4TrackId trackId = -1;
-	MP4TrackId lastHintMatch = -1;
-	MP4TrackId lastTrackMatch = -1;
-	AudioCodec::Type c;
-	int idxTrack = 0;
-	
-	if (mediatracks[MP4_AUDIO_TRACK] != NULL)
-	{
-	    Error("Audio track is already open.\n");
-	    return 0;
-	}
-	
-	hintId = MP4FindTrackId(mp4, idxTrack, MP4_HINT_TRACK_TYPE, 0);
-	while (hintId != MP4_INVALID_TRACK_ID)
-	{
-	    const char* nm = MP4GetTrackMediaDataName(mp4,hintId);
-	    Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
-	    
-	    /* Get associated track */
-	    trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
+		MP4TrackId hintId = -1 ;
+		MP4TrackId trackId = -1;
+		MP4TrackId lastHintMatch = -1;
+		MP4TrackId lastTrackMatch = -1;
+		AudioCodec::Type c;
+		int idxTrack = 0;
 		
-	    /* Check it's good */
-	    if (trackId != MP4_INVALID_TRACK_ID)
-	    {
-		/* Get type */
-		const char * tt = MP4GetTrackType(mp4, trackId);
-
-		if (tt != NULL && strcmp(tt, MP4_AUDIO_TRACK_TYPE) == 0)
+		if (mediatracks[MP4_AUDIO_TRACK] != NULL)
 		{
-		    char *name;
-		    
-		    MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
-		    
-		    if (name == NULL)
-		    {
-			c = AudioCodec::AMR;
-		    }
-		    else 
-		    {
-			if ( ! AudioCodec::GetCodecFor(name, c) )
-			{
-			    Log("Unsupported audio codec %d for hint track ID %d.\n", name, hintId);
-			    goto audio_track_loop1;
-			}
-		    }
-		    
-		    if ( c == prefCodec )
-		    {
-			// This is the preffered codec !
-			// use it and stop here
-			
-			lastTrackMatch = trackId;
-			lastHintMatch = hintId;
-			break;
-		    }    
-		    
-		    if ( lastTrackMatch < 0)
-		    {
-			for (int i=0; i<nbCodecs; i++)
-			{
-			    if ( outputCodecs[i] == c )
-			    {
-				lastTrackMatch = trackId;
-				lastHintMatch = hintId;
-			    }
-			}
-		    }
-		}		
-	    }
-	    else
-	    {
-		Log("No media track associated with hint track ID %d.\n", hintId);
-	    }
-	    
-audio_track_loop1:
-	    idxTrack++;
-	    hintId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
-	}
-
-	if ( lastTrackMatch == -1)
-	{
-	    Log("Try reopening audio track without hint.\n");
-	    idxTrack = 0;
-	    trackId = MP4FindTrackId(mp4, idxTrack, MP4_AUDIO_TRACK_TYPE, 0);
-	    while (trackId != MP4_INVALID_TRACK_ID)
-	    {
-	        const char* nm = MP4GetTrackMediaDataName(mp4,trackId);
-	        Debug("found media track %d (%s)\n", hintId,nm?nm: "null");
-	    
-		/* Get type */
-		const char * tt = MP4GetTrackType(mp4, trackId);
-
-		if (tt != NULL && strcmp(tt, MP4_AUDIO_TRACK_TYPE) == 0)
-		{
-		    const char *name = MP4GetTrackMediaDataName(mp4,trackId);
-		    
-		    if (name == NULL)
-		    {
-			c = AudioCodec::AMR;
-		    }
-		    else 
-		    {
-			if ( ! AudioCodec::GetCodecFor(name, c) )
-			{
-			    Log("Unsupported audio codec %d for hint track ID %d.\n", name, hintId);
-			    goto audio_track_loop2;
-			}
-		    }
-		    
-		    if ( c == prefCodec )
-		    {
-			// This is the preffered codec !
-			// use it and stop here
-			
-			lastTrackMatch = trackId;
-			lastHintMatch = hintId;
-			break;
-		    }    
-		    
-		    if ( lastTrackMatch < 0)
-		    {
-			for (int i=0; i<nbCodecs; i++)
-			{
-			    if ( outputCodecs[i] == c )
-			    {
-				lastTrackMatch = trackId;
-				lastHintMatch = hintId;
-			    }
-			}
-		    }
+			Error("Audio track is already open.\n");
+			return 0;
 		}
-audio_track_loop2:		
-		idxTrack++;
-		trackId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
+		
+		hintId = MP4FindTrackId(mp4, idxTrack, MP4_HINT_TRACK_TYPE, 0);
+		while (hintId != MP4_INVALID_TRACK_ID)
+		{
+			const char* nm = MP4GetTrackMediaDataName(mp4,hintId);
+			Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
+			
+			/* Get associated track */
+			trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
+			
+			/* Check it's good */
+			if (trackId != MP4_INVALID_TRACK_ID)
+			{
+			/* Get type */
+			const char * tt = MP4GetTrackType(mp4, trackId);
 
-	    }
-	}
-	
-	if ( lastTrackMatch >= 0)
-	{
-	     mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
-	     return 1;
-	}
-	else
-	{
-	     return 0;
-	}
+			if (tt != NULL && strcmp(tt, MP4_AUDIO_TRACK_TYPE) == 0)
+			{
+				char *name;
+				
+				MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
+				
+				if (name == NULL)
+				{
+					c = AudioCodec::AMR;
+				}
+				else 
+				{
+					if ( ! AudioCodec::GetCodecFor(name, c) )
+					{
+						Log("Unsupported audio codec %d for hint track ID %d.\n", name, hintId);
+						goto audio_track_loop1;
+					}
+				}
+				
+				if ( c == prefCodec )
+				{
+				// This is the preffered codec !
+				// use it and stop here
+				
+				lastTrackMatch = trackId;
+				lastHintMatch = hintId;
+				break;
+				}    
+				
+				if ( lastTrackMatch < 0)
+				{
+					for (int i=0; i<nbCodecs; i++)
+					{
+						if ( outputCodecs[i] == c )
+						{
+							lastTrackMatch = trackId;
+							lastHintMatch = hintId;
+						}
+					}
+				}
+			}		
+			}
+			else
+			{
+				Log("No media track associated with hint track ID %d.\n", hintId);
+			}
+			
+audio_track_loop1:
+			idxTrack++;
+			hintId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
+		}
+
+		if ( lastTrackMatch == -1)
+		{
+			Log("Try reopening audio track without hint.\n");
+			idxTrack = 0;
+			trackId = MP4FindTrackId(mp4, idxTrack, MP4_AUDIO_TRACK_TYPE, 0);
+			while (trackId != MP4_INVALID_TRACK_ID)
+			{
+				const char* nm = MP4GetTrackMediaDataName(mp4,trackId);
+				Debug("found media track %d (%s)\n", hintId,nm?nm: "null");
+			
+				/* Get type */
+				const char * tt = MP4GetTrackType(mp4, trackId);
+
+				if (tt != NULL && strcmp(tt, MP4_AUDIO_TRACK_TYPE) == 0)
+				{
+					const char *name = MP4GetTrackMediaDataName(mp4,trackId);
+					
+					if (name == NULL)
+					{
+						c = AudioCodec::AMR;
+					}
+					else 
+					{
+						if ( ! AudioCodec::GetCodecFor(name, c) )
+						{
+							Log("Unsupported audio codec %d for hint track ID %d.\n", name, hintId);
+							goto audio_track_loop2;
+						}
+					}
+					
+					if ( c == prefCodec )
+					{
+						// This is the preffered codec !
+						// use it and stop here
+						
+						lastTrackMatch = trackId;
+						lastHintMatch = hintId;
+						break;
+					}    
+					
+					if ( lastTrackMatch < 0)
+					{
+						for (int i=0; i<nbCodecs; i++)
+						{
+							if ( outputCodecs[i] == c )
+							{
+								lastTrackMatch = trackId;
+								lastHintMatch = hintId;
+							}
+						}
+					}
+				}
+
+audio_track_loop2:		
+				idxTrack++;
+				trackId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
+			}
+		}
+		
+		if ( lastTrackMatch >= 0)
+		{
+			mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
+			next[MP4_AUDIO_TRACK] = mediatracks[MP4_AUDIO_TRACK]->GetNextFrameTime();
+			return 1;
+		}
+		else
+		{
+			 return 0;
+		}
     }
 }
 
@@ -689,100 +689,105 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 {
     if (nbCodecs > 0)
     {
-	MP4TrackId hintId = -1 ;
-	MP4TrackId trackId = -1;
-	MP4TrackId lastHintMatch = -1;
-	MP4TrackId lastTrackMatch = -1;
-	int idxTrack = 0;
-	VideoCodec::Type c;
-	
-	if (mediatracks[MP4_VIDEO_TRACK] != NULL)
-	{
-	    Error("Video track is already open.\n");
-	    return 0;
-	}
-	
-	hintId = MP4FindTrackId(mp4, idxTrack, MP4_HINT_TRACK_TYPE, 0);
-	while (hintId != MP4_INVALID_TRACK_ID)
-	{
-	    const char* nm = MP4GetTrackMediaDataName(mp4,hintId);
-	    Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
-	    
-	    /* Get associated track */
-	    trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
+		MP4TrackId hintId = -1 ;
+		MP4TrackId trackId = -1;
+		MP4TrackId lastHintMatch = -1;
+		MP4TrackId lastTrackMatch = -1;
+		int idxTrack = 0;
+		VideoCodec::Type c;
 		
-	    /* Check it's good */
-	    if (trackId != MP4_INVALID_TRACK_ID)
-	    {
-		/* Get type */
-		const char * tt = MP4GetTrackType(mp4, trackId);
-
-		if (tt != NULL && strcmp(tt, MP4_VIDEO_TRACK_TYPE) == 0)
+		if (mediatracks[MP4_VIDEO_TRACK] != NULL)
 		{
-		    char *name;
-		    
-		    MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
-		    
-		    if (name == NULL)
-		    {
-			    Log("No video codec %d for hint track ID %d.\n", name, hintId);
-			    goto video_track_loop;
-		    }
-		    else 
-		    {
-			if ( ! VideoCodec::GetCodecFor(name, c) )
-			{
-			    Log("Unsupported video codec %d for hint track ID %d.\n", name, hintId);
-			    goto video_track_loop;
-			}
-		    }
-		    
-		    if ( c == prefCodec )
-		    {
-			// This is the preffered codec !
-			// use it and stop here
-			
-			lastTrackMatch = trackId;
-			lastHintMatch = hintId;
-			break;
-		    }    
-		    
-		    if ( lastTrackMatch < 0)
-		    {
-			for (int i=0; i<nbCodecs; i++)
-			{
-			    if ( outputCodecs[i] == c )
-			    {
-				lastTrackMatch = trackId;
-				lastHintMatch = hintId;
-			    }
-			}
-		    }
+			Error("Video track is already open.\n");
+			return 0;
 		}
 		
-	    }
-	    else
-	    {
-		Log("No media track associated with hint track ID %d.\n", hintId);
-	    }
-	    
-video_track_loop:
-	    idxTrack++;
-	    hintId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
-	}
+		hintId = MP4FindTrackId(mp4, idxTrack, MP4_HINT_TRACK_TYPE, 0);
+		while (hintId != MP4_INVALID_TRACK_ID)
+		{
+			const char* nm = MP4GetTrackMediaDataName(mp4,hintId);
+			Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
+			
+			/* Get associated track */
+			trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
+			
+			/* Check it's good */
+			if (trackId != MP4_INVALID_TRACK_ID)
+			{
+				/* Get type */
+				const char * tt = MP4GetTrackType(mp4, trackId);
 
-	if ( lastTrackMatch >= 0)
-	{
-	     if (secondary)
-		mediatracks[MP4_VIDEO_TRACK] = new Mp4VideoTrack(mp4, lastTrackMatch, lastHintMatch, c);
-	     else
-		mediatracks[MP4_VIDEODOC_TRACK] = new Mp4VideoTrack(mp4, lastTrackMatch, lastHintMatch, c);
-	     return 1;
-	}
-	else
-	{
-	     return 0;
-	}
+				if (tt != NULL && strcmp(tt, MP4_VIDEO_TRACK_TYPE) == 0)
+				{
+					char *name;
+					
+					MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
+					
+					if (name == NULL)
+					{
+						Log("No video codec %d for hint track ID %d.\n", name, hintId);
+						goto video_track_loop;
+					}
+					else 
+					{
+						if ( ! VideoCodec::GetCodecFor(name, c) )
+						{
+							Log("Unsupported video codec %d for hint track ID %d.\n", name, hintId);
+							goto video_track_loop;
+						}
+					}
+					
+					if ( c == prefCodec )
+					{
+						// This is the preffered codec !
+						// use it and stop here
+						
+						lastTrackMatch = trackId;
+						lastHintMatch = hintId;
+						break;
+					}    
+					
+					if ( lastTrackMatch < 0)
+					{
+						for (int i=0; i<nbCodecs; i++)
+						{
+							if ( outputCodecs[i] == c )
+							{
+								lastTrackMatch = trackId;
+								lastHintMatch = hintId;
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				Log("No media track associated with hint track ID %d.\n", hintId);
+			}
+			
+video_track_loop:
+			idxTrack++;
+			hintId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
+		}
+
+		if ( lastTrackMatch >= 0)
+		{
+			if (secondary)
+			{
+				mediatracks[MP4_VIDEODOC_TRACK] = new Mp4VideoTrack(mp4, lastTrackMatch, lastHintMatch, c);
+				next[MP4_VIDEODOC_TRACK] = mediatracks[MP4_VIDEODOC_TRACK]->GetNextFrameTime();
+			}
+			else
+			{
+				mediatracks[MP4_VIDEO_TRACK] = new Mp4VideoTrack(mp4, lastTrackMatch, lastHintMatch, c);
+				next[MP4_VIDEO_TRACK] = mediatracks[MP4_VIDEO_TRACK]->GetNextFrameTime();
+			}
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
     }
 }
 
@@ -796,44 +801,153 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
 
     if ( c == TextCodec::T140RED)
     {
-	redenc = new RTPRedundantEncoder(pt);
+		redenc = new RTPRedundantEncoder(pt);
     }
     
     MP4TrackId textId = MP4FindTrackId(mp4, 0, MP4_TEXT_TRACK_TYPE, 0);
     
     if (textId != MP4_INVALID_TRACK_ID)
     {
-	mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4, textId);
-	Log("Opened text track ID %d.\n", textId);
-	return 1;
+		mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4, textId);
+		next[MP4_TEXT_TRACK] = mediatracks[MP4_TEXT_TRACK]->GetNextFrameTime();
+		Log("Opened text track ID %d.\n", textId);
+		return 1;
     }
     else
     {
-	return Error("Could not find any text track in this file.\n");
+		return Error("Could not find any text track in this file.\n");
     }
 }
 
 bool mp4player::Eof(void)
 {
-    if ( mediatracks[MP4_AUDIO_TRACK] && audioNext != MP4_INVALID_TIMESTAMP )
-	return false;
+    if ( mediatracks[MP4_AUDIO_TRACK] && next[MP4_AUDIO_TRACK] != MP4_INVALID_TIMESTAMP )
+		return false;
 
-    if ( mediatracks[MP4_VIDEO_TRACK] && videoNext != MP4_INVALID_TIMESTAMP )
-	return false;
+    if ( mediatracks[MP4_VIDEO_TRACK] && next[MP4_VIDEO_TRACK] != MP4_INVALID_TIMESTAMP )
+		return false;
 
-    if ( mediatracks[MP4_TEXT_TRACK] && textNext != MP4_INVALID_TIMESTAMP )
-	return false;
+    if ( mediatracks[MP4_TEXT_TRACK] && next[MP4_TEXT_TRACK] != MP4_INVALID_TIMESTAMP )
+		return false;
 
     return true;
 }
-MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime )
+
+int mp4player::Rewind()
+{
+	gettimeofday(&startPlaying,0);
+	for (int i=0; i<5; i++)
+	{
+		if ( mediatracks[i] )
+		{
+			mediatracks[i]->Reset();
+			next[i] = mediatracks[i]->GetNextFrameTime();
+		}
+		else
+		{
+			next[i] = MP4_INVALID_TIMESTAMP;
+		}
+	}
+}
+
+bool mp4player::GetNextTrackAndTs(int & trackId, QWORD & ts)
+{
+	ts = MP4_INVALID_TIMESTAMP;
+	
+	for (int i=0; i<5; i++)
+	{
+		if ( mediatracks[i] && next[i] < ts )
+		{
+			ts = next[i];
+			trackId = i;
+		}
+	}
+	
+	return (ts != MP4_INVALID_TIMESTAMP);
+}
+
+MediaFrame * mp4player::GetNextFrame( QWORD now, int & errcode, unsigned long & waittime )
 {    
     timeval tv ;
     timespec ts;
-
-    
-    
-
+	MediaFrame * f2 = NULL;
+	QWORD t = 0;
+	int trackId;
+	
+    if ( ! Eof() )
+	{
+		
+		if ( ! GetNextTrackAndTs(trackId, t) )
+		{
+			return -2;
+		}
+		
+		if ( now < t )
+		{
+			errcode = 0;
+			return NULL;
+		}
+		
+		if (mediatracks[trackId] == NULL)
+		{
+			next[trackId] = MP4_INVALID_TIMESTAMP;
+			errcode = -3;
+			f2 = NULL;
+		}
+		else
+		{
+			f2 = mediatracks[trackId]->ReadFrame();
+			if ( f2 == NULL )
+			{
+				errcode = -4;
+				return NULL;
+			}
+			
+			next[trackId] = mediatracks[trackId]->GetNextFrameTime();
+			
+			if ( trackId == MP4_TEXT_TRACK )
+			{
+				// Special case for text
+				if (redenc) 
+				{
+					redenc->Encode(f2);
+					f2 = GetRedundantPayload(f2);
+				}
+				
+				errcode = 1;
+			}
+			else
+			{
+				if (! f2->Packetize(1400) )
+				{
+					errcode = -5;
+				}
+				else
+				{
+					errcode = 1;
+				}
+			}
+		}
+		
+		if (  GetNextTrackAndTs(trackId, t) )
+		{		
+			if ( now >= t )
+			{
+				// we do not need to wait
+				waittime = 0;
+			}
+			else
+			{
+				// we need to wait
+				waittime = t - now;
+			}
+		}
+		else
+		{
+			waittime = 0;
+		}
+	}
+	return f2;
 }
 /* ---- callbeck used for video transcoding --- */
 
@@ -1009,49 +1123,49 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 {
 	mp4player * p2 = (mp4player *) p;
 	unsigned long wait = 0;
-	int ret;
+	int ret = -1;
 	
-	MediaFrame * f = p2->GetNextFrame(ret, wait);
+	while (wait == 0)
+	{
+		MediaFrame * f = p2->GetNextFrame(ret, wait);
 	
-	if ( ret >= 0 )
-	{		
+		if ( f == NULL || ret < 0 ) return ret;
+		
 		if ( f->HasRtpPacketizationInfo() )
 		{
 			MediaFrame::RtpPacketizationInfo & pinfo = f->GetRtpPacketizationInfo();
 			struct ast_frame f2;
-			if ( ! MediaFrameToAstFrame(f, f2) )
-			{
-				return -5; /* incompatible codec read from MP4 file or unsupported media */
-			}
 			
 			for( MediaFrame::RtpPacketizationInfo::iterator it = pinfo.begin() ;
 				 it != pinfo.end() ;
 				 it++ )
 			
 			{
-				MediaFrame::RtpPacketization * rtp = *it;
-				f2.data = f->GetData() + rtp->GetPos();
-				f2.datalen = rtp->GetSize();
-				if ( rtp->IsMark() ) f2.subclass |= 1;
+				
+				if ( ! MediaFrameToAstFrame(f, *it, f2, buffer, sizeof(buffer))  )
+				{
+					return -5; /* incompatible codec read from MP4 file or unsupported media */
+				}
 				
 				if ( ast_write(chan, &f2) < 0)
 				{
 					return -6; /* write error */ 
 				}
+				
+				//no need to free. Everything is static
+				//ast_frfree(&f2);
 			}
-			return (int) wait;
 		}
 		else
 		{
-			Debug("mp4play: Failed to build packetization info for frame.\n");
-			return 0;
+			Debug("mp4play: Failed to get packetization info for frame.\n");
 		}
+		//no need to free f it is recycled by the media track.
 	}
-	else
-	{
-		/* report error */
-		return ret;
-	}
+	
+	
+	return (int) wait;
+
 }
 
 void Mp4PlayerDestroy( struct mp4play * p )

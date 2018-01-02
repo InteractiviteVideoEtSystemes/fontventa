@@ -211,11 +211,11 @@ public:
 	/*
 	 * Create packetization info by parsing media
 	 */
-	virtual bool Packetize()
+	virtual bool Packetize(unsigned int mtu)
 	{
 		return false;
 	}
-	
+
 protected:
 	Type type;
 	DWORD ts;

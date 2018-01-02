@@ -5,6 +5,24 @@
 #include "h264/h264encoder.h"
 #include "h264/h264decoder.h"
 
+
+bool VideoFrame::Packetize(unsigned int mtu)
+{
+	//Depending on the codec
+	switch(codec)
+	{
+		case VideoCodec::H263_1998:
+		case VideoCodec::H263_1996:
+			return PacketizeH263(unsigned int mtu);
+			
+		case VideoCodec::H264:
+			return PacketizeH264(unsigned int mtu);
+		default:
+			Error("Dont know how to packetize video frame for codec [%d]\n",codec);
+	}
+	return false;
+}
+
 VideoDecoder* VideoCodecFactory::CreateDecoder(VideoCodec::Type codec)
 {
 	Log("-CreateVideoDecoder[%d,%s]\n",codec,VideoCodec::GetNameFor(codec));

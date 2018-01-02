@@ -405,7 +405,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	
 	while ( ms >= 0 )
 	{
-	    ms = Mp4PlayerPlayNextFrame(chan,player);
+	    ms = Mp4PlayerPlayNextFrame(chan, player);
 	    
 	    if (ms < 0)
 	    {
@@ -653,9 +653,9 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	/* Send video update */
 	ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 
-	audioInQueue = AstFbCreate(3, 0);
-	videoInQueue = AstFbCreate(3, 0);
-	textInQueue = AstFbCreate(0, 0);
+	audioInQueue = AstFbCreate(60, 0, 0);
+	videoInQueue = AstFbCreate(60, 0, 0);
+	textInQueue = AstFbCreate(40, 0, 0);
 	
 	queueTab[0] = audioInQueue;
 	queueTab[1] = videoInQueue;
@@ -700,7 +700,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    {
 		case AST_FRAME_VOICE:
 	           AstFbAddFrame( audioInQueue, f );
-		   ast_frfree(f);
+				ast_frfree(f);
 	           break;
 	       
 		case AST_FRAME_VIDEO:
@@ -709,18 +709,18 @@ static int mp4_save(struct ast_channel *chan, void *data)
 		    break;
 
 		case AST_FRAME_TEXT:
-	           AstFbAddFrame( textInQueue, f );
-		   ast_frfree(f);
-	           break;
+				AstFbAddFrame( textInQueue, f );
+				ast_frfree(f);
+				break;
 	    
 		case AST_FRAME_DTMF:
-	            if (strchr( stopDtmfs, f->subclass) )
-	            {
-			ast_log(LOG_NOTICE, 
-		            "mp4_save: recording stopping because DTMF %c was pressed.\n", 
-			    (char) f->subclass );
-			onrecord = 0;
-			ast_frfree(f);
+			if (strchr( stopDtmfs, f->subclass) )
+			{
+				ast_log(LOG_NOTICE, 
+				"mp4_save: recording stopping because DTMF %c was pressed.\n", 
+				(char) f->subclass );
+				onrecord = 0;
+				ast_frfree(f);
 		    }
 		    break;
 		
@@ -733,35 +733,35 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    int i;
 	    for (i=0; i<3; i++)
 	    {
-		f = AstFbGetFrame( queueTab[i] );
-		
-		// TODO if too many errors, exit
-		// TODO: if there are lost packets, ask FIR
-		if (f != NULL)
-		{
-		    Mp4RecorderFrame(recorder, f);
-		
-		    if ( f->frametype == AST_FRAME_VIDEO )
-		    {
-		        if ( f->seqno != 0xFFFF && f->seqno != 0 && strcmp(f->src, "RTP") == 0)
-		        {
-			    if (vidseqno + 1 !=  f->seqno )
-			    {
-			        ast_indicate(chan, AST_CONTROL_VIDUPDATE);
-			    }
-		        }
-			vidseqno = f->seqno;
+			f = AstFbGetFrame( queueTab[i] );
+			
+			// TODO if too many errors, exit
+			// TODO: if there are lost packets, ask FIR
+			if (f != NULL)
+			{
+				Mp4RecorderFrame(recorder, f);
+			
+				if ( f->frametype == AST_FRAME_VIDEO )
+				{
+					if ( f->seqno != 0xFFFF && f->seqno != 0 && strcmp(f->src, "RTP") == 0)
+					{
+						if (vidseqno + 1 !=  f->seqno )
+						{
+							ast_indicate(chan, AST_CONTROL_VIDUPDATE);
+						}
+					}
+					vidseqno = f->seqno;
 
-		        if (videoLoopback)
-		        {
-			    /* -- ast_write() destroys the frame -- */
-			    ast_write(chan, f);
-			    f = NULL;
-		        }
-		    }
-		
-		    if ( f != NULL)  ast_frfree(f);
-		}
+					if (videoLoopback)
+					{
+						/* -- ast_write() destroys the frame -- */
+						ast_write(chan, f);
+						f = NULL;
+					}
+				}
+			
+				if ( f != NULL)  ast_frfree(f);
+			}
 	    }
 	}
 	

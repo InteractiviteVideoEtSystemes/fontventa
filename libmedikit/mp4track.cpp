@@ -60,9 +60,9 @@ QWORD Mp4Basetrack::GetNextFrameTime()
 const MediaFrame * Mp4Basetrack::ReadFrame()
 {
     if (hinttrack != MP4_INVALID_TRACK_ID)
-	return ReadFrameFromHint();
+		return ReadFrameFromHint();
     else
-	return ReadFrameWithoutHint();
+		return ReadFrameWithoutHint();
 }
 
 const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
@@ -141,9 +141,9 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 	{
 	    case MediaFrame::Video:
 	        video = (VideoFrame*)frame;
-		frame->SetTimestamp(startTime*90000/timeScale);
-		video->SetIntra(isSyncSample);
-		break;
+			frame->SetTimestamp(startTime*90000/timeScale);
+			video->SetIntra(isSyncSample);
+			break;
 		
 	    case MediaFrame::Audio:
 	       frame->SetTimestamp(startTime*8000/timeScale);
@@ -828,28 +828,29 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 
 	    if ( conv1 != NULL )
 	    {	
-		std::string txtsample((const char *) &buffer[2+renderingOffset], dataLen - renderingOffset);
-		std::string rttstr;
-		unsigned int nbdel = 0;
-		
-		conv1->GetTextDiff(txtsample, nbdel, rttstr);
-		if (nbdel > 0) rttstr.insert(0, 0x08, nbdel);
-		
-		if ( frame->Alloc( rttstr.length()) )
-		{
-		    tf->SetFrame(startTime, (const BYTE *)rttstr.data(), rttstr.length() );
-		    if (nbdel > 0)
-		    {
-			frame->AddRtpPacket(0, nbdel, NULL, 0, true);
-		    }
-		    
-		    frame->AddRtpPacket(nbdel, rttstr.length() - nbdel, NULL, 0, true);
-		}
+			std::string txtsample((const char *) &buffer[2+renderingOffset], dataLen - renderingOffset);
+			std::string rttstr;
+			unsigned int nbdel = 0;
+			
+			conv1->GetTextDiff(txtsample, nbdel, rttstr);
+			if (nbdel > 0) rttstr.insert(0, 0x08, nbdel);
+			
+			if ( frame->Alloc( rttstr.length()) )
+			{
+				tf->SetFrame(startTime, (const BYTE *)rttstr.data(), rttstr.length() );
+				frame->ClearRTPPacketizationInfo();
+				if (nbdel > 0)
+				{
+					frame->AddRtpPacket(0, nbdel, NULL, 0, true);
+				}
+				
+				frame->AddRtpPacket(nbdel, rttstr.length() - nbdel, NULL, 0, true);
+			}
 	    }
 	    else
 	    {
-		tf->SetFrame(startTime, buffer + 2 + renderingOffset, dataLen - renderingOffset);
-		frame->AddRtpPacket(0, renderingOffset, NULL, 0, true);
+			tf->SetFrame(startTime, buffer + 2 + renderingOffset, dataLen - renderingOffset);
+			frame->AddRtpPacket(0, renderingOffset, NULL, 0, true);
 	    }
 	}
 	else

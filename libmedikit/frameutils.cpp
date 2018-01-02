@@ -97,6 +97,11 @@ int CodecToAstFormat( VideoCodec::Type vc, int & fmt )
 
 bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 {
+	return ediaFrameToAstFrame(mf, NULL, astf, NULL, 0);
+}
+
+bool MediaFrameToAstFrame(const MediaFrame * mf, MediaFrame::RtpPacketization * rtppak, ast_frame & astf, void * buffer, int len)
+{
 	static const char *MP4PLAYSRC = "mp4play";
 	AudioFrame * af;
 	VideoFrame * vf;
@@ -139,7 +144,38 @@ bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf)
 	}
 	
 	astf.flags = 0; /* nothing is malloc'ed */
-	astf.data = mf->GetData();
-	astf.datalen = mf->GetLength();
-	return true;
+	if (rtppak == NULL)
+	{
+		astf.data = mf->GetData();
+		astf.datalen = mf->GetLength();
+	}
+	else
+	{
+		if ( rtp->GetPos() + rtp->GetSize() > mf->GetLength() )
+			return false;
+
+		if (rtppak->GetPrefixData() == NULL || rtppak->GetPrefixLen() == 0)
+		{			 
+			astf.data = mf->GetData() + rtp->GetPos();
+			astf.datalen = rtp->GetSize();
+		}
+		else
+		{
+			if ( rtp->GetSize() + rtp->GetPrefixLen() > len)
+				return false;
+			
+			BYTE * buff2 = (BYTE *) buffer;
+			memcpy(buff2, rtppak->GetPrefixData(), rtppak->GetPrefixLen());
+			buff2 += rtppak->GetPrefixLen();
+			memcpy(buff2, mf->GetData() + rtp->GetPos(), rtp->GetSize());
+			astf.data = buffer;
+			astf.datalen = rtp->GetSize() + rtppak->GetPrefixLen();
+		}
+	}		
+
+	// Copy frame timestamp
+	ast_set_flag(&astf, AST_FRFLAG_HAS_TIMING_INFO);
+	astf.ts = frame->GetTimeStamp();
+
+	return true;	
 }
