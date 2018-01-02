@@ -277,8 +277,6 @@ const MediaFrame * Mp4Basetrack::ReadFrameWithoutHint()
 	       break;
 	}
 	
-	frame->Packetize();
-
 	sampleId++;
 
 	return frame;

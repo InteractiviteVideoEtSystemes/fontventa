@@ -879,7 +879,8 @@ MediaFrame * mp4player::GetNextFrame( QWORD now, int & errcode, unsigned long & 
 		
 		if ( ! GetNextTrackAndTs(trackId, t) )
 		{
-			return -2;
+			errcode = -2;
+			return NULL;
 		}
 		
 		if ( now < t )
@@ -896,7 +897,7 @@ MediaFrame * mp4player::GetNextFrame( QWORD now, int & errcode, unsigned long & 
 		}
 		else
 		{
-			f2 = mediatracks[trackId]->ReadFrame();
+			f2 = (MediaFrame *) mediatracks[trackId]->ReadFrame();
 			if ( f2 == NULL )
 			{
 				errcode = -4;
@@ -911,7 +912,7 @@ MediaFrame * mp4player::GetNextFrame( QWORD now, int & errcode, unsigned long & 
 				if (redenc) 
 				{
 					redenc->Encode(f2);
-					f2 = GetRedundantPayload(f2);
+					f2 = redenc->GetRedundantPayload(f2);
 				}
 				
 				errcode = 1;

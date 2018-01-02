@@ -13,10 +13,10 @@ bool VideoFrame::Packetize(unsigned int mtu)
 	{
 		case VideoCodec::H263_1998:
 		case VideoCodec::H263_1996:
-			return PacketizeH263(unsigned int mtu);
+			return PacketizeH263(mtu);
 			
 		case VideoCodec::H264:
-			return PacketizeH264(unsigned int mtu);
+			return PacketizeH264(mtu);
 		default:
 			Error("Dont know how to packetize video frame for codec [%d]\n",codec);
 	}

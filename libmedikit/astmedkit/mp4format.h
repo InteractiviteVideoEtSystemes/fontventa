@@ -166,6 +166,8 @@ public:
     
     bool Eof();
 
+    BYTE buffer[2000];
+
 protected:
     //MP4TrackId IterateTracks(int trackIdx, const char * trackType, bool useHint = true);
 	bool GetNextTrackAndTs(int & trackId, QWORD & ts);
@@ -179,7 +181,6 @@ private:
     RTPRedundantEncoder * redenc;
 
 	timeval startPlaying;
-	BYTE buffer[2000];
 };
 
 #endif

@@ -1,3 +1,4 @@
+#include "medkit/text.h"
 #include "medkit/red.h"
 
 RTPRedundantPayload::RTPRedundantPayload(BYTE *data,DWORD size)
@@ -80,10 +81,10 @@ void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 	primarySize = size-i-skip;
 }
 
-RTPRedundantEncoder(BYTE ptype)
+RTPRedundantEncoder::RTPRedundantEncoder(BYTE ptype)
 {
 	this->ptype = ptype;
-	redFrame = new TextFrame(true)
+	redFrame = new TextFrame(true);
 	redFrame->Alloc(1400);
 }
 
@@ -222,13 +223,13 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
     }
 
 	redFrame->ClearRTPPacketizationInfo();
-	redFrame->AddRtpPaclet(0,redFrame->GetLength(),NULL,0,  idle && frame != NULL);
+	redFrame->AddRtpPacket(0,redFrame->GetLength(),NULL,0,  idle && frame != NULL);
 }
 
-void RTPRedundantEncoder::EncodeBOM(BYTE ptype)
+void RTPRedundantEncoder::EncodeBOM()
 {
     TextFrame t(0, BOMUTF8, sizeof(BOMUTF8));
-    Encode(&t,  ptype);
+    Encode(&t);
 }
 
 MediaFrame * RTPRedundantEncoder::GetRedundantPayload()
