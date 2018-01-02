@@ -151,32 +151,32 @@ bool MediaFrameToAstFrame(const MediaFrame * mf, MediaFrame::RtpPacketization * 
 	}
 	else
 	{
-		if ( rtp->GetPos() + rtp->GetSize() > mf->GetLength() )
+		if ( rtppak->GetPos() + rtppak->GetSize() > mf->GetLength() )
 			return false;
 
 		if (rtppak->GetPrefixData() == NULL || rtppak->GetPrefixLen() == 0)
 		{			 
-			astf.data = mf->GetData() + rtp->GetPos();
-			astf.datalen = rtp->GetSize();
+			astf.data = mf->GetData() + rtppak->GetPos();
+			astf.datalen = rtppak->GetSize();
 		}
 		else
 		{
-			if ( rtp->GetSize() + rtp->GetPrefixLen() > len)
+			if ( rtppak->GetSize() + rtppak->GetPrefixLen() > len)
 				return false;
 			
 			BYTE * buff2 = (BYTE *) buffer;
 			memcpy(buff2, rtppak->GetPrefixData(), rtppak->GetPrefixLen());
 			buff2 += rtppak->GetPrefixLen();
-			memcpy(buff2, mf->GetData() + rtp->GetPos(), rtp->GetSize());
+			memcpy(buff2, mf->GetData() + rtppak->GetPos(), rtppak->GetSize());
 			astf.data = buffer;
-			astf.datalen = rtp->GetSize() + rtppak->GetPrefixLen();
+			astf.datalen = rtppak->GetSize() + rtppak->GetPrefixLen();
 		}
 	}		
 
 	// Copy frame timestamp
 	ast_set_flag(&astf, AST_FRFLAG_HAS_TIMING_INFO);
 	astf.ts = frame->GetTimeStamp();
-	if (rtp->IsMark() ) astf.subclass |= 0x1;
+	if (rtppak->IsMark() ) astf.subclass |= 0x1;
 	
 	return true;	
 }
