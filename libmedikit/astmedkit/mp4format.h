@@ -156,7 +156,7 @@ public:
 	 * @param [out] waittime: time to wait before the next frame. Can be 0. In this case 
 	 * @return NULL or the next frame to render
      */
-    MediaFrame * GetNextFrame( QWORD now, int & errcode, unsigned long & waittime );
+    MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime );
 
 	
 	/**

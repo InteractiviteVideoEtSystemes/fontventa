@@ -866,13 +866,15 @@ bool mp4player::GetNextTrackAndTs(int & trackId, QWORD & ts)
 	return (ts != MP4_INVALID_TIMESTAMP);
 }
 
-MediaFrame * mp4player::GetNextFrame( QWORD now, int & errcode, unsigned long & waittime )
+MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 {    
-    timeval tv ;
-    timespec ts;
+    //timeval tv ;
+    //timespec ts;
 	MediaFrame * f2 = NULL;
 	QWORD t = 0;
 	int trackId;
+	
+	DWORD now = getUpdDifTime(&startPlaying);
 	
     if ( ! Eof() )
 	{
