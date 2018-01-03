@@ -250,7 +250,7 @@ H263Encoder1996::H263Encoder1996(const Properties& properties)
 
 	//Alocamos el conto y el picture
 	ctx = avcodec_alloc_context3(codec);
-	picture = avcodec_alloc_frame();
+	picture = av_frame_alloc();
 }
 
 /***********************

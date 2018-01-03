@@ -18,7 +18,7 @@ inline int AstFormatToCodecList(int format, AudioCodec::Type & ac)
 	return AstFormatToCodecList(format, &ac, 1);
 }
 
-int AstFormatToCodecList(int format, VideoCodec::Type & vc)
+inline int AstFormatToCodecList(int format, VideoCodec::Type & vc)
 {
 	return AstFormatToCodecList(format, &vc, 1);
 }
