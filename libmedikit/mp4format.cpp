@@ -914,7 +914,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 				if (redenc) 
 				{
 					redenc->Encode(f2);
-					f2 = redenc->GetRedundantPayload(f2);
+					f2 = redenc->GetRedundantPayload();
 				}
 				
 				errcode = 1;
@@ -1149,7 +1149,7 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 			
 			{
 				
-				if ( ! MediaFrameToAstFrame(f, *it, f2, buffer, sizeof(buffer))  )
+				if ( ! MediaFrameToAstFrame2(f, *it, f2, p2->buffer, sizeof(p2->buffer))  )
 				{
 					return -5; /* incompatible codec read from MP4 file or unsupported media */
 				}

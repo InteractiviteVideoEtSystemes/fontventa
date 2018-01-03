@@ -94,16 +94,16 @@ private:
 
 	// H.264 specific
 	bool useStartCode;
-	bool naluSizeLen;
+	DWORD naluSizeLen;
 	
 	// If NALU size is stored in data (MP4 file)
 	DWORD ReadNaluSize(BYTE * data);
 	
 	//If butstream contains H.264 sync codes
-	DWORD DetectNaluBoundary(BYTE * data);
+	DWORD DetectNaluBoundary(BYTE * p, DWORD sz);
 	
 	// Handle fragmentation
-	void PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz);
+	void PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz, bool last);
 };
 
 

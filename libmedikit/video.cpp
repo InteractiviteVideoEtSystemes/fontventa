@@ -95,7 +95,7 @@ DWORD VideoFrame::ReadNaluSize(BYTE * data)
 			
 		default:
 			return (data[0] << 24) |(data[1] << 16) |(data[2] << 8) | data[3];
-	]
+	}
 }
 
 DWORD VideoFrame::DetectNaluBoundary(BYTE * p, DWORD sz)
@@ -156,19 +156,19 @@ bool VideoFrame::PacketizeH264(unsigned int mtu)
 	while (l < GetLength() )
 	{
 		if (useStartCode)
-			naluSz = DetectNaluBoundary(p + l);
+			naluSz = DetectNaluBoundary(p + l, GetLength() - l );
 		else
 			naluSz = ReadNaluSize(p + l);
 		
 		if (naluSz == 0 || naluSz > GetLength() ) return false;
-		
-		PacketizeH264Nalu(mtu, l, naluSz);
+		bool last = (l + naluSz >= GetLength());
+		PacketizeH264Nalu(mtu, l, naluSz, last);
 		l += naluSz;
 	}
 	return true;
 }
 
-void VideoFrame::PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz);
+void VideoFrame::PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz, bool last)
 {
 	BYTE * p = GetData();
 	p += offset;
@@ -177,14 +177,14 @@ void VideoFrame::PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz)
 	// Single NAL packet
 	if ( naluSz <= mtu )
 	{
-		AddRtpPacket(l, naluSz, NULL, 0 );
-		return true;	
+		AddRtpPacket(l, naluSz, 0L, 0, last );
+		return;	
 	}
 	
 	uint8_t fua_hdr[H264_FUA_HEADER_SIZE];
 	fua_hdr[0] = p[l] & 0x60; /* NRI */
-	fua_hdr[0] |= 28; //fu_a;
-	fua_hdr[1] = 0x80; /* S=1,E=0,R=0 */, 
+	fua_hdr[0] |= 28; //fu_a
+	fua_hdr[1] = 0x80; /* S=1,E=0,R=0 */
 	fua_hdr[1] |= p[l] & 0x1f; /* type */
 
 	while (l < naluSz )
@@ -201,7 +201,8 @@ void VideoFrame::PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz)
 			fua_hdr[1] |= 0x40;
 		}
 		
-		AddRtpPacket(offset + l, pktSize, fua_hdr, H264_FUA_HEADER_SIZE); 
+		AddRtpPacket(offset + l, pktSize, fua_hdr, H264_FUA_HEADER_SIZE,
+			     pktSize + l >= naluSz); 
 		
 		// reset "S" bit (that marks the first fragment)
 		fua_hdr[1] &= 0x7F;

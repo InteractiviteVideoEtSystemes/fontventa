@@ -92,7 +92,7 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 	return NULL;
 }
 
-bool AudioFrame::Packetize(unsigned int mtu);
+bool AudioFrame::Packetize(unsigned int mtu)
 {
 	unsigned int paksize = packetization;
 	if (paksize > mtu && mtu > 0) paksize = mtu;

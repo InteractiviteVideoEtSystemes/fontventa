@@ -96,12 +96,13 @@ public:
     Mp4VideoTrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack, VideoCodec::Type codec) : Mp4Basetrack(mp4, mediaTrack, hintTrack) 
     {
 		this->codec = codec;
-		frame = new VideoFrame(codec,262143);
+		VideoFrame * f = new VideoFrame(codec,262143);
 		
+		// Obtain NALU size storage size
 		uint32_t naluSz_storage;
 		MP4GetTrackH264LengthSize(mp4, mediaTrack, &naluSz_storage);
-		
-		SetH264NalSizeLength(naluSz_storage);
+		f->SetH264NalSizeLength(naluSz_storage);
+		frame = f;
     }
     
     void SetSize(DWORD width, DWORD height)

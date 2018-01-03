@@ -23,7 +23,7 @@ int AstFormatToCodecList(int format, VideoCodec::Type & vc)
 	return AstFormatToCodecList(format, &vc, 1);
 }
 
-bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf);
+bool MediaFrameToAstFrame(const MediaFrame * mf, struct ast_frame & astf);
 
 /**
  * Convert an internal media frame into an asterisk frame. Buffer passed is used if packetization info contains
@@ -32,7 +32,7 @@ bool MediaFrameToAstFrame(const MediaFrame * mf, ast_frame & astf);
  * @param mf: media frame to convert
  *
  **/
-bool MediaFrameToAstFrame(const MediaFrame * mf, MediaFrame::RtpPacketization * rtp, ast_frame & astf, void * buffer, int len);
+bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization * rtp, struct ast_frame & astf, void * buffer, int len);
 
 int CodecToAstFormat( AudioCodec::Type ac, int & fmt );
 int CodecToAstFormat( VideoCodec::Type vc, int & fmt );
