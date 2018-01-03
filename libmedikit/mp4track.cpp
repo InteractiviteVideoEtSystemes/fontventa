@@ -67,7 +67,7 @@ const MediaFrame * Mp4Basetrack::ReadFrame()
 
 const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 {
-    	int last = 0;
+    int last = 0;
 	uint8_t* data;
 	bool isSyncSample;
 	//unsigned int numHintSamples;
@@ -77,6 +77,8 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 	int frameTime;
 	int frameType;
 
+	frame->ClearRTPPacketizationInfo();
+	
 	if ( frame == NULL )
 	{
 	    Error("Buffer not initialized. Cannot read sample.\n");
@@ -264,9 +266,9 @@ const MediaFrame * Mp4Basetrack::ReadFrameWithoutHint()
 	{
 	    case MediaFrame::Video:
 	        video = (VideoFrame*)frame;
-		frame->SetTimestamp(startTime*90000/timeScale);
-		video->SetIntra(isSyncSample);
-		break;
+			frame->SetTimestamp(startTime*90000/timeScale);
+			video->SetIntra(isSyncSample);
+			break;
 		
 	    case MediaFrame::Audio:
 	       frame->SetTimestamp(startTime*8000/timeScale);

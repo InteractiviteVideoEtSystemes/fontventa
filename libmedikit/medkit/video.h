@@ -15,6 +15,7 @@ public:
 		isIntra = 0;
 		width = 0;
 		height = 0;
+		SetH264NalSizeLength(0);
 	}
 
 	virtual MediaFrame* Clone()
@@ -58,6 +59,29 @@ public:
 	
 	virtual bool Packetize(unsigned int mtu);
 
+	/**
+	 * Select how the NALU are to be parsed 
+	 * @param sz: how many bytes used to store NALU sizein the bitstream. 0 = use start code
+	 **/
+	void SetH264NalSizeLength(DWORD sz)
+	{
+		if (sz == 0)
+		{
+			useStartCode = true;
+			naluSizeLen = 0;
+		}
+		else if (sz <= 4)
+		{
+			useStartCode = false;
+			naluSizeLen = sz;
+		}
+		else
+		{
+			useStartCode = false;
+			naluSizeLen = 4;			
+		}
+	}
+
 private:
 	VideoCodec::Type codec;
 	bool	isIntra;
@@ -66,6 +90,20 @@ private:
 
 	bool PacketizeH264(unsigned int mtu);
 	bool PacketizeH263(unsigned int mtu);
+	
+
+	// H.264 specific
+	bool useStartCode;
+	bool naluSizeLen;
+	
+	// If NALU size is stored in data (MP4 file)
+	DWORD ReadNaluSize(BYTE * data);
+	
+	//If butstream contains H.264 sync codes
+	DWORD DetectNaluBoundary(BYTE * data);
+	
+	// Handle fragmentation
+	void PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz);
 };
 
 

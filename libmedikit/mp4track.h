@@ -95,14 +95,19 @@ public:
 
     Mp4VideoTrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack, VideoCodec::Type codec) : Mp4Basetrack(mp4, mediaTrack, hintTrack) 
     {
-	this->codec = codec;
-	frame = new VideoFrame(codec,262143);
+		this->codec = codec;
+		frame = new VideoFrame(codec,262143);
+		
+		uint32_t naluSz_storage;
+		MP4GetTrackH264LengthSize(mp4, mediaTrack, &naluSz_storage);
+		
+		SetH264NalSizeLength(naluSz_storage);
     }
     
     void SetSize(DWORD width, DWORD height)
     {
-	this->width = width;
-	this->height = height;
+		this->width = width;
+		this->height = height;
     }
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate);

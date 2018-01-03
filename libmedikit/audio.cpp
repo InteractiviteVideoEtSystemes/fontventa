@@ -92,14 +92,17 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 	return NULL;
 }
 
-bool AudioFrame::Packetize()
+bool AudioFrame::Packetize(unsigned int mtu);
 {
+	unsigned int paksize = packetization;
+	if (paksize > mtu && mtu > 0) paksize = mtu;
+	
 	ClearRTPPacketizationInfo();
-	for (unsigned int i=0; i<GetLength(); i+= packetization )
+	for (unsigned int i=0; i<GetLength(); i+= paksize )
 	{
 		unsigned int rtplen = GetLength() - i;
 
-		if (rtplen > packetization ) rtplen = packetization;
+		if (rtplen > paksize ) rtplen = paksize;
 		AddRtpPacket(i, rtplen, 0, NULL, false);
 	}
 }

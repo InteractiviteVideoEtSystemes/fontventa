@@ -15,6 +15,7 @@ static uint8_t sync_bytes[] = { 0, 0, 0, 1 };
 
 H264Depacketizer::H264Depacketizer() : frame(VideoCodec::H264,0)
 {
+	useStartCode = false;
 }
 
 H264Depacketizer::~H264Depacketizer()
@@ -126,13 +127,19 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 					//It is intra
 					frame.SetIntra(true);
 
-				//Set size
-				set4(nalHeader,0,nalu_size);
-				//Append data
-				//frame.AppendMedia(sync_bytes, sizeof (sync_bytes));
-				frame.AppendMedia(nalHeader, sizeof (nalHeader));
+				if (useStartCode)
+				{
+					// Add start code to mark NALU beginnging
+					frame.AppendMedia(sync_bytes, sizeof (sync_bytes));
+				}
+				else
+				{
+					// Store nalu size before nalu data (for MP4) files
+					set4(nalHeader,0,nalu_size);
+					frame.AppendMedia(nalHeader, sizeof (nalHeader));
+				}
 				
-				//Append NAL
+				//Append NALU data
 				frame.AppendMedia(payload,nalu_size);
 				
 				payload += nalu_size;
@@ -184,11 +191,20 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 
 				//Get init of the nal
 				iniFragNALU = frame.GetLength();
-				//Set size with start code
-				set4(nalHeader,0,1);
-				//Append data
-				frame.AppendMedia(nalHeader, sizeof (nalHeader));
-				//Append NAL header
+
+				if (useStartCode)
+				{
+					// Add start code to mark NALU beginnging
+					frame.AppendMedia(sync_bytes, sizeof (sync_bytes));
+				}
+				else
+				{
+					// add placeholder for NALU size
+					set4(nalHeader,0,1);
+					frame.AppendMedia(nalHeader, sizeof (nalHeader));
+				}
+
+				//Start with reconstructed NAL header
 				frame.AppendMedia(&nal_header,1);
 			}
 
@@ -201,10 +217,13 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 
 			if (E)
 			{
-				//Get NAL size
-				DWORD nalSize = frame.GetLength()-iniFragNALU-4;
-				//Set it
-				set4(frame.GetData(),iniFragNALU,nalSize);
+				if ( !useStartCode )
+				{
+					//Get NAL size
+					DWORD nalSize = frame.GetLength()-iniFragNALU-4;
+					//store it before the NALU data
+					set4(frame.GetData(),iniFragNALU,nalSize);
+				}
 			}
 			//Done
 			break;
@@ -219,10 +238,18 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 			}
 			/* the entire payload is the output buffer */
 			nalu_size = payload_len;
-			//Set size
-			set4(nalHeader,0,nalu_size);
-			//Append data
-			frame.AppendMedia(nalHeader, sizeof (nalHeader));
+			if (useStartCode)
+			{
+				// Add start code to mark NALU beginnging
+				frame.AppendMedia(sync_bytes, sizeof (sync_bytes));
+			}
+			else
+			{
+				// Store nalu size before nalu data (for MP4) files
+				set4(nalHeader,0,nalu_size);
+				frame.AppendMedia(nalHeader, sizeof (nalHeader));
+			}
+
 			//Get current position in frame
 			DWORD pos = frame.GetLength();
 			//And data

@@ -17,6 +17,7 @@ bool VideoFrame::Packetize(unsigned int mtu)
 			
 		case VideoCodec::H264:
 			return PacketizeH264(mtu);
+
 		default:
 			Error("Dont know how to packetize video frame for codec [%d]\n",codec);
 	}
@@ -73,4 +74,137 @@ VideoEncoder* VideoCodecFactory::CreateEncoder(VideoCodec::Type codec,const Prop
 			Error("Video Encoder not found\n");
 	}
 	return NULL;
+}
+
+
+DWORD VideoFrame::ReadNaluSize(BYTE * data)
+{
+	switch(naluSizeLen)
+	{
+		case 0:
+			return 0;
+
+		case 1:
+			return data[0];
+			
+		case 2:
+			return (data[0] << 8) | data[1];
+			
+		case 3:
+			return (data[0] << 16) |(data[1] << 8) | data[2];
+			
+		default:
+			return (data[0] << 24) |(data[1] << 16) |(data[2] << 8) | data[3];
+	]
+}
+
+DWORD VideoFrame::DetectNaluBoundary(BYTE * p, DWORD sz)
+{
+	DWORD l;
+	
+	for (l = 0; l+4 < sz; l++)
+	{
+		if (p[l] == 0 && p[l+1] == 0)
+		{
+			if (p[l+2] == 1)
+			{
+				return l;
+			}
+		}
+		else if(p[l+2] == 0 && p[l+3] == 1)
+		{
+			return l;;
+		}
+	}
+	
+	if (l+3 < sz)
+	{
+		if (p[l] == 0 && p[l+1] == 0)
+		{
+			if (p[l+2] == 1)
+			{
+				return l;
+			}
+		}
+	}
+	
+	return 0;	
+}
+#define H264_FUA_HEADER_SIZE				2
+
+bool VideoFrame::PacketizeH264(unsigned int mtu)
+{
+	BYTE * p = GetData();
+	unsigned int l = 0;
+	DWORD naluSz;
+		
+	ClearRTPPacketizationInfo();
+
+	// Skip header (if needed)
+	if (p[l] == 0 && p[l+1] == 0)
+	{
+		if (p[l+2] == 1)
+		{
+			l+= 3;
+		}
+	}
+	else if(p[l+2] == 0 && p[l+3] == 1)
+	{
+		l+= 4;
+	}
+
+	while (l < GetLength() )
+	{
+		if (useStartCode)
+			naluSz = DetectNaluBoundary(p + l);
+		else
+			naluSz = ReadNaluSize(p + l);
+		
+		if (naluSz == 0 || naluSz > GetLength() ) return false;
+		
+		PacketizeH264Nalu(mtu, l, naluSz);
+		l += naluSz;
+	}
+	return true;
+}
+
+void VideoFrame::PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz);
+{
+	BYTE * p = GetData();
+	p += offset;
+	unsigned int l = 0;
+		
+	// Single NAL packet
+	if ( naluSz <= mtu )
+	{
+		AddRtpPacket(l, naluSz, NULL, 0 );
+		return true;	
+	}
+	
+	uint8_t fua_hdr[H264_FUA_HEADER_SIZE];
+	fua_hdr[0] = p[l] & 0x60; /* NRI */
+	fua_hdr[0] |= 28; //fu_a;
+	fua_hdr[1] = 0x80; /* S=1,E=0,R=0 */, 
+	fua_hdr[1] |= p[l] & 0x1f; /* type */
+
+	while (l < naluSz )
+	{
+		unsigned long pktSize = naluSz - l;
+
+		if (pktSize > mtu) 
+		{
+			pktSize = mtu;
+		}
+		else
+		{
+			// Last fragment -> set E bit
+			fua_hdr[1] |= 0x40;
+		}
+		
+		AddRtpPacket(offset + l, pktSize, fua_hdr, H264_FUA_HEADER_SIZE); 
+		
+		// reset "S" bit (that marks the first fragment)
+		fua_hdr[1] &= 0x7F;
+		l += pktSize;
+	}
 }

@@ -18,9 +18,16 @@ public:
 	virtual void SetTimestamp(DWORD timestamp);
 	virtual MediaFrame* AddPayload(BYTE* payload,DWORD payload_len, bool mark);
 	virtual void ResetFrame();
+
+	void SetUseStartCode(bool use)
+	{
+		useStartCode = use;
+	}
+	
 private:
 	VideoFrame frame;
 	DWORD iniFragNALU;
+	bool useStartCode;
 };
 
 #endif	/* H264DEPACKETIZER_H */

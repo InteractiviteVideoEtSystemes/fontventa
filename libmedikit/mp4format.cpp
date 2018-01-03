@@ -919,7 +919,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 				
 				errcode = 1;
 			}
-			else
+			else if ( ! f2->HasRtpPacketizationInfo() )
 			{
 				if (! f2->Packetize(1400) )
 				{
@@ -929,6 +929,10 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 				{
 					errcode = 1;
 				}
+			}
+			else
+			{
+				errcode = 1;
 			}
 		}
 		

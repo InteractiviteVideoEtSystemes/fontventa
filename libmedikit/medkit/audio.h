@@ -68,7 +68,7 @@ public:
 	void	SetCodec(AudioCodec::Type codec)	{ this->codec = codec;	}
 	DWORD	GetRate() const				{ return rate;		}
 	
-	virtual bool Packetize();
+	virtual bool Packetize(unsigned int mtu);
 
 private:
 	AudioCodec::Type codec;
