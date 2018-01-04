@@ -74,6 +74,14 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	else
 	{
 		seq = f->seqno + cycle*0x10000;
+		
+		// Ignoring strange frames
+		if (f->seqno > 0xFFFF)
+		{
+			ast_log(LOG_NOTICE, "Invalid seqno %d for frame.\n", f->seqno);
+			return false;
+		}
+		
 		if (f->seqno == 0xFFFF)
 		{
 			cycle++;
@@ -200,7 +208,16 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			{
 				//We have it!
 				rtp = it->second;
-				if (seq==next) bigJumps = 0;
+				nbLost = 0;
+
+				if (seq==next) 
+				{
+					bigJumps = 0;
+				}
+				else if (next != (DWORD)-1 && seq > next)
+				{
+					nbLost = seq - next;
+				}					
 				
 				//Update next
 				next = seq+1;
@@ -398,6 +415,11 @@ void AstFbReset(struct AstFb *fb)
 DWORD AstFbLength(struct AstFb *fb)
 {
 	return ((AstFrameBuffer *) fb)->Length();
+}
+
+int AstFbGetLoss(struct AstFb *fb)
+{
+	return ((AstFrameBuffer *) fb)->GetLoss();
 }
 
 void AstFbDestroy(struct AstFb *fb)

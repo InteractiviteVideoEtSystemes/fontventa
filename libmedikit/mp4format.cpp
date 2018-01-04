@@ -318,7 +318,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 {
     if (f != NULL)
     {
-	int ret;
+		int ret;
 	
         switch(f->frametype)
 	{
@@ -377,7 +377,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 				
 				if (loss_detected)
 				{
-					Log("video packet lost detected seqno=%d, exected =\n", f->seqno, videoSeqNo+1);
+					Log("video packet lost detected seqno=%d, expected =%d\n", f->seqno, videoSeqNo+1);
 				}
 
 				videoSeqNo = f->seqno;

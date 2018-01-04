@@ -70,9 +70,14 @@ public:
 
 	DWORD Length()
 	{
+		mutex.lock();
+		DWORD l = packets.size();
+		mutex.unlock();
 		//REturn objets in queu
-		return packets.size();
+		return  l;
 	}
+	
+	int GetLoss() { return nbLost; }
 	
 	void SetMaxWaitTime(DWORD maxWaitTime)
 	{
@@ -105,6 +110,7 @@ private:
 	bool			blocking;
 	bool			isfifo;
 	int				pipe[2];
+	int				nbLost;
 };
 
 #endif
@@ -130,6 +136,9 @@ extern "C"
 	 
 	//Blocking if Jb is created blocking otherwise, behave as AstFbGetFrame()
 	struct ast_frame * AstFbWaitFrame(struct AstFb *fb);
+	
+	// if frame is returned, get number of packet lost
+	int AstFbGetLoss(struct AstFb *fb);
 	
      uint32_t AstFbLength(struct AstFb *fb);
      void AstFbCancel(struct AstFb *fb);     
