@@ -35,6 +35,7 @@ void H264Depacketizer::ResetFrame()
 	memset(frame.GetData(),0,frame.GetMaxMediaLength());
 	//Clear length
 	frame.SetLength(0);
+	frame.SetIntra(false);
 }
 
 MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool mark)
