@@ -625,8 +625,8 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 
 		    //Check rtp payload header len
 		    if (rtp->GetPrefixLen())
-			//Add rtp data
-			MP4AddRtpImmediateData(mp4, hinttrack, rtp->GetPrefixData(), rtp->GetPrefixLen());
+				//Add rtp data
+				MP4AddRtpImmediateData(mp4, hinttrack, rtp->GetPrefixData(), rtp->GetPrefixLen());
 
 			//Add rtp data
 		    MP4AddRtpSampleData(mp4, hinttrack, sampleId, rtp->GetPos(), rtp->GetSize());

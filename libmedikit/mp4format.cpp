@@ -168,10 +168,11 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		{
 		    PictureStreamer pcstream;
 		    Properties properties;
+			H264Depacketizer depak2;
 			
 		    if ( !f2->IsIntra() )
 		    {
-			return -4; // Drop inter fframe : track must start with intrafrae
+				return -4; // Drop inter fframe : track must start with intraframe
 		    }
 		    
 		    waitVideo = false;
@@ -189,23 +190,35 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    int nb = 0;
 		    for (QWORD tsDelta = 0; tsDelta < toAdd; tsDelta += 500 )
 		    {
-			VideoFrame * f3 = pcstream.Stream(false);
+				VideoFrame * f3 = pcstream.Stream(false);
 			
-			if (f3 == NULL)
-			{
-				Error("Cannot create video prologue frame.\n");
-				tr->SetInitialDelay( toAdd - tsDelta);
-				break;
-			}
-			else
-			{
-				f3->SetTimestamp(f2->GetTimeStamp() + tsDelta - toAdd );
-				tr->ProcessFrame(f3);
-				nb++;
-			}
+				if (f3 == NULL)
+				{
+					Error("Cannot create video prologue frame.\n");
+					tr->SetInitialDelay( toAdd - tsDelta);
+					break;
+				}
+				else
+				{
+					f3->SetTimestamp(f2->GetTimeStamp() + tsDelta - toAdd );
+					depak2.SetTimestamp(f2->GetTimeStamp() + tsDelta - toAdd );
+					VideoFrame * f4;
+					
+					// Frame contains startcode and needs to be depacketized before being save to file
+					for( MediaFrame::RtpPacketizationInfo::iterator it = f3->GetRtpPacketizationInfo().begin() ;
+						 it != f2->GetRtpPacketizationInfo().end() ;
+						 it++ )
+					
+					{
+						f4 = depak2.AddPayload( f3->GetData() + it->GetPos(), it->GetSize(), it->IsMark() );
+					}
+					
+					tr->ProcessFrame(f4);
+					depak.ResetFrame();
+					nb++;
+				}
+				if (nb > 0) Log("-mp4recorder: Added %d still videoframe(s) to offset delay.\n", nb );
 		    }
-		    if (nb > 0) Log("-mp4recorder: Added %d still videoframes to offset delay.\n", nb );
-			
 		}
 		int ret = tr->ProcessFrame(f2);
 		return ret;
@@ -400,7 +413,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 						else
 						{
 							// Accumulate NALs into the same frame until mark
-							vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark); 
+							vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark);
 						}
 
 						// Do the same in case of lost frame
@@ -412,7 +425,14 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 								depak->SetTimestamp( getDifTime(&firstframets)/1000 );
 						   
 							//Log("H.264 - got mark. frame ts = %ld.\n", f->ts );
-							if (!waitNextVideoFrame) ret = ProcessFrame( vfh264 );
+							if (!waitNextVideoFrame)
+							{
+								ret = ProcessFrame( vfh264 );
+							}
+							else
+							{
+								Log("H.264 - ignoring incomplete frame  ts = %ld.\n", f->ts );
+							}
 							depak->ResetFrame();
 							waitNextVideoFrame = false;
 						}
