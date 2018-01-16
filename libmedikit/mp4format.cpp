@@ -179,6 +179,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    // add still picture until initial delay
 		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    QWORD toAdd = initialDelay + (getDifTime(&firstframets)/1000);
+		    //toAdd = 0;
 		    pcstream.SetCodec(tr->GetCodec(), properties);
 		    pcstream.SetFrameRate(2, 100, 2);
 		    pcstream.PaintBlackRectangle(640, 480);
@@ -200,21 +201,23 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				}
 				else
 				{
-					f3->SetTimestamp(f2->GetTimeStamp() + tsDelta - toAdd );
-					depak2.SetTimestamp(f2->GetTimeStamp() + tsDelta - toAdd );
-					VideoFrame * f4;
+					f3->SetTimestamp(f2->GetTimeStamp() + (tsDelta - toAdd) * 90 );
+					depak2.SetTimestamp(f3->GetTimeStamp());
+					MediaFrame * f4;
 					
 					// Frame contains startcode and needs to be depacketized before being save to file
 					for( MediaFrame::RtpPacketizationInfo::iterator it = f3->GetRtpPacketizationInfo().begin() ;
-						 it != f2->GetRtpPacketizationInfo().end() ;
+						 it != f3->GetRtpPacketizationInfo().end() ;
 						 it++ )
 					
 					{
-						f4 = depak2.AddPayload( f3->GetData() + it->GetPos(), it->GetSize(), it->IsMark() );
+						f4 = depak2.AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
 					}
 					
+					f4->SetTimestamp(f2->GetTimeStamp() + (tsDelta - toAdd) * 90);
+					Log("f2_ts=%ld, f4_ts=%ld.\n", f2->GetTimeStamp(), f4->GetTimeStamp());
 					tr->ProcessFrame(f4);
-					depak.ResetFrame();
+					depak2.ResetFrame();
 					nb++;
 				}
 				if (nb > 0) Log("-mp4recorder: Added %d still videoframe(s) to offset delay.\n", nb );
@@ -419,12 +422,18 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 						// Do the same in case of lost frame
 						if (ismark)
 						{
-							if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
-								depak->SetTimestamp( f->ts );
+							if ( strcasecmp(f->src, "RTP") == 0 )
+							{
+								Log("H.264 - got mark. frame ts = %ld, timingsource=TS.\n", f->ts );
+								vfh264->SetTimestamp( f->ts );
+							}
 							else
-								depak->SetTimestamp( getDifTime(&firstframets)/1000 );
+							{
+								//Log("H.264 - got mark. frame ts = %ld, timingsource=internal.\n", f->ts );
+								
+								vfh264->SetTimestamp( getDifTime(&firstframets)/1000 );
+							}
 						   
-							//Log("H.264 - got mark. frame ts = %ld.\n", f->ts );
 							if (!waitNextVideoFrame)
 							{
 								ret = ProcessFrame( vfh264 );
