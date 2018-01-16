@@ -116,6 +116,7 @@ private:
     bool waitVideo;
     bool waitNextVideoFrame;
     unsigned long initialDelay;
+	QWORD videoDelay;
     
     DWORD textSeqNo;
     DWORD videoSeqNo;

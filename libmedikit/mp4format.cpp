@@ -178,7 +178,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    waitVideo = false;
 		    // add still picture until initial delay
 		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-		    QWORD toAdd = initialDelay + (getDifTime(&firstframets)/1000);
+		    videoDelay = initialDelay + (getDifTime(&firstframets)/1000);
 		    //toAdd = 0;
 		    pcstream.SetCodec(tr->GetCodec(), properties);
 		    pcstream.SetFrameRate(2, 100, 2);
@@ -189,19 +189,19 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    
 		    // Add black video at 2 fps during the whole delay 
 		    int nb = 0;
-		    for (QWORD tsDelta = 0; tsDelta < toAdd; tsDelta += 500 )
+		    for (QWORD tsDelta = 0; tsDelta < videoDelay; tsDelta += 500 )
 		    {
 				VideoFrame * f3 = pcstream.Stream(false);
 			
 				if (f3 == NULL)
 				{
 					Error("Cannot create video prologue frame.\n");
-					tr->SetInitialDelay( toAdd - tsDelta);
+					tr->SetInitialDelay( videoDelay - tsDelta);
 					break;
 				}
 				else
 				{
-					f3->SetTimestamp(f2->GetTimeStamp() + (tsDelta - toAdd) * 90 );
+					f3->SetTimestamp(f2->GetTimeStamp() + tsDelta * 90 );
 					depak2.SetTimestamp(f3->GetTimeStamp());
 					MediaFrame * f4;
 					
@@ -214,7 +214,6 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 						f4 = depak2.AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
 					}
 					
-					f4->SetTimestamp(f2->GetTimeStamp() + (tsDelta - toAdd) * 90);
 					Log("f2_ts=%ld, f4_ts=%ld.\n", f2->GetTimeStamp(), f4->GetTimeStamp());
 					tr->ProcessFrame(f4);
 					depak2.ResetFrame();
@@ -223,12 +222,15 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				if (nb > 0) Log("-mp4recorder: Added %d still videoframe(s) to offset delay.\n", nb );
 		    }
 		}
+		
+		// Shift timestamp to include prologue
+		f2->SetTimestamp( f2->GetTimeStamp() + videoDelay * 90 );
 		int ret = tr->ProcessFrame(f2);
 		return ret;
 	    }
 	    else
 	    {
-		return -3;
+			return -3;
 	    }
 	    break;
 	    
