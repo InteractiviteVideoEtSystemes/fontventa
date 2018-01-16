@@ -555,7 +555,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		
 		Log("Process VIDEO frame  ts:%lu, duration %u.\n",  frame->GetTimeStamp(), duration);
 		sampleId++;
-		MP4WriteSample(mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, frame->IsIntra());
+		MP4WriteSample(mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, ((VideoFrame *) frame)->IsIntra());
 
 		//Check if we have rtp data
 		if (frame->HasRtpPacketizationInfo())
@@ -571,7 +571,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 			{
 				MediaFrame::RtpPacketization * rtp = *it;
 
-				if ( frame->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
+				if ( ((VideoFrame *) frame->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
 				{
 					//Get rtp data pointer
 					BYTE *data = frame->GetData()+rtp->GetPos();

@@ -336,40 +336,40 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
         switch(f->frametype)
 	{
 	    case AST_FRAME_VOICE:
-	    {	
+	    {
 	        AudioCodec::Type acodec = AudioCodec::PCMU;
-		AudioFrame af( acodec, 8000, false );
+			AudioFrame af( acodec, 8000, false );
 		
-		af.SetTimestamp( f->ts );
+			af.SetTimestamp( f->ts );
 		
-		if ( f->subclass == AST_FORMAT_SLINEAR )
-		{
-		    // If audio received is SLINEAR - transcode
-		    int outLen = sizeof(audioBuff);
-		    acodec = AudioCodec::PCMU;
-		    
-		    if (audioencoder == NULL)
-			audioencoder = AudioCodecFactory::CreateEncoder(AudioCodec::PCMU);
-   
-		    outLen = audioencoder->Encode( (SWORD*) AST_FRAME_GET_BUFFER(f), f->datalen / 2, 
-						    audioBuff, outLen );
-		    if ( outLen > 0 ) 
-		        af.SetMedia( audioBuff, outLen );
-		    else
-			return 0;
-		    
-		}
-		else if ( AstFormatToCodec( f->subclass, acodec) )
-		{
-		     af.SetCodec( acodec );
-		     af.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
-		}
-		else
-		{
-		    /* unsupported codec */
-		    return -4;
-		}		
-		return ProcessFrame( &af );
+			if ( f->subclass == AST_FORMAT_SLINEAR )
+			{
+				// If audio received is SLINEAR - transcode
+				int outLen = sizeof(audioBuff);
+				acodec = AudioCodec::PCMU;
+				
+				if (audioencoder == NULL)
+				audioencoder = AudioCodecFactory::CreateEncoder(AudioCodec::PCMU);
+	   
+				outLen = audioencoder->Encode( (SWORD*) AST_FRAME_GET_BUFFER(f), f->datalen / 2, 
+								audioBuff, outLen );
+				if ( outLen > 0 ) 
+					af.SetMedia( audioBuff, outLen );
+				else
+				return 0;
+				
+			}
+			else if ( AstFormatToCodec( f->subclass, acodec) )
+			{
+				 af.SetCodec( acodec );
+				 af.SetMedia( AST_FRAME_GET_BUFFER(f), f->datalen );
+			}
+			else
+			{
+				/* unsupported codec */
+				return -4;
+			}		
+			return ProcessFrame( &af );
 	    }
 	    		
 	    case AST_FRAME_VIDEO:
@@ -377,7 +377,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 	        VideoCodec::Type vcodec;
 			int ret;
 			bool ismark = ( f->subclass & 0x01 ) != 0;
-			bool loss_detected = false;
+			int loss_detected = false;
 			if ( AstFormatToCodec( f->subclass, vcodec ) )
 			{
 				if (videoSeqNo != 0xFFFF)
