@@ -548,7 +548,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	    prevts = f->GetTimeStamp();
 	    sampleId++;
 
-	    //Log("Process VIDEO frame  ts:%lu, duration %u.\n",  f2->GetTimeStamp(), duration);
+	    Log("Process VIDEO frame  ts:%lu, duration %u.\n",  f2->GetTimeStamp(), duration);
 
     	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, f2->IsIntra());
 
