@@ -99,7 +99,10 @@ public:
      int IsVideoStarted();
 
 
-     void SetWaitForVideo( bool wait ) { waitVideo = wait; }
+    void SetWaitForVideo( bool wait ) { waitVideo = wait; }
+	
+	void Flush();
+	
 private:
     char partName[80];
     
@@ -230,6 +233,9 @@ extern "C"
     int Mp4RecorderHasVideoStarted( struct mp4rec * r );
     
     void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms);
+	
+	void Mp4RecorderFlush( struct mp4rec * r );
+
     /**
      *  destoy one instance of mp4 recorder
      *  

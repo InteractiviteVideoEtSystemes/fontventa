@@ -499,6 +499,101 @@ int Mp4VideoTrack::Create(const char * trackName, int codec, DWORD bitrate)
 }
 
 
+int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
+{
+	
+	sampleId++;
+	Log("Process VIDEO frame sampleId: %d, ts:%lu, duration %u.\n", sampleId, frame->GetTimeStamp(), duration);
+	
+	MP4WriteSample(mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, ((VideoFrame *) frame)->IsIntra());
+
+	//Check if we have rtp data
+	if (frame->HasRtpPacketizationInfo())
+	{
+		//Get list
+		MediaFrame::RtpPacketizationInfo& rtpInfo = frame->GetRtpPacketizationInfo();
+		//Add hint for frame
+		MP4AddRtpHint(mp4, hinttrack);
+		//Get iterator
+		MediaFrame::RtpPacketizationInfo::iterator it = rtpInfo.begin();
+		
+		for (it = rtpInfo.begin(); it != rtpInfo.end(); it++)
+		{
+			MediaFrame::RtpPacketization * rtp = *it;
+
+			if ( ((VideoFrame *) frame->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
+			{
+				//Get rtp data pointer
+				BYTE *data = frame->GetData()+rtp->GetPos();
+				//Check nal type
+				BYTE nalType = data[0] & 0x1F;
+				//Get nal data
+				BYTE *nalData = data+1;
+				DWORD nalSize = rtp->GetSize()-1;
+
+				//If it a SPS NAL
+				if (!hasSPS && nalType==0x07)
+				{
+					H264SeqParameterSet sps;
+					//DEcode SPS
+					sps.Decode(nalData,nalSize);
+					//Dump
+					sps.Dump();
+					// Update size
+					width = sps.GetWidth();
+					height = sps.GetHeight();
+					
+					//Add it
+					MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
+					//No need to search more
+					hasSPS = true;
+					
+					// Update profile level
+					AVCProfileIndication 	= sps.GetProfile();
+					AVCLevelIndication	= sps.GetLevel();
+					
+					Log("-mp4recorder: new size: %lux%lu. H264_profile: %02x H264_level: %02x\n", 
+						width, height, AVCProfileIndication, AVCLevelIndication);
+					
+					//Update widht an ehight
+					MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
+					MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
+					
+					//Add it
+					MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
+					
+					videoStarted = true;
+				}
+
+				//If it is a PPS NAL
+				if (!hasPPS && nalType==0x08)
+				{
+					//Add it
+					MP4AddH264PictureParameterSet(mp4,mediatrack,nalData,nalSize);
+					//No need to search more
+					hasPPS = true;
+				}
+			}	
+			
+			// It was before AddH264Seq ....
+			MP4AddRtpPacket(mp4, hinttrack, rtp->IsMark(), 0);
+
+			//Check rtp payload header len
+			if (rtp->GetPrefixLen())
+				//Add rtp data
+				MP4AddRtpImmediateData(mp4, hinttrack, rtp->GetPrefixData(), rtp->GetPrefixLen());
+
+			//Add rtp data
+			MP4AddRtpSampleData(mp4, hinttrack, sampleId, rtp->GetPos(), rtp->GetSize());
+
+		}
+		
+		//Save rtp
+		MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());
+	}
+	return 0;
+}
+
 int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 {
     if ( f->GetType() == MediaFrame::Video )
@@ -553,95 +648,10 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 			}
 		}
 		
-		Log("Process VIDEO frame  ts:%lu, duration %u.\n",  frame->GetTimeStamp(), duration);
-		sampleId++;
-		MP4WriteSample(mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, ((VideoFrame *) frame)->IsIntra());
-
-		//Check if we have rtp data
-		if (frame->HasRtpPacketizationInfo())
-		{
-			//Get list
-			MediaFrame::RtpPacketizationInfo& rtpInfo = frame->GetRtpPacketizationInfo();
-			//Add hint for frame
-			MP4AddRtpHint(mp4, hinttrack);
-			//Get iterator
-			MediaFrame::RtpPacketizationInfo::iterator it = rtpInfo.begin();
-			
-			for (it = rtpInfo.begin(); it != rtpInfo.end(); it++)
-			{
-				MediaFrame::RtpPacketization * rtp = *it;
-
-				if ( ((VideoFrame *) frame->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
-				{
-					//Get rtp data pointer
-					BYTE *data = frame->GetData()+rtp->GetPos();
-					//Check nal type
-					BYTE nalType = data[0] & 0x1F;
-					//Get nal data
-					BYTE *nalData = data+1;
-					DWORD nalSize = rtp->GetSize()-1;
-
-					//If it a SPS NAL
-					if (!hasSPS && nalType==0x07)
-					{
-						H264SeqParameterSet sps;
-						//DEcode SPS
-						sps.Decode(nalData,nalSize);
-						//Dump
-						sps.Dump();
-						// Update size
-						width = sps.GetWidth();
-						height = sps.GetHeight();
-						
-						//Add it
-						MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
-						//No need to search more
-						hasSPS = true;
-						
-						// Update profile level
-						AVCProfileIndication 	= sps.GetProfile();
-						AVCLevelIndication	= sps.GetLevel();
-						
-						Log("-mp4recorder: new size: %lux%lu. H264_profile: %02x H264_level: %02x\n", 
-							width, height, AVCProfileIndication, AVCLevelIndication);
-						
-						//Update widht an ehight
-						MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
-						MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
-						
-						//Add it
-						MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
-						
-						videoStarted = true;
-					}
-
-					//If it is a PPS NAL
-					if (!hasPPS && nalType==0x08)
-					{
-						//Add it
-						MP4AddH264PictureParameterSet(mp4,mediatrack,nalData,nalSize);
-						//No need to search more
-						hasPPS = true;
-					}
-				}	
-				
-				// It was before AddH264Seq ....
-				MP4AddRtpPacket(mp4, hinttrack, rtp->IsMark(), 0);
-
-				//Check rtp payload header len
-				if (rtp->GetPrefixLen())
-					//Add rtp data
-					MP4AddRtpImmediateData(mp4, hinttrack, rtp->GetPrefixData(), rtp->GetPrefixLen());
-
-				//Add rtp data
-				MP4AddRtpSampleData(mp4, hinttrack, sampleId, rtp->GetPos(), rtp->GetSize());
-
-			}
-			
-			//Save rtp
-			MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());
-		}
+		// Write previous frame in file
+		DoWritePrevFrame(duration);
 		
+		//Save current frame as previous frame
 		delete frame;
 		frame = f2->Clone();
 		

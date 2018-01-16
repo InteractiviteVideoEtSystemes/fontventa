@@ -987,6 +987,13 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 	}
 	return f2;
 }
+
+
+void mp4recorder::Flush()
+{
+	if (mediatracks[MP4_VIDEO_TRACK]) mediatracks[MP4_VIDEO_TRACK]->WriteLastFrame();
+}
+
 /* ---- callbeck used for video transcoding --- */
 
 void Mp4RecoderVideoCb(void * ctxdata, int outputcodec, const char *output, size_t outputlen)
@@ -1080,6 +1087,13 @@ void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms)
 	mp4recorder * r2 = (mp4recorder *) r;
 	
 	r2->SetInitialDelay(ms);
+}
+
+void Mp4RecorderFlush( struct mp4rec * r );
+{
+	mp4recorder * r2 = (mp4recorder *) r;
+	
+	r2->Flush();	
 }
 
 struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, bool transcodeVideo, int renderText)

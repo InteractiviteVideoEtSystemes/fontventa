@@ -72,6 +72,16 @@ public:
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
+	
+	void WriteLastFrame()
+	{
+		if (frame)
+		{
+			DoWritePrevFrame(50*90);
+			delete frame;
+			frame = NULL;
+		}
+	}
     
 private:
     AudioCodec::Type codec;
@@ -125,6 +135,8 @@ public:
     VideoCodec::Type GetCodec() { return codec; }
 
 private:
+	int DoWritePrevFrame(DWORD duration);
+	
     DWORD width, height, bitrate;
     bool videoStarted;
     bool firstpkt;
