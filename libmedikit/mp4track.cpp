@@ -521,7 +521,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 		{
 			MediaFrame::RtpPacketization * rtp = *it;
 
-			if ( ((VideoFrame *) frame->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
+			if ( ((VideoFrame *) frame)->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
 			{
 				//Get rtp data pointer
 				BYTE *data = frame->GetData()+rtp->GetPos();
@@ -589,7 +589,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 		}
 		
 		//Save rtp
-		MP4WriteRtpHint(mp4, hinttrack, duration, f2->IsIntra());
+		MP4WriteRtpHint(mp4, hinttrack, duration, ((VideoFrame *) frame)->IsIntra());
 	}
 	return 0;
 }
@@ -638,7 +638,8 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 			{
 				// default to 20 fps
 				duration = 50*90;
-				Log("Inconsistent video TS. Using defulat duration of %u.\n", duration);
+				Log("Inconsistent video TS %ld >= %ld. Using defulat duration of %u.\n", 
+				     frame->GetTimeStamp(), f2->GetTimeStamp(), duration);
 			}
 			
 			if ( initialDelay > 0 && sampleId == 0)

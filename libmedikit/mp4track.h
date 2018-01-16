@@ -73,16 +73,6 @@ public:
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
 	
-	void WriteLastFrame()
-	{
-		if (frame)
-		{
-			DoWritePrevFrame(50*90);
-			delete frame;
-			frame = NULL;
-		}
-	}
-    
 private:
     AudioCodec::Type codec;
 
@@ -125,6 +115,15 @@ public:
     virtual int ProcessFrame( const MediaFrame * f );
     bool IsVideoStarted() { return videoStarted; }
     
+    void WriteLastFrame()
+    {
+                if (frame)
+                {
+                        DoWritePrevFrame(50*90);
+                        delete frame;
+                        frame = NULL;
+                }
+    }
     void SetH264ProfileLevel( unsigned char profile, unsigned char constraint, unsigned char level )
     {
 	AVCProfileIndication = profile;

@@ -185,7 +185,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    pcstream.PaintBlackRectangle(640, 480);
 		    tr->SetInitialDelay(0);
 		    Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
-		    Log("-mp4recorder: need to add %lu ms offset.\n", toAdd );
+		    Log("-mp4recorder: need to add %lu ms offset.\n", videoDelay );
 		    
 		    // Add black video at 2 fps during the whole delay 
 		    int nb = 0;
@@ -223,7 +223,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    }
 		}
 		
-		// Shift timestamp to include prologue
+		// Shift ALL video timestamps to include prologue
 		f2->SetTimestamp( f2->GetTimeStamp() + videoDelay * 90 );
 		int ret = tr->ProcessFrame(f2);
 		return ret;
@@ -991,7 +991,11 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 
 void mp4recorder::Flush()
 {
-	if (mediatracks[MP4_VIDEO_TRACK]) mediatracks[MP4_VIDEO_TRACK]->WriteLastFrame();
+	if (mediatracks[MP4_VIDEO_TRACK])
+	{
+		Mp4VideoTrack * tr = (Mp4VideoTrack *)  mediatracks[MP4_VIDEO_TRACK];
+		tr->WriteLastFrame();
+	}
 }
 
 /* ---- callbeck used for video transcoding --- */
@@ -1089,7 +1093,7 @@ void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms)
 	r2->SetInitialDelay(ms);
 }
 
-void Mp4RecorderFlush( struct mp4rec * r );
+void Mp4RecorderFlush( struct mp4rec * r )
 {
 	mp4recorder * r2 = (mp4recorder *) r;
 	
