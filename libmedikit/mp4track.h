@@ -37,6 +37,7 @@ public:
 
     virtual const MediaFrame * ReadFrame();
     QWORD GetNextFrameTime();
+	DWORD GetRecordedDuration() { return totalDuration; }
 	
 protected:
     
@@ -53,6 +54,7 @@ protected:
     WORD numHintSamples;
      
     DWORD prevts;
+	DWORD totalDuration;
     bool reading;
     MediaFrame * frame;
 };
@@ -104,7 +106,7 @@ public:
 		f->SetH264NalSizeLength(naluSz_storage);
 		frame = f;
     }
-    
+
     void SetSize(DWORD width, DWORD height)
     {
 		this->width = width;

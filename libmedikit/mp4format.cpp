@@ -214,7 +214,6 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 						f4 = depak2.AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
 					}
 					
-					Log("f2_ts=%ld, f4_ts=%ld.\n", f2->GetTimeStamp(), f4->GetTimeStamp());
 					tr->ProcessFrame(f4);
 					depak2.ResetFrame();
 					nb++;
@@ -225,6 +224,8 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		
 		// Shift ALL video timestamps to include prologue
 		f2->SetTimestamp( f2->GetTimeStamp() + videoDelay * 90 );
+
+		Log("Video: track duration %u, real duration %u.\n",tr->GetDuration(),  getDifTime(&firstframets));
 		int ret = tr->ProcessFrame(f2);
 		return ret;
 	    }

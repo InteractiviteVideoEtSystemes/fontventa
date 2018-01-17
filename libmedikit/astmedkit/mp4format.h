@@ -76,7 +76,7 @@ public:
     void SetParticipantName( const char * name )
     {
         strncpy( partName, name, sizeof(partName) );
-	partName[sizeof(partName)-1] = 0;
+		partName[sizeof(partName)-1] = 0;
     }
     
     /**

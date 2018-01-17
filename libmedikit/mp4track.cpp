@@ -23,6 +23,7 @@ Mp4Basetrack::Mp4Basetrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId 
 
 	frame = NULL;
 	numHintSamples = 0;
+	totalDuration = 0;
 }
 
 
@@ -392,16 +393,17 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame * f )
 	    else
 	    {
 	        duration = (f->GetTimeStamp()-prevts)*f2->GetRate()/1000;
-		if ( duration > (200 *f2->GetRate()/1000) || prevts > f->GetTimeStamp() )
-		{
-		    // Inconsistend duration
-		    duration = 20*f2->GetRate()/1000;
-		}
+			if ( duration > (200 *f2->GetRate()/1000) || prevts > f->GetTimeStamp() )
+			{
+				// Inconsistend duration
+				duration = 20*f2->GetRate()/1000;
+			}
 	    }
 	    prevts = f2->GetTimeStamp();
 	    MP4WriteSample(mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, 1 );
 	    sampleId++;
-
+		totalDuration += duration / ( f2->GetRate()/1000 ) ;
+		
 	    if (hinttrack != MP4_INVALID_TRACK_ID)
 	    {
 		// Add rtp hint
@@ -503,7 +505,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 {
 	
 	sampleId++;
-	Log("Process VIDEO frame sampleId: %d, ts:%lu, duration %u.\n", sampleId, frame->GetTimeStamp(), duration);
+	//Log("Process VIDEO frame sampleId: %d, ts:%lu, duration %u.\n", sampleId, frame->GetTimeStamp(), duration);
 	
 	MP4WriteSample(mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, ((VideoFrame *) frame)->IsIntra());
 
@@ -626,6 +628,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		{
 			// First frame: record frame when we will have the next one to compute duration.
 			frame = f2->Clone();
+			firsts = f2->GetTimeStamp();
 			return 1;
 		}
 		else
@@ -651,7 +654,8 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		
 		// Write previous frame in file
 		DoWritePrevFrame(duration);
-		
+		totalDuration += duration;
+
 		//Save current frame as previous frame
 		delete frame;
 		frame = f2->Clone();
