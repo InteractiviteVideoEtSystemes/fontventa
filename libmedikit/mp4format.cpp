@@ -228,8 +228,8 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    }
 #else
 		    tr->SetInitialDelay( videoDelay );
-		}
 #endif
+		}
 
 		// TS drift - compensate - disabled for now
 		DWORD realDuration = getDifTime(&firstframets)/1000;
@@ -245,8 +245,8 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		// Shift ALL video timestamps to include prologue
 		f2->SetTimestamp( f2->GetTimeStamp() + videoDelay * 90 );
 
-		Log("Video: track duration %u, real duration %u.\n",tr->GetRecordedDuration(), 
-		    getDifTime(&firstframets)/1000);
+		//Log("Video: track duration %u, real duration %u.\n",tr->GetRecordedDuration(), 
+		//    getDifTime(&firstframets)/1000);
 		int ret = tr->ProcessFrame(f2);
 		return ret;
 	    }
