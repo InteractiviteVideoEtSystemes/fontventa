@@ -422,6 +422,12 @@ int AstFbGetLoss(struct AstFb *fb)
 	return ((AstFrameBuffer *) fb)->GetLoss();
 }
 
+
+void AstFbUnblock(struct AstFb *fb)
+{
+	((AstFrameBuffer *) fb)->HurryUp()
+}
+
 void AstFbDestroy(struct AstFb *fb)
 {
 	AstFrameBuffer * fb2 = (AstFrameBuffer *) fb;

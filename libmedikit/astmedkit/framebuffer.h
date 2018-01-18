@@ -131,6 +131,8 @@ extern "C"
      int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f );     
      int AstFbAddFrameNoCseq( struct AstFb *fb, const struct ast_frame *f );
 
+	void AstFbUnblock(struct AstFb *fb);
+	 
 	// Always non blocking
     struct ast_frame * AstFbGetFrame(struct AstFb *fb);
 	 
