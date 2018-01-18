@@ -138,7 +138,10 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    // adjust initial delay
 		    mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		}
-	        return mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+		int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+		//    Log("Audio: track duration %u, real duration %u.\n", mediatracks[MP4_AUDIO_TRACK]->GetRecordedDuration(), 
+		//        getDifTime(&firstframets)/1000);
+	        return ret;
 	    }
 	    else
 	    {
@@ -150,7 +153,9 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		{
 		    mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    if (waitVideo)  return 0;
-		    return mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+		    int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+		    return ret;
+		   
 		}
 		else
 		    return -3;
@@ -225,13 +230,14 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		// Shift ALL video timestamps to include prologue
 		f2->SetTimestamp( f2->GetTimeStamp() + videoDelay * 90 );
 
-		Log("Video: track duration %u, real duration %u.\n",tr->GetDuration(),  getDifTime(&firstframets));
+		Log("Video: track duration %u, real duration %u.\n",tr->GetRecordedDuration(), 
+		    getDifTime(&firstframets)/1000);
 		int ret = tr->ProcessFrame(f2);
 		return ret;
 	    }
 	    else
 	    {
-			return -3;
+		return -3;
 	    }
 	    break;
 	    
@@ -427,7 +433,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 						{
 							if ( strcasecmp(f->src, "RTP") == 0 )
 							{
-								Log("H.264 - got mark. frame ts = %ld, timingsource=TS.\n", f->ts );
+								//Log("H.264 - got mark. frame ts = %ld, timingsource=TS.\n", f->ts );
 								vfh264->SetTimestamp( f->ts );
 							}
 							else

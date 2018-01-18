@@ -139,3 +139,8 @@ install: libmedkit.a
 uninstall:
 	rm -rf $(DESTDIR)/opt/ives/include/medkit $(DESTDIR)/opt/ives/include/astmedkit
 	rm -f $(DESTDIR)/opt/ives/lib/libmedkit.a -f $(DESTDIR)/opt/ives/lib64/libmedkit.a
+
+app_conference: 
+	sudo make install
+	cd ../../app_conference; make
+	sudo /usr/sbin/asterisk -rx 'restart now'

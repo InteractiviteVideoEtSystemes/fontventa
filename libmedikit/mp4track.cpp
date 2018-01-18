@@ -628,7 +628,6 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		{
 			// First frame: record frame when we will have the next one to compute duration.
 			frame = f2->Clone();
-			firsts = f2->GetTimeStamp();
 			return 1;
 		}
 		else
@@ -654,7 +653,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		
 		// Write previous frame in file
 		DoWritePrevFrame(duration);
-		totalDuration += duration;
+		totalDuration += duration/90;
 
 		//Save current frame as previous frame
 		delete frame;
