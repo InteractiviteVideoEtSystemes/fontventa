@@ -128,37 +128,38 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
     switch ( f->GetType() )
     {
         case MediaFrame::Audio:
-	    if ( mediatracks[MP4_AUDIO_TRACK] )
-	    {
-		if (waitVideo) 
-		    return 0;
+			if ( mediatracks[MP4_AUDIO_TRACK] == NULL )
+			{
+				/* auto create audio track if needed */
+				AudioFrame * f2 = (AudioFrame *) f;
+				AddTrack( f2->GetCodec(), f2->GetRate(), partName );
+			}
+			
+			if ( mediatracks[MP4_AUDIO_TRACK] )
+			{
+				if (waitVideo) return 0;
 		    
-		if ( mediatracks[MP4_AUDIO_TRACK]->IsEmpty() )
-		{
-		    // adjust initial delay
-		    mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-		}
-		int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
-		//Log("Audio: track duration %u, real duration %u.\n", mediatracks[MP4_AUDIO_TRACK]->GetRecordedDuration(), 
-		//    getDifTime(&firstframets)/1000);
-	        return ret;
-	    }
-	    else
-	    {
-	        /* auto create audio track if needed */
-		AudioFrame * f2 = (AudioFrame *) f;
-	        AddTrack( f2->GetCodec(), f2->GetRate(), partName );
-		
-		if ( mediatracks[MP4_AUDIO_TRACK] )
-		{
-		    mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-		    if (waitVideo)  return 0;
-		    int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
-		    return ret;
-		   
-		}
-		else
-		    return -3;
+				if ( mediatracks[MP4_AUDIO_TRACK]->IsEmpty() )
+				{
+					// adjust initial delay
+					if ( mediatracks[MP4_VIDEO_TRACK] )
+					{
+						// Synchronize with video
+						mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( videoDelay );
+					}
+					else
+					{
+						mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
+					}
+				}
+				
+				int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
+				//Log("Audio: track duration %u, real duration %u.\n", mediatracks[MP4_AUDIO_TRACK]->GetRecordedDuration(), 
+				//    getDifTime(&firstframets)/1000);
+				return ret;
+			}
+			else
+				return -3;
 	    }
 	    break;
 	    
@@ -184,6 +185,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    // add still picture until initial delay
 		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    videoDelay = initialDelay + (getDifTime(&firstframets)/1000);
+#if 0
 		    //toAdd = 0;
 		    pcstream.SetCodec(tr->GetCodec(), properties);
 		    pcstream.SetFrameRate(2, 100, 2);
@@ -226,7 +228,10 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				if (nb > 0) Log("-mp4recorder: Added %d still videoframe(s) to offset delay.\n", nb );
 		    }
 		}
-		
+#else
+		tr->SetInitialDelay( videoDelay );
+#endif
+
 		// TS drift - compensate - disabled for now
 		DWORD realDuration = getDifTime(&firstframets)/1000;
 
