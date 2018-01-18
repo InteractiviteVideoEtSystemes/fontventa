@@ -437,6 +437,14 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 							waitNextVideoFrame = true;
 						}
 
+						
+						if (f->datalen == 8)
+						{
+							// Hack -- 
+							Log("H.264 - ignoring parasitc strange frame.\n", f->ts );
+							return 0;
+						}
+						
 						// Accumulate NALs into the same frame until mark
 						vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark);
 
