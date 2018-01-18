@@ -139,8 +139,8 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		}
 		int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
-		//    Log("Audio: track duration %u, real duration %u.\n", mediatracks[MP4_AUDIO_TRACK]->GetRecordedDuration(), 
-		//        getDifTime(&firstframets)/1000);
+		//Log("Audio: track duration %u, real duration %u.\n", mediatracks[MP4_AUDIO_TRACK]->GetRecordedDuration(), 
+		//    getDifTime(&firstframets)/1000);
 	        return ret;
 	    }
 	    else
@@ -227,6 +227,17 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    }
 		}
 		
+		// TS drift - compensate - disabled for now
+		DWORD realDuration = getDifTime(&firstframets)/1000;
+
+		/* if ( realDuration > tr->GetRecordedDuration()
+		     &&
+		     realDuration - tr->GetRecordedDuration() > 1000 )
+		{
+		     videoDelay += 10;
+		}
+		*/
+
 		// Shift ALL video timestamps to include prologue
 		f2->SetTimestamp( f2->GetTimeStamp() + videoDelay * 90 );
 
@@ -420,13 +431,10 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 						if (loss_detected)
 						{
 							waitNextVideoFrame = true;
-							depak->ResetFrame();
 						}
-						else
-						{
-							// Accumulate NALs into the same frame until mark
-							vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark);
-						}
+
+						// Accumulate NALs into the same frame until mark
+						vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark);
 
 						// Do the same in case of lost frame
 						if (ismark)

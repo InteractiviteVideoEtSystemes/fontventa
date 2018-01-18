@@ -194,15 +194,22 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			struct ast_frame * candidate = it->second;
 			//Get time of the packet
 
+			unsigned int sz = 0;
+			sz = packets.size();
 			if (blocking)
 			{
-				packready = false;                             
+				packready = (sz > (maxWaitTime/20) ); 
 			}
 			else
 			{
-				packready = (packets.size() > maxWaitTime ); 
+				//packready = (packets.size() > maxWaitTime ); 
+				packready = (sz > maxWaitTime ); 
 			}
-			
+/*
+			if (seq != next)
+			    Log("seq=%lu, next=%lu, sz=%u, blocking=%d, maxWaitTime=%d\n", seq, next, sz, blocking,
+				maxWaitTime);
+*/			
 			//Check if first is the one expected or wait if not
 			if (next==(DWORD)-1 || seq==next || hurryUp || packready)
 			{
@@ -213,6 +220,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				if (seq==next) 
 				{
 					bigJumps = 0;
+					if (hurryUp) hurryUp = false;
 				}
 				else if (next != (DWORD)-1 && seq > next)
 				{
@@ -425,7 +433,7 @@ int AstFbGetLoss(struct AstFb *fb)
 
 void AstFbUnblock(struct AstFb *fb)
 {
-	((AstFrameBuffer *) fb)->HurryUp()
+	((AstFrameBuffer *) fb)->HurryUp();
 }
 
 void AstFbDestroy(struct AstFb *fb)

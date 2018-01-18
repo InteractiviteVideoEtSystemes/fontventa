@@ -13,7 +13,6 @@
 
 
 #ifdef __cplusplus
-
 #include <medkit/astcpp.h>
 #include <medkit/config.h>
 #include <mutex>
