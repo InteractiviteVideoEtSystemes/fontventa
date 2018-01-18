@@ -160,9 +160,9 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 			}
 			else
 				return -3;
-	    }
-	    break;
 	    
+			break;
+
 	case MediaFrame::Video:
 	    trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
 	    if ( mediatracks[trackidx] )
