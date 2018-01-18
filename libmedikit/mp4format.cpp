@@ -166,8 +166,8 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
 	    if ( mediatracks[trackidx] )
 	    {
-		VideoFrame * f2 = (VideoFrame *) f;
-		Mp4VideoTrack * tr = (Mp4VideoTrack *)  mediatracks[trackidx];
+			VideoFrame * f2 = (VideoFrame *) f;
+			Mp4VideoTrack * tr = (Mp4VideoTrack *)  mediatracks[trackidx];
 		
 		if ( tr->IsEmpty() )
 		{
@@ -180,7 +180,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				return -4; // Drop inter fframe : track must start with intraframe
 		    }
 		    
-		    waitVideo = false;
+		    
 		    // add still picture until initial delay
 		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    videoDelay = initialDelay + (getDifTime(&firstframets)/1000);
