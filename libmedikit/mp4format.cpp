@@ -180,12 +180,18 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				return -4; // Drop inter fframe : track must start with intraframe
 		    }
 		    
-		    
+			// Skip the first I-frame on purpbose because it contains CACA
+			
+		    if (waitVideo > 0) waitVideo--;
+			
+			if (waitVideo > 0) return -333;
+				
 		    // add still picture until initial delay
 		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    videoDelay = initialDelay + (getDifTime(&firstframets)/1000);
 		    Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
 		    Log("-mp4recorder: need to add %lu ms offset.\n", videoDelay );
+			if (waitVideo)
 #if 1
 		    //toAdd = 0;
 		    pcstream.SetCodec(tr->GetCodec(), properties);
@@ -473,6 +479,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 							}
 							depak->ResetFrame();
 							waitNextVideoFrame = false;
+							return ret;
 						}
 						else
 						{
@@ -1045,7 +1052,7 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
 {
     if ( (chan->nativeformats & AST_FORMAT_VIDEO_MASK) == 0 )
     {
-        waitVideo = false;
+        waitVideo = 0;
 	Log("-mp4recorder: disable video waiting as char %s does not support video.\n",
 	    chan->name);
     }

@@ -116,7 +116,7 @@ private:
     
     AudioEncoder * audioencoder;
 
-    bool waitVideo;
+    int waitVideo;
     bool waitNextVideoFrame;
     unsigned long initialDelay;
 	QWORD videoDelay;
