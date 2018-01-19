@@ -21,7 +21,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     textSeqNo = 0xFFFF;
     videoSeqNo = 0xFFFF;
     vtc = NULL;
-    this->waitVideo = waitVideo;
+    this->waitVideo = waitVideo ? 2 : 0;
     Log("mp4recorder: created with waitVideo %s.\n", waitVideo ? "enabled" : "disabled" );
     audioencoder = NULL;
     depak = NULL;
@@ -184,8 +184,11 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 			
 		    if (waitVideo > 0) waitVideo--;
 			
-			if (waitVideo > 0) return -333;
-				
+			if (waitVideo > 0)
+			{
+				Log("-mp4recorder: skipping first I-frame on purpose.\n");
+				return -333;
+			}
 		    // add still picture until initial delay
 		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 		    videoDelay = initialDelay + (getDifTime(&firstframets)/1000);
