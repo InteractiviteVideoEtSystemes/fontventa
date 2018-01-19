@@ -264,12 +264,12 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 					break;
 
 				case 0x07:
-					Log("H.264: Got SPS\n");
+					//Log("H.264: Got SPS\n");
 					hasSPS = true;
 					break;
 					
 				case 0x08:
-					Log("H.264: Got PPP\n");
+					//Log("H.264: Got PPS\n");
 					hasPPS = true;
 					break;
 					

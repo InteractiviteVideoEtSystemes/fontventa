@@ -197,13 +197,13 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 #if 1
 		    //toAdd = 0;
 		    pcstream.SetCodec(tr->GetCodec(), properties);
-		    pcstream.SetFrameRate(4, 100, 2);
+		    pcstream.SetFrameRate(1, 100, 2);
 		    pcstream.PaintBlackRectangle(640, 480);
 		    tr->SetInitialDelay(0);
 		    
 		    // Add black video at 2 fps during the whole delay 
 		    int nb = 0;
-		    for (QWORD tsDelta = 0; tsDelta < videoDelay; tsDelta += 250 )
+		    for (QWORD tsDelta = 0; tsDelta < videoDelay; tsDelta += 2000 )
 		    {
 				VideoFrame * f3 = pcstream.Stream(false);
 			
