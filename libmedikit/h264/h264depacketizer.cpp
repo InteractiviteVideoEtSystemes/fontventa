@@ -83,7 +83,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 			/** Not supported */
 			return NULL;
 		case 24:
-			Log("H.264: STAP-A\n");
+			//Log("H.264: STAP-A\n");
 			/**
 			   Figure 7 presents an example of an RTP packet that contains an STAP-
 			   A.  The STAP contains two single-time aggregation units, labeled as 1
@@ -161,7 +161,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 			return NULL;
 		case 28:
 		case 29:
-			Log("H.264: FUA-A\n");
+			//Log("H.264: FUA-A\n");
 			/* FU-A	Fragmentation unit	 5.8 */
 			/* FU-B	Fragmentation unit	 5.8 */
 
@@ -245,7 +245,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 		default:
 			/* 1-23	 NAL unit	Single NAL unit packet per H.264	 5.6 */
 			//Check it
-			Log("H.264: single NAL\n");
+			//Log("H.264: single NAL\n");
 			switch(nal_unit_type)
 			{
 				case 0x05: // Intraframe 
@@ -253,7 +253,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 					{
 						Log("H.264: I-frame but missing PPS or SPS Possible packetization issue.\n");
 					}
-					if (hasPPS && hasSPS) frame.SetIntra(true)
+					if (hasPPS && hasSPS) frame.SetIntra(true);
 					break;
 				
 				case 0x01: // P-frame
@@ -264,10 +264,12 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 					break;
 
 				case 0x07:
-					hasSPS = true
+					Log("H.264: Got SPS\n");
+					hasSPS = true;
 					break;
 					
 				case 0x08:
+					Log("H.264: Got PPP\n");
 					hasPPS = true;
 					break;
 					

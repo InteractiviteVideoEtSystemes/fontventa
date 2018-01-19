@@ -32,7 +32,7 @@ public:
     inline bool IsOpen() { return ( mediatrack != MP4_INVALID_TRACK_ID ); }
     void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
     void IncreateInitialDelay(unsigned long delay) { initialDelay = initialDelay + delay; }
-    bool IsEmpty() { return (sampleId == 0); }
+    bool IsEmpty() { return (sampleId == 0 && frame == NULL); }
 	void Reset() { sampleId = 1; }
 
     virtual const MediaFrame * ReadFrame();

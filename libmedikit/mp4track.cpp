@@ -564,7 +564,6 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 					//Add it
 					MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
 					
-					videoStarted = true;
 				}
 
 				//If it is a PPS NAL
@@ -614,6 +613,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 			if ( f2->IsIntra() )
 			{
 				Log("-mp4recorder: got the first I frame. Video recording starts on track id:%d.\n", mediatrack);
+				videoStarted = true;
 			}
 			else
 			{
@@ -670,7 +670,6 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 Mp4TextTrack::Mp4TextTrack(MP4FileHandle mp4, MP4TrackId mediaTrack) : Mp4Basetrack(mp4, mediaTrack, -1) 
 {
     conv1 = new SubtitleToRtt();
-    frame = new TextFrame(true);
     
 }
 int Mp4TextTrack::Create(const char * trackName, int codec, DWORD bitrate)
@@ -838,7 +837,7 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 	// If SubtitleToRtt converter is allocated, it means that we
 	// need to compute the difference between the previous subtile and
 	// the current one in order to render this as real time text
-		
+	    if ( frame == NULL) frame = new TextFrame(true);		
 	    TextFrame * tf = (  TextFrame * ) frame;
 
 	    if ( conv1 != NULL )

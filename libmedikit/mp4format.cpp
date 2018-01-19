@@ -194,17 +194,16 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    videoDelay = initialDelay + (getDifTime(&firstframets)/1000);
 		    Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
 		    Log("-mp4recorder: need to add %lu ms offset.\n", videoDelay );
-			if (waitVideo)
 #if 1
 		    //toAdd = 0;
 		    pcstream.SetCodec(tr->GetCodec(), properties);
-		    pcstream.SetFrameRate(2, 100, 2);
+		    pcstream.SetFrameRate(4, 100, 2);
 		    pcstream.PaintBlackRectangle(640, 480);
 		    tr->SetInitialDelay(0);
 		    
 		    // Add black video at 2 fps during the whole delay 
 		    int nb = 0;
-		    for (QWORD tsDelta = 0; tsDelta < videoDelay; tsDelta += 500 )
+		    for (QWORD tsDelta = 0; tsDelta < videoDelay; tsDelta += 250 )
 		    {
 				VideoFrame * f3 = pcstream.Stream(false);
 			
@@ -446,13 +445,6 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 							waitNextVideoFrame = true;
 						}
 
-						
-						if (f->datalen == 8)
-						{
-							// Hack -- 
-							Log("H.264 - ignoring parasitc strange frame.\n", f->ts );
-							return 0;
-						}
 						
 						// Accumulate NALs into the same frame until mark
 						vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark);
