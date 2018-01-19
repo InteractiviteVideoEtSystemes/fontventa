@@ -16,6 +16,8 @@ static uint8_t sync_bytes[] = { 0, 0, 0, 1 };
 H264Depacketizer::H264Depacketizer() : frame(VideoCodec::H264,0)
 {
 	useStartCode = false;
+	hasPPS = false;
+	hasSPS = false;	
 }
 
 H264Depacketizer::~H264Depacketizer()
@@ -36,6 +38,8 @@ void H264Depacketizer::ResetFrame()
 	//Clear length
 	frame.SetLength(0);
 	frame.SetIntra(false);
+	hasPPS = false;
+	hasSPS = false;
 }
 
 MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool mark)
@@ -186,8 +190,13 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 				//Check it
 				if (nalType==0x05)
 				{
-					//It is intra
-					frame.SetIntra(true);
+					if ( !hasSPS || !hasPPS)
+					{
+						Log("H.264: I-frame but missing PPS or SPS Possible packetization issue.\n");
+					}
+					
+					if (hasPPS && hasSPS) frame.SetIntra(true);
+
 				}
 
 				//Get init of the nal
@@ -225,18 +234,42 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 					//store it before the NALU data
 					set4(frame.GetData(),iniFragNALU,nalSize);
 				}
+				
+				if (!mark) Log("H.264: warning end of FU-A and RTP mark is not set. Possible packetization issue.\n");
 			}
 			//Done
 			break;
 		default:
 			/* 1-23	 NAL unit	Single NAL unit packet per H.264	 5.6 */
 			//Check it
-			
-			if (nal_unit_type==0x05)
+
+			switch(nal_unit_type)
 			{
-				//It is intra
-				frame.SetIntra(true);
+				case 0x05: // Intraframe 
+					if ( !hasSPS || !hasPPS)
+					{
+						Log("H.264: I-frame but missing PPS or SPS Possible packetization issue.\n");
+					}
+					if (hasPPS && hasSPS) frame.SetIntra(true)
+					break;
+				
+				case 0x01: // P-frame
+					if ( hasSPS || hasPPS)
+					{
+						Log("H.264: P-frame but has PPS or SPS Possible packetization issue.\n");
+					}					
+					break;
+
+				case 0x07:
+					hasSPS = true
+					break;
+					
+				case 0x08:
+					hasPPS = true;
+					break;
+					
 			}
+			
 			/* the entire payload is the output buffer */
 			nalu_size = payload_len;
 			if (useStartCode)

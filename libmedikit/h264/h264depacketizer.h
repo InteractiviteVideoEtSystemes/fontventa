@@ -28,6 +28,8 @@ private:
 	VideoFrame frame;
 	DWORD iniFragNALU;
 	bool useStartCode;
+	bool hasPPS;
+	bool hasSPS;
 };
 
 #endif	/* H264DEPACKETIZER_H */
