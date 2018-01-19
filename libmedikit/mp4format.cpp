@@ -232,8 +232,8 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 					depak2.ResetFrame();
 					nb++;
 				}
-				if (nb > 0) Log("-mp4recorder: Added %d still videoframe(s) to offset delay.\n", nb );
 		    }
+		    if (nb > 0) Log("-mp4recorder: Added %d still videoframe(s) to offset delay.\n", nb );
 #else
 		    tr->SetInitialDelay( videoDelay );
 #endif

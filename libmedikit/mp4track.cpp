@@ -711,7 +711,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	}
 
 	//Log("Process TEXT frame  ts:%lu, duration %lu [%ls].\n",  f2->GetTimeStamp(), frameduration, f2->GetWString().c_str());
-	Log("Process TEXT frame  ts:%lu, duration %lu. sampleId=%d\n",  f2->GetTimeStamp(), frameduration, sampleId );
+	//Log("Process TEXT frame  ts:%lu, duration %lu. sampleId=%d\n",  f2->GetTimeStamp(), frameduration, sampleId );
 	prevts = f->GetTimeStamp();	
 	duration = frameduration;
 	if (frameduration > MAX_SUBTITLE_DURATION) frameduration = MAX_SUBTITLE_DURATION;
