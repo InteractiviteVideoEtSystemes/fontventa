@@ -17,7 +17,8 @@ H264Depacketizer::H264Depacketizer() : frame(VideoCodec::H264,0)
 {
 	useStartCode = false;
 	hasPPS = false;
-	hasSPS = false;	
+	hasSPS = false;
+	frame.SetIntra(false);
 }
 
 H264Depacketizer::~H264Depacketizer()
