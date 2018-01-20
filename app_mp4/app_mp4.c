@@ -56,9 +56,8 @@
 #include <mp4v2/mp4v2.h>
 #include <astmedkit/mp4format.h>
 #include <astmedkit/framebuffer.h>
-#include <astmedkit/frameutils.h>
+#include <astmedkit/astlog.h>
 
-#include "h263packetizer.h"
 
 #undef i6net
 #undef i6net_lock
@@ -478,9 +477,9 @@ clean:
 }
 
 
-static int record_frames(struct AstFb * recQueues[], struct ast_channel * chan, struct Mp4Recorder * recorder, int loopback, int flush)
+static int record_frames(struct AstFb * recQueues[], struct ast_channel * chan, struct mp4rec * recorder, int loopback, int flush)
 {
-	if (member->recorder)
+	if (recorder)
 	{
 		struct ast_frame * fr;
 		int m;
@@ -504,13 +503,13 @@ static int record_frames(struct AstFb * recQueues[], struct ast_channel * chan, 
 					{
 						if ( m == 1 && AstFbGetLoss( recQueues[m] ) > 0)
 						{
-							APP_CONF_LOG( AST_CONF_DEBUG, "mp4save:  %s lost video packet.\n", chan->name );
-							ast_channel_indicate(chan, AST_CONTROL_VIDUPDATE);
+							ast_log( LOG_NOTICE, "mp4save:  %s lost video packet.\n", chan->name );
+							ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 						}
 
 						ret = Mp4RecorderFrame( recorder, fr );
 						if (ret == -333)
-							ast_channel_indicate(chan, AST_CONTROL_VIDUPDATE);
+							ast_indicate(chan, AST_CONTROL_VIDUPDATE);
 						else if (ret < 0 && ret != -4)
 							ast_log(LOG_DEBUG, "mp4save: Failed to record frame, err=%d.\n", ret);
 						
