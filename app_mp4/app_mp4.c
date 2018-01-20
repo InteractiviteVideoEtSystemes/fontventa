@@ -477,6 +477,66 @@ clean:
 	return res;
 }
 
+
+static int record_frames(struct AstFb * recQueues[], struct ast_channel * chan, struct Mp4Recorder * recorder, int loopback, int flush)
+{
+	if (member->recorder)
+	{
+		struct ast_frame * fr;
+		int m;
+		int i;
+		int ret;
+
+		
+		for (m = 0; m < 3 ; m++)
+		{
+			
+		//			ast_log(LOG_DEBUG, "queue %d for member %s has %d packets, popped=%d.\n", m,
+		//				 member->channel_name, AstFbLength(member->recQueues[m]), hasmedia );
+			if (recQueues[m])
+			{
+				
+				for (i = 0; i<200; i++)
+				{
+					if (flush) AstFbUnblock( recQueues[m] );
+					fr = AstFbGetFrame( recQueues[m] );
+					if (fr)
+					{
+						if ( m == 1 && AstFbGetLoss( recQueues[m] ) > 0)
+						{
+							APP_CONF_LOG( AST_CONF_DEBUG, "mp4save:  %s lost video packet.\n", chan->name );
+							ast_channel_indicate(chan, AST_CONTROL_VIDUPDATE);
+						}
+
+						ret = Mp4RecorderFrame( recorder, fr );
+						if (ret == -333)
+							ast_channel_indicate(chan, AST_CONTROL_VIDUPDATE);
+						else if (ret < 0 && ret != -4)
+							ast_log(LOG_DEBUG, "mp4save: Failed to record frame, err=%d.\n", ret);
+						
+						// Send back video frame if requested
+						if (loopback && m == 1 && Mp4RecorderHasVideoStarted(recorder))
+						{
+							/* -- ast_write() destroys the frame -- */
+							ast_write(chan, fr);
+						}
+						else
+						{			
+							ast_frfree(fr);
+						}
+					}
+					else
+					{
+						break;
+					}
+				}
+			}
+		}
+	}
+	return 0;
+}
+
+
 static int mp4_save(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u = NULL;
@@ -505,7 +565,8 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	struct AstFb * textInQueue;
 
 	struct AstFb * queueTab[3];
-	unsigned int vidseqno = 0;
+	struct AstFb * queueTab2[3];
+	
 	
 	/* Check for file */
 	if (!data) return -1;
@@ -690,27 +751,24 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    /* if it's null */
 	    if (f == NULL)
 	    { 
-		ast_log(LOG_DEBUG, "null frame: hangup.\n");
-		onrecord = 0;;
-		break;
+			ast_log(LOG_DEBUG, "null frame: hangup.\n");
+			onrecord = 0;;
+			break;
 	    }
 
 	    /* --- post all media frames in a reorder buffer --- */
 	    switch ( f->frametype )
 	    {
 		case AST_FRAME_VOICE:
-	           AstFbAddFrame( audioInQueue, f );
-				ast_frfree(f);
-	           break;
+				AstFbAddFrame( audioInQueue, f );
+				break;
 	       
 		case AST_FRAME_VIDEO:
 	            AstFbAddFrame( videoInQueue, f );
-		    ast_frfree(f);
 		    break;
 
 		case AST_FRAME_TEXT:
 				AstFbAddFrame( textInQueue, f );
-				ast_frfree(f);
 				break;
 	    
 		case AST_FRAME_DTMF:
@@ -720,53 +778,23 @@ static int mp4_save(struct ast_channel *chan, void *data)
 				"mp4_save: recording stopping because DTMF %c was pressed.\n", 
 				(char) f->subclass );
 				onrecord = 0;
-				ast_frfree(f);
 		    }
 		    break;
 		
 		default:
-	            ast_frfree(f);
 	            break;
 	    }
-	    
 	    /* -- now poll all the queues and record -- */
-	    int i;
-	    for (i=0; i<3; i++)
-	    {
-			f = AstFbGetFrame( queueTab[i] );
-			
-			// TODO if too many errors, exit
-			// TODO: if there are lost packets, ask FIR
-			if (f != NULL)
-			{
-				Mp4RecorderFrame(recorder, f);
-			
-				if ( f->frametype == AST_FRAME_VIDEO )
-				{
-					if ( f->seqno != 0xFFFF && f->seqno != 0 && strcmp(f->src, "RTP") == 0)
-					{
-						if (vidseqno + 1 !=  f->seqno )
-						{
-							ast_indicate(chan, AST_CONTROL_VIDUPDATE);
-						}
-					}
-					vidseqno = f->seqno;
-
-					if (videoLoopback)
-					{
-						/* -- ast_write() destroys the frame -- */
-						ast_write(chan, f);
-						f = NULL;
-					}
-				}
-			
-				if ( f != NULL)  ast_frfree(f);
-			}
-	    }
+	    
+		waitres = AstFbWaitMulti(queueTab, 3, 500, queueTab2);
+		record_frames(queueTab2, chan, recorder, videoLoopback, 0);
+		
 	}
 	
 mp4_save_cleanup:	    
-	    
+	 
+	/* flush queues in file */
+	record_frames(queueTab, chan, recorder, videoLoopback, 0);
 	
 	/* destroy resources */
 	if (recorder) Mp4RecorderDestroy(recorder);
