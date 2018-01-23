@@ -149,10 +149,11 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				}
 				else
 				{
+					// no video
 					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
 				}
 			}
-				
+
 			int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
 			//Log("Audio: track duration %u, real duration %u.\n", mediatracks[MP4_AUDIO_TRACK]->GetRecordedDuration(), 
 			//    getDifTime(&firstframets)/1000);
@@ -238,6 +239,10 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		    tr->SetInitialDelay( videoDelay );
 #endif
 		}
+		else
+		{
+			if  ( f->GetTimeStamp() == 0) Log("Video: incorrect timestamp = 0. Check asterisk version.\n");
+		}
 
 		// TS drift - compensate - disabled for now
 		DWORD realDuration = getDifTime(&firstframets)/1000;
@@ -265,40 +270,35 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    break;
 	    
 	case MediaFrame::Text:
+		if ( mediatracks[MP4_TEXT_TRACK] == NULL )
+		{
+			/* auto create text track if needed */
+			const char * n = &partName[0];
+			AddTrack( TextCodec::T140, n , 0);
+		}
+		
 	    if ( mediatracks[MP4_TEXT_TRACK] )
 	    {
-		if ( mediatracks[MP4_TEXT_TRACK]->IsEmpty() )
-		{
-		    // adjust initial delay
-		    mediatracks[MP4_TEXT_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-		}
-	        if (waitVideo) return 0;
-	        return mediatracks[MP4_TEXT_TRACK]->ProcessFrame(f);
-	    }
-	    else
-	    {
-	        /* auto create text track if needed */
-		const char * n = &partName[0];
-	        AddTrack( TextCodec::T140, n , 0);
-		
-		if ( mediatracks[MP4_TEXT_TRACK] )
-		{
-		    mediatracks[MP4_TEXT_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-		    if (waitVideo)  return 0;
-		    if ( mediatracks[MP4_TEXT_TRACK]->IsEmpty() && initialDelay > 0 )
-		    {
-		        // adjust initial delay
-		        mediatracks[MP4_TEXT_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-		    }
+			if (waitVideo) return 0;
 
-		    return mediatracks[MP4_TEXT_TRACK]->ProcessFrame(f);
-		}
-		else
-		    return -3;
-	    
-		return -3;
+			if ( mediatracks[MP4_TEXT_TRACK]->IsEmpty() )
+			{
+				// adjust initial delay
+				if ( mediatracks[MP4_VIDEO_TRACK] )
+				{
+					// Synchronize with video
+					mediatracks[MP4_TEXT_TRACK]->SetInitialDelay( videoDelay );
+				}
+				else
+				{
+					// no video
+					mediatracks[MP4_TEXT_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
+				}
+			}
+			
+			return mediatracks[MP4_TEXT_TRACK]->ProcessFrame(f);			
 	    }
-	    break;
+		return -3;
 	
 	default:
 	    break;
