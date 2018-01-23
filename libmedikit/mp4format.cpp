@@ -487,7 +487,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 				default:
 					{
 					VideoFrame vf(vcodec, f->datalen, false);
-					if ( ast_test_flag( f, AST_FRFLAG_HAS_TIMING_INFO) )
+						if ( strcasecmp(f->src, "RTP") == 0 )
 							vf.SetTimestamp( f->ts );
 						else
 							vf.SetTimestamp( getDifTime(&firstframets)/1000 );
