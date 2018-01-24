@@ -199,6 +199,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				{
 					// Skip the first I-frame on purpbose because it contains CACA
 					Log("-mp4recorder: skipping first I-frame on purpose.\n");
+					// this return code shoudl cause client to send FIR
 					return -333;
 				}
 					
