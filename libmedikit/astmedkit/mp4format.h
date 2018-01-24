@@ -8,6 +8,7 @@
 class Mp4Basetrack;
 class H264Depacketizer;
 class RTPRedundantEncoder;
+class PictureStreamer;
 
 #define MP4_AUDIO_TRACK		0
 #define MP4_VIDEO_TRACK		1
@@ -130,6 +131,9 @@ private:
     
     // In case we need to generate a clock
     timeval firstframets;
+	
+	// to generate video prologue
+	PictureStreamer * pcstream;
 };
 
 /**

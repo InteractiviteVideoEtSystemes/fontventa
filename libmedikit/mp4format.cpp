@@ -30,8 +30,9 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     initialDelay = 0;
     for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
     {
-	mediatracks[i] = NULL;
+		mediatracks[i] = NULL;
     }
+	pcstream = new PictureStreamer();
 }
 
 mp4recorder::~mp4recorder()
@@ -137,21 +138,21 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 			
 		if ( mediatracks[MP4_AUDIO_TRACK] )
 		{
-			if (waitVideo) return 0;
+			//if (waitVideo) return 0;
 	    
 			if ( mediatracks[MP4_AUDIO_TRACK]->IsEmpty() )
 			{
 				// adjust initial delay
-				if ( mediatracks[MP4_VIDEO_TRACK] )
-				{
+				//if ( mediatracks[MP4_VIDEO_TRACK] )
+				//{
 					// Synchronize with video
-					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( videoDelay );
-				}
-				else
-				{
+					//mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( videoDelay );
+				//}
+				//else
+				//{
 					// no video
 					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-				}
+				//}
 			}
 
 			int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame(f);
@@ -170,102 +171,87 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 			VideoFrame * f2 = (VideoFrame *) f;
 			Mp4VideoTrack * tr = (Mp4VideoTrack *)  mediatracks[trackidx];
 		
-		if ( tr->IsEmpty() )
-		{
-		    PictureStreamer pcstream;
-		    Properties properties;
-			H264Depacketizer depak2;
+			if ( tr->IsEmpty() )
+			{
+				pcstream->SetCodec(tr->GetCodec(), properties);
+				pcstream->SetFrameRate(25, 100, 50);
+				pcstream->PaintBlackRectangle(640, 480);
+				tr->SetInitialDelay(initialDelay + (getDifTime(&firstframets)/1000);
+				Log("-mp4recorder: Initializing video prologue.\n" );
+			}
 			
-		    if ( !f2->IsIntra() )
-		    {
-				return -4; // Drop inter fframe : track must start with intraframe
-		    }
-		    
-			// Skip the first I-frame on purpbose because it contains CACA
-			
-		    if (waitVideo > 0) waitVideo--;
+		    if (waitVideo > 0 && f2->IsIntra()) 
+			{
+				waitVideo--;
+				if (waitVideo == 0)
+				{
+					videoDelay = initialDelay + (getDifTime(&firstframets)/1000);
+					Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
+				}
+				else 
+				{
+					// Skip the first I-frame on purpbose because it contains CACA
+					Log("-mp4recorder: skipping first I-frame on purpose.\n");
+					return -333;
+				}
+					
+			}
 			
 			if (waitVideo > 0)
 			{
-				Log("-mp4recorder: skipping first I-frame on purpose.\n");
-				return -333;
-			}
-		    // add still picture until initial delay
-		    //mediatracks[trackidx]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
-		    videoDelay = initialDelay + (getDifTime(&firstframets)/1000);
-		    Log("-mp4recorder: video has started after %lu ms.\n", getDifTime(&firstframets)/1000 );
-		    Log("-mp4recorder: need to add %lu ms offset.\n", videoDelay );
-#if 1
-		    //toAdd = 0;
-		    pcstream.SetCodec(tr->GetCodec(), properties);
-		    pcstream.SetFrameRate(1, 100, 2);
-		    pcstream.PaintBlackRectangle(640, 480);
-		    tr->SetInitialDelay(0);
-		    
-		    // Add black video at 2 fps during the whole delay 
-		    int nb = 0;
-		    for (QWORD tsDelta = 0; tsDelta < videoDelay; tsDelta += 2000 )
-		    {
+				// We are still waiting for video				
+				// Replace P-Frames with black frames
 				VideoFrame * f3 = pcstream.Stream(false);
 			
-				if (f3 == NULL)
+				if (f3 != NULL)
 				{
-					Error("Cannot create video prologue frame.\n");
-					tr->SetInitialDelay( videoDelay - tsDelta);
-					break;
-				}
-				else
-				{
-					f3->SetTimestamp(f2->GetTimeStamp() + tsDelta * 90 );
-					depak2.SetTimestamp(f3->GetTimeStamp());
-					MediaFrame * f4;
+					// depaketize f3
+					DWORD ts  = f2->GetTimeStamp();
 					
-					// Frame contains startcode and needs to be depacketized before being save to file
+					// Specific H.264. We would need to do it in the video frame class directly to remain multi codecs ...
+					depak->ResetFrame();
+					
 					for( MediaFrame::RtpPacketizationInfo::iterator it = f3->GetRtpPacketizationInfo().begin() ;
 						 it != f3->GetRtpPacketizationInfo().end() ;
 						 it++ )
 					
 					{
-						f4 = depak2.AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
+						f4 = depak2->AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
 					}
 					
-					tr->ProcessFrame(f4);
-					depak2.ResetFrame();
-					nb++;
+					if (f4) 
+					{
+						f4->SetTimestamp(ts);
+						tr->ProcessFrame(f4);
+					}
+					return 1;
 				}
-		    }
-		    if (nb > 0) Log("-mp4recorder: Added %d still videoframe(s) to offset delay.\n", nb );
-#else
-		    tr->SetInitialDelay( videoDelay );
-#endif
-		}
-		else
-		{
+				
+				
+				return -5;
+			}
+			
 			if  ( f->GetTimeStamp() == 0) Log("Video: incorrect timestamp = 0. Check asterisk version.\n");
+			
+			// TS drift - compensate - disabled for now
+			DWORD realDuration = getDifTime(&firstframets)/1000;
+
+			/* if ( realDuration > tr->GetRecordedDuration()
+				 &&
+				 realDuration - tr->GetRecordedDuration() > 1000 )
+			{
+				 videoDelay += 10;
+			}
+			*/
+
+			//Log("Video: track duration %u, real duration %u.\n",tr->GetRecordedDuration(), 
+			//    getDifTime(&firstframets)/1000);
+			int ret = tr->ProcessFrame(f2);
+			return ret;
 		}
-
-		// TS drift - compensate - disabled for now
-		DWORD realDuration = getDifTime(&firstframets)/1000;
-
-		/* if ( realDuration > tr->GetRecordedDuration()
-		     &&
-		     realDuration - tr->GetRecordedDuration() > 1000 )
-		{
-		     videoDelay += 10;
-		}
-		*/
-
-		// Shift ALL video timestamps to include prologue
-		f2->SetTimestamp( f2->GetTimeStamp() + videoDelay * 90 );
-
-		//Log("Video: track duration %u, real duration %u.\n",tr->GetRecordedDuration(), 
-		//    getDifTime(&firstframets)/1000);
-		int ret = tr->ProcessFrame(f2);
-		return ret;
-	    }
 	    else
 	    {
-		return -3;
+			return -3;
 	    }
 	    break;
 	    
