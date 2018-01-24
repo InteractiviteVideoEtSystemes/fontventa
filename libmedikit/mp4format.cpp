@@ -32,7 +32,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     {
 		mediatracks[i] = NULL;
     }
-	pcstream = new PictureStreamer();
+	pcstream = NULL;
 }
 
 mp4recorder::~mp4recorder()
@@ -176,11 +176,15 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 			{
 				Properties properties;
 
-				pcstream->SetCodec(tr->GetCodec(), properties);
-				pcstream->SetFrameRate(25, 100, 50);
-				pcstream->PaintBlackRectangle(640, 480);
-				tr->SetInitialDelay(initialDelay + (getDifTime(&firstframets)/1000));
-				Log("-mp4recorder: Initializing video prologue.\n" );
+				if (pcstream == NULL)
+				{
+					pcstream = new  PictureStreamer();
+					pcstream->SetCodec(tr->GetCodec(), properties);
+					pcstream->SetFrameRate(25, 100, 50);
+					pcstream->PaintBlackRectangle(640, 480);
+					tr->SetInitialDelay(initialDelay);
+					Log("-mp4recorder: Initializing video prologue.\n" );
+				}
 			}
 			
 		    if (waitVideo > 0 && f2->IsIntra()) 

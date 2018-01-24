@@ -97,7 +97,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 
 		if (packets.find(seq) != packets.end())
 		{
-			ast_log(LOG_DEBUG, "Received duplicate packet %ld.\n", seq);
+			//ast_log(LOG_DEBUG, "Received duplicate packet %ld.\n", seq);
 			return false;
 		}
 	}
