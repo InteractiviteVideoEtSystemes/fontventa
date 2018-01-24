@@ -44,6 +44,7 @@ mp4recorder::~mp4recorder()
 
     if (audioencoder) delete audioencoder;
     if (depak) delete depak;
+    if (pcstream) delete pcstream;
 }
 
 int mp4recorder::AddTrack(AudioCodec::Type codec, DWORD samplerate, const char * trackName)
@@ -173,10 +174,12 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 		
 			if ( tr->IsEmpty() )
 			{
+				Properties properties;
+
 				pcstream->SetCodec(tr->GetCodec(), properties);
 				pcstream->SetFrameRate(25, 100, 50);
 				pcstream->PaintBlackRectangle(640, 480);
-				tr->SetInitialDelay(initialDelay + (getDifTime(&firstframets)/1000);
+				tr->SetInitialDelay(initialDelay + (getDifTime(&firstframets)/1000));
 				Log("-mp4recorder: Initializing video prologue.\n" );
 			}
 			
@@ -201,12 +204,13 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 			{
 				// We are still waiting for video				
 				// Replace P-Frames with black frames
-				VideoFrame * f3 = pcstream.Stream(false);
+				VideoFrame * f3 = pcstream->Stream(false);
 			
 				if (f3 != NULL)
 				{
 					// depaketize f3
 					DWORD ts  = f2->GetTimeStamp();
+					MediaFrame * f4;
 					
 					// Specific H.264. We would need to do it in the video frame class directly to remain multi codecs ...
 					depak->ResetFrame();
@@ -216,7 +220,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 						 it++ )
 					
 					{
-						f4 = depak2->AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
+						f4 = depak->AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
 					}
 					
 					if (f4) 
