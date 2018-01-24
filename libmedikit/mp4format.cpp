@@ -35,6 +35,27 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
 	pcstream = NULL;
 }
 
+const char * idxToMedia(int i)
+{
+    switch(i)
+    {
+	case 0:
+	    return "Audio";
+
+	case 1:
+	    return "Video";
+
+	case 2:
+	    return "VideoDoc";
+
+	case 3:
+	    return "Text";
+
+	default:
+	    return "Unknown";
+    }
+}
+
 mp4recorder::~mp4recorder()
 {
     for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
@@ -46,6 +67,21 @@ mp4recorder::~mp4recorder()
     if (depak) delete depak;
     if (pcstream) delete pcstream;
 }
+
+void mp4recorder::DumpInfo()
+{
+    const char * media;
+    for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
+    {
+        if ( mediatracks[i] )
+	{
+	    Log("%s track ID %d has %d samples.\n",
+		 idxToMedia(i), mediatracks[i]->GetSampleId(),
+		 mediatracks[i]->GetTrackId());
+	}
+    }
+}
+
 
 int mp4recorder::AddTrack(AudioCodec::Type codec, DWORD samplerate, const char * trackName)
 {
@@ -1070,7 +1106,7 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
 void Mp4RecorderDestroy( struct mp4rec * r )
 {
     mp4recorder * r2 = (mp4recorder *) r;
-
+    r2->DumpInfo();
     delete r2;    
 }
 

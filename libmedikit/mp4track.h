@@ -38,6 +38,8 @@ public:
     virtual const MediaFrame * ReadFrame();
     QWORD GetNextFrameTime();
 	DWORD GetRecordedDuration() { return totalDuration; }
+	int GetSampleId() { return sampleId; }
+	int GetTrackId() { return mediatrack; }
 	
 protected:
     

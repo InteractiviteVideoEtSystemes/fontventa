@@ -103,6 +103,8 @@ public:
     void SetWaitForVideo( bool wait ) { waitVideo = wait; }
 	
 	void Flush();
+
+    void DumpInfo();
 	
 private:
     char partName[80];
