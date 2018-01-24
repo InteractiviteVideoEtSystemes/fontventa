@@ -182,7 +182,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 					pcstream->SetCodec(tr->GetCodec(), properties);
 					pcstream->SetFrameRate(25, 100, 50);
 					pcstream->PaintBlackRectangle(640, 480);
-					tr->SetInitialDelay(initialDelay);
+					tr->SetInitialDelay(initialDelay + (getDifTime(&firstframets)/1000));
 					Log("-mp4recorder: Initializing video prologue.\n" );
 				}
 			}
