@@ -168,7 +168,7 @@ void TextEncoder::GetCurrentLine(std::string & curline)
     }
     else
     {
-	    Log("Cur line is empty.\n" );
+//	    Log("Cur line is empty.\n" );
 	curline.clear();
     }
 }

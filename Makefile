@@ -1,6 +1,6 @@
 include ./Makeinclude
 
-all: app_mp4.so  app_rtsp.so astlog 
+all: app_mp4.so  app_rtsp.so astlog mp4creator-util
 	echo "Fontventa compile"
 
 libmp4av.a:

@@ -76,10 +76,11 @@ void mp4recorder::DumpInfo()
         if ( mediatracks[i] )
 	{
 	    Log("%s track ID %d has %d samples.\n",
-		 idxToMedia(i), mediatracks[i]->GetSampleId(),
-		 mediatracks[i]->GetTrackId());
+		 idxToMedia(i), mediatracks[i]->GetTrackId(),
+		 mediatracks[i]->GetSampleId());
 	}
     }
+    Log("-----------------\n");
 }
 
 
@@ -179,6 +180,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    
 			if ( mediatracks[MP4_AUDIO_TRACK]->IsEmpty() )
 			{
+				DWORD delay = initialDelay + (getDifTime(&firstframets)/1000);
 				// adjust initial delay
 				//if ( mediatracks[MP4_VIDEO_TRACK] )
 				//{
@@ -188,7 +190,8 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				//else
 				//{
 					// no video
-					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( initialDelay + (getDifTime(&firstframets)/1000) );
+				Log("Adding %u of initial delay for audio.\n", delay);
+					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay(delay);
 				//}
 			}
 
@@ -214,12 +217,14 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 
 				if (pcstream == NULL)
 				{
+					DWORD delay = initialDelay + (getDifTime(&firstframets)/1000);
+					Log("-mp4recorder: Initializing video prologue.\n" );
+					Log("Adding %u of initial delay for audio.\n", delay);
 					pcstream = new  PictureStreamer();
 					pcstream->SetCodec(tr->GetCodec(), properties);
 					pcstream->SetFrameRate(25, 100, 50);
 					pcstream->PaintBlackRectangle(640, 480);
-					tr->SetInitialDelay(initialDelay + (getDifTime(&firstframets)/1000));
-					Log("-mp4recorder: Initializing video prologue.\n" );
+					tr->SetInitialDelay(delay);
 				}
 			}
 			

@@ -45,6 +45,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 
 %changelog
 * Fri Dec 21 2017 Emmanuel BUU <emmanuel.buu@ives.fr>
+- major rework on recorder
 - jitterbuffer sync based on pipe rather than conditional variable
 - use C++ 11 primitives
 - version 1.3.0
