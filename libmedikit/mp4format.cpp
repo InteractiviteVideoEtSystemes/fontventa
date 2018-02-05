@@ -21,7 +21,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     textSeqNo = 0xFFFF;
     videoSeqNo = 0xFFFF;
     vtc = NULL;
-    this->waitVideo = waitVideo ? 1 : 0;
+    this->waitVideo = waitVideo ? 2 : 0;
     Log("mp4recorder: created with waitVideo %s.\n", waitVideo ? "enabled" : "disabled" );
     audioencoder = NULL;
     depak = NULL;
