@@ -9,7 +9,7 @@ static int LogToAst(const char *msg, va_list ap)
 {
 	char t[800];
 
-	vsprintf(t, msg, ap);
+	vsnprintf(t, 790, msg, ap);
 	ast_log(LOG_NOTICE, "%s", t);
 	return 1;
 } 
@@ -18,7 +18,7 @@ static int ErrorToAst(const char *msg, va_list ap)
 {
 	char t[800];
 
-	vsprintf(t, msg, ap);
+	vsnprintf(t, 790, msg, ap);
 	ast_log(LOG_ERROR, "%s", t);
 	return 1;
 } 
@@ -29,7 +29,7 @@ static int DebugToAst(const char *msg, va_list ap)
 	{
 		char t[800];
 		
-		vsprintf(t, msg, ap);
+		vsnprintf(t, 790, msg, ap);
 		ast_log(LOG_DEBUG, "%s", t);
 	}
 	return 1;
