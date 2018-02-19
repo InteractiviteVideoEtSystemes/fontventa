@@ -117,7 +117,8 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 	data	= frame->GetData();
 	dataLen = frame->GetMaxMediaLength();
 		
-	// Read next frame packet
+	// Read next frame packet only to get the information.
+	// data will be reread using hint track
 	if (!MP4ReadSample(
 		mp4,				// MP4FileHandle hFile
 		mediatrack,				// MP4TrackId hintTrackId
@@ -153,16 +154,21 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 	       break;
 	       
 	    case MediaFrame::Text:
-	       // Never used as read method will be overrienden for text tracks
+	       // Never used as read method is be overriden for text tracks
 	       break;
 	}
 
-	BYTE * rtpdata = data;
-	// Add packetization info from hint track
+	BYTE * rtpdata;
+	u_int32_t pos = 0;
+	
+	frame->SetLength(0);
+	
+	// read each frame's packet and build a packetized frame
 	for (packetIndex = 0; packetIndex < numHintSamples; packetIndex++ )
 	{
-	    u_int32_t pos = ( rtpdata - data );
-	    u_int32_t rtpLen = dataLen - pos;
+	    u_int32_t rtpLen = 0;
+		
+		rtpdata = NULL;
 	    bool last = ( packetIndex+1 == numHintSamples );
 	    
 	    if ( !MP4ReadRtpPacket(
@@ -170,19 +176,25 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 		    hinttrack,				// MP4TrackId hintTrackId
 		    packetIndex++,			// u_int16_t packetIndex
 		    (u_int8_t **) &rtpdata,		// u_int8_t** ppBytes
-		    (u_int32_t *) &rtpLen,		// u_int32_t* pNumBytes
+		    &rtpLen,					// u_int32_t* pNumBytes
 		     0,				// u_int32_t ssrc DEFAULT(0)
 		     0,				// bool includeHeader DEFAULT(true)
 		     1				// bool includePayload DEFAULT(true) 
 		     ))
 	    {
 			//Error
-		Error("Error reading packet from hinttrack ID %d mediatrack %d index %d]\n", hinttrack, mediatrack,packetIndex);
+			Error("Error reading packet from hinttrack ID %d mediatrack %d index %d]\n", hinttrack, mediatrack,packetIndex);
 			//Exit
-		return NULL;
+			return NULL;
 	    }
-	    
-	    frame->AddRtpPacket(pos, rtpLen , NULL, 0, last);
+
+		if (rtpdata != NULL && rtpLen > 0)
+		{
+			frame->AppendMedia(rtpdata, rtpLen);
+			frame->AddRtpPacket(pos, rtpLen , NULL, 0, last);
+			pos += rtpLen;
+			free(rtpdata);
+		}
 	    
 	}
 

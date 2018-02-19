@@ -111,6 +111,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 					 single-time aggregation units
 			*/
 			//Everything goes to the payload
+			// pas sur du tout  ! A reverifier
 			frame.AddRtpPacket(0,0,payload,payload_len, mark);
 
 			/* Skip STAP-A NAL HDR */

@@ -490,8 +490,8 @@ static int record_frames(struct AstFb * recQueues[], struct ast_channel * chan, 
 		for (m = 0; m < 3 ; m++)
 		{
 			
-		//			ast_log(LOG_DEBUG, "queue %d for member %s has %d packets, popped=%d.\n", m,
-		//				 member->channel_name, AstFbLength(member->recQueues[m]), hasmedia );
+			ast_log(LOG_DEBUG, "queue %d for member %s has %d packets, popped=%d.\n", m,
+						 member->channel_name, AstFbLength(member->recQueues[m]), hasmedia );
 			if (recQueues[m])
 			{
 				
@@ -661,7 +661,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	MP4TagsSetEncodingTool(tags, "MP4Save asterisk application");
 	MP4TagsSetArtist(tags, chan->cid.cid_name );
 
-        sprintf(metadata, "%04d/%02d/%02d %02d:%02d:%02d",
+    sprintf(metadata, "%04d/%02d/%02d %02d:%02d:%02d",
            tmvalue->tm_year+1900, tmvalue->tm_mon+1, tmvalue->tm_mday,
            tmvalue->tm_hour, tmvalue->tm_min, tmvalue->tm_sec);
 
@@ -726,22 +726,22 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    waitres = ast_waitfor(chan, remainingduration);
 	    if ( waitres < 0 )
 	    {
-		/* hangup or error - trace ?*/
-		onrecord = 0;
+			/* hangup or error - trace ?*/
+			onrecord = 0;
 	    }
 	    
 	    if ( maxduration > 0 ) 
 	    {
-		if (waitres == 0) 
-		{
-		    ast_log(LOG_NOTICE, "Max recording duration %d seconds elapsed. Recording will stop.\n", 
-			    maxduration/1000);
-		    onrecord = 0;
-		}
-		else
-		{
-		    remainingduration = waitres;
-		}
+			if (waitres == 0) 
+			{
+				ast_log(LOG_NOTICE, "Max recording duration %d seconds elapsed. Recording will stop.\n", 
+					maxduration/1000);
+				onrecord = 0;
+			}
+			else
+			{
+				remainingduration = waitres;
+			}
 	    }
 
 	    /* Read frame from channel */
@@ -783,8 +783,8 @@ static int mp4_save(struct ast_channel *chan, void *data)
 		default:
 	            break;
 	    }
+
 	    /* -- now poll all the queues and record -- */
-	    
 		waitres = AstFbWaitMulti(queueTab, 3, 500, queueTab2);
 		record_frames(queueTab2, chan, recorder, videoLoopback, 0);
 		
