@@ -55,7 +55,7 @@ all: $(SHAREDOS)
 clean:
 	rm -f *.so *.o $(OBJS)
 
-app_mp4.so : $(OBJS)
+app_mp4.so : $(OBJS) ../libmedikit/libmedkit.a
 	$(CC) -g -shared -Xlinker -x -o $@ $(OBJS) $(LIBS) $(RPATH)
 
 install: all

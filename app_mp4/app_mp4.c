@@ -490,11 +490,11 @@ static int record_frames(struct AstFb * recQueues[], struct ast_channel * chan, 
 		for (m = 0; m < 3 ; m++)
 		{
 			
-			ast_log(LOG_DEBUG, "queue %d for member %s has %d packets, popped=%d.\n", m,
-						 member->channel_name, AstFbLength(member->recQueues[m]), hasmedia );
 			if (recQueues[m])
 			{
 				
+				//ast_log(LOG_DEBUG, "queue %d for chan %s has %d packets.\n", m,
+				//		 chan->name, AstFbLength(recQueues[m]) );
 				for (i = 0; i<200; i++)
 				{
 					if (flush) AstFbUnblock( recQueues[m] );
@@ -564,7 +564,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	struct AstFb * textInQueue;
 
 	struct AstFb * queueTab[3];
-	struct AstFb * queueTab2[3];
+	//struct AstFb * queueTab2[3];
 	
 	
 	/* Check for file */
@@ -751,7 +751,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    if (f == NULL)
 	    { 
 			ast_log(LOG_DEBUG, "null frame: hangup.\n");
-			onrecord = 0;;
+			onrecord = 0;
 			break;
 	    }
 
@@ -759,16 +759,17 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    switch ( f->frametype )
 	    {
 		case AST_FRAME_VOICE:
-				AstFbAddFrame( audioInQueue, f );
-				break;
+			AstFbAddFrame( audioInQueue, f );
+			break;
 	       
 		case AST_FRAME_VIDEO:
+		    //ast_log(LOG_DEBUG, "video frame: ok.\n");
 	            AstFbAddFrame( videoInQueue, f );
 		    break;
 
 		case AST_FRAME_TEXT:
-				AstFbAddFrame( textInQueue, f );
-				break;
+			AstFbAddFrame( textInQueue, f );
+			break;
 	    
 		case AST_FRAME_DTMF:
 			if (strchr( stopDtmfs, f->subclass) )
@@ -785,15 +786,15 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    }
 
 	    /* -- now poll all the queues and record -- */
-		waitres = AstFbWaitMulti(queueTab, 3, 500, queueTab2);
-		record_frames(queueTab2, chan, recorder, videoLoopback, 0);
+		//waitres = AstFbWaitMulti(queueTab, 3, 500, queueTab2);
+		record_frames(queueTab, chan, recorder, videoLoopback, 0);
 		
 	}
 	
 mp4_save_cleanup:	    
 	 
 	/* flush queues in file */
-	record_frames(queueTab, chan, recorder, videoLoopback, 0);
+	record_frames(queueTab, chan, recorder, videoLoopback, 1);
 	
 	/* destroy resources */
 	if (recorder) Mp4RecorderDestroy(recorder);
