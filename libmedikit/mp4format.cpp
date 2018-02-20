@@ -930,7 +930,8 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
     }
     else
     {
-		return Error("Could not find any text track in this file.\n");
+		Error("Could not find any text track in this file.\n");
+		return -1;
     }
 }
 

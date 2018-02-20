@@ -163,13 +163,61 @@ void TextEncoder::GetCurrentLine(std::string & curline)
 {
     if ( line.size() > 0 )
     {
-	UTF8Parser p(line);
-	p.Serialize(curline);
+		UTF8Parser p(line);
+		p.Serialize(curline);
     }
     else
     {
-//	    Log("Cur line is empty.\n" );
-	curline.clear();
+		curline.clear();
     }
 }
 
+void SubtitleToRtt::GetTextDiff(const std::string & sub, unsigned int & nbdel, std::string & diff)
+{
+	std::wstring wdiff;	
+	wdiff.clear();
+	
+	parser.Parse( (BYTE *) sub.data(), sub.lenght() );
+	GetTextDiff(parser.GetWString(), nbdel, wdiff);
+	if (!wdiff.empty() )
+	{
+		parser.SetWString(wdiff);
+		parser.Serialize(diff);
+	}
+}
+
+void SubtitleToRtt::GetTextDiff(const std::wstring & sub, unsigned int & nbdel, std::wstring & diff)
+{
+	unsigned int len = line.length();
+	unsigned int len2 = sub.length();
+	unsigned int diffidx
+	for (diffidx = 0; diffidx<len; diffidx++)
+	{
+		if (diffidx >= len2) break;
+		
+		if (sub[diffidx] != line[diffidx] ) break;
+	}
+	
+	nbdel = 0;
+	
+	if (diffidx < len2 && diffidx >= len)
+	{
+		diff = sub.substr(diffidx);
+		if (diffidx == 0)
+		{
+			diff.insert(0, 1, '\r');
+			diff.insert(0, 1, '\n');
+		}
+	}
+	else if (diffidx > len2 && diffidx<len)
+	{
+		diff.clear();
+		nbdel = diffidx - len2;
+	}
+	else
+	{
+		// TODO: manage insersion and deletion here
+		diff.clear();
+	}
+	line = subs;
+}

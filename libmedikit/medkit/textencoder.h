@@ -24,8 +24,8 @@ private:
 class SubtitleToRtt
 {
 public:
-	SubtitleToRtt();
-	~SubtitleToRtt();
+	SubtitleToRtt() {};
+	~SubtitleToRtt() {};
 	
 	void GetTextDiff(const std::wstring & sub, unsigned int & nbdel, std::wstring & diff);
 	void GetTextDiff(const std::string & sub, unsigned int & nbdel, std::string & diff);
