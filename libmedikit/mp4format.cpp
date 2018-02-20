@@ -657,47 +657,47 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 			/* Get type */
 			const char * tt = MP4GetTrackType(mp4, trackId);
 
-			if (tt != NULL && strcmp(tt, MP4_AUDIO_TRACK_TYPE) == 0)
-			{
-				char *name;
-				
-				MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
-				
-				if (name == NULL)
+				if (tt != NULL && strcmp(tt, MP4_AUDIO_TRACK_TYPE) == 0)
 				{
-					c = AudioCodec::AMR;
-				}
-				else 
-				{
-					if ( ! AudioCodec::GetCodecFor(name, c) )
+					char *name;
+					
+					MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
+					
+					if (name == NULL)
 					{
-						Log("Unsupported audio codec %d for hint track ID %d.\n", name, hintId);
-						goto audio_track_loop1;
+						c = AudioCodec::AMR;
 					}
-				}
-				
-				if ( c == prefCodec )
-				{
-				// This is the preffered codec !
-				// use it and stop here
-				
-				lastTrackMatch = trackId;
-				lastHintMatch = hintId;
-				break;
-				}    
-				
-				if ( lastTrackMatch < 0)
-				{
-					for (int i=0; i<nbCodecs; i++)
+					else 
 					{
-						if ( outputCodecs[i] == c )
+						if ( ! AudioCodec::GetCodecFor(name, c) )
 						{
-							lastTrackMatch = trackId;
-							lastHintMatch = hintId;
+							Log("Unsupported audio codec %s for hint track ID %d.\n", name, hintId);
+							goto audio_track_loop1;
 						}
 					}
-				}
-			}		
+					
+					if ( c == prefCodec )
+					{
+						// This is the preffered codec !
+						// use it and stop here
+						
+						lastTrackMatch = trackId;
+						lastHintMatch = hintId;
+						break;
+					}    
+					
+					if ( lastTrackMatch < 0)
+					{
+						for (int i=0; i<nbCodecs; i++)
+						{
+							if ( outputCodecs[i] == c )
+							{
+								lastTrackMatch = trackId;
+								lastHintMatch = hintId;
+							}
+						}
+					}
+				}		
 			}
 			else
 			{
