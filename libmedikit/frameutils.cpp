@@ -111,6 +111,8 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 	
 	memset(&astf, 0, sizeof(astf));
 	astf.src = MP4PLAYSRC;
+	astf.subclass = 0;
+	
 	switch( mf->GetType() )
 	{
 		case MediaFrame::Audio:
