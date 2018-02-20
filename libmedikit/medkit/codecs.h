@@ -39,7 +39,7 @@ public:
 	    
 	    if ( strcmp(name, "PCMU") == 0 || strcmp(name, "ulaw") == 0)
 	    {
-		c = PCMA;
+		c = PCMU;
 		return true;
 	    }
 

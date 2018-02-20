@@ -681,6 +681,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 
 Mp4TextTrack::Mp4TextTrack(MP4FileHandle mp4, MP4TrackId mediaTrack) : Mp4Basetrack(mp4, mediaTrack, -1) 
 {
+     Log("-mp4recorder: creating subtitle to TTR renderer.\n"); 
     conv1 = new SubtitleToRtt();
     
 }

@@ -177,7 +177,7 @@ void SubtitleToRtt::GetTextDiff(const std::string & sub, unsigned int & nbdel, s
 	std::wstring wdiff;	
 	wdiff.clear();
 	
-	parser.Parse( (BYTE *) sub.data(), sub.lenght() );
+	parser.Parse( (BYTE *) sub.data(), sub.length() );
 	GetTextDiff(parser.GetWString(), nbdel, wdiff);
 	if (!wdiff.empty() )
 	{
@@ -190,7 +190,8 @@ void SubtitleToRtt::GetTextDiff(const std::wstring & sub, unsigned int & nbdel, 
 {
 	unsigned int len = line.length();
 	unsigned int len2 = sub.length();
-	unsigned int diffidx
+	unsigned int diffidx;
+
 	for (diffidx = 0; diffidx<len; diffidx++)
 	{
 		if (diffidx >= len2) break;
@@ -219,5 +220,5 @@ void SubtitleToRtt::GetTextDiff(const std::wstring & sub, unsigned int & nbdel, 
 		// TODO: manage insersion and deletion here
 		diff.clear();
 	}
-	line = subs;
+	line = sub;
 }

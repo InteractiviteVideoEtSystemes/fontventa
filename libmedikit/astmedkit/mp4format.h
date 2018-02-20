@@ -146,7 +146,7 @@ class mp4player
 {
 public:
     mp4player(void * ctxdata, MP4FileHandle mp4);
-    ~mp4player();
+    virtual ~mp4player();
 
     int OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs, AudioCodec::Type prefCodec, bool cantranscode );
     int OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs, VideoCodec::Type prefCodec, bool cantranscode, bool secondary = false );

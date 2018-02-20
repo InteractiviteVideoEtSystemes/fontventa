@@ -1073,6 +1073,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 	return f2;
 }
 
+virtual 
 
 void mp4recorder::Flush()
 {
