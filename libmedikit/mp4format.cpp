@@ -1073,7 +1073,15 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 	return f2;
 }
 
-virtual 
+virtual mp4player::~mp4player()
+{
+    for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
+    {
+        if ( mediatracks[i] ) delete mediatracks[i];
+    }
+
+	if (redenc) delete redenc;	
+}
 
 void mp4recorder::Flush()
 {
