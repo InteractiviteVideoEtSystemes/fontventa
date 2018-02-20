@@ -783,7 +783,7 @@ audio_track_loop2:
 		{
 			mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
 			next[MP4_AUDIO_TRACK] = mediatracks[MP4_AUDIO_TRACK]->GetNextFrameTime();
-			Log("Opened video track ID %d.\n");
+			Log("Opened audio track ID %d.\n", lastTrackMatch);
 			return 1;
 		}
 		else
@@ -896,6 +896,7 @@ video_track_loop:
 				mediatracks[MP4_VIDEO_TRACK] = new Mp4VideoTrack(mp4, lastTrackMatch, lastHintMatch, c);
 				next[MP4_VIDEO_TRACK] = mediatracks[MP4_VIDEO_TRACK]->GetNextFrameTime();
 			}
+			Log("Opened video track ID %d.\n", lastTrackMatch);
 			return 1;
 		}
 		else
