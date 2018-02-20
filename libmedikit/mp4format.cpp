@@ -631,8 +631,8 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
     {
 		MP4TrackId hintId = -1 ;
 		MP4TrackId trackId = -1;
-		MP4TrackId lastHintMatch = -1;
-		MP4TrackId lastTrackMatch = -1;
+		MP4TrackId lastHintMatch = MP4_INVALID_TRACK_ID;
+		MP4TrackId lastTrackMatch = MP4_INVALID_TRACK_ID;
 		AudioCodec::Type c;
 		int idxTrack = 0;
 		
@@ -646,7 +646,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 		while (hintId != MP4_INVALID_TRACK_ID)
 		{
 			const char* nm = MP4GetTrackMediaDataName(mp4,hintId);
-			Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
+			//Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
 			
 			/* Get associated track */
 			trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
@@ -654,8 +654,8 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 			/* Check it's good */
 			if (trackId != MP4_INVALID_TRACK_ID)
 			{
-			/* Get type */
-			const char * tt = MP4GetTrackType(mp4, trackId);
+				/* Get type */
+				const char * tt = MP4GetTrackType(mp4, trackId);
 
 				if (tt != NULL && strcmp(tt, MP4_AUDIO_TRACK_TYPE) == 0)
 				{
@@ -666,6 +666,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 					if (name == NULL)
 					{
 						c = AudioCodec::AMR;
+						name = "AMR";
 					}
 					else 
 					{
@@ -676,6 +677,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 						}
 					}
 					
+					Debug("found hinted track %d (%s)\n", trackId,name?name: "null");
 					if ( c == prefCodec )
 					{
 						// This is the preffered codec !
@@ -685,8 +687,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 						lastHintMatch = hintId;
 						break;
 					}    
-					
-					if ( lastTrackMatch < 0)
+					else if ( lastTrackMatch == MP4_INVALID_TRACK_ID)
 					{
 						for (int i=0; i<nbCodecs; i++)
 						{
@@ -696,6 +697,11 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 								lastHintMatch = hintId;
 							}
 						}
+					}
+
+					if ( lastTrackMatch == MP4_INVALID_TRACK_ID )
+					{
+						Log("Codec %s is not compatible with requested output codecs.\n", name);
 					}
 				}		
 			}
@@ -709,7 +715,7 @@ audio_track_loop1:
 			hintId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
 		}
 
-		if ( lastTrackMatch == -1)
+		if ( lastTrackMatch == MP4_INVALID_TRACK_ID)
 		{
 			Log("Try reopening audio track without hint.\n");
 			idxTrack = 0;
@@ -717,7 +723,7 @@ audio_track_loop1:
 			while (trackId != MP4_INVALID_TRACK_ID)
 			{
 				const char* nm = MP4GetTrackMediaDataName(mp4,trackId);
-				Debug("found media track %d (%s)\n", hintId,nm?nm: "null");
+				Debug("found media track %d (%s)\n", trackId,nm?nm: "null");
 			
 				/* Get type */
 				const char * tt = MP4GetTrackType(mp4, trackId);
@@ -749,7 +755,7 @@ audio_track_loop1:
 						break;
 					}    
 					
-					if ( lastTrackMatch < 0)
+					if ( lastTrackMatch  == MP4_INVALID_TRACK_ID)
 					{
 						for (int i=0; i<nbCodecs; i++)
 						{
@@ -760,23 +766,29 @@ audio_track_loop1:
 							}
 						}
 					}
+
+					if ( lastTrackMatch == MP4_INVALID_TRACK_ID)
+					{
+						Debug("Codec %s is not compatible with requested output codecs.\n", name);
+					}
 				}
 
 audio_track_loop2:		
 				idxTrack++;
-				trackId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
+				trackId = MP4FindTrackId(mp4, idxTrack , MP4_AUDIO_TRACK_TYPE, 0);
 			}
 		}
 		
-		if ( lastTrackMatch >= 0)
+		if ( lastTrackMatch != MP4_INVALID_TRACK_ID)
 		{
 			mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
 			next[MP4_AUDIO_TRACK] = mediatracks[MP4_AUDIO_TRACK]->GetNextFrameTime();
+			Log("Opened video track ID %d.\n");
 			return 1;
 		}
 		else
 		{
-			 return 0;
+			 return -1;
 		}
     }
 }
@@ -785,10 +797,10 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 {
     if (nbCodecs > 0)
     {
-		MP4TrackId hintId = -1 ;
-		MP4TrackId trackId = -1;
-		MP4TrackId lastHintMatch = -1;
-		MP4TrackId lastTrackMatch = -1;
+		MP4TrackId hintId = MP4_INVALID_TRACK_ID ;
+		MP4TrackId trackId = MP4_INVALID_TRACK_ID;
+		MP4TrackId lastHintMatch = MP4_INVALID_TRACK_ID;
+		MP4TrackId lastTrackMatch = MP4_INVALID_TRACK_ID;
 		int idxTrack = 0;
 		VideoCodec::Type c;
 		
@@ -802,7 +814,7 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 		while (hintId != MP4_INVALID_TRACK_ID)
 		{
 			const char* nm = MP4GetTrackMediaDataName(mp4,hintId);
-			Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
+			//Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
 			
 			/* Get associated track */
 			trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
@@ -832,6 +844,7 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 							goto video_track_loop;
 						}
 					}
+					Debug("found hinted video track %d (%s)\n", trackId,name?name: "null");
 					
 					if ( c == prefCodec )
 					{
@@ -843,7 +856,7 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 						break;
 					}    
 					
-					if ( lastTrackMatch < 0)
+					if ( lastTrackMatch ==  MP4_INVALID_TRACK_ID)
 					{
 						for (int i=0; i<nbCodecs; i++)
 						{
@@ -853,6 +866,11 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 								lastHintMatch = hintId;
 							}
 						}
+					}
+
+					if ( lastTrackMatch == MP4_INVALID_TRACK_ID)
+					{
+						Debug("Video codec %s is not compatible with requested output codecs.\n", name);
 					}
 				}
 			}
@@ -866,7 +884,7 @@ video_track_loop:
 			hintId = MP4FindTrackId(mp4, idxTrack , MP4_HINT_TRACK_TYPE, 0);
 		}
 
-		if ( lastTrackMatch >= 0)
+		if ( lastTrackMatch !=  MP4_INVALID_TRACK_ID)
 		{
 			if (secondary)
 			{
@@ -891,7 +909,7 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
 {
     if (mediatracks[MP4_TEXT_TRACK] != NULL)
     {
-        Error("Audio track is already open.\n");
+        Error("Text track is already open.\n");
         return 0;
     }
 
@@ -900,7 +918,7 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
 		redenc = new RTPRedundantEncoder(pt);
     }
     
-    MP4TrackId textId = MP4FindTrackId(mp4, 0, MP4_TEXT_TRACK_TYPE, 0);
+    MP4TrackId textId = MP4FindTrackId(mp4, 0, MP4_SUBTITLE_TRACK_TYPE, 0);
     
     if (textId != MP4_INVALID_TRACK_ID)
     {

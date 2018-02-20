@@ -31,7 +31,7 @@ public:
 	{
 	    if (name == NULL) return false;
 	    
-	    if ( strcmp(name, "PCMA") || strcmp(name, "alaw") == 0)
+	    if ( strcmp(name, "PCMA") == 0 || strcmp(name, "alaw") == 0)
 	    {
 		c = PCMA;
 		return true;
