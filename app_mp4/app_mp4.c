@@ -282,8 +282,6 @@ static int mp4_play(struct ast_channel *chan, void *data)
                 return -1;
         }
 
-	ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play [%s].\n", args.filename);
-
 	/* Reset dtmf buffer */
 	memset(dtmfBuffer,0,MAX_DTMF_BUFFER_SIZE);
 
@@ -299,7 +297,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	/* Parse input data */
 	if (!ast_strlen_zero(args.options) &&
 			ast_app_parse_options(mp4play_exec_options, &opts, opt_args, args.options)) {
-		ast_log(LOG_WARNING, "mp4play cannot parse options\n");
+		ast_log(LOG_WARNING, "mp4play: cannot parse options\n");
 		res = -1;
 		goto clean;
 	}
@@ -310,6 +308,8 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		res = -1;
 		goto clean;
 	}
+
+	ast_verbose(VERBOSE_PREFIX_3 "MP4Play [%s].\n", args.filename);
 
 	/* If we have DTMF number of digits options chek it */
 	if (ast_test_flag(&opts, OPT_NOOFDTMF) && !ast_strlen_zero(opt_args[OPT_ARG_NOOFDTMF])) {
@@ -375,7 +375,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		strcpy( cformat1, args.filename );
 	}
 	
-	ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play [%s].\n", cformat1);
+	ast_verbose(VERBOSE_PREFIX_3 "MP4Play [%s].\n", cformat1);
 	mp4 = MP4Read(cformat1);
 	
 	/* If not valid */
