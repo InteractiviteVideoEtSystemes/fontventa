@@ -9,10 +9,10 @@ libmp4av.a:
 mp4creator-util: libmp4av.a
 	cd mp4creator ; make
 
-libmedikit:
+libmedkit.a:
 	cd libmedikit; make
 
-app_mp4.so:
+app_mp4.so: libmedkit.a
 	cd app_mp4; make
 
 app_transcoder.so:
