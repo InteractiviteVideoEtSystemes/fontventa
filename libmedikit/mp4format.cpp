@@ -1024,6 +1024,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 				return NULL;
 			}
 			
+			Debug("mp4play: got frame from media %d\n", trackId);
 			next[trackId] = mediatracks[trackId]->GetNextFrameTime();
 			
 			if ( trackId == MP4_TEXT_TRACK )
@@ -1216,7 +1217,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 	    
 	    if ( haveAudio )
 	    {
-			AudioCodec::Type acodecList[3];
+			AudioCodec::Type acodecList[10];
 			unsigned int nbACodecs = 0;
 			AudioCodec::Type ac = (AudioCodec::Type) -1;
 
@@ -1227,7 +1228,10 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 				return NULL;
 			}
 			
-			nbACodecs = AstFormatToCodecList(chan->nativeformats, acodecList, 3);
+			// Add additionnal codecs to activate trancoding if nativeformat are not enough
+			haveAudio |= AST_FORMAT_ALAW | AST_FORMAT_ULAW | AST_FORMAT_SLINEAR;
+			
+			nbACodecs = AstFormatToCodecList(haveAudio, acodecList, 10);
 			
 			if ( p->OpenTrack(acodecList, nbACodecs, ac, true) < 0 )
 			{
@@ -1307,6 +1311,15 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 				if ( ! MediaFrameToAstFrame2(f, *it, f2, p2->buffer, sizeof(p2->buffer))  )
 				{
 					return -5; /* incompatible codec read from MP4 file or unsupported media */
+				}
+				
+				if (f->GetType() == MediaFrame::Audio)
+				{
+					if (f2->subclass != chan->writeformat)
+					{
+						Log("mp4play: activating audio transcoding.\n");
+						ast_set_write_format(chan, f2->subclass);
+					}
 				}
 				
 				if ( ast_write(chan, &f2) < 0)
