@@ -123,6 +123,7 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 				Debug("Codec %s is not supported by asterisk.\n", AudioCodec::GetNameFor(af->GetCodec()) );
 				return false;
 			}
+			astf.samples = af->GetLength() / ( af->GetRate() / 1000 );
 			break;
 			
 		case MediaFrame::Video:
