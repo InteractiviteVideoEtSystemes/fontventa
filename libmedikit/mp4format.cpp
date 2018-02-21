@@ -978,7 +978,6 @@ bool mp4player::GetNextTrackAndTs(int & trackId, QWORD & ts)
 			trackId = i;
 		}
 	}
-	
 	return (ts != MP4_INVALID_TIMESTAMP);
 }
 
@@ -992,7 +991,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 	
 	DWORD now = getUpdDifTime(&startPlaying);
 	
-    if ( ! Eof() )
+        if ( ! Eof() )
 	{
 		
 		if ( ! GetNextTrackAndTs(trackId, t) )
@@ -1003,7 +1002,10 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 		
 		if ( now < t )
 		{
+			// we need to wait
+			waittime = t - now;
 			errcode = 0;
+			//Debug("mp4play: case  now < t. waittime=%lu\n", waittime);
 			return NULL;
 		}
 		
@@ -1070,10 +1072,14 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 			waittime = 0;
 		}
 	}
+	else
+	{
+		Debug("mp4Play: eof.\n");
+	}
 	return f2;
 }
 
-virtual mp4player::~mp4player()
+mp4player::~mp4player()
 {
     for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
     {
@@ -1279,8 +1285,14 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 	{
 		MediaFrame * f = p2->GetNextFrame(ret, wait);
 	
-		if ( f == NULL || ret < 0 ) return ret;
-		
+		if ( f == NULL )
+		{
+			if ( ret == 0 )
+				return wait;
+			else
+				return ret;
+		}
+
 		if ( f->HasRtpPacketizationInfo() )
 		{
 			MediaFrame::RtpPacketizationInfo & pinfo = f->GetRtpPacketizationInfo();
@@ -1299,6 +1311,7 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 				
 				if ( ast_write(chan, &f2) < 0)
 				{
+					Error("mp4play: failed to write frame with format %x.\n", f2.subclass );
 					return -6; /* write error */ 
 				}
 				

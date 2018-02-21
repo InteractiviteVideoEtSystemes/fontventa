@@ -133,6 +133,7 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 				Debug("Codec %s is not supported by asterisk.\n", VideoCodec::GetNameFor(vf->GetCodec()) );
 				return false;
 			}
+			if (rtppak->IsMark() ) astf.subclass |= 0x1;
 			break;
 			
 		case MediaFrame::Text:
@@ -140,6 +141,7 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 			tf = (TextFrame *) mf;
 			astf.frametype = AST_FRAME_TEXT;
 		   	astf.subclass = AST_FORMAT_RED;
+			if (rtppak->IsMark() ) astf.subclass |= 0x1;
 			break;
 		
 		default:
@@ -180,7 +182,6 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 	// Copy frame timestamp
 	ast_set_flag(&astf, AST_FRFLAG_HAS_TIMING_INFO);
 	astf.ts = mf->GetTimeStamp();
-	if (rtppak->IsMark() ) astf.subclass |= 0x1;
 	
 	return true;	
 }
