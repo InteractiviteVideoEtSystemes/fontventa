@@ -884,6 +884,7 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 				
 			frame->AddRtpPacket(nbdel, rttstr.length() - nbdel, NULL, 0, true);
 		}
+		frame->SetTimestamp(startTime);
 	    }
 	    else
 	    {
@@ -893,10 +894,10 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 	}
 	else
 	{
-		 frame->SetLength(0);
-		 frame->SetTimestamp(startTime);
+		frame->SetLength(0);
 	}
-	
+
+	frame->SetTimestamp(startTime);
 	return frame;
 }
 

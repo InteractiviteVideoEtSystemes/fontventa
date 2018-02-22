@@ -29,6 +29,7 @@ public:
 	
 	void GetTextDiff(const std::wstring & sub, unsigned int & nbdel, std::wstring & diff);
 	void GetTextDiff(const std::string & sub, unsigned int & nbdel, std::string & diff);
+	void Reset();
 
 private:
 	std::wstring line;

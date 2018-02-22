@@ -222,3 +222,8 @@ void SubtitleToRtt::GetTextDiff(const std::wstring & sub, unsigned int & nbdel, 
 	}
 	line = sub;
 }
+
+void SubtitleToRtt::Reset()
+{
+	line.clear();
+}

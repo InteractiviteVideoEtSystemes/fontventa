@@ -63,7 +63,10 @@ class RTPRedundantEncoder
 public:
     RTPRedundantEncoder(BYTE ptype);
     ~RTPRedundantEncoder();
-    
+    void SetPType(BYTE ptype)
+    {
+	this->ptype = ptype;
+    }
     void Encode( MediaFrame * frame);
     void EncodeBOM();
     //void EncodeNULL();

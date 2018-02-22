@@ -1039,8 +1039,12 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 				// Special case for text
 				if (redenc) 
 				{
+					DWORD ts = f2->GetTimeStamp();
 					redenc->Encode(f2);
 					f2 = redenc->GetRedundantPayload();
+					f2->SetTimestamp(ts);
+					Debug("Encoded RED frame has %d len.\n",
+						f2->GetLength());
 				}
 				
 				errcode = 1;
