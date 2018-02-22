@@ -92,8 +92,6 @@ static BYTE BOMUTF8[]			= {0xEF,0xBB,0xBF};
 
 void RTPRedundantEncoder::Encode(MediaFrame * frame)
 {
-    //BYTE buffer[MTU];
-    //Get first
     BYTE* red = (BYTE *) redFrame->GetData();
     //Init buffer length
     DWORD bufferLen = 0;
@@ -170,6 +168,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
             //Copy
             memcpy(red,frame->GetData(),frame->GetLength());
             //Serialize data
+			red += frame->GetLength();
             bufferLen += frame->GetLength();
             //Push frame to the redundancy queue
             reds.push_back(frame->Clone() );
@@ -223,7 +222,8 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
     }
 
 	redFrame->ClearRTPPacketizationInfo();
-	redFrame->SetLength(red - redFrame->GetData());
+	//redFrame->SetLength(red - redFrame->GetData());
+	redFrame->SetLength(bufferLen);
 	redFrame->AddRtpPacket(0,redFrame->GetLength(),NULL,0,  idle && frame != NULL);
 }
 
