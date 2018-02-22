@@ -223,6 +223,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
     }
 
 	redFrame->ClearRTPPacketizationInfo();
+	redFrame->SetLength(red - redFrame->GetData());
 	redFrame->AddRtpPacket(0,redFrame->GetLength(),NULL,0,  idle && frame != NULL);
 }
 
