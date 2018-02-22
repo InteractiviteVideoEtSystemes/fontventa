@@ -43,14 +43,14 @@ QWORD Mp4Basetrack::GetNextFrameTime()
 {
     if (hinttrack != MP4_INVALID_TRACK_ID)
     {
-	QWORD ts = MP4GetSampleTime(mp4, hinttrack, sampleId);
-	//Check it
-	if (ts==MP4_INVALID_TIMESTAMP)
-		//Return it
+		QWORD ts = MP4GetSampleTime(mp4, hinttrack, sampleId);
+		//Check it
+		if (ts==MP4_INVALID_TIMESTAMP)
+			//Return it
+			return ts;
+		//Convert to miliseconds
+		ts = MP4ConvertFromTrackTimestamp(mp4, hinttrack, ts, 1000);
 		return ts;
-	//Convert to miliseconds
-	ts = MP4ConvertFromTrackTimestamp(mp4, hinttrack, ts, 1000);
-	return ts;
     }
     else
     {
@@ -617,6 +617,12 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		{	
 			// invalid codec
 			return -2;
+		}
+		
+		if ( f2->HasRtpPacketizationInfo() )
+		{
+			Log("Recorded videoframe has %d packets.\n",
+				f2->GetRtpPacketizationInfo().size() );
 		}
 		
 		// If video is not started, wait for the first I Frame
