@@ -927,6 +927,10 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
 		mediatracks[MP4_TEXT_TRACK] = new Mp4TextTrack(mp4, textId);
 		next[MP4_TEXT_TRACK] = mediatracks[MP4_TEXT_TRACK]->GetNextFrameTime();
 		Log("Opened text track ID %d.\n", textId);
+		if ( next[MP4_TEXT_TRACK] == MP4_INVALID_TIMESTAMP)
+		{
+			 Error("No valid subtitle sample !\n");
+		}
 		return 1;
     }
     else

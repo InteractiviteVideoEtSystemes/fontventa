@@ -176,7 +176,7 @@ void SubtitleToRtt::GetTextDiff(const std::string & sub, unsigned int & nbdel, s
 {
 	std::wstring wdiff;	
 	wdiff.clear();
-	
+	parser.Reset();
 	parser.Parse( (BYTE *) sub.data(), sub.length() );
 	GetTextDiff(parser.GetWString(), nbdel, wdiff);
 	if (!wdiff.empty() )

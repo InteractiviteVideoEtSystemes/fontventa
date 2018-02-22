@@ -41,21 +41,24 @@ Mp4Basetrack::Mp4Basetrack(MP4FileHandle mp4, unsigned long initialDelay)
 	
 QWORD Mp4Basetrack::GetNextFrameTime()
 {
+    QWORD ts;
+
     if (hinttrack != MP4_INVALID_TRACK_ID)
     {
-		QWORD ts = MP4GetSampleTime(mp4, hinttrack, sampleId);
-		//Check it
-		if (ts==MP4_INVALID_TIMESTAMP)
-			//Return it
-			return ts;
-		//Convert to miliseconds
-		ts = MP4ConvertFromTrackTimestamp(mp4, hinttrack, ts, 1000);
-		return ts;
+	ts = MP4GetSampleTime(mp4, hinttrack, sampleId);
+        if (ts==MP4_INVALID_TIMESTAMP)
+	    return ts;
+        ts = MP4ConvertFromTrackTimestamp(mp4, hinttrack, ts, 1000);
     }
     else
     {
-	 MP4GetSampleTime(mp4, mediatrack, sampleId);
+	ts = MP4GetSampleTime(mp4, mediatrack, sampleId);
+        if (ts==MP4_INVALID_TIMESTAMP)
+	    return ts;
+        ts = MP4ConvertFromTrackTimestamp(mp4, mediatrack, ts, 1000);
     }
+
+    return ts;
 }
 
 const MediaFrame * Mp4Basetrack::ReadFrame()
@@ -678,7 +681,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	}
 }
 
-Mp4TextTrack::Mp4TextTrack(MP4FileHandle mp4, MP4TrackId mediaTrack) : Mp4Basetrack(mp4, mediaTrack, -1) 
+Mp4TextTrack::Mp4TextTrack(MP4FileHandle mp4, MP4TrackId mediaTrack) : Mp4Basetrack(mp4, mediaTrack, MP4_INVALID_TRACK_ID) 
 {
      Log("-mp4recorder: creating subtitle to TTR renderer.\n"); 
     conv1 = new SubtitleToRtt();
@@ -804,6 +807,7 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 
 	if ( dataLen <= sizeof(buffer))
 	{
+		u_int8_t * buf2 = buffer;
 		// Get data pointer
 		//Get max data lenght
 		
@@ -812,7 +816,7 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 				mp4,				// MP4FileHandle hFile
 				mediatrack,				// MP4TrackId hintTrackId
 				sampleId++,			// MP4SampleId sampleId,
-				(u_int8_t **) &buffer,		// u_int8_t** ppBytes
+				(u_int8_t **) &buf2,		// u_int8_t** ppBytes
 				(u_int32_t *) &dataLen,		// u_int32_t* pNumBytes
 				&startTime,			// MP4Timestamp* pStartTime
 				&duration,			// MP4Duration* pDuration
@@ -827,9 +831,14 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 		//Get length
 		if (dataLen>2)
 		{
+			uint32_t len2 = dataLen;
 			//Get string length
 			dataLen = buffer[0]<<8 | buffer[1];
-			if (dataLen > sizeof(buffer) ) dataLen = sizeof(buffer);
+			if (dataLen > sizeof(buffer) ) 
+			{
+				Log("Subtitle stored length %d is too long. OrigLen=%d\n", dataLen,len2);
+				dataLen = len2;
+			}
 			//Set frame
 			//frame->SetFrame(startTime,data+2+renderingOffset,len-renderingOffset-2);
 		}
@@ -844,34 +853,37 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 		dataLen = 0;
 	}
 		
+	if ( frame == NULL) frame = new TextFrame(true);		
+
 	if (dataLen > 0)
 	{
-	// If SubtitleToRtt converter is allocated, it means that we
-	// need to compute the difference between the previous subtile and
-	// the current one in order to render this as real time text
-	    if ( frame == NULL) frame = new TextFrame(true);		
+	    // If SubtitleToRtt converter is allocated, it means that we
+	    // need to compute the difference between the previous subtile and
+	    // the current one in order to render this as real time text
 	    TextFrame * tf = (  TextFrame * ) frame;
 
 	    if ( conv1 != NULL )
 	    {	
-			std::string txtsample((const char *) &buffer[2+renderingOffset], dataLen - renderingOffset);
-			std::string rttstr;
-			unsigned int nbdel = 0;
+		std::string txtsample((const char *) &buffer[2+renderingOffset], dataLen - renderingOffset);
+		std::string rttstr;
+		unsigned int nbdel = 0;
+	
+		Debug("mp4play: read subtitle %s. renderingOffset=%d, len=%d.\n",
+			txtsample.c_str(), renderingOffset, dataLen - renderingOffset);		
+		conv1->GetTextDiff(txtsample, nbdel, rttstr);
+		if (nbdel > 0) rttstr.insert(0, 0x08, nbdel);
 			
-			conv1->GetTextDiff(txtsample, nbdel, rttstr);
-			if (nbdel > 0) rttstr.insert(0, 0x08, nbdel);
-			
-			if ( frame->Alloc( rttstr.length()) )
+		if ( frame->Alloc( rttstr.length()) )
+		{
+			tf->SetFrame(startTime, (const BYTE *)rttstr.data(), rttstr.length() );
+			frame->ClearRTPPacketizationInfo();
+			if (nbdel > 0)
 			{
-				tf->SetFrame(startTime, (const BYTE *)rttstr.data(), rttstr.length() );
-				frame->ClearRTPPacketizationInfo();
-				if (nbdel > 0)
-				{
-					frame->AddRtpPacket(0, nbdel, NULL, 0, true);
-				}
-				
-				frame->AddRtpPacket(nbdel, rttstr.length() - nbdel, NULL, 0, true);
+				frame->AddRtpPacket(0, nbdel, NULL, 0, true);
 			}
+				
+			frame->AddRtpPacket(nbdel, rttstr.length() - nbdel, NULL, 0, true);
+		}
 	    }
 	    else
 	    {
