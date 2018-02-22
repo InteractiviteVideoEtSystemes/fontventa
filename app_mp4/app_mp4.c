@@ -205,7 +205,7 @@ static int mp4_play_process_frame(struct ast_channel * chan, struct ast_frame *f
 			/* Continue after exit */
 			res = 0;
 			/* Log */
-			ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play interrupted by DTMF %s\n", dtmf);
+			ast_verbose(VERBOSE_PREFIX_3 " MP4Play interrupted by DTMF %s\n", dtmf);
 
 			
 					/* Check if we have to append the DTMF and wait for more than one digit */
@@ -219,7 +219,7 @@ static int mp4_play_process_frame(struct ast_channel * chan, struct ast_frame *f
 				res = 0;
 				/* Stop */
 				stop = true;	
-				ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play stops: all expected %d DTMF have been input.\n", numberofDigits);
+				ast_verbose(VERBOSE_PREFIX_3 " MP4Play stops: all expected %d DTMF have been entered.\n", numberofDigits);
 			}
 		} 
 		/* Check for dtmf extension in context */
@@ -447,15 +447,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		    res = mp4_play_process_frame(chan, f, dtmfBuffer, stopChars, numberofDigits, varName);
 		    if (res < 0)
 		    {
-			if (res == -3) 
-			{
-			    // Jump to extension (is it still valid ?)
-			    res = f->subclass;
-			    ast_frfree(f);
-			}
-			else
-			    res = -1;
-			break;
+			goto end;
 		    }
 		    
 		    proctime = ast_tvdiff_ms(ast_tvnow(), tvs);
