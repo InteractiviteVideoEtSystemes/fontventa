@@ -622,6 +622,7 @@ mp4player::mp4player(void * ctxdata, MP4FileHandle mp4)
 	mediatracks[MP4_TEXT_TRACK]  = NULL;
 	next[MP4_TEXT_TRACK] = MP4_INVALID_TIMESTAMP;
 	redenc = NULL;	
+	gettimeofday(&startPlaying,0);
 }
 
 
@@ -978,6 +979,7 @@ bool mp4player::GetNextTrackAndTs(int & trackId, QWORD & ts)
 			trackId = i;
 		}
 	}
+
 	return (ts != MP4_INVALID_TIMESTAMP);
 }
 
@@ -989,7 +991,8 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 	QWORD t = 0;
 	int trackId;
 	
-	DWORD now = getUpdDifTime(&startPlaying);
+	//DWORD now = getUpdDifTime(&startPlaying);
+	DWORD now = getDifTime(&startPlaying)/1000;
 	
         if ( ! Eof() )
 	{
@@ -1024,7 +1027,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 				return NULL;
 			}
 			
-			Debug("mp4play: got frame from media %d\n", trackId);
+			//Debug("mp4play: got frame from media %d\n", trackId);
 			next[trackId] = mediatracks[trackId]->GetNextFrameTime();
 			
 			if ( trackId == MP4_TEXT_TRACK )
@@ -1060,6 +1063,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 			if ( now >= t )
 			{
 				// we do not need to wait
+				//Debug("no need to wait after frame is received f2=%p, now=%lld, ts =%lld\n", f2, now, t);
 				waittime = 0;
 			}
 			else
@@ -1070,12 +1074,14 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 		}
 		else
 		{
+			Debug("failed to get next TS.\n");
 			waittime = 0;
 		}
 	}
 	else
 	{
 		Debug("mp4Play: eof.\n");
+		errcode = -1;
 	}
 	return f2;
 }
@@ -1294,7 +1300,10 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 			if ( ret == 0 )
 				return wait;
 			else
+			{
+				if (ret != -1) Error("GetNextFrame returned %d.\n", ret);
 				return ret;
+			}
 		}
 
 		if ( f->HasRtpPacketizationInfo() )
@@ -1315,10 +1324,10 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 				
 				if (f->GetType() == MediaFrame::Audio)
 				{
-					if (f2->subclass != chan->writeformat)
+					if (f2.subclass != chan->writeformat)
 					{
 						Log("mp4play: activating audio transcoding.\n");
-						ast_set_write_format(chan, f2->subclass);
+						ast_set_write_format(chan, f2.subclass);
 					}
 				}
 				
