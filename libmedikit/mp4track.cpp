@@ -174,7 +174,7 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 	    if ( !MP4ReadRtpPacket(
 		    mp4,				// MP4FileHandle hFile
 		    hinttrack,				// MP4TrackId hintTrackId
-		    packetIndex++,			// u_int16_t packetIndex
+		    packetIndex,			// u_int16_t packetIndex
 		    (u_int8_t **) &rtpdata,		// u_int8_t** ppBytes
 		    &rtpLen,					// u_int32_t* pNumBytes
 		     0,				// u_int32_t ssrc DEFAULT(0)
@@ -195,7 +195,6 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 			pos += rtpLen;
 			free(rtpdata);
 		}
-	    
 	}
 
 	sampleId++;
@@ -617,12 +616,6 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 		{	
 			// invalid codec
 			return -2;
-		}
-		
-		if ( f2->HasRtpPacketizationInfo() )
-		{
-			Log("Recorded videoframe has %d packets.\n",
-				f2->GetRtpPacketizationInfo().size() );
 		}
 		
 		// If video is not started, wait for the first I Frame
