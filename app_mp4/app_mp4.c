@@ -267,7 +267,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	struct ast_flags opts = { 0, };
 	char *opt_args[OPT_ARG_ARRAY_SIZE];
 	
-	char cformat1[200] = {0};
+	char cformat1[_STR_CODEC_SIZE] = {0};
 	char cformat2[_STR_CODEC_SIZE] = {0};
 	struct timeval tv, tvs;
 	int ms = 0;
@@ -395,7 +395,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		goto end;
 	}
 	
-	ast_log(LOG_DEBUG, "Native formats:%s , Chann capability ( videocaps.cap ):%s\n", 
+	ast_log(LOG_DEBUG, "Native formats:%s , Channel capabilites ( videocaps.cap ):%s\n", 
 		ast_getformatname_multiple(cformat1,_STR_CODEC_SIZE, chan->nativeformats),
 		ast_getformatname_multiple(cformat2,_STR_CODEC_SIZE, chan->channelcaps.cap));
 
@@ -410,7 +410,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 	    {
 	        if (ms == -1)
 		{
-		    ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play [%s] stopped (end of file))", args.filename); 
+		    ast_verbose(VERBOSE_PREFIX_3 " MP4Play [%s] stopped (end of file)\n", args.filename); 
 		    res = 0;
 		}
 		else
@@ -422,6 +422,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		break;
 	    }
 	    
+            //ast_log(LOG_DEBUG, "mp4_play: next frame to be streamed in %d ms.\n", ms);
 	    // Wait x ms 
 	    while (ms > 0)
 	    {
@@ -435,6 +436,14 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		{
 		    int proctime;
 		    struct ast_frame * f = ast_read(chan);
+		    
+		    if (f == NULL)
+		    {
+		        ast_verbose(VERBOSE_PREFIX_3 " MP4Play [%s] stopped (hangup)\n", args.filename);
+		        res = 0;
+			goto end;
+		    }
+
 		    res = mp4_play_process_frame(chan, f, dtmfBuffer, stopChars, numberofDigits, varName);
 		    if (res < 0)
 		    {
@@ -454,7 +463,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		}
 		else if (ms < 0)
 		{
-		    ast_verbose(VERBOSE_PREFIX_3 " -- MP4Play [%s] stopped (hangup))", args.filename);
+		    ast_verbose(VERBOSE_PREFIX_3 " MP4Play [%s] stopped (error)\n", args.filename);
 		    res = 0;
 		}
 	    }
@@ -613,7 +622,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	}
 
 	ast_verbose(VERBOSE_PREFIX_3 
-		    "MP4Save [%s], maxduration=%ds", 
+		    "MP4Save [%s], maxduration=%ds\n", 
 		   (char*)data, maxduration/1000);
 
 	/* Lock module */
@@ -699,7 +708,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	}
 	else
 	{
-		if ( ast_set_read_format(chan, AST_FORMAT_ALAW) )
+		if ( ast_set_read_format(chan, AST_FORMAT_ULAW) )
 			ast_log(LOG_WARNING, "mp4_save: Unable to set read format to ALAW!\n");
 	}     
 

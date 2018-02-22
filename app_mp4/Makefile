@@ -71,3 +71,8 @@ install64:
 	install $(SHAREDOS) $(DESTDIR)/usr/lib64/asterisk/modules
 	echo "64 bits install"
 
+install_sudo:
+	cd ../libmedikit; make
+	sudo make install
+	sudo /usr/sbin/asterisk -rx 'restart now'
+	sudo /usr/sbin/asterisk -rx 'core set debug 2'
