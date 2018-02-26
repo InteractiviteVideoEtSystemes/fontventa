@@ -1,5 +1,6 @@
 #include "medkit/text.h"
 #include "medkit/red.h"
+#include "medkit/log.h"
 
 RTPRedundantPayload::RTPRedundantPayload(BYTE *data,DWORD size)
 {
@@ -193,12 +194,12 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
     {
 	    isNotNull=true;
             //Not idle anymore
-            if ( frame->GetLength() != 3 || memcmp(frame->GetData(), BOMUTF8, 3) != 0) idle = false;
+            if ( frame->GetLength() != 0 && (frame->GetLength() != 3 || memcmp(frame->GetData(), BOMUTF8, 3) != 0) ) idle = false;
             lastTime = frame->GetTimeStamp();
     }
     else
     {
-        int nbactivefr;
+        int nbactivefr = 0;
 		
         for (RedFrames::iterator it = reds.begin();it!=reds.end();++it)
         {
@@ -207,16 +208,16 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
             //If it is not empty
             if (f->GetLength())
             {
-				isNotNull=true;
+		isNotNull=true;
                 if ( f->GetLength() == 3 && memcmp(f->GetData(), BOMUTF8, 3) == 0)
                 {
-					// BOM frame
+			// BOM frame
                 }
-				else if ( f->GetLength() == 0)
-				{
-					// empty frame
-				}
-				else
+		else if ( f->GetLength() == 0)
+		{
+			// empty frame
+		}
+		else
                 {
                     nbactivefr++;
                 }
@@ -226,6 +227,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
         idle = (nbactivefr == 0);
     }
 
+	Debug("Got red frame. idle=%d.\n", idle);
 	redFrame->ClearRTPPacketizationInfo();
 	//redFrame->SetLength(red - redFrame->GetData());
 	redFrame->SetLength(bufferLen);

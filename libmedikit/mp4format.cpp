@@ -33,6 +33,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
 		mediatracks[i] = NULL;
     }
 	pcstream = NULL;
+    waitNextVideoFrame = false;
 }
 
 const char * idxToMedia(int i)

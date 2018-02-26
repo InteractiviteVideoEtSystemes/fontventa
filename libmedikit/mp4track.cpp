@@ -24,6 +24,7 @@ Mp4Basetrack::Mp4Basetrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId 
 	frame = NULL;
 	numHintSamples = 0;
 	totalDuration = 0;
+	textfile = -1;
 }
 
 
