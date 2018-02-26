@@ -753,7 +753,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	data[0] = subsize>>8;
 	data[1] = subsize & 0xFF;
 	
-	memcpy(data+2,subtitle.c_str(), subsize);
+	memcpy(data+2, subtitle.data(), subsize);
 	    
 	MP4WriteSample( mp4, mediatrack, data, subsize+2, frameduration, 0, true );
 	    
@@ -833,6 +833,7 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 		{
 			uint32_t len2 = dataLen;
 			//Get string length
+			u_int32_t origLen = dataLen;
 			dataLen = buffer[0]<<8 | buffer[1];
 			if (dataLen > sizeof(buffer) ) 
 			{
@@ -868,8 +869,8 @@ const MediaFrame * Mp4TextTrack::ReadFrame()
 		std::string rttstr;
 		unsigned int nbdel = 0;
 	
-		Debug("mp4play: read subtitle %s. renderingOffset=%d, len=%d.\n",
-			txtsample.c_str(), renderingOffset, dataLen - renderingOffset);		
+		//Debug("mp4play: read subtitle %s. renderingOffset=%d, len=%d.\n",
+		//	txtsample.c_str(), renderingOffset, dataLen - renderingOffset);		
 		conv1->GetTextDiff(txtsample, nbdel, rttstr);
 		if (nbdel > 0) rttstr.insert(0, 0x08, nbdel);
 			

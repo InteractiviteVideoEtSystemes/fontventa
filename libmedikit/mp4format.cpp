@@ -623,6 +623,7 @@ mp4player::mp4player(void * ctxdata, MP4FileHandle mp4)
 	next[MP4_TEXT_TRACK] = MP4_INVALID_TIMESTAMP;
 	redenc = NULL;	
 	gettimeofday(&startPlaying,0);
+	nextBOMorRepeat = MP4_INVALID_TIMESTAMP;
 }
 
 
@@ -1007,6 +1008,26 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 			return NULL;
 		}
 		
+		// Handle RTT rentransmission and regular BOM sending in idle phase
+		// TODO: 
+		if (redenc && nextBOMorRepeat != MP4_INVALID_TIMESTAMP)
+		{
+			if (now >= nextBOMorRepeat && now < next[MP4_TEXT_TRACK])
+			{
+				if (redenc->IsIdle())
+					redenc->EncodeBOM();
+				else
+					redenc->Encode(NULL);
+								
+				if (redenc->IsIdle())
+					nextBOMorRepeat = now + 5000;
+				else
+					nextBOMorRepeat = now + 100;
+				
+				return redenc->GetRedundantPayload();
+			}
+		}
+		
 		if ( now < t )
 		{
 			// we need to wait
@@ -1023,7 +1044,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 			f2 = NULL;
 		}
 		else
-		{
+		{			
 			f2 = (MediaFrame *) mediatracks[trackId]->ReadFrame();
 			if ( f2 == NULL )
 			{
@@ -1043,8 +1064,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 					redenc->Encode(f2);
 					f2 = redenc->GetRedundantPayload();
 					f2->SetTimestamp(ts);
-					Debug("Encoded RED frame has %d len.\n",
-						f2->GetLength());
+					nextBOMorRepeat = now + 100;
 				}
 				
 				errcode = 1;
@@ -1078,6 +1098,19 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 			{
 				// we need to wait
 				waittime = t - now;
+				
+				// If RTT is used
+				if (redenc)
+				{
+					if (redenc->IsIdle())
+					{
+						if (waittime > 5000) waittime = 5000;
+					}
+					else
+					{
+						if (waittime > 100) waittime = 100;
+					}
+					
 			}
 		}
 		else

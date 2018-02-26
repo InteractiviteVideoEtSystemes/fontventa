@@ -186,6 +186,7 @@ private:
     void * ctxdata;
     Mp4Basetrack * mediatracks[5];
 	QWORD next[5];
+	QWORD nextBOMorRepeat;
     MP4FileHandle mp4;
     
     RTPRedundantEncoder * redenc;

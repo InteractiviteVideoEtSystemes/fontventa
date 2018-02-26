@@ -135,7 +135,10 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 				return false;
 			}
 			if (rtppak->IsMark() ) astf.subclass |= 0x1;
-			ast_set_flag(&astf, AST_FRFLAG_HAS_TIMING_INFO);
+			if ( rtppak == mf->GetPacketizationInfo().begin() ) 
+				astf.samples = mf->GetDuration() * 90;
+			else
+				astf.samples = 0;
 			break;
 			
 		case MediaFrame::Text:

@@ -163,8 +163,8 @@ class Mp4TextTrack : public Mp4Basetrack
 public:
     Mp4TextTrack(MP4FileHandle mp4, int textfile, unsigned long delay) : Mp4Basetrack(mp4, delay) 
     { 
-	this->textfile = textfile;
-	conv1 = NULL;
+		this->textfile = textfile;
+		conv1 = NULL;
     }
     
     Mp4TextTrack(MP4FileHandle mp4, MP4TrackId mediaTrack);
@@ -177,8 +177,8 @@ public:
     
 private:
     TextEncoder encoder;
-    MP4TrackId rawtexttrack;
+    //MP4TrackId rawtexttrack;
     int textfile;
     SubtitleToRtt * conv1;
-    BYTE buffer[600];
+    BYTE buffer[600];	
 };

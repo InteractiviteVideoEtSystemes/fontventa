@@ -65,11 +65,11 @@ public:
     ~RTPRedundantEncoder();
     void SetPType(BYTE ptype)
     {
-	this->ptype = ptype;
+		this->ptype = ptype;
     }
     void Encode( MediaFrame * frame);
     void EncodeBOM();
-    //void EncodeNULL();
+    bool IsIdle() { return idle; }
 	
 	/**
 	 * Get redundent frame with packetizaltion info.

@@ -86,6 +86,7 @@ RTPRedundantEncoder::RTPRedundantEncoder(BYTE ptype)
 	this->ptype = ptype;
 	redFrame = new TextFrame(true);
 	redFrame->Alloc(1400);
+	idle = true;
 }
 
 static BYTE BOMUTF8[]			= {0xEF,0xBB,0xBF};
@@ -192,7 +193,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
     {
 			isNotNull=true;
             //Not idle anymore
-            idle = false;
+            if ( f->GetLength() != 3 || memcmp(f->GetData(), BOMUTF8, 3) != 0) idle = false;
             lastTime = frame->GetTimeStamp();
     }
     else
@@ -209,8 +210,12 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
 				isNotNull=true;
                 if ( f->GetLength() == 3 && memcmp(f->GetData(), BOMUTF8, 3) == 0)
                 {
-
+					// BOM frame
                 }
+				else if ( f->GetLength() == 0)
+				{
+					// empty frame
+				}
 				else
                 {
                     nbactivefr++;
