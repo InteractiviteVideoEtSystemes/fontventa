@@ -191,9 +191,9 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
     //Calculate timeouts
     if (frame)
     {
-			isNotNull=true;
+	    isNotNull=true;
             //Not idle anymore
-            if ( f->GetLength() != 3 || memcmp(f->GetData(), BOMUTF8, 3) != 0) idle = false;
+            if ( frame->GetLength() != 3 || memcmp(frame->GetData(), BOMUTF8, 3) != 0) idle = false;
             lastTime = frame->GetTimeStamp();
     }
     else

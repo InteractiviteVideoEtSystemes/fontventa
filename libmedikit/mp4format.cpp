@@ -1110,7 +1110,7 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 					{
 						if (waittime > 100) waittime = 100;
 					}
-					
+				}		
 			}
 		}
 		else
@@ -1357,8 +1357,9 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 				 it++ )
 			
 			{
+				bool  first = (it == pinfo.begin());
 				
-				if ( ! MediaFrameToAstFrame2(f, *it, f2, p2->buffer, sizeof(p2->buffer))  )
+				if ( ! MediaFrameToAstFrame2(f, *it, first, f2, p2->buffer, sizeof(p2->buffer))  )
 				{
 					return -5; /* incompatible codec read from MP4 file or unsupported media */
 				}

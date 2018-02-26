@@ -99,10 +99,10 @@ int CodecToAstFormat( VideoCodec::Type vc, int & fmt )
 
 bool MediaFrameToAstFrame(const MediaFrame * mf, struct ast_frame & astf)
 {
-	return MediaFrameToAstFrame2(mf, (MediaFrame::RtpPacketization *) NULL, astf, NULL, 0);
+	return MediaFrameToAstFrame2(mf, (MediaFrame::RtpPacketization *) NULL, false, astf, NULL, 0);
 }
 
-bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization * rtppak, struct ast_frame & astf, void * buffer, int len)
+bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization * rtppak, bool first, struct ast_frame & astf, void * buffer, int len)
 {
 	static const char *MP4PLAYSRC = "mp4play";
 	AudioFrame * af;
@@ -135,7 +135,7 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 				return false;
 			}
 			if (rtppak->IsMark() ) astf.subclass |= 0x1;
-			if ( rtppak == mf->GetPacketizationInfo().begin() ) 
+			if ( first ) 
 				astf.samples = mf->GetDuration() * 90;
 			else
 				astf.samples = 0;

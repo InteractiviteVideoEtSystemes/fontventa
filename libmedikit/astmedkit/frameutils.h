@@ -32,7 +32,7 @@ bool MediaFrameToAstFrame(const MediaFrame * mf, struct ast_frame & astf);
  * @param mf: media frame to convert
  *
  **/
-bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization * rtp, struct ast_frame & astf, void * buffer, int len);
+bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization * rtp, bool first, struct ast_frame & astf, void * buffer, int len);
 
 int CodecToAstFormat( AudioCodec::Type ac, int & fmt );
 int CodecToAstFormat( VideoCodec::Type vc, int & fmt );
