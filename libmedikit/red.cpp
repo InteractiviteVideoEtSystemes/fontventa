@@ -227,7 +227,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
         idle = (nbactivefr == 0);
     }
 
-	Debug("Got red frame. idle=%d.\n", idle);
+	//Debug("Got red frame. idle=%d.\n", idle);
 	redFrame->ClearRTPPacketizationInfo();
 	//redFrame->SetLength(red - redFrame->GetData());
 	redFrame->SetLength(bufferLen);

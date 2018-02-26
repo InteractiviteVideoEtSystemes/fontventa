@@ -24,7 +24,6 @@ Mp4Basetrack::Mp4Basetrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId 
 	frame = NULL;
 	numHintSamples = 0;
 	totalDuration = 0;
-	textfile = -1;
 }
 
 
@@ -684,10 +683,11 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 
 Mp4TextTrack::Mp4TextTrack(MP4FileHandle mp4, MP4TrackId mediaTrack) : Mp4Basetrack(mp4, mediaTrack, MP4_INVALID_TRACK_ID) 
 {
-     Log("-mp4recorder: creating subtitle to TTR renderer.\n"); 
+    Log("-mp4recorder: creating subtitle to TTR renderer.\n"); 
     conv1 = new SubtitleToRtt();
-    
+    textfile = -1;
 }
+
 int Mp4TextTrack::Create(const char * trackName, int codec, DWORD bitrate)
 {
     mediatrack = MP4AddSubtitleTrack(mp4,1000,384,60);
