@@ -22,39 +22,26 @@ AstFrameBuffer::AstFrameBuffer(bool blocking, bool fifo)
 	
 	this->blocking = blocking;
 	this->isfifo = fifo;
-	
-	if ( ::pipe(this->pipe) != 0 )
-	{
-		cancel = true;
-	}
-	else
-	{
-		flags = fcntl(pipe[0], F_GETFL);
-		fcntl(pipe[0], F_SETFL, flags | O_NONBLOCK);
-		flags = fcntl(pipe[1], F_GETFL);
-		fcntl(pipe[1], F_SETFL, flags | O_NONBLOCK);
-	}
 
+	pthread_mutex_init(&mutex,NULL);
+	//Create condition
+	pthread_cond_init(&cond,NULL);	
+	pcond = &cond;
+	
 	signalled = false;
 }
 
 AstFrameBuffer::~AstFrameBuffer()
 {
-     ::close(this->pipe[0]);
-     ::close(this->pipe[1]);
-     Clear();
+	pthread_mutex_destroy(&mutex);
+	pthread_cond_destroy(&cond);
+    Clear();
 }
 
 void AstFrameBuffer::Notify()
 {
-	if (blocking)
-	{
-		char c = 1;
-		::write(this->pipe[1], &c, 1);
-		signalled = true;
-	}
+	pthread_cond_signal(pcond);
 }
-
 
 
 bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
@@ -62,9 +49,12 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	DWORD seq;
 	ast_frame * f2;
 	
-	std::lock_guard<std::mutex> guard(mutex);
-	
-	if (cancel) return false;
+	pthread_mutex_lock(&mutex);
+	if (cancel) 
+	{
+		pthread_mutex_unlock(&mutex);
+		return false;
+	}
 	
 	if (ignore_cseq || isfifo)
 	{
@@ -119,7 +109,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		else 
 		{
 			//Unlock
-			mutex.unlock();
+			pthread_mutex_unlock(&mutex);
 			ast_log(LOG_WARNING, "-Out of order non recoverable packet: seq=%ld, next=%ld diff=%ld\n",
 					seq, next, next-seq);
 			return false;
@@ -136,6 +126,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	if (ignore_cseq) f2->seqno = (seq & 0xFFFF);
 	packets[seq] = f2;
 
+	pthread_mutex_unlock(&mutex);
 	//Signal
 	Notify();
 
@@ -145,13 +136,13 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 void  AstFrameBuffer::Cancel()
 {
 	//Lock
-	mutex.lock();
+	pthread_mutex_lock(&mutex);
 
 	//Canceled
 	cancel = true;
 
 	//Unlock
-	mutex.unlock();
+	pthread_mutex_unlock(&mutex);
 
 	//Signal condition
 	Notify();
@@ -159,25 +150,47 @@ void  AstFrameBuffer::Cancel()
 
 void AstFrameBuffer::HurryUp()
 {
-	//Set flag
-	mutex.lock();
+	//Lock
+	pthread_mutex_lock(&mutex);
 	hurryUp = true;
-	mutex.unlock();
+	//Unlock
+	pthread_mutex_unlock(&mutex);
 	Notify();
+}
+
+
+static int conf_wait_timeout(pthread_cond_t * p_cond, pthread_mutex_t * p_mutex, long timeout ms)
+{
+	timespec ts;
+	struct timeval now;
+		
+	gettimeofday(&now,0);
+	
+	if (ms <= 0) return 0;
+	//Calculate until when we have to sleep
+	ts.tv_sec  = (time_t) (now.tv_sec + maxWaitTime / 1000);
+	now.tv_usec += (maxWaitTime % 1000)*1000;
+	if (now.tv_usec > 1000000)
+	{
+		ts.tv_sec++;
+		now.tv_usec -= 1000000;
+	}
+	ts.tv_nsec = now.tv_usec*1000;
+	
+	return pthread_cond_timedwait(p_cond,p_mutex,&ts);
 }
 
 struct ast_frame * AstFrameBuffer::Wait(bool block)
 {
 	//NO packet
 	struct ast_frame * rtp = NULL;
-	bool packready = false;
 	//Get default wait time
 	DWORD timeout = maxWaitTime;
 	unsigned int len;
 	char buff[4];
 
 	//Lock
-	std::unique_lock<std::mutex> lock(mutex);
+	pthread_mutex_lock(&mutex);
 	
 	len = 0;
 	//While we have to wait
@@ -194,27 +207,16 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			struct ast_frame * candidate = it->second;
 			//Get time of the packet
 
-			unsigned int sz = 0;
-			sz = packets.size();
-			if (blocking)
-			{
-				packready = (sz > (maxWaitTime/20) ); 
-			}
-			else
-			{
-				//packready = (packets.size() > maxWaitTime ); 
-				packready = (sz > maxWaitTime ); 
-			}
 /*
 			if (seq != next)
 			    Log("seq=%lu, next=%lu, sz=%u, blocking=%d, maxWaitTime=%d\n", seq, next, sz, blocking,
 				maxWaitTime);
 */			
 			//Check if first is the one expected or wait if not
-			if (next==(DWORD)-1 || seq==next || hurryUp || packready)
+			if (HasPacketReady())
 			{
 				//We have it!
-				rtp = it->second;
+				rtp = it->second;0
 				nbLost = 0;
 
 				if (seq==next) 
@@ -243,28 +245,24 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 		} 
 		
 		if (blocking && block) 
-		{
-			struct pollfd ufds[1];
-			
-			mutex.unlock();
-			ufds[0].fd = pipe[0];
-			ufds[0].events = POLLIN | POLLERR | POLLHUP;
-			int ret;
-			
+		{			
 			if (maxWaitTime > 0)
-			{
-				struct pollfd ufds[1];
-				
-				ret = poll(ufds, 1, maxWaitTime);
-				if (ret == 0)
-				{
-					// timeout
-					hurryUp = true;
+			{                        				
+				ret = conf_wait_timeout(pcond,&mutex,maxWaitTime);
+                //Check if there is an errot different than timeout
+                if (ret)
+				{					
+					if (ret != ETIMEDOUT)
+                            Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
+					else
+						hurryUp = true;
 				}
 			}
 			else
 			{
-				ret = poll(ufds, 1, -1);	
+                ret = ETIMEDOUT;
+				hurryUp = false;
+				ret = pthread_cond_wait(pcond,&mutex);
 			}
 			
 			if (ret < 0)
@@ -279,11 +277,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 		}
 	}
 	
-	if (signalled) 
-	{
-		read(pipe[0], buff, 4);
-		signalled = false;
-	}
+	pthread_mutex_unlock(&mutex);
 	
 	//canceled
 	return rtp;
@@ -302,39 +296,14 @@ void AstFrameBuffer::ClearPackets()
 		packets.clear();
 }
 
-int AstFrameBuffer::FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, struct pollfd fds[], int idxMap[])
-{
-	if (nbjb > 0)
-	{
-		int nb = 0;
-		for (unsigned long i=0; i<nbjb; i++)
-		{
-			if ( jbTab[i] == NULL ) return -3;
-			
-			if ( !jbTab[i]->cancel )
-			{
-				fds[nb].fd = jbTab[i]->pipe[0];
-				fds[nb].events = POLLIN | POLLERR | POLLHUP;
-				idxMap[nb] = i;
-				nb++;
-			}
-			else
-			{
-				ast_log(LOG_DEBUG, "Stopped JB #%d will be ignored\n");
-			}
-		}
-		return nb;
-	}
-	return nbjb;
-}
 
 #define MAX_FDS_FOR_JB 50
 
 int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[])
 {
-	struct pollfd fds[MAX_FDS_FOR_JB];
-	int idxMap[MAX_FDS_FOR_JB];
 	int nb;
+	
+	if (!jbTab[0]) return -1;
 	
 	if (nbjb > MAX_FDS_FOR_JB) nbjb = MAX_FDS_FOR_JB;
 	if (nbjb > 0)
@@ -344,32 +313,32 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 			jbTabOut[i] = NULL;
 		}
 		
-		nb = AstFrameBuffer::FillFdTab(jbTab, nbjb, fds, idxMap);
-		if ( nb > 0 )
+		if ( nb > 0 && )
 		{
-			int ret = poll(fds, nb, maxWaitTime);
-			if (ret > 0)
+			/* Use condition pointer of first framebuffer. Normally, all pcond of all jitterbuffer should be the same */
+			ret = conf_wait_timeout(jbTab[0]->pcond, &jbTab[0]->mutex, maxWaitTime);
+			if (ret >= 0)
 			{
-				for (int i =0 ;i < nb; i++)
+				ret = 0;
+				for (int i =0 ;i < nbjb; i++)
 				{
-					if (fds[i].revents & POLLIN)
+					if (jbTab[i])
 					{
-						 jbTabOut[idxMap[i]] = jbTab[idxMap[i]];
-					}
-					
-					if (fds[i].revents & POLLERR)
-					{
-						ast_log(LOG_DEBUG, "fd %d error.\n", i);
-						return -20;
+						if ( jbTab[i].HasPacketReady() )
+						{
+							jbTabOut[i] = jbTab[i];
+							ret++;
+						}
 					}
 				}
 			}
-			else if (ret == 0)
+			else if (ret == ETIMEDOUT)
 			{
 				for (int i=0; i<nbjb; i++)
 				{
-					if (jbTab[i]) jbTab[i]->HurryUp();
+					if (jbTab[i] && jbTab[i].Length() > 2) jbTab[i]->HurryUp();
 				}
+				ret = 0;
 			}
 			return ret;
 		}
@@ -448,4 +417,3 @@ int AstFbWaitMulti(struct AstFb * fbTab[], unsigned long nbFb, unsigned long max
 	AstFrameBuffer ** fbTabOut2 = (AstFrameBuffer **) fbTabOut;
 	return AstFrameBuffer::WaitMulti(fbTab2, nbFb, maxWaitTime, fbTabOut2);
 }
-

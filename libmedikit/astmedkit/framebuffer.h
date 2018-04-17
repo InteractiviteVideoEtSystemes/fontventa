@@ -15,7 +15,6 @@
 #ifdef __cplusplus
 #include <medkit/astcpp.h>
 #include <medkit/config.h>
-#include <mutex>
 #include <map>
 
 class AstFrameBuffer 
@@ -34,13 +33,13 @@ public:
 	void Clear()
 	{
 		//Lock
-		mutex.lock();
+        pthread_mutex_lock(&mutex);
 
 		//And remove all from queue
 		ClearPackets();
 
 		//UnLock
-		mutex.unlock();
+		pthread_mutex_unlock(&mutex);
 	}
 
 	void HurryUp();
@@ -48,7 +47,7 @@ public:
 	void Reset(bool clear = true)
 	{
 		//Lock
-		mutex.lock();
+        pthread_mutex_lock(&mutex);
 
 		//And remove cancel
 		cancel = false;
@@ -64,14 +63,14 @@ public:
 		bigJumps = 0;
 		
 		//UnLock
-		mutex.unlock();
+		pthread_mutex_unlock(&mutex);
 	}
 
 	DWORD Length()
 	{
-		mutex.lock();
+        pthread_mutex_lock(&mutex);
 		DWORD l = packets.size();
-		mutex.unlock();
+		pthread_mutex_unlock(&mutex);
 		//REturn objets in queu
 		return  l;
 	}
@@ -83,7 +82,34 @@ public:
 		this->maxWaitTime = maxWaitTime;
 	}
 	
-	static int FillFdTab(AstFrameBuffer * jbTab[], unsigned long nbjb, struct pollfd fds[], int idxMap[]); 
+	void SetCondVariable(pthread_cond_t * pcond)
+	{
+		if (pcond) 
+			this->pcond = pcond;
+		else
+			this->pcond = &cond;
+	}
+	
+	inline bool HasPacketReady()
+	{
+		unsigned int sz = 0;
+
+		if (next==(DWORD)-1 || seq==next || hurryUp) return true;
+		
+		sz = packets.size();
+		if (blocking)
+		{
+			packready = (sz > (maxWaitTime/20) ); 
+		}
+		else
+		{
+			//packready = (packets.size() > maxWaitTime ); 
+			packready = (sz > maxWaitTime ); 
+		}
+
+		return packready;
+	}
+	
 	static int WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbFb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[]);
 
 private:
@@ -99,7 +125,6 @@ private:
 	bool			cancel;
 	bool			signalled;
 	bool			hurryUp;
-	std::mutex		mutex;
 	DWORD			next;
 	DWORD			dummyCseq;
 	DWORD			cycle;
@@ -108,7 +133,11 @@ private:
 	int				bigJumps;
 	bool			blocking;
 	bool			isfifo;
-	int				pipe[2];
+	
+	pthread_mutex_t         mutex;
+	pthread_cond_t *        pcond;
+	pthread_cond_t          cond;
+
 	int				nbLost;
 };
 
@@ -120,14 +149,38 @@ extern "C"
 #endif
      struct AstFb;
 
+	 
+	/**
+      *  Create an instance of jitterbuffer.
+      *  
+      *  @param [in] if jb is created in blocking mode, maxWaitTime time expresses the max duration
+	  *             after which the reader is unblocked. In this case, the first packet available is returned
+	  *             event if its sequence number is not the one expected.
+	  *
+	  *				if jb is created is non-blocking mode, maxWaitTime expresses the number of packet above which
+	  *				jb returns a packet event if some packet loss occurred 
+	  *
+      *  @param [in] blocking: if true, the AstFbWaitFrame() function will block (blocking mode).
+	  *
+	  *  @param [in] fifo: if true, sequence number of packets are not considered and jb behaves like a fifo packet queue.
+     **/
      struct AstFb *AstFbCreate(unsigned long maxWaitTime, int blocking, int fifo);
+	
      /**
       *  Add an ast_frame into the jitterbuffer. Frame is duplicated.
       *  
-      *  @param fb jitterbuffer instance to consider
-      *  @param[in]  f frame to post. f->ts must be correctly set.       
-      */
-     int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f );     
+      *  @param fb: jitterbuffer instance to consider
+      *  @param [in] f: frame to post. f->ts must be correctly set.       
+     **/
+     int AstFbAddFrame( struct AstFb *fb, const struct ast_frame *f ); 
+
+     /**
+      *  Add an ast_frame into the jitterbuffer but ignore sequence number. Frame is duplicated.
+      *  
+      *  @param fb: jitterbuffer instance to consider
+      *  @param [in] f: frame to post.       
+     **/
+	 
      int AstFbAddFrameNoCseq( struct AstFb *fb, const struct ast_frame *f );
 
 	void AstFbUnblock(struct AstFb *fb);
@@ -141,10 +194,61 @@ extern "C"
 	// if frame is returned, get number of packet lost
 	int AstFbGetLoss(struct AstFb *fb);
 	
-     uint32_t AstFbLength(struct AstFb *fb);
-     void AstFbCancel(struct AstFb *fb);     
-     void AstFbReset(struct AstFb *fb);
-     void AstFbDestroy(struct AstFb *fb);
+	uint32_t AstFbLength(struct AstFb *fb);
+	
+	
+	/**
+     *  Cancel .
+     *  
+     *  @param fb jitterbuffer instance to reset
+     **/
+
+	void AstFbCancel(struct AstFb *fb);
+
+    /**
+     *  Clear all packets of a frame buffer.
+     *  
+     *  @param fb jitterbuffer instance to reset
+     **/
+ 	
+	void AstFbReset(struct AstFb *fb);
+	
+	/**
+     *  Destroy an instance of jitter buffer
+     *  
+     *  @param fb jitterbuffer instance to destroy
+     **/ 
+	void AstFbDestroy(struct AstFb *fb);
+
+     /**
+      *  this function is used when serveral jitterbuffers need to be read by a single thread.
+	  *  it replace the internal condition variable of those jb by a single shared condition
+	  *  variable provided by the caller.
+      *  
+      *  @param fbTab array of jitterbuffers to modify
+      *  @param nbFb of jitterbuffers in the array. 
+	  *  @param pcond shared condition variable to use
+     **/
+	int AstFbCondMulti(struct AstFb * fbTab[], unsigned long nbFb, pthread_cond_t * pcond);
+	
+	
+    /**
+      *  this function is used when serveral jitterbuffers need to be read by a single thread.
+	  *  it is similar to select() or poll() for file descriptors. It wait for packets on set of jb
+	  *  if at least one jb has a packet ready, it unblocks and returns the array of jb ready 
+	  *  to be read. The reader will then need to call AstFbGetFrame() on each jb that are 
+	  *  fbTabOut. In order to work properly, the calle need to create an external pthread_cond_t
+	  *  with pthread_cond_init(() then pass it to the set of jb to read by calling AstFbCondMulti().
+	  *
+	  *
+      *  
+      *  @param fbTab: array of jitterbuffers to modify
+      *  @param nbFb: of jitterbuffers in the array. 
+	  *  @param maxWaitTime: maximum time to wait
+	  *  @param [out] fbTabOut: set of jb ready to be read returned by this function. The reader need to
+	  *                         iterate over the fbTabOut up to index nbFb. All non null slots are frame buffers
+	  *                         ready to be read. 
+     **/
 
 	int AstFbWaitMulti(struct AstFb * fbTab[], unsigned long nbFb, unsigned long maxWaitTime, struct AstFb * fbTabOut[]);
 	 
