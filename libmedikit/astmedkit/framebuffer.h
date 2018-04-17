@@ -98,6 +98,7 @@ private:
 
 	inline bool HasPacketReady(DWORD seq)
 	{
+		bool packready;
 		unsigned int sz = 0;
 
 		if (next==(DWORD)-1 || seq==next || hurryUp) return true;

@@ -159,7 +159,7 @@ void AstFrameBuffer::HurryUp()
 }
 
 
-static int conf_wait_timeout(pthread_cond_t * p_cond, pthread_mutex_t * p_mutex, long timeout ms)
+static int conf_wait_timeout(pthread_cond_t * p_cond, pthread_mutex_t * p_mutex, long ms)
 {
 	timespec ts;
 	struct timeval now;
@@ -168,8 +168,8 @@ static int conf_wait_timeout(pthread_cond_t * p_cond, pthread_mutex_t * p_mutex,
 	
 	if (ms <= 0) return 0;
 	//Calculate until when we have to sleep
-	ts.tv_sec  = (time_t) (now.tv_sec + maxWaitTime / 1000);
-	now.tv_usec += (maxWaitTime % 1000)*1000;
+	ts.tv_sec  = (time_t) (now.tv_sec + ms / 1000);
+	now.tv_usec += (ms % 1000)*1000;
 	if (now.tv_usec > 1000000)
 	{
 		ts.tv_sec++;
@@ -206,7 +206,6 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			//Get packet
 			struct ast_frame * candidate = it->second;
 			//Get time of the packet
-
 /*
 			if (seq != next)
 			    Log("seq=%lu, next=%lu, sz=%u, blocking=%d, maxWaitTime=%d\n", seq, next, sz, blocking,
@@ -216,7 +215,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			if (HasPacketReady(seq))
 			{
 				//We have it!
-				rtp = it->second;0
+				rtp = it->second;
 				nbLost = 0;
 
 				if (seq==next) 
@@ -246,11 +245,12 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 		
 		if (blocking && block) 
 		{			
+			int ret;
 			if (maxWaitTime > 0)
 			{                        				
 				ret = conf_wait_timeout(pcond,&mutex,maxWaitTime);
                 //Check if there is an errot different than timeout
-                if (ret)
+                		if (ret)
 				{					
 					if (ret != ETIMEDOUT)
                             Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
@@ -301,20 +301,18 @@ void AstFrameBuffer::ClearPackets()
 
 int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[])
 {
-	int nb;
-	
 	if (!jbTab[0]) return -1;
 	
 	if (nbjb > MAX_FDS_FOR_JB) nbjb = MAX_FDS_FOR_JB;
 	if (nbjb > 0)
 	{
+		int ret;
+
 		for (int i=0; i<nbjb; i++)
 		{
 			jbTabOut[i] = NULL;
 		}
 		
-		if ( nb > 0 && )
-		{
 			/* Use condition pointer of first framebuffer. Normally, all pcond of all jitterbuffer should be the same */
 			ret = conf_wait_timeout(jbTab[0]->pcond, &jbTab[0]->mutex, maxWaitTime);
 			if (ret >= 0)
@@ -324,17 +322,17 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 				{
 					if (jbTab[i])
 					{
-						pthread_mutex_lock(&jbTab[i].mutex)
-						if (! jbTab[i].packets.empty() )
+						pthread_mutex_lock(&jbTab[i]->mutex);
+						if (! jbTab[i]->packets.empty() )
 						{
-							RTPOrderedPackets::iterator it = jbTab[i].packets.begin();
-							if ( jbTab[i].HasPacketReady(it->first) )
+							RTPOrderedPackets::iterator it = jbTab[i]->packets.begin();
+							if ( jbTab[i]->HasPacketReady(it->first) )
 							{
 								jbTabOut[i] = jbTab[i];
 								ret++;
 							}
 						}
-						pthread_mutex_unlock(&jbTab[i].mutex)
+						pthread_mutex_unlock(&jbTab[i]->mutex);
 					}
 				}
 			}
@@ -342,13 +340,11 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 			{
 				for (int i=0; i<nbjb; i++)
 				{
-					if (jbTab[i] && jbTab[i].Length() > 2) jbTab[i]->HurryUp();
+					if (jbTab[i] && jbTab[i]->Length() > 2) jbTab[i]->HurryUp();
 				}
 				ret = 0;
 			}
 			return ret;
-		}
-		return -4;
 	}
 	return -5;
 }
