@@ -89,8 +89,14 @@ public:
 		else
 			this->pcond = &cond;
 	}
-	
-	inline bool HasPacketReady()
+		
+	static int WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbFb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[]);
+
+private:
+	void ClearPackets();
+	void Notify();
+
+	inline bool HasPacketReady(DWORD seq)
 	{
 		unsigned int sz = 0;
 
@@ -109,12 +115,6 @@ public:
 
 		return packready;
 	}
-	
-	static int WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbFb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[]);
-
-private:
-	void ClearPackets();
-	void Notify();
 
 private:
 	typedef std::map<DWORD,struct ast_frame *> RTPOrderedPackets;

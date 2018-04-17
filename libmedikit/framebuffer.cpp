@@ -213,7 +213,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				maxWaitTime);
 */			
 			//Check if first is the one expected or wait if not
-			if (HasPacketReady())
+			if (HasPacketReady(seq))
 			{
 				//We have it!
 				rtp = it->second;0
@@ -324,11 +324,17 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 				{
 					if (jbTab[i])
 					{
-						if ( jbTab[i].HasPacketReady() )
+						pthread_mutex_lock(&jbTab[i].mutex)
+						if (! jbTab[i].packets.empty() )
 						{
-							jbTabOut[i] = jbTab[i];
-							ret++;
+							RTPOrderedPackets::iterator it = jbTab[i].packets.begin();
+							if ( jbTab[i].HasPacketReady(it->first) )
+							{
+								jbTabOut[i] = jbTab[i];
+								ret++;
+							}
 						}
+						pthread_mutex_unlock(&jbTab[i].mutex)
 					}
 				}
 			}
