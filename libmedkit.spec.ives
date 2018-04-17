@@ -44,6 +44,15 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
+* Wed Mar 19 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
+- recoded jitterbuffer to remove pipe because it was exhausting the max number of open file desc.
+- removed C++ 11 mutex.lock() to avoid building issues
+- version 1.5.0
+
+* Mon Mar 16 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected recorder and player. mp4record and play are now using libmedkit
+- version 1.4.0
+
 * Mon Feb 5 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
 - buffer overflow correction in traces
 - version 1.3.1
