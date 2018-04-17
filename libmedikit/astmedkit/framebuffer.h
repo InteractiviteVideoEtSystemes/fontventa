@@ -33,7 +33,7 @@ public:
 	void Clear()
 	{
 		//Lock
-        pthread_mutex_lock(&mutex);
+		pthread_mutex_lock(&mutex);
 
 		//And remove all from queue
 		ClearPackets();
@@ -47,7 +47,7 @@ public:
 	void Reset(bool clear = true)
 	{
 		//Lock
-        pthread_mutex_lock(&mutex);
+		pthread_mutex_lock(&mutex);
 
 		//And remove cancel
 		cancel = false;
@@ -68,7 +68,7 @@ public:
 
 	DWORD Length()
 	{
-        pthread_mutex_lock(&mutex);
+		pthread_mutex_lock(&mutex);
 		DWORD l = packets.size();
 		pthread_mutex_unlock(&mutex);
 		//REturn objets in queu

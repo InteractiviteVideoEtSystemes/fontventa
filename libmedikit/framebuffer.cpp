@@ -316,7 +316,9 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 		}
 		
 			/* Use condition pointer of first framebuffer. Normally, all pcond of all jitterbuffer should be the same */
+			pthread_mutex_lock(&jbTab[0]->mutex);
 			ret = conf_wait_timeout(jbTab[0]->pcond, &jbTab[0]->mutex, maxWaitTime);
+			pthread_mutex_unlock(&jbTab[0]->mutex);
 			if (ret >= 0)
 			{
 				ret = 0;
