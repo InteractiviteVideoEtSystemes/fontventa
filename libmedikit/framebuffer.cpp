@@ -69,6 +69,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		if (f->seqno > 0xFFFF)
 		{
 			ast_log(LOG_NOTICE, "Invalid seqno %d for frame.\n", f->seqno);
+			pthread_mutex_unlock(&mutex);
 			return false;
 		}
 		
@@ -88,6 +89,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		if (packets.find(seq) != packets.end())
 		{
 			//ast_log(LOG_DEBUG, "Received duplicate packet %ld.\n", seq);
+			pthread_mutex_unlock(&mutex);
 			return false;
 		}
 	}
