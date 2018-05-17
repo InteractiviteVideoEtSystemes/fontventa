@@ -669,7 +669,7 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 					if (name == NULL)
 					{
 						c = AudioCodec::AMR;
-						name = "AMR";
+						name = (char *) "AMR";
 					}
 					else 
 					{

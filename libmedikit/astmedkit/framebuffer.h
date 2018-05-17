@@ -226,12 +226,13 @@ extern "C"
 	  *  it replace the internal condition variable of those jb by a single shared condition
 	  *  variable provided by the caller.
       *  
-      *  @param fbTab array of jitterbuffers to modify
+      *  @param fbTab: array of jitterbuffers to modify
       *  @param nbFb of jitterbuffers in the array. 
-	  *  @param pcond shared condition variable to use
+      *  @param maxWaitTime: maximimum time to wait before returns even if no packet is available
+      *  @param fbTabOut: list of JB ready to be read. Has the same size than input array but some
+      *                   element may be NULL indicating that the JB has no packet ready to be read.
      **/
-	int AstFbCondMulti(struct AstFb * fbTab[], unsigned long nbFb, pthread_cond_t * pcond);
-	
+	int AstFbWaitMulti(struct AstFb * fbTab[], unsigned long nbFb, unsigned long maxWaitTime, struct AstFb * fbTabOut[]);
 	
     /**
       *  this function is used when serveral jitterbuffers need to be read by a single thread.
