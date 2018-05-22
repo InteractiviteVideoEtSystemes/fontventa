@@ -45,6 +45,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 
 %changelog
 * Wed Mar 19 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected error in function signature on AstFbWaitMulti() on framebuffer.h
+- version 1.5.1
+
+* Wed Mar 19 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
 - recoded jitterbuffer to remove pipe because it was exhausting the max number of open file desc.
 - removed C++ 11 mutex.lock() to avoid building issues
 - version 1.5.0
