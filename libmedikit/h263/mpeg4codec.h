@@ -54,7 +54,6 @@ private:
 	int		qMax;
 	int		intraPeriod;
 	VideoFrame* 	frame;
-	DWORD		bufLen;
 	DWORD		bufIni;
 	static DWORD	bufSize;
 };

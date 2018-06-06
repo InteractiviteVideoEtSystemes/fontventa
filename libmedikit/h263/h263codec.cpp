@@ -71,7 +71,7 @@ int H263Encoder::SetSize(int width, int height)
 	Log("-SetSize [%d,%d]\n",width,height);
 
 	// Set pixel format 
-	ctx->pix_fmt		= PIX_FMT_YUV420P;
+	ctx->pix_fmt		= AV_PIX_FMT_YUV420P;
 	ctx->width 		= width;
 	ctx->height 		= height;
 
@@ -173,6 +173,10 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 	//Check if we are opened
 	if (!opened)
 		return NULL;
+	AVPacket pkt;
+	av_init_packet(&pkt);
+	pkt.data = frame->GetData();
+	pkt.size = frame->GetMaxMediaLength();
 	
 	int numPixels = ctx->width*ctx->height;
 
@@ -186,25 +190,23 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 	picture->data[2] = in+numPixels*5/4;
 
 	//Codificamos
-	int ret = avcodec_encode_video(ctx,frame->GetData(),frame->GetMaxMediaLength(),picture);
+	int got_pkt;
+	int ret = avcodec_encode_video2(ctx,&pkt,picture,&got_pkt);
 
 	//Check
-	if (ret<0)
+	if (ret<0 || got_pkt == 0)
 		//Exit
-		return (VideoFrame*)Error("%d\n",frame->GetMaxMediaLength());
-
-	//Set lenfht
-	DWORD bufLen = ret;
+		return (VideoFrame*) Error("%d\n",ret);
 
 	//Set length
-	frame->SetLength(bufLen);
+	frame->SetLength(pkt.size);
 
 	//Set width and height
 	frame->SetWidth(ctx->width);
 	frame->SetHeight(ctx->height);
 
 	//Is intra
-	frame->SetIntra(ctx->coded_frame->key_frame);
+	frame->SetIntra( (pkt.flags & AV_PKT_FLAG_KEY) != 0 );
 
 	//Unset fpu
 	picture->key_frame = 0;
@@ -226,17 +228,17 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 	DWORD lenpkt;
 	bool mark ;
 	
-	while(ini<bufLen)
+	while(ini<pkt.size)
 	{
 		mark = false;
 		//The mtu
 		lenpkt = RTPPAYLOADSIZE-2;
 		//Check length
-		if (lenpkt+ini >= bufLen)
+		if (lenpkt+ini >= pkt.size)
 		{
 			mark = true;
 			//Fix it
-			lenpkt=bufLen-ini;
+			lenpkt=pkt.size-ini;
 		}
 		
 		//Add rtp packet
