@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   1.4.1
+Version:   1.6.0
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -53,13 +53,17 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Wed Jun 6 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+- tested recording and play correctly
+- migrated to ffmpeg 3.3.7
+- version 1.6.0
 * Thu Feb 22 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - reimplemented mp4play / mp4save using libmedikit
 - version 1.0.0
 * Fri Nov 21 2014 Emmanuel BUU <emmanuel.buu@ives.fr>
 - accent were filtered. Removed filter.
 - version 0.5.8
-* Tue Aug 26 2013 Philippe Verney <philippe.verney@ives.fr>
+* Tue Aug 26 2014 Philippe Verney <philippe.verney@ives.fr>
 - Suppress transcoder ( link error with ffmpeg ) 
 - Fix video echo on H.264
 - version 0.5.7
