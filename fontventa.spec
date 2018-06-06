@@ -57,6 +57,9 @@ make DESTDIR=$RPM_BUILD_ROOT install
 - tested recording and play correctly
 - migrated to ffmpeg 3.3.7
 - version 1.6.0
+* Mon Mar 16 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected recorder and player. mp4record and play are now using libmedkit
+- version 1.4.0
 * Thu Feb 22 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - reimplemented mp4play / mp4save using libmedikit
 - version 1.0.0

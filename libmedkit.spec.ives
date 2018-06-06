@@ -44,6 +44,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
+* Wed Jun 6 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+- migrated to ffmpeg 3.3.7
+- version 1.6.0
+
 * Wed Mar 19 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected error in function signature on AstFbWaitMulti() on framebuffer.h
 - version 1.5.1
