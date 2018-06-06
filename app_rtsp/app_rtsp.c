@@ -1595,7 +1595,7 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 	int state = RTSP_TUNNEL_CONNECTING;
 	char request[1024];
 	char buffer[16384];
-	char *i;
+	char *i = NULL;
 	int  bufferSize = 16383; /* One less for finall \0 */
 	int  bufferLen = 0;
 	int  responseLen = 0;

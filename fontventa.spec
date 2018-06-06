@@ -53,6 +53,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Wed Jun 7 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected tools to use mp4v2
+- version 1.6.1
+
 * Wed Jun 6 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - tested recording and play correctly
 - migrated to ffmpeg 3.3.7
