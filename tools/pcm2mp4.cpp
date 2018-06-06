@@ -19,9 +19,14 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-#include <mp4.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/stat.h> 
+#include <fcntl.h>
+#include <errno.h>
+#include <mp4v2/mp4v2.h>
 
-char* p3gppSupportedBrands[2] = {"3gp5", "3gp4"};
+const char * p3gppSupportedBrands[2] = {"3gp5", "3gp4"};
 
 int main(int argc,char **argv)
 {
@@ -52,7 +57,7 @@ int main(int argc,char **argv)
        bool mp4FileExists = (access(output, F_OK) == 0);
 
 	if (mp4FileExists)
-       mp4 = MP4Modify(output, MP4_DETAILS_ERROR);
+       mp4 = MP4Modify(output, 0);
        else
 	/* Create mp4 output file */
 	mp4 = MP4CreateEx(output);/*

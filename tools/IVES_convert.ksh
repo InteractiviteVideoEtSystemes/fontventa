@@ -1,4 +1,4 @@
-#!/bin/ksh
+#!/bin/bash
 # =============================================================================
 # Unpublished Confidential Information of IVES Do not disclose.       
 # Copyright (c)  IVES All Rights Reserved.                    
@@ -47,17 +47,17 @@ V_BR_TOLERANCE_H263_GOOD=100000
 V_FFMPEG_OPTS_H263_GOOD="-g 8  -flags loop -b_qfactor 0.8 -dct mmx -precmp rd -skipcmp rd -pre_dia_size 4 "
 
 
-V_SIZE_H264="cif"
+V_SIZE_H264="vga"
 V_FPS_H264=25
 V_BITRATE_H264=340000
-V_BR_TOLERANCE_H264=10000
-V_FFMPEG_OPTS_H264="-g 250 -max_slice_size 1300 -level 13 -qmin 2 -qmax 35 -me_method hex "
+V_BR_TOLERANCE_H264=30000
+V_FFMPEG_OPTS_H264="-g 250 -slice-max-size 1300 -level 20 -qmax 38 -me_method hex "
 
 # =============================================================================
 # Constant de travail
 # =============================================================================
 BIN_PATH="/usr/bin"
-BIN_FFMPEG="IVeS_ffmpeg"
+BIN_FFMPEG="ffmpeg"
 INFO_FILE="/tmp/IVES_convert.inf"
 EXIT_SUCCESS=0
 EXIT_ERROR=1
@@ -68,47 +68,47 @@ LOG_FILE="/dev/null"
 # Constant de travail
 # =============================================================================
 # flag de debug
-integer debug=0
-integer echo_on_stdout=1
-integer mode_fast=0
+debug=0
+declare -i echo_on_stdout=1
+mode_fast=0
 # contenue des track
 mimeType="other"
 rtpStat=""
-integer haveVideo=0
-integer haveAudio=0
-integer orgHaveVideo=0
-integer firstCheck=0
+haveVideo=0
+haveAudio=0
+orgHaveVideo=0
+firstCheck=0
 # information audio
-integer haveUlaw=0
-integer idxUlawTrack=0
-integer idxHintUlawTrack=0
-integer haveAlaw=0
-integer idxAlawTrack=0
-integer idxHintAlawTrack=0
-integer haveAmr=0
-integer idxAmrTrack=0
-integer idxHintAmrTrack=0
-integer haveH263=0
-integer idxH263Track=0
-integer idxHintH263Track=0
-integer h263_good=1
-integer haveH264=0
-integer idxH264Track=0
-integer idxHintH264Track=0
+haveUlaw=0
+idxUlawTrack=0
+idxHintUlawTrack=0
+haveAlaw=0
+idxAlawTrack=0
+idxHintAlawTrack=0
+haveAmr=0
+idxAmrTrack=0
+idxHintAmrTrack=0
+haveH263=0
+idxH263Track=0
+idxHintH263Track=0
+h263_good=1
+haveH264=0
+idxH264Track=0
+idxHintH264Track=0
 # calcul duree video
-integer duration=0
-integer nb_frame=0
-integer frame_rate=3 
+duration=0
+nb_frame=0
+frame_rate=3 
 # extraction du texte 
-integer text=0
+text=0
 #gestion du flv
-integer flvFile=0
+flvFile=0
 #gestion des fiechiers pour queue
-integer queueFile=0
-integer TgpFile=0
+queueFile=0
+Html5File=0
 #gestion des mp4 h264 + amr 
-integer Mp4H264MP3File=0
-integer H263Only=0
+Mp4H264MP3File=0
+H263Only=0
 
 # =============================================================================
 # Affichage
@@ -117,7 +117,7 @@ integer H263Only=0
 # Vert
 PrintOK()
 {
-    if [ echo_on_stdout -eq 1 ] 
+    if [ $echo_on_stdout -eq 1 ] 
         then 
         printf "[\033[32m  OK  \033[0m]\n"
     fi
@@ -126,7 +126,7 @@ PrintOK()
 # Rouge
 PrintFailed()
 {
-    if [ echo_on_stdout -eq 1 ] 
+    if [ $echo_on_stdout -eq 1 ] 
         then 
         printf "[\033[31mFAILED\033[0m]\n"
         if [ $debug -ne 0 ]
@@ -141,7 +141,7 @@ PrintFailed()
 # jaune
 PrintNone()
 {
-    if [ echo_on_stdout -eq 1 ] 
+    if [ $echo_on_stdout -eq 1 ] 
         then 
         printf "[\033[33m NONE \033[0m]\n"
     fi
@@ -149,7 +149,7 @@ PrintNone()
 
 printLine()
 {
-    if [ echo_on_stdout -eq 1 ] 
+    if [ $echo_on_stdout -eq 1 ] 
         then 
         RES_COL=60
         printf "$1"
@@ -159,7 +159,7 @@ printLine()
 
 mp4_info()
 {
-    if [ echo_on_stdout -eq 1 ] 
+    if [ $echo_on_stdout -eq 1 ] 
         then 
         printf "========================= \033[32m File information \033[0m  =====================\n"
         cmd="${BIN_PATH}/mp4info $1 "
@@ -175,7 +175,7 @@ mp4_info()
 
 start_line()
 {
-    if [ echo_on_stdout -eq 1 ] 
+    if [ $echo_on_stdout -eq 1 ] 
         then 
         printf "Convert $inFile to $outFile\n"
     fi
@@ -197,12 +197,11 @@ usage()
     printf "\t\033[1m -v \033[0m create log file IVES_convert.log  \n"
     printf "\t\033[1m -d \033[0m debug mode , temporary files are not deleted  \n"
     printf "\t\033[1m -s \033[0m silence mode , no output on stdout, only error  \n"
-    printf "\t\033[1m -g \033[0m H263 in not good quality (qcif)  \n"
+    printf "\t\033[1m -5 \033[0m MP4 HTML5 compliant in VGA  \n"
     printf "\t\033[1m -r \033[0m frame rate for background image   \n"
     printf "\t\033[1m -f \033[0m fast mode ( ratio 1:2 )  \n"
     printf "\t\033[1m -w \033[0m file informations   \n"
     printf "\t\033[1m -F \033[0m Out file are flv \n"
-    printf "\t\033[1m -3 \033[0m Out file are 3gp ( h264/AMR ) \n"
     printf "\t\033[1m -M \033[0m MP4 file light in good quality H264/amr only   \n"
     printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats \n"
     printf "\t\033[1m -t \033[0m time of background duration   \n"
@@ -228,7 +227,7 @@ MakeOutFilename()
             then outFile=`basename $inFile $mimetype`.3gp
             else if [ $flvFile -eq 1  ]
                  then outFile=`basename $inFile $mimetype`.flv
-                 else if [ $TgpFile -eq 1 ]
+                 else if [ $Html5File -eq 1 ]
                       then outFile=`basename $inFile $mimetype`.3gp
                       else outFile=`basename $inFile $mimetype`.mp4
                  fi
@@ -343,7 +342,7 @@ whatFile()
     if [ "$ret" -eq "0" ]
         then mp4_info $1
         else 
-        if [ echo_on_stdout -eq 1 ] 
+        if [ $echo_on_stdout -eq 1 ] 
             then 
             printf "========================= \033[32m File information \033[0m  =====================\n"
             $cmd
@@ -630,7 +629,7 @@ create_pcm_track()
 
 build_duration()
 {
-    if [ duration -eq 0 ] 
+    if [ $duration -eq 0 ] 
         then 
 	${BIN_PATH}/${BIN_FFMPEG} -i $tmpPcmFile 2>&1 | egrep Duration | awk '{print $2}' | awk -F: '{print $3}' | awk -F. '{print $1}' > $INFO_FILE.duration 2>&1
 	duration=`cat $INFO_FILE.duration`
@@ -780,25 +779,25 @@ hint_amr_track()
 
 AddAudioTracks()
 {
-    if [ haveUlaw -eq 0 ] 
+    if [ $haveUlaw -eq 0 ] 
         then 
         create_mulaw_track 
         add_mulaw_track
         #hint_mulaw_track 
     fi 
-    if [ haveAlaw -eq 0 ] 
+    if [ $haveAlaw -eq 0 ] 
         then 
         create_alaw_track 
         add_alaw_track
         #hint_alaw_track 
     fi         
-    if [ idxHintUlawTrack -eq 0 ] 
+    if [ $idxHintUlawTrack -eq 0 ] 
         then hint_ulaw_track
     fi
-    if [ idxHintAlawTrack -eq 0 ] 
+    if [ $idxHintAlawTrack -eq 0 ] 
         then hint_alaw_track
     fi
-    if [ idxHintAmrTrack -eq 0 ] 
+    if [ "$idxHintAmrTrack" == "" ] 
         then hint_amr_track
     fi
 }
@@ -843,7 +842,7 @@ create_flv_file_from_org()
 # =============================================================================
 create_Mp4H264MP3_file()
 {
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $inFile -vcodec libx264  -acodec libamr_nb -ac 1 -ab 12200 -ar 8000   $outFile"
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $inFile -vcodec libx264  -acodec amr_nb -ac 1 -ab 12200 -ar 8000   $outFile"
     printLine "Create mp4 light ( h264/amr ) file : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -859,7 +858,7 @@ create_Mp4H264MP3_file()
 
 create_Mp4H264MP3_file_from_org()
 {
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -vcodec libx264 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000  $outFile"
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -vcodec libx264 -acodec amr_nb -ac 1 -ab 12200 -ar 8000  $outFile"
     printLine "Create mp4 light ( h264/amr ) file (from org) : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -874,13 +873,13 @@ create_Mp4H264MP3_file_from_org()
 }
 
 # =============================================================================
-# Gestion 3gp 
+# Gestion HTML5 
 # =============================================================================
-create_3gp_file()
+create_html5_file()
 {
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $inFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
-         -bt $V_BR_TOLERANCE_H264 -ar 22050 -r 25 -ar 8000 -ab 12.2k -ac 1 $outFile"
-    printLine "Create 3gp file : "
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $inFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -acodec libfdk_aac -ac 1 -ar 32000 $outFile"
+    printLine "Create MP4/HTML file : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
@@ -893,13 +892,13 @@ create_3gp_file()
     fi
 }
 
-create_3gp_file_from_org()
+create_html5_file_from_org()
 {
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
-         -bt $V_BR_TOLERANCE_H264 -ar 22050 -r 25 -ar 8000 -ab 12.2k -ac 1 $outFile "
-    printLine "Create 3gp file (from org) : "
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -acodec libfdk_aac -ar 32000 -ac 1 $outFile "
+    printLine "Create HTML5/MP4 file (from org) : "
     echo $cmd >> $LOG_FILE
-    $cmd >> $LOG_FILE 2>&1
+    $cmd #>> $LOG_FILE 2>&1
     ret=$?
     if [ $ret -ne 0 ] 
         then 
@@ -919,7 +918,8 @@ AddVideoBackground()
         then
         test_input_file $backgroundFile
         create_mulaw_track
-        cmd="${BIN_PATH}/${BIN_FFMPEG}  -loop_input -vframes $nb_frame -i $backgroundFile -i $tmpPcmFile -r $frame_rate -vb 40k -ab 10.2k -s qcif -i_qfactor 0.5   -acodec libamr_nb -ac 1 -ab 12200  $tmpVideoFile"
+        #cmd="${BIN_PATH}/${BIN_FFMPEG}  -loop 1 -i $backgroundFile -i $tmpPcmFile -pix_fmt yuv420p -r $frame_rate -vcodec libx264 -ac 1 -force_key_frames \"expr:gte(t,n_forced)\" -vframes 20 $tmpVideoFile"
+        cmd="${BIN_PATH}/${BIN_FFMPEG}  -loop 1 -i $backgroundFile -i $tmpPcmFile -pix_fmt yuv420p -r $frame_rate -vcodec libx264 -ac 1 -vframes 10 $tmpVideoFile"
         printLine "Add video  : "
         echo $cmd >> $LOG_FILE
         $cmd >> $LOG_FILE 2>&1
@@ -941,14 +941,14 @@ AddVideoBackground()
 create_H263_track()
 {
     cd /tmp
-    if [ mode_fast -eq 0 ]
+    if [ $mode_fast -eq 0 ]
         then 
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 \
-         -vcodec h263 -b $V_BITRATE_H263 -bt $V_BR_TOLERANCE_H263 -vstats -vstats_file \
-         $tmpStats2pnoip -pass 1 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
+         -vcodec h263 -b:v $V_BITRATE_H263 -bt $V_BR_TOLERANCE_H263 -vstats -vstats_file \
+         $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
         else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r 7 -vcodec h263 -b $V_BITRATE \
-         -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 -vstats_file \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r 7 -vcodec h263 -b:v $V_BITRATE \
+         -bt 10000 -vstats -ar 8000 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 -vstats_file \
          $tmpStats2pnoip -pass 1  $tmpVideoFile "
     fi
     printLine "Create track H263 pass 1 : "
@@ -964,14 +964,14 @@ create_H263_track()
         PrintOK
     fi
 
-    if [ mode_fast -eq 0 ]
+    if [ $mode_fast -eq 0 ]
         then 
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 \
-         -vcodec h263 -b  $V_BITRATE_H263 -bt $V_BR_TOLERANCE_H263 -vstats -vstats_file  \
-         $tmpStats2pnoip -pass 2 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
+         -vcodec h263 -b:v  $V_BITRATE_H263 -bt $V_BR_TOLERANCE_H263 -vstats -vstats_file  \
+         $tmpStats2pnoip -pass 2 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
     else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r 7 -vcodec h263 -b $V_BITRATE \
-         -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file  \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r 7 -vcodec h263 -b:v $V_BITRATE \
+         -bt 10000 -vstats -ar 8000 -acodec amr_nb -ac 1 -ab 12200 -vstats_file  \
          $tmpStats2pnoip -pass 2 -ar 8000 $tmpVideoFile "
     fi
     printLine "Create track H263 pass 2 : "
@@ -999,7 +999,7 @@ create_H263_on_pass_track()
 {
     cd /tmp
     cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 \
-         -r 15 -vcodec h263 -b 66000 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
+         -r 15 -vcodec h263 -b:v 66000 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
     printLine "Create track H263 with single pass : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -1035,14 +1035,14 @@ hint_H263_track()
 create_H263_good_track()
 {
     cd /tmp
-    if [ mode_fast -eq 0 ]
+    if [ $mode_fast -eq 0 ]
         then 
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263_GOOD -s $V_SIZE_H263_GOOD -r $V_FPS_H263_GOOD \
-         -vcodec h263 -b $V_BITRATE_H263_GOOD -bt $V_BR_TOLERANCE_H263_GOOD -vstats -vstats_file \
-         $tmpStats2pnoip -pass 1 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
+         -vcodec h263 -b:v $V_BITRATE_H263_GOOD -bt $V_BR_TOLERANCE_H263_GOOD -vstats -vstats_file \
+         $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
         else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_CIF -r 7 -vcodec h263 -b $V_BITRATE_H263_GOOD \
-         -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 -vstats_file \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_CIF -r 7 -vcodec h263 -b:v $V_BITRATE_H263_GOOD \
+         -bt 10000 -vstats -ar 8000 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 -vstats_file \
          $tmpStats2pnoip -pass 1  $tmpVideoFile "
     fi
     printLine "Create track H263 good pass 1 : "
@@ -1058,14 +1058,14 @@ create_H263_good_track()
         PrintOK
     fi
 
-    if [ mode_fast -eq 0 ]
+    if [ $mode_fast -eq 0 ]
         then 
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263_GOOD -s $V_SIZE_H263_GOOD -r $V_FPS_H263_GOOD \
-         -vcodec h263 -b  $V_BITRATE_H263_GOOD -bt $V_BR_TOLERANCE_H263_GOOD -vstats -vstats_file  \
-         $tmpStats2pnoip -pass 2 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
+         -vcodec h263 -b:v  $V_BITRATE_H263_GOOD -bt $V_BR_TOLERANCE_H263_GOOD -vstats -vstats_file  \
+         $tmpStats2pnoip -pass 2 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
     else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_CIF -r $V_FPS_H263_GOOD  -vcodec h263 -b $V_BITRATE_GOOD \
-         -bt 10000 -vstats -ar 8000 -acodec libamr_nb -ac 1 -ab 12200 -vstats_file  \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_CIF -r $V_FPS_H263_GOOD  -vcodec h263 -b:v $V_BITRATE_GOOD \
+         -bt 10000 -vstats -ar 8000 -acodec amr_nb -ac 1 -ab 12200 -vstats_file  \
          $tmpStats2pnoip -pass 2 -ar 8000 $tmpVideoFile "
     fi
     printLine "Create track H263 good  pass 2 : "
@@ -1093,7 +1093,7 @@ create_H263_good_on_pass_track()
 {
     cd /tmp
     cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263_GOOD -s $V_SIZE_H263_GOOD \
-         -r 15 -vcodec h263 -b 66000 -acodec libamr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
+         -r 15 -vcodec h263 -b:v 66000 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
     printLine "Create track H263 good with single pass : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -1131,15 +1131,15 @@ create_H264_track()
 {
     cd /tmp
 
-    if [ mode_fast -eq 0 ]
+    if [ $mode_fast -eq 0 ]
         then 
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
          $tmpStats2pnoip  -pass 1 $tmpMp4File"
     else
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r V_FPS_H264 -vcodec libx264 -b $V_BITRATE \
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file \
-         $tmpStats2pnoip -pass 1 -acodec libamr_nb -ac 1 -ab 12200 $tmpVideoFile"
+         $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 $tmpVideoFile"
     fi
     printLine "Create track H264 pass 1 : "
     echo $cmd >> $LOG_FILE
@@ -1154,15 +1154,15 @@ create_H264_track()
         PrintOK
     fi
 
-    if [ mode_fast -eq 0 ]
+    if [ $mode_fast -eq 0 ]
         then 
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
           $tmpStats2pnoip -pass 2 $tmpMp4File"
     else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r V_FPS_H264 -vcodec libx264 -b $V_BITRATE \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file  \
-         $tmpStats2pnoip  -pass 2 -acodec libamr_nb -ac 1 -ab 12200  $tmpVideoFile"
+         $tmpStats2pnoip  -pass 2 -acodec amr_nb -ac 1 -ab 12200  $tmpVideoFile"
     fi
     printLine "Create track H264 pass 2 : "
     echo $cmd >> $LOG_FILE
@@ -1177,7 +1177,7 @@ create_H264_track()
         PrintOK
     fi
 
-    if [ mode_fast -ne 0 ]
+    if [ $mode_fast -ne 0 ]
         then
         rm -f $tmpMp4File
         cp $tmpVideoFile $tmpMp4File
@@ -1222,15 +1222,15 @@ create_H264_track_from_org()
 {
     cd /tmp
 
-    if [ mode_fast -eq 0 ]
+    if [ $mode_fast -eq 0 ]
         then 
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
          $tmpStats2pnoip  -pass 1 $tmpMp4File"
     else
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE -r V_FPS_H264 -vcodec libx264 -b $V_BITRATE \
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file \
-         $tmpStats2pnoip -pass 1 -acodec libamr_nb -ac 1 -ab 12200 $tmpVideoFile"
+         $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 $tmpVideoFile"
     fi
     printLine "Create track H264 (from org) pass 1 : "
     echo $cmd >> $LOG_FILE
@@ -1245,15 +1245,15 @@ create_H264_track_from_org()
         PrintOK
     fi
 
-    if [ mode_fast -eq 0 ]
+    if [ $mode_fast -eq 0 ]
         then 
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b $V_BITRATE_H264 \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
           $tmpStats2pnoip -pass 2 $tmpMp4File"
     else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE -r V_FPS_H264 -vcodec libx264 -b $V_BITRATE \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file  \
-         $tmpStats2pnoip  -pass 2 -acodec libamr_nb -ac 1 -ab 12200  $tmpVideoFile"
+         $tmpStats2pnoip  -pass 2 -acodec amr_nb -ac 1 -ab 12200  $tmpVideoFile"
     fi
     printLine "Create track H264 (from org) pass 2 : "
     echo $cmd >> $LOG_FILE
@@ -1268,7 +1268,7 @@ create_H264_track_from_org()
         PrintOK
     fi
 
-    if [ mode_fast -ne 0 ]
+    if [ $mode_fast -ne 0 ]
         then
         rm -f $tmpMp4File
         cp $tmpVideoFile $tmpMp4File
@@ -1333,38 +1333,32 @@ AddVideoTracks()
    fi
 
    if  [ $haveVideo -ne 0 ]
-       then 
-       if [ haveH263 -eq 0 ] 
-           then 
-           if [ h263_good -eq 0 ]
-               then create_H263_track 
-               else create_H263_good_track
-           fi  
-       fi
+   then 
+       # if [ $haveH263 -eq 0 ] 
+       # then 
+       #    create_H263_good_track
+       # fi
        # for amr ..... 
-       if [ haveAmr -eq 0 ]
+       #if [ $haveAmr -eq 0 ]
+       #    then 
+           #if [ $haveAudio -ne 0 ] 
+           #then 
+           #    create_H263_good_track
+           #fi
+       #fi 
+       if [ $haveH264 -eq 0 ] 
            then 
-           if [ $haveAudio -ne 0 ] 
-               then 
-               if [ h263_good -eq 0 ]
-                   then create_H263_track 
-                   else create_H263_good_track
-               fi
-           fi
-       fi 
-       if [ haveH264 -eq 0 ] 
-           then 
-           if [ orgHaveVideo -eq 1 ]
+           if [ $orgHaveVideo -eq 1 ]
                then create_H264_track_from_org
                else create_H264_track 
            fi
        fi 
-       if [ idxHintH264Track -eq 0 ] 
+       if [ "$idxHintH264Track" == "" ] 
            then hint_H264_track
        fi
-       if [ idxHintH263Track -eq 0 ] 
-           then hint_H263_track
-       fi
+       #if [ "$idxHintH263Track" == "" ] 
+       #    then hint_H263_track
+       #fi
    fi
 }
 # =============================================================================
@@ -1373,39 +1367,40 @@ AddVideoTracks()
 ExtractTextFromMp4()
 {
     if [ "$outTxtName" != "" ]
-        then
+    then
         cmd="${BIN_PATH}/mp4info $orgFile "
         printLine "Extract text informations "
-        $cmd > $INFO_FILE 2>&1
-	grep -n Comment $INFO_FILE | awk -F: '{print $1}' > $INFO_FILE.begin 2>&1  
-	integer begin=`cat $INFO_FILE.begin`
-	rm -rf $INFO_FILE.begin       
-        if [ $begin -ne 0 ]
-            then 
-	    wc $INFO_FILE|awk '{print $1}' > $INFO_FILE.end 2>&1 
-	    integer end=`cat $INFO_FILE.end`
-	    rm -rf $INFO_FILE.end                   
-            integer nb=$end-$begin
-            tail -n $nb   $INFO_FILE >  $outTxtName 
-            ret=$?
-            if [ $ret -ne 0 ] 
+        $cmd | awk 'BEGIN  { marq = 0; }
+{
+   if ( $0 ~ / Comments:/)
+   {
+                marq = 1;
+   }
+   else
+   {
+                if (marq > 0) print $0;
+   }
+}' > $outTxtName
+
+        ret=$?
+        if [ $ret -ne 0 ] 
                 then 
                 PrintFailed
                 exit $EXIT_ERROR
-            else 
+        else 
+		cat $outTxtName
                 PrintOK
-            fi
         fi        
     fi
 }
 
 HaveAllTrack()
 {
-    if [ haveUlaw -eq 1 ] ; then 
-        if [ haveAlaw -eq 1 ] ; then 
-            if [ haveAmr -eq 1 ] ; then 
-                if [ haveH263 -eq 1 ] ; then 
-                    if [ haveH264 -eq 1 ] ; then 
+    if [ $haveUlaw -eq 1 ] ; then 
+        if [ $haveAlaw -eq 1 ] ; then 
+            if [ $haveAmr -eq 1 ] ; then 
+                if [ $haveH263 -eq 1 ] ; then 
+                    if [ $haveH264 -eq 1 ] ; then 
                         # rien a faire 
                         cp $inFile $outFile
                         mp4_info $outFile
@@ -1502,7 +1497,7 @@ MakeH263Only()
     whatFile $outFile    
 }
 
-Make3gp()
+MakeHtml5()
 {
     CopyIn2tmp
     if [ $haveAudio -ne 0 ] 
@@ -1512,9 +1507,9 @@ Make3gp()
         then AddVideoBackground
     fi
 
-    if [ orgHaveVideo -eq 1 ]
-        then create_3gp_file_from_org
-        else create_3gp_file 
+    if [ $orgHaveVideo -eq 1 ]
+        then create_html5_file_from_org
+        else create_html5_file 
     fi
     whatFile $outFile    
 }
@@ -1549,7 +1544,7 @@ MakeQueueFile()
 
 
 
-Execut()
+Execute()
 {
     test_input_file $inFile
     MakeOutFilename
@@ -1566,8 +1561,8 @@ Execut()
              then MakeFlv
              else if [ $queueFile -eq 1  ]
                   then MakeQueueFile
-                  else if [ $TgpFile -eq 1  ]
-                       then Make3gp
+                  else if [ $Html5File -eq 1  ]
+                       then MakeHtml5
                        else if [ $H263Only -eq 1 ]
                             then MakeH263Only
                             else MakeMp4
@@ -1657,8 +1652,8 @@ while [ "$1" ]
       -q)
       queueFile=1
       ;;
-      -3)
-      TgpFile=1
+      -5)
+      Html5File=1
       ;;
       *)
       echo "Commande inconnue: $1"
@@ -1668,4 +1663,4 @@ while [ "$1" ]
   esac
   shift
 done
-Execut
+Execute

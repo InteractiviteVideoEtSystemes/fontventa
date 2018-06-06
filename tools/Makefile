@@ -5,7 +5,7 @@ SHELLSCRIPTS = mp4tool IVES_convert.ksh
 
 INSTALL = install
 
-LDFLAGS= -lmp4 -lmp4v2
+LDFLAGS= -lmp4v2
 CFLAGS =  
 
 %.o: %.cpp
@@ -31,4 +31,3 @@ install: all
 	cp pcm2mp4 $(INSTALL_MODULES_DIR) 
 	cp mp4band $(INSTALL_MODULES_DIR)
 	cp mp4asterisk $(INSTALL_MODULES_DIR)
-	cp /usr/bin/ffmpeg $(INSTALL_MODULES_DIR)/IVeS_ffmpeg

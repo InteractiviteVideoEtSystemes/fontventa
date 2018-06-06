@@ -19,7 +19,13 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-#include <mp4.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <mp4v2/mp4v2.h>
+
 
 int main(int argc,char **argv)
 {
@@ -31,7 +37,7 @@ int main(int argc,char **argv)
 	}
 
 	/* Open mp4*/
-	MP4FileHandle mp4 = MP4Read(argv[1], 9);
+	MP4FileHandle mp4 = MP4Read(argv[1]);
 
 	/* Find first hint track */
 	MP4TrackId trackId = MP4FindTrackId(mp4, 0, MP4_VIDEO_TRACK_TYPE, 0);

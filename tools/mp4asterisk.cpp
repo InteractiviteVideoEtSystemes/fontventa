@@ -19,7 +19,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-#include <mp4.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <arpa/inet.h>
+#include <mp4v2/mp4v2.h>
+
 
 static void dump_buffer_hex(unsigned char * text, unsigned char * buff, int len)
 {
@@ -78,10 +86,10 @@ int mp4asterisk(char *name)
 	}
   		
 	/* Open mp4*/
-	MP4FileHandle mp4 = MP4Read(name, 9);
+	MP4FileHandle mp4 = MP4Read(name);
 
 	/* Disable Verbosity */
-	MP4SetVerbosity(mp4, 0);
+	//MP4SetVerbosity(mp4, 0);
 	
 	index = 0;
 
@@ -402,7 +410,7 @@ int asteriskmp4(char *name)
 	MP4FileHandle mp4 = MP4Create(filename, 9);
 
 	/* Disable Verbosity */
-	MP4SetVerbosity(mp4, 0);
+	//MP4SetVerbosity(mp4, 0);
 	
 	index = 0;
 		
