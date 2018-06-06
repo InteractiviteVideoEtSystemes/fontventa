@@ -8,7 +8,7 @@ Vendor:   IVeS
 Group:     Applications/Internet
 License: GPL
 URL:       http://www.ives.fr
-BuildArchitectures: ives_archi
+BuildArchitectures: x86_64 i686 i386 i586
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 2.0.0, ffmpeg >= 3.3.0   
 BuildRequires: asteriskv-devel, SDL-devel, gcc-c++   
