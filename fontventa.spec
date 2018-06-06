@@ -1,8 +1,8 @@
 Name:      fontventa
-Version:   1.4.0
+Version:   1.4.1
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
-Release:   1.ives_distrib
+Release:   1.ives%{?dist}
 Summary:   [IVeS] librairies partag�es pour asterisk de Fontventa.
 Vendor:   IVeS
 Group:     Applications/Internet
@@ -10,8 +10,8 @@ License: GPL
 URL:       http://www.ives.fr
 BuildArchitectures: ives_archi
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 1.5.2   
-BuildRequires: ffmpeg-devel = 0.4.2, asteriskv-devel, SDL-devel, gcc-c++, mpeg4ip-devel = 1.5.2   
+Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 2.0.0, ffmpeg >= 3.3.0   
+BuildRequires: asteriskv-devel, SDL-devel, gcc-c++   
 
 %description
 Un ensemble de librairies partag�es pour asterisk de Fontventa.
