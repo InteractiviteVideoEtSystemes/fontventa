@@ -144,3 +144,8 @@ app_conference:
 	sudo make install
 	cd ../../app_conference; make
 	sudo /usr/sbin/asterisk -rx 'restart now'
+
+testsps.o: medkit/bitstream.h
+
+#testsps: testsps.o libmedkit.a
+#	g++ -o testsps testsps.o libmedkit.a -l mp4v2	

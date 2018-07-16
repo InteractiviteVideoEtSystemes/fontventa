@@ -94,10 +94,13 @@ public:
 		Debug("\tlog2_max_frame_num_minus4=%u\n",			log2_max_frame_num_minus4);
 		Debug("\tpic_order_cnt_type=%u\n",			pic_order_cnt_type);
 		Debug("\tlog2_max_pic_order_cnt_lsb_minus4=%u\n",		log2_max_pic_order_cnt_lsb_minus4);
+		if ( pic_order_cnt_type > 0)
+		{
 		Debug("\t delta_pic_order_always_zero_flag=%u\n",		delta_pic_order_always_zero_flag);
 		Debug("\toffset_for_non_ref_pic=%d\n",			offset_for_non_ref_pic);
 		Debug("\toffset_for_top_to_bottom_field=%d\n",		offset_for_top_to_bottom_field);
 		Debug("\tnum_ref_frames_in_pic_order_cnt_cycle=%u\n",	num_ref_frames_in_pic_order_cnt_cycle);
+		}
 		Debug("\tnum_ref_frames=%u\n",				num_ref_frames);
 		Debug("\tgaps_in_frame_num_value_allowed_flag=%u\n",	gaps_in_frame_num_value_allowed_flag);
 		Debug("\tpic_width_in_mbs_minus1=%u\n",			pic_width_in_mbs_minus1);

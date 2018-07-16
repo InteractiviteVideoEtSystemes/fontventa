@@ -1,5 +1,5 @@
 Name:      libmedkit
-Version:   1.6.1
+Version:   1.6.2
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -44,6 +44,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
+* Mon Juk 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected SPS decoding
+- version 1.6.2
+
 * Wed Jun 6 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - migrated to ffmpeg 3.3.7
 - version 1.6.0

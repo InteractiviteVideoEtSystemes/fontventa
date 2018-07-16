@@ -39,7 +39,7 @@ public:
 			ret =  ret | GetCached(a);
 		} else
 			ret = GetCached(n);
-		//Debug("Readed %d:\n",n);
+		//Debug("Read %d bits. Pos=%d\n",n, bufferPos);
 		//BitDump(ret,n);
 		return ret;
 	}
@@ -178,8 +178,11 @@ public:
 
 	inline DWORD GetCached(DWORD n)
 	{
+		if (n == 0) return 0;
 		//Get bits
 		DWORD ret = cache >> (32-n);
+		//Debug("GetCached: cache %x, ret: %x, nb cached: %d.\n", cache, ret, cached);
+		//BitDump(cache, cached);	
 		//Skip thos bits
 		SkipCached(n);
 		//Return bits
@@ -407,6 +410,7 @@ public:
 		//Get the exp
 		DWORD value = reader.Get(len);
 		//Calc value
+		//Debug("Glolomb: value: %x, len %d, zz %x -> %d \n", value, len, 1<<len,  (1<<len)-1+value);
 		return (1<<len)-1+value;
 	}
 
