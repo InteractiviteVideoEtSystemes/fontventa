@@ -53,6 +53,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Mon Jul 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected SPS decoding in libmedikit
+- version 1.6.2
+
 * Wed Jun 7 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected tools to use mp4v2
 - version 1.6.1

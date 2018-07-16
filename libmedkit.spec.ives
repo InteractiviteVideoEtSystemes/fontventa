@@ -44,7 +44,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
-* Mon Juk 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+* Mon Jul 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected SPS decoding
 - version 1.6.2
 
