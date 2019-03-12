@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   1.6.0
+Version:   1.6.3
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -53,6 +53,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Thu Mar 12 2019 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected RTT recorind in text file
+- version 1.6.3
+
 * Mon Jul 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected SPS decoding in libmedikit
 - version 1.6.2

@@ -129,7 +129,8 @@ static const char *des_save = "  mp4save(filename,[options]):  Record mp4 file. 
         "Available options:\n"
         " 'v': activate loopback of video\n"
         " 'V': wait for first video I frame to start recording\n"
-	" '0'..'9','#','*': sets dtmf input to stop recording"
+		" '0'..'9','#','*': sets dtmf input to stop recording\n"
+		" 'T': do not record text separate text file\n"
         "\n"
         "Note: waiting for video I frame also activate video loopback mode.\n"
         "\n"
@@ -145,7 +146,7 @@ enum _mp4play_exec_option_flags
 {
         OPT_DFTMINTOVAR 	=	(1 << 0),
         OPT_NOOFDTMF 		=	(1 << 1),
-	OPT_STOPDTMF		=	(1 << 2),
+		OPT_STOPDTMF		=	(1 << 2),
 } mp4play_exec_option_flags;
 
 enum {
@@ -478,6 +479,7 @@ clean:
 }
 
 
+
 static int record_frames(struct AstFb * recQueues[], struct ast_channel * chan, struct mp4rec * recorder, int loopback, int flush)
 {
 	if (recorder)
@@ -537,6 +539,7 @@ static int record_frames(struct AstFb * recQueues[], struct ast_channel * chan, 
 }
 
 
+
 static int mp4_save(struct ast_channel *chan, void *data)
 {
 	struct ast_module_user *u = NULL;
@@ -549,16 +552,19 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	struct mp4rec * recorder;
 	char metadata[100];
 	MP4FileHandle mp4;
-	
+
 	/*  whether we send back the video packets to the caller */
 	int videoLoopback = 0;
 	
 	/*  whether we wait for video I-frame to start recording */
 	int waitVideo = 0;
 	
+	/* whether we record chat in a separate text file */
+	int saveInTxtFile = 1;
+	
 	/*  Recording is on man! */
 	int onrecord = 1;
-	int textfile = 0;
+	int textfile = -1;
 	
 	struct AstFb * audioInQueue;
 	struct AstFb * videoInQueue;
@@ -599,6 +605,12 @@ static int mp4_save(struct ast_channel *chan, void *data)
 			waitVideo = 1;
 		}
 		
+		/* Check video waiting */
+		if (strchr(params,'T'))
+		{
+			saveInTxtFile = 0;
+		}
+		
 		int i, j = strlen(stopDtmfs);
 		for (i=0; i < strlen(params); i++)
 		{
@@ -630,7 +642,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    goto mp4_save_cleanup;
 	}
 
-	if ( (chan->nativeformats & AST_FORMAT_TEXT_MASK) != 0)
+	if ( (chan->nativeformats & AST_FORMAT_TEXT_MASK) != 0 && saveInTxtFile != 0 )
 	{
 	    char textFileName[200];
 

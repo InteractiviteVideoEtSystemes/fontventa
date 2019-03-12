@@ -734,19 +734,20 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	
 	sampleId++;
 	
-	
 	if ( encoder.Accumulate( f2->GetWString() ) == 2)
 	{
 	    // Current line has just been flushed into history
 	    if ( textfile >= 0 ) 
 	    {
 	        // If there is an active text file, write it
-		encoder.GetFirstHistoryLine(subtitle);
-		write( textfile, subtitle.c_str(), subtitle.length() );
+			encoder.GetFirstHistoryLine(subtitle);
+			write( textfile, subtitle.c_str(), subtitle.length() );
 	    }
 	}
+	
 	encoder.GetSubtitle(subtitle);
 	unsigned int subsize = subtitle.length();
+
 	
 	BYTE* data = (BYTE*)malloc(subsize+2);
 
