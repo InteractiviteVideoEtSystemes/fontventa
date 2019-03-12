@@ -915,7 +915,10 @@ Mp4TextTrack::~Mp4TextTrack()
                 // If there is an active text file, write it before closing
                 encoder.GetCurrentLine(curline);
                 if ( curline.length() > 0 )
-                	write( textfile, curline.c_str(), curline.length() );
+				{
+                	write( textfile, curline.data(), curline.length() );
+					write( textfile, "\r\n", 2);
+				}
         }
 	
 	if (conv1) delete conv1;
