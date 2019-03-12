@@ -741,7 +741,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	    {
 	        // If there is an active text file, write it
 			encoder.GetFirstHistoryLine(subtitle);
-			write( textfile, subtitle.c_str(), subtitle.length() );
+			int ret = ::write( textfile, subtitle.data(), subtitle.length() );
 	    }
 	}
 	
