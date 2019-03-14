@@ -13,14 +13,14 @@
 int AstFormatToCodecList(int format, AudioCodec::Type codecList[], unsigned int maxSize);
 int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsigned int maxSize);
 
-inline int AstFormatToCodecList(int format, AudioCodec::Type & ac)
+inline int AstFormatToCodecList(int format, AudioCodec::Type * ac)
 {
-	return AstFormatToCodecList(format, &ac, 1);
+	return AstFormatToCodecList(format, ac, 1);
 }
 
-inline int AstFormatToCodecList(int format, VideoCodec::Type & vc)
+inline int AstFormatToCodecList(int format, VideoCodec::Type * vc)
 {
-	return AstFormatToCodecList(format, &vc, 1);
+	return AstFormatToCodecList(format, vc, 1);
 }
 
 bool MediaFrameToAstFrame(const MediaFrame * mf, struct ast_frame & astf);

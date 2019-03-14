@@ -1269,7 +1269,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			unsigned int nbACodecs = 0;
 			AudioCodec::Type ac = (AudioCodec::Type) -1;
 
-			if ( ! AstFormatToCodecList(chan->writeformat, ac) )
+			if ( ! AstFormatToCodecList(chan->writeformat, &ac) )
 			{
 				delete p;
 				Error("mp4play: Failed to obtain preferred audio codec for chan %s\n", chan->name);
@@ -1293,14 +1293,13 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			unsigned int nbVCodecs = 0;
 			VideoCodec::Type vc = (VideoCodec::Type)-1;
 
-			if ( AstFormatToCodecList(chan->writeformat, vc) )
+			if ( ! AstFormatToCodecList(chan->nativeformats, &vc) )
 			{
 				delete p;
 				Error("mp4play: Failed to obtain preferred video codec for chan %s\n", chan->name);
 				return NULL;
 			}
 			
-			vc = vcodecList[0];
 			nbVCodecs = AstFormatToCodecList(chan->nativeformats, vcodecList, 3);
 			
 			if ( p->OpenTrack(vcodecList, nbVCodecs, vc, transcodeVideo, false) < 0 )
