@@ -817,7 +817,7 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 		while (hintId != MP4_INVALID_TRACK_ID)
 		{
 			const char* nm = MP4GetTrackMediaDataName(mp4,hintId);
-			//Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
+			Debug("found hint track %d (%s)\n", hintId,nm?nm: "null");
 			
 			/* Get associated track */
 			trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
@@ -1317,7 +1317,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 		    tc = TextCodec::T140;
 		if ( p->OpenTrack(tc, renderText, 1) < 0 )
 		{
-			Error("mp4play: [%s]  No suitable video track found.\n", chan->name);
+			Log("mp4play: [%s]  No suitable text track found.\n", chan->name);
 		}			
 	    }
     }

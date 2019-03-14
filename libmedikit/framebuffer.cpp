@@ -94,11 +94,11 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		}
 	}
 		
+	//ast_log(LOG_DEBUG, "Adding packet %p seq=%ld, isfifo=%d, ignorecseq=%d.\n", this, seq, isfifo, ignore_cseq);
 
 	//If already past
 	if (next != (DWORD)-1 && seq < next && isfifo == 0)
 	{
-		bigJumps++;
 		//Delete pacekt
 		//Skip it and lost forever
 		if ( bigJumps > 20)
@@ -110,10 +110,14 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		}
 		else 
 		{
-			//Unlock
+			DWORD diff = next-seq;
+
+			if (diff > 10)
+			{
+				ast_log(LOG_WARNING, "-Out of order non recoverable packet: %p seq=%u, next=%u diff=%u\n", this, seq, next, diff);
+				bigJumps++;
+			}
 			pthread_mutex_unlock(&mutex);
-			ast_log(LOG_WARNING, "-Out of order non recoverable packet: seq=%ld, next=%ld diff=%ld\n",
-					seq, next, next-seq);
 			return false;
 		}
 	}
@@ -210,8 +214,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			//Get time of the packet
 /*
 			if (seq != next)
-			    Log("seq=%lu, next=%lu, sz=%u, blocking=%d, maxWaitTime=%d\n", seq, next, sz, blocking,
-				maxWaitTime);
+			    Log("seq=%lu, next=%lu, sz=%u, blocking=%d\n", seq, next, sz, blocking);
 */			
 			//Check if first is the one expected or wait if not
 			if (HasPacketReady(seq))
@@ -232,6 +235,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				
 				//Update next
 				next = seq+1;
+			        //Log("Got packet buff=%p seq=%lu, next=%lu, blocking=%d\n", this, seq, next, blocking);
 				//Remove it
 				packets.erase(it);
 				//Return it!
