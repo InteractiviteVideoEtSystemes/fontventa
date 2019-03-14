@@ -853,7 +853,7 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 					{
 						// This is the preffered codec !
 						// use it and stop here
-						
+						Debug("Video track %d matches preferred codec %s\n", trackId, VideoCodec::GetNameFor(c));
 						lastTrackMatch = trackId;
 						lastHintMatch = hintId;
 						break;
@@ -899,7 +899,7 @@ video_track_loop:
 				mediatracks[MP4_VIDEO_TRACK] = new Mp4VideoTrack(mp4, lastTrackMatch, lastHintMatch, c);
 				next[MP4_VIDEO_TRACK] = mediatracks[MP4_VIDEO_TRACK]->GetNextFrameTime();
 			}
-			Log("Opened video track ID %d.\n", lastTrackMatch);
+			Log("Opened video track ID %d hint track %d.\n", lastTrackMatch, lastHintMatch);
 			return 1;
 		}
 		else
