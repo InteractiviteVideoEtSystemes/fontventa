@@ -1,5 +1,5 @@
 Name:      libmedkit
-Version:   1.6.2
+Version:   1.6.3
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives_distrib
@@ -44,6 +44,11 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
+* Fri Mar 15 2019 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+- Corrected mp4play to be compatible with existing MP4 files.
+- removed saving SPS / PPS packets from the tracks of MP4 files
+- version 1.6.3
+
 * Mon Jul 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected SPS decoding
 - version 1.6.2

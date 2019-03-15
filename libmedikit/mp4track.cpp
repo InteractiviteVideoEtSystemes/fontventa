@@ -548,7 +548,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 				DWORD nalSize = rtp->GetSize()-1;
 
 				//If it a SPS NAL
-				if (!hasSPS && nalType==0x07)
+				if (nalType==0x07)
 				{
 					H264SeqParameterSet sps;
 					//DEcode SPS
@@ -559,34 +559,41 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 					width = sps.GetWidth();
 					height = sps.GetHeight();
 					
-					//Add it
-					MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
-					//No need to search more
-					hasSPS = true;
+					if (!hasSPS)
+					{
+						//Add it
+						MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
+						//No need to search more
+						hasSPS = true;
 					
-					// Update profile level
-					AVCProfileIndication 	= sps.GetProfile();
-					AVCLevelIndication	= sps.GetLevel();
+						// Update profile level
+						AVCProfileIndication 	= sps.GetProfile();
+						AVCLevelIndication	= sps.GetLevel();
 					
-					Log("-mp4recorder: new size: %lux%lu. H264_profile: %02x H264_level: %02x\n", 
-						width, height, AVCProfileIndication, AVCLevelIndication);
+						Log("-mp4recorder: new size: %lux%lu. H264_profile: %02x H264_level: %02x\n", 
+							width, height, AVCProfileIndication, AVCLevelIndication);
 					
-					//Update widht an ehight
-					MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
-					MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
-					
-					//Add it
-					MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
-					
+						//Update widht an ehight
+						MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.width", sps.GetWidth());
+						MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
+						
+						//Add it
+						MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
+					}
+					continue;
 				}
 
 				//If it is a PPS NAL
-				if (!hasPPS && nalType==0x08)
+				if (nalType==0x08)
 				{
-					//Add it
-					MP4AddH264PictureParameterSet(mp4,mediatrack,nalData,nalSize);
-					//No need to search more
-					hasPPS = true;
+					if (!hasPPS)
+					{
+						//Add it
+						MP4AddH264PictureParameterSet(mp4,mediatrack,nalData,nalSize);
+						//No need to search more
+						hasPPS = true;
+					}
+					continue;
 				}
 			}	
 			
