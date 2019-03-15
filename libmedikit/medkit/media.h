@@ -215,7 +215,7 @@ public:
 		
 		DWORD newSz = f->GetLength() + GetLength();
 		DWORD oldSz = GetLength();
-		RtpPacketizationInfo oldRtpInfo = GetRtpPacketizationInfo();
+		RtpPacketizationInfo oldRtpInfo;
 		
 		if ( newSz > GetMaxMediaLength() )
 		{
@@ -231,12 +231,12 @@ public:
 		if ( HasRtpPacketizationInfo() )
 		{
 			// If frame has packetization, merge it
-			ClearRTPPacketizationInfo();
-			MediaFrame::RtpPacketizationInfo::iterator it;
+			// do not use ClearTypPacketizationInfo() as we reuse the ptr
+			rtpInfo.clear();
 			
 			if ( f->HasRtpPacketizationInfo() )
 			{
-				for (it = f->rtpInfo.begin(); it != f->rtpInfo.end(); it++)
+				for (RtpPacketizationInfo::iterator it = f->rtpInfo.begin(); it != f->rtpInfo.end(); it++)
 				{
 					MediaFrame::RtpPacketization * rtp = *it;
 					AddRtpPacket(rtp->GetPos(), rtp->GetSize(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
@@ -248,9 +248,9 @@ public:
 				AddRtpPacket(0, f->GetLength(), NULL, 0, false);
 			}
 			
-			for (it = oldRtpInfo.begin(); it != oldRtpInfo.end(); it++)
+			for (RtpPacketizationInfo::iterator it = oldRtpInfo.begin(); it != oldRtpInfo.end(); it++)
 			{
-				MediaFrame::RtpPacketization * rtp = *it;
+				MediaFrame::RtpPacketization * rtp = (*it);
 				AddRtpPacket(rtp->GetPos() + oldSz, rtp->GetSize(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
 			}
 		}
