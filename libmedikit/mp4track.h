@@ -111,7 +111,7 @@ public:
 		
 		hasSPS = false;
 		hasPPS = false;
-		if (code == VideoCodec::H264) 
+		if (codec == VideoCodec::H264) 
 			paramFrame = ReadH264Params();
 		else
 			paramFrame = NULL;

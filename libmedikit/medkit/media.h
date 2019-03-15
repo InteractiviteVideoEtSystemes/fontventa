@@ -131,7 +131,7 @@ public:
 	DWORD	GetTimeStamp()	const	{ return ts;	}
 	DWORD	SetTimestamp(DWORD ts)	{ this->ts = ts; }
 
-	bool	HasRtpPacketizationInfo()		{ return !rtpInfo.empty();	}
+	bool	HasRtpPacketizationInfo() const		{ return !rtpInfo.empty();	}
 	RtpPacketizationInfo& GetRtpPacketizationInfo()	{ return rtpInfo;		}
 	virtual MediaFrame* Clone() = 0;
 
@@ -208,7 +208,7 @@ public:
 		return pos;
 	}
 
-	bool PrependWithFrame(const MediaFrame * f)
+	bool PrependWithFrame(MediaFrame * f)
 	{
 		if ( !ownsbuffer ) return false;	
 		if ( f->GetType() != f->GetType() ) return false;
@@ -239,7 +239,7 @@ public:
 				for (it = f->rtpInfo.begin(); it != f->rtpInfo.end(); it++)
 				{
 					MediaFrame::RtpPacketization * rtp = *it;
-					AddRtpPacket(rtp->GetPos(), rtp->GetLength(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
+					AddRtpPacket(rtp->GetPos(), rtp->GetSize(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
 				}
 			}
 			else
@@ -248,10 +248,10 @@ public:
 				AddRtpPacket(0, f->GetLength(), NULL, 0, false);
 			}
 			
-			for (it = rtpInfo.begin(); it != rtpInfo.end(); it++)
+			for (it = oldRtpInfo.begin(); it != oldRtpInfo.end(); it++)
 			{
 				MediaFrame::RtpPacketization * rtp = *it;
-				AddRtpPacket(rtp->GetPos() + oldSz, rtp->GetLength(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
+				AddRtpPacket(rtp->GetPos() + oldSz, rtp->GetSize(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
 			}
 		}
 	}
