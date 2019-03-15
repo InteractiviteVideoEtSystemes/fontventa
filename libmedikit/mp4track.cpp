@@ -578,7 +578,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 						MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
 						
 						//Add it
-						MP4AddH264SequenceParameterSet(mp4,mediatrack,nalData,nalSize);
+						MP4AddH264SequenceParameterSet(mp4,mediatrack,data,rtp->GetSize());
 					}
 					continue;
 				}
@@ -589,7 +589,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 					if (!hasPPS)
 					{
 						//Add it
-						MP4AddH264PictureParameterSet(mp4,mediatrack,nalData,nalSize);
+						MP4AddH264PictureParameterSet(mp4,mediatrack,data,rtp->GetSize());
 						//No need to search more
 						hasPPS = true;
 					}
