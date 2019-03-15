@@ -163,8 +163,12 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 	else
 	{
 		if ( rtppak->GetPos() + rtppak->GetSize() > mf->GetLength() )
+		{
+			Debug("Inconsistent RTP packet: is defined out of the frame bounds.\n");
+			Debug("Frame length is: %u bytes.\n", mf->GetLength());
+			Debug("Packet end is at %u bytes.\n", rtppak->GetPos() + rtppak->GetSize());
 			return false;
-
+		}
 		if (rtppak->GetPrefixData() == NULL || rtppak->GetPrefixLen() == 0)
 		{			 
 			astf.data = mf->GetData() + rtppak->GetPos();

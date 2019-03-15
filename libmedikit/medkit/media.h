@@ -208,53 +208,7 @@ public:
 		return pos;
 	}
 
-	bool PrependWithFrame(MediaFrame * f)
-	{
-		if ( !ownsbuffer ) return false;	
-		if ( f->GetType() != f->GetType() ) return false;
-		
-		DWORD newSz = f->GetLength() + GetLength();
-		DWORD oldSz = GetLength();
-		RtpPacketizationInfo oldRtpInfo;
-		
-		if ( newSz > GetMaxMediaLength() )
-		{
-			Alloc(newSz);
-		}
-		
-		// Move data of 
-		memmove( buffer + oldSz, buffer, oldSz );
-		
-		// prepend data
-		memcpy( buffer, f->GetData(), f->GetLength() );
-		
-		if ( HasRtpPacketizationInfo() )
-		{
-			// If frame has packetization, merge it
-			// do not use ClearTypPacketizationInfo() as we reuse the ptr
-			rtpInfo.clear();
-			
-			if ( f->HasRtpPacketizationInfo() )
-			{
-				for (RtpPacketizationInfo::iterator it = f->rtpInfo.begin(); it != f->rtpInfo.end(); it++)
-				{
-					MediaFrame::RtpPacketization * rtp = *it;
-					AddRtpPacket(rtp->GetPos(), rtp->GetSize(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
-				}
-			}
-			else
-			{
-				// Add dummy packet
-				AddRtpPacket(0, f->GetLength(), NULL, 0, false);
-			}
-			
-			for (RtpPacketizationInfo::iterator it = oldRtpInfo.begin(); it != oldRtpInfo.end(); it++)
-			{
-				MediaFrame::RtpPacketization * rtp = (*it);
-				AddRtpPacket(rtp->GetPos() + oldSz, rtp->GetSize(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
-			}
-		}
-	}
+	bool PrependWithFrame(MediaFrame * f);
 	
 	/*
 	 * Create packetization info by parsing media
