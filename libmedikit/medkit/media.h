@@ -208,6 +208,54 @@ public:
 		return pos;
 	}
 
+	bool PrependWithFrame(const MediaFrame * f)
+	{
+		if ( !ownsbuffer ) return false;	
+		if ( f->GetType() != f->GetType() ) return false;
+		
+		DWORD newSz = f->GetLength() + GetLength();
+		DWORD oldSz = GetLength();
+		RtpPacketizationInfo oldRtpInfo = GetRtpPacketizationInfo();
+		
+		if ( newSz > GetMaxMediaLength() )
+		{
+			Alloc(newSz);
+		}
+		
+		// Move data of 
+		memmove( buffer + oldSz, buffer, oldSz );
+		
+		// prepend data
+		memcpy( buffer, f->GetData(), f->GetLength() );
+		
+		if ( HasRtpPacketizationInfo() )
+		{
+			// If frame has packetization, merge it
+			ClearRTPPacketizationInfo();
+			MediaFrame::RtpPacketizationInfo::iterator it;
+			
+			if ( f->HasRtpPacketizationInfo() )
+			{
+				for (it = f->rtpInfo.begin(); it != f->rtpInfo.end(); it++)
+				{
+					MediaFrame::RtpPacketization * rtp = *it;
+					AddRtpPacket(rtp->GetPos(), rtp->GetLength(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
+				}
+			}
+			else
+			{
+				// Add dummy packet
+				AddRtpPacket(0, f->GetLength(), NULL, 0, false);
+			}
+			
+			for (it = rtpInfo.begin(); it != rtpInfo.end(); it++)
+			{
+				MediaFrame::RtpPacketization * rtp = *it;
+				AddRtpPacket(rtp->GetPos() + oldSz, rtp->GetLength(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
+			}
+		}
+	}
+	
 	/*
 	 * Create packetization info by parsing media
 	 */

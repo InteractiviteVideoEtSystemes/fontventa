@@ -95,6 +95,7 @@ public:
 		AVCProfileCompat	= 0xC0;
 		hasSPS = false;
 		hasPPS = false;
+		paramFrame = NULL;
     }
 
     Mp4VideoTrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack, VideoCodec::Type codec) : Mp4Basetrack(mp4, mediaTrack, hintTrack) 
@@ -107,8 +108,19 @@ public:
 		MP4GetTrackH264LengthSize(mp4, mediaTrack, &naluSz_storage);
 		f->SetH264NalSizeLength(naluSz_storage);
 		frame = f;
+		
+		hasSPS = false;
+		hasPPS = false;
+		if (code == VideoCodec::H264) 
+			paramFrame = ReadH264Params();
+		else
+			paramFrame = NULL;
     }
-
+	
+	virtual ~Mp4VideoTrack() 
+    {
+		if (paramFrame) delete paramFrame;    
+    }
     void SetSize(DWORD width, DWORD height)
     {
 		this->width = width;
@@ -135,10 +147,14 @@ public:
 	AVCLevelIndication = level;
     }
     
+	/* Overloaded to get H.264 parameters */
+	virtual const MediaFrame * ReadFrame();
+	
     VideoCodec::Type GetCodec() { return codec; }
 
 private:
 	int DoWritePrevFrame(DWORD duration);
+	VideoFrame * ReadH264Params();
 	
     DWORD width, height, bitrate;
     bool videoStarted;
@@ -152,6 +168,7 @@ private:
     unsigned char AVCLevelIndication;
     unsigned char AVCProfileCompat;
     
+	VideoFrame * paramFrame;
     VideoCodec::Type codec;
     std::string trackName;
 };

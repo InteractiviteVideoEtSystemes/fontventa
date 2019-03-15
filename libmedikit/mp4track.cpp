@@ -681,6 +681,85 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 	}
 }
 
+const MediaFrame * Mp4VideoTrack::ReadFrame()
+{
+	VideoFrame * vf = (VideoFrame *) Mp4Basetrack::ReadFrame();
+	if (paramFrame != NULL && vf->IsIntra())
+	{
+		// H.264 If frame is an intra prepend the SEQ / PICT headers
+		if ( ! vf->PrependWithFrame(paramFrame) )
+		{
+			Error("Failed to add H.264 seq / pict params\n");
+		}
+	}
+	
+	return vf;
+}
+
+VideoFrame * Mp4VideoTrack::ReadH264Params()
+{
+	uint8_t **seqheader, **pictheader = NULL;
+	uint32_t *pictheadersize, *seqheadersize = NULL;
+	uint32_t ix;
+	
+	VideoFrame * vf = new VideoFrame(codec, 5000, true);
+	
+	if (vf == NULL)
+	{
+		Error("Failed to allocate VideoFrame form H264 parameters.\n");
+		return NULL;
+	}
+	
+	MP4GetTrackH264SeqPictHeaders(mp4, mediatrack, 
+                                 &seqheader, &seqheadersize,
+                                 &pictheader, &pictheadersize);
+	
+	
+	if (seqheader != NULL && seqheadersize != NULL)
+	{
+		for (ix = 0; seqheadersize[ix] != 0; ix++)
+		{
+			DWORD pos = vf->GetLength();
+			vf->AppendMedia(seqheader[ix], seqheadersize[ix]);
+			vf->AddRtpPacket(pos, seqheadersize[ix], NULL, 0, false);
+		
+			if (seqheader[ix]) free(seqheader[ix])	;		
+		}
+		Debug("Read %u sequence parameter header(s) from H.264 video track ID %d.\n", ix, mediatrack);
+	}
+	else
+	{
+		Error("No H.264 sequence parameter found video track ID %d.\n", mediatrack);
+	}
+
+	if (pictheadersize != NULL && pictheader != NULL)
+	{
+		for (ix = 0; pictheadersize[ix] != 0; ix++)
+		{
+			DWORD pos = vf->GetLength();
+			vf->AppendMedia(pictheader[ix], pictheadersize[ix]);
+			vf->AddRtpPacket(pos, pictheadersize[ix], NULL, 0, false);
+			if (pictheader[ix]) free(pictheader[ix]);
+		}     
+		Debug("Read %u picture parameter header(s) from H.264 video track ID %d.\n", ix, mediatrack);
+	}
+	else
+	{
+		Error("No H.264 picture parameter found video track ID %d.\n", mediatrack);
+	}
+
+	if (pictheader) free(pictheader);
+	if (pictheadersize) free(pictheadersize);
+
+	if ( vf->GetLength() == 0 )
+	{
+		Error("Failed to load any H.264 sequence or picture parameters.\n");
+		delete vf;
+		vf = NULL;
+	}
+	return vf;
+}
+
 Mp4TextTrack::Mp4TextTrack(MP4FileHandle mp4, MP4TrackId mediaTrack) : Mp4Basetrack(mp4, mediaTrack, MP4_INVALID_TRACK_ID) 
 {
     Log("-mp4recorder: creating subtitle to TTR renderer.\n"); 
