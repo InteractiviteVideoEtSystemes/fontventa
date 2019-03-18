@@ -938,6 +938,8 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
     else
     {
 		Error("Could not find any text track in this file.\n");
+		mediatracks[MP4_TEXT_TRACK] = NULL;
+		next[MP4_TEXT_TRACK] = MP4_INVALID_TIMESTAMP;
 		return -1;
     }
 }
@@ -959,7 +961,7 @@ bool mp4player::Eof(void)
 int mp4player::Rewind()
 {
 	gettimeofday(&startPlaying,0);
-	for (int i=0; i<5; i++)
+	for (int i=0; i<4; i++)
 	{
 		if ( mediatracks[i] )
 		{
@@ -977,7 +979,7 @@ bool mp4player::GetNextTrackAndTs(int & trackId, QWORD & ts)
 {
 	ts = MP4_INVALID_TIMESTAMP;
 	
-	for (int i=0; i<5; i++)
+	for (int i=0; i<4; i++)
 	{
 		if ( mediatracks[i] && next[i] < ts )
 		{

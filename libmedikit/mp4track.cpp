@@ -273,7 +273,7 @@ const MediaFrame * Mp4Basetrack::ReadFrameWithoutHint()
 
 	//Set lenght & duration
 	frame->SetLength(dataLen);
-	frame->SetDuration(duration);
+	frame->SetDuration(duration/timeScale);
 	VideoFrame *video = NULL;
 
 	//Set media specific properties
@@ -537,7 +537,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 		{
 			MediaFrame::RtpPacketization * rtp = *it;
 
-			if ( ((VideoFrame *) frame)->GetCodec()==VideoCodec::H264 && (!hasSPS || !hasPPS) )
+			if ( ((VideoFrame *) frame)->GetCodec()==VideoCodec::H264 )
 			{
 				//Get rtp data pointer
 				BYTE *data = frame->GetData()+rtp->GetPos();
@@ -578,7 +578,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 						MP4SetTrackIntegerProperty(mp4,mediatrack,"mdia.minf.stbl.stsd.avc1.height", sps.GetHeight());
 						
 					}
-					continue;
+					//continue;
 				}
 
 				//If it is a PPS NAL
@@ -591,7 +591,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 						//No need to search more
 						hasPPS = true;
 					}
-					continue;
+					//continue;
 				}
 			}	
 			

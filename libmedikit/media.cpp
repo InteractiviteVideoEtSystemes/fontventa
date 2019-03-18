@@ -38,7 +38,7 @@ bool MediaFrame::PrependWithFrame(MediaFrame * f)
 			{
 				MediaFrame::RtpPacketization * rtp = *it;
 				AddRtpPacket(rtp->GetPos(), rtp->GetSize(), rtp->GetPrefixData(), rtp->GetPrefixLen(), rtp->IsMark());
-				Debug("RTP pkt %d: pos=%u, sz=%u. end=%u.\n", rtp->GetPos(), rtp->GetSize(), rtp->GetPos()+rtp->GetSize());
+				//Debug("RTP pkt %d: pos=%u, sz=%u. end=%u.\n", rtp->GetPos(), rtp->GetSize(), rtp->GetPos()+rtp->GetSize());
 			}
 		}
 		else
