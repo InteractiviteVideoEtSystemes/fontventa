@@ -827,7 +827,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	        // If there is an active text file, write it
 		encoder.GetFirstHistoryLine(subtitle);
 		int ret = ::write( textfile, subtitle.data(), subtitle.length() );
-		Log("Text inf file. write() returned %d.\n",ret);
+		savedText += subtitle;
 	    }
 	}
 	
@@ -1003,7 +1003,9 @@ Mp4TextTrack::~Mp4TextTrack()
                 if ( curline.length() > 0 )
 				{
                 	write( textfile, curline.data(), curline.length() );
+					savedText += curline;
 					write( textfile, "\r\n", 2);
+					savedText +=  "\r\n";
 				}
         }
 	

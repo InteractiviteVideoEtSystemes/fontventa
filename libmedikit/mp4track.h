@@ -191,11 +191,13 @@ public:
     virtual int ProcessFrame( const MediaFrame * f );
     virtual const MediaFrame * ReadFrame();
     void RenderAsReatimeText(bool render);
+	const std::string & GetSavedText() { return savedText; }
     
 private:
     TextEncoder encoder;
     //MP4TrackId rawtexttrack;
     int textfile;
     SubtitleToRtt * conv1;
-    BYTE buffer[600];	
+    BYTE buffer[600];
+	std::string savedText;
 };

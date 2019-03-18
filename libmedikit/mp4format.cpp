@@ -59,6 +59,30 @@ const char * idxToMedia(int i)
 
 mp4recorder::~mp4recorder()
 {
+	const MP4Tags * tags = MP4TagsAlloc();  
+
+	MP4TagsSetEncodingTool(tags, "MP4Save asterisk application");
+	//MP4TagsSetArtist(tags, chan->cid.cid_name );
+
+	if (mediatracks[MP4_TEXT_TRACK] != NULL)
+	{
+		const std::string & texte(mediatracks[MP4_TEXT_TRACK]->GetSavedText());
+		
+		if (texte.length() > 0)
+		{
+
+			
+			if ( ! MP4TagsSetComments(tags, txtBuff)  )
+			{
+				ast_log(LOG_WARNING, "mp4recorder: Save text inside mp4 comment tag failed.\n");
+			}
+
+		}
+	}
+	
+	MP4TagsStore(tags, mp4);
+	MP4TagsFree( tags );
+	
     for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
     {
         if ( mediatracks[i] ) delete mediatracks[i];
