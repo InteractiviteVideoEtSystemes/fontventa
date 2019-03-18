@@ -552,10 +552,20 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 				if (nalType==0x07)
 				{
 					H264SeqParameterSet sps;
-					//DEcode SPS
-					sps.Decode(nalData,nalSize);
+					
+					try
+					{
+						//DEcode SPS
+						sps.Decode(nalData,nalSize);
+					}
+					catch (std::runtime_error e)
+					{
+						Error("Failed to decode SPS packet. Skipping it.\n");
+						continue
+					}
+					
 					//Dump
-					sps.Dump();
+					//sps.Dump();
 					// Update size
 					width = sps.GetWidth();
 					height = sps.GetHeight();
