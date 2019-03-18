@@ -140,7 +140,7 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 
 	//Set lenght & duration
 	frame->SetLength(dataLen);
-	frame->SetDuration(duration);
+	frame->SetDuration(duration/timeScale);
 	VideoFrame *video = NULL;
 
 	//Set media specific properties
@@ -274,6 +274,7 @@ const MediaFrame * Mp4Basetrack::ReadFrameWithoutHint()
 	//Set lenght & duration
 	frame->SetLength(dataLen);
 	frame->SetDuration(duration/timeScale);
+	//frame->SetDuration(duration);
 	VideoFrame *video = NULL;
 
 	//Set media specific properties

@@ -987,7 +987,7 @@ bool mp4player::GetNextTrackAndTs(int & trackId, QWORD & ts)
 			trackId = i;
 		}
 	}
-
+	
 	return (ts != MP4_INVALID_TIMESTAMP);
 }
 
