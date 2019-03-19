@@ -101,6 +101,7 @@ public:
 
 
     void SetWaitForVideo( bool wait ) { waitVideo = wait; }
+	void SaveTextInComment( bool save ) { saveTxtInComment = save; } 
 	
 	void Flush();
 
@@ -137,6 +138,8 @@ private:
 	
 	// to generate video prologue
 	PictureStreamer * pcstream;
+	
+	bool saveTxtInComment;
 };
 
 /**

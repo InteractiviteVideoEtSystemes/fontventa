@@ -35,6 +35,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     }
 	pcstream = NULL;
     waitNextVideoFrame = false;
+	saveTxtInComment = true;
 }
 
 const char * idxToMedia(int i)
@@ -69,7 +70,7 @@ mp4recorder::~mp4recorder()
 	{
 		const std::string & texte(mediatracks[MP4_TEXT_TRACK]->GetSavedText());
 		
-		if (texte.length() > 0)
+		if (saveTxtInComment && texte.length() > 0)
 		{
 
 			
