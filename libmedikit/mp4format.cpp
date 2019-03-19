@@ -36,6 +36,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
 	pcstream = NULL;
     waitNextVideoFrame = false;
 	saveTxtInComment = true;
+	addVideoPrologue = true;
 }
 
 const char * idxToMedia(int i)
@@ -275,43 +276,44 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 			
 			if (waitVideo > 0)
 			{
-				// We are still waiting for video				
-				// Replace P-Frames with black frames
-				VideoFrame * f3 = pcstream->Stream(false);
-			
-				if (f3 != NULL)
+				if (addVideoPrologue)
 				{
-					// depaketize f3
-					DWORD ts  = f2->GetTimeStamp();
-					MediaFrame * f4;
-					
-					// Specific H.264. We would need to do it in the video frame class directly to remain multi codecs ...
-					depak->ResetFrame();
-					
-					for( MediaFrame::RtpPacketizationInfo::iterator it = f3->GetRtpPacketizationInfo().begin() ;
-						 it != f3->GetRtpPacketizationInfo().end() ;
-						 it++ )
-					
+					// We are still waiting for video				
+					// Replace P-Frames with black frames
+					VideoFrame * f3 = pcstream->Stream(false);				
+					if (f3 != NULL)
 					{
-						f4 = depak->AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
+						// depaketize f3
+						DWORD ts  = f2->GetTimeStamp();
+						MediaFrame * f4;
+						
+						// Specific H.264. We would need to do it in the video frame class directly to remain multi codecs ...
+						depak->ResetFrame();
+						
+						for( MediaFrame::RtpPacketizationInfo::iterator it = f3->GetRtpPacketizationInfo().begin() ;
+							 it != f3->GetRtpPacketizationInfo().end() ;
+							 it++ )
+						
+						{
+							f4 = depak->AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
+						}
+						
+						if (f4) 
+						{
+							f4->SetTimestamp(ts);
+							tr->ProcessFrame(f4);
+						}
 					}
-					
-					if (f4) 
-					{
-						f4->SetTimestamp(ts);
-						tr->ProcessFrame(f4);
-					}
-					if ( (getDifTime(&lastfur)/1000) > 2000)
-					{
-						gettimeofday(&lastfur, NULL);
-						Debug("mp4recorder: still no I frame. Requesting it again.\n");
-						return -333;
-					}
-					return 1;
 				}
-				
-				
-				return -5;
+									
+				if ( (getDifTime(&lastfur)/1000) > 2000)
+				{
+					gettimeofday(&lastfur, NULL);
+					Debug("mp4recorder: still no I frame. Requesting it again.\n");
+					return -333;
+				}
+
+				return 0;
 			}
 			
 			if  ( f->GetTimeStamp() == 0) Log("mp4recorder: incorrect video timestamp = 0. Check asterisk version.\n");
@@ -1279,6 +1281,12 @@ void Mp4RecorderFlush( struct mp4rec * r )
 	mp4recorder * r2 = (mp4recorder *) r;
 	
 	r2->Flush();	
+}
+
+void Mp4RecorderEnableVideoPrologue( struct mp4rec * r, bool yesno )
+{
+	mp4recorder * r2 = (mp4recorder *) r;
+	r2->EnableVideoPrologue(yesno);
 }
 
 struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, bool transcodeVideo, int renderText)

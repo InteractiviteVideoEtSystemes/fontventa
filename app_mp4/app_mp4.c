@@ -689,6 +689,8 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	    goto mp4_save_cleanup;
 	}
 
+	Mp4RecorderEnableVideoPrologue(recorder, false);
+
 #ifdef VIDEOCAPS
 	int oldnative = chan->nativeformats;
 	if ( chan->channelcaps.cap & AST_FORMAT_AUDIO_MASK )

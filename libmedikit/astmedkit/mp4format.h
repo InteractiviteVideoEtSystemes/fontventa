@@ -101,7 +101,12 @@ public:
 
 
     void SetWaitForVideo( bool wait ) { waitVideo = wait; }
-	void SaveTextInComment( bool save ) { saveTxtInComment = save; } 
+	void SaveTextInComment( bool save ) { saveTxtInComment = save; }
+
+	/**
+	 * Add black frames until the delay is reached and the first I frame is received
+	 */
+	void EnableVideoPrologue(bool prologueEnabled) { addVideoPrologue = prologueEnabled; }
 	
 	void Flush();
 
@@ -140,6 +145,7 @@ private:
 	PictureStreamer * pcstream;
 	
 	bool saveTxtInComment;
+	bool addVideoPrologue;
 };
 
 /**
@@ -246,6 +252,8 @@ extern "C"
     void Mp4RecorderSetInitialDelay( struct mp4rec * r, unsigned long ms);
 	
 	void Mp4RecorderFlush( struct mp4rec * r );
+	
+	void Mp4RecorderEnableVideoPrologue( struct mp4rec * r, bool yesno );
 
     /**
      *  destoy one instance of mp4 recorder
