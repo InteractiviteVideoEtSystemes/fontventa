@@ -27,6 +27,7 @@ mp4recorder::mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo)
     depak = NULL;
     SetParticipantName( "participant" );
     gettimeofday(&firstframets,NULL);
+	gettimeofday(&lastfur,NULL);
     initialDelay = 0;
     for (int i =0; i < MP4_TEXT_TRACK + 1; i++)
     {
@@ -180,7 +181,7 @@ int mp4recorder::IsVideoStarted()
 {
     if ( mediatracks[MP4_VIDEO_TRACK] != NULL )
     {
-	return  ( ( (Mp4VideoTrack *) mediatracks[MP4_VIDEO_TRACK])->IsVideoStarted() ) ? 1 : 0;
+		return  ( ( (Mp4VideoTrack *) mediatracks[MP4_VIDEO_TRACK])->IsVideoStarted() && waitVideo == 0) ? 1 : 0;
     }
     return -1;
 }
@@ -299,6 +300,12 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 						f4->SetTimestamp(ts);
 						tr->ProcessFrame(f4);
 					}
+					if ( (getDifTime(&lastfur)/1000) > 2000)
+					{
+						gettimeofday(&lastfur, NULL);
+						Debug("mp4recorder: still no I frame. Requesting it again.\n");
+						return -333;
+					}
 					return 1;
 				}
 				
@@ -306,7 +313,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				return -5;
 			}
 			
-			if  ( f->GetTimeStamp() == 0) Log("Video: incorrect timestamp = 0. Check asterisk version.\n");
+			if  ( f->GetTimeStamp() == 0) Log("mp4recorder: incorrect video timestamp = 0. Check asterisk version.\n");
 			
 			// TS drift - compensate - disabled for now
 			DWORD realDuration = getDifTime(&firstframets)/1000;

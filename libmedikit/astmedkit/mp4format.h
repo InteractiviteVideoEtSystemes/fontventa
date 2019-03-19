@@ -133,6 +133,7 @@ private:
     
     // In case we need to generate a clock
     timeval firstframets;
+	timeval lastfur;
 	
 	// to generate video prologue
 	PictureStreamer * pcstream;
