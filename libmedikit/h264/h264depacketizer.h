@@ -24,6 +24,7 @@ public:
 		useStartCode = use;
 	}
 	
+	bool MayBeIntra() { return hasPPS || hasSPS || frame.IsIntra(); }
 private:
 	VideoFrame frame;
 	DWORD iniFragNALU;

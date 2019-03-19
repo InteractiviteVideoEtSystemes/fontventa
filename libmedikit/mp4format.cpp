@@ -495,6 +495,8 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 				if (loss_detected)
 				{
 					Log("video packet lost detected seqno=%d, expected =%d\n", f->seqno, videoSeqNo+1);
+					waitNextVideoFrame = true;
+					ret = -333; // Ask for a FUR
 				}
 
 				videoSeqNo = f->seqno;
@@ -508,13 +510,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 						{
 							depak = new H264Depacketizer();
 						}
-						
-						if (loss_detected)
-						{
-							waitNextVideoFrame = true;
-						}
-
-						
+												
 						// Accumulate NALs into the same frame until mark
 						vfh264 = depak->AddPayload(AST_FRAME_GET_BUFFER(f), f->datalen,  ismark);
 
@@ -555,7 +551,9 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 					
 				default:
 					{
-					VideoFrame vf(vcodec, f->datalen, false);
+						// TODO: Accumulate all ast_frame in a single VideoFrame and pass it to processing
+						// 
+						VideoFrame vf(vcodec, f->datalen, false);
 						if ( strcasecmp(f->src, "RTP") == 0 )
 							vf.SetTimestamp( f->ts );
 						else
