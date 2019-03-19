@@ -65,17 +65,18 @@ mp4recorder::~mp4recorder()
 	const MP4Tags * tags = MP4TagsAlloc();  
 
 	MP4TagsSetEncodingTool(tags, "MP4Save asterisk application");
-	//MP4TagsSetArtist(tags, chan->cid.cid_name );
+	MP4TagsSetArtist(tags, partName );
 
 	if (mediatracks[MP4_TEXT_TRACK] != NULL)
 	{
-		const std::string & texte(mediatracks[MP4_TEXT_TRACK]->GetSavedText());
+		Mp4TextTrack * txttrack = (Mp4TextTrack *) mediatracks[MP4_TEXT_TRACK];
+		const std::string & texte(txttrack->GetSavedTextForVm());
 		
 		if (saveTxtInComment && texte.length() > 0)
 		{
 
 			
-			if ( ! MP4TagsSetComments(tags, txtBuff)  )
+			if ( ! MP4TagsSetComments(tags, texte.c_str())  )
 			{
 				ast_log(LOG_WARNING, "mp4recorder: Save text inside mp4 comment tag failed.\n");
 			}
@@ -181,9 +182,12 @@ int mp4recorder::AddTrack(TextCodec::Type codec, const char * trackName, int tex
 
 int mp4recorder::IsVideoStarted()
 {
-    if ( mediatracks[MP4_VIDEO_TRACK] != NULL )
+    Mp4VideoTrack * vt = (Mp4VideoTrack *) mediatracks[MP4_VIDEO_TRACK];
+    if ( vt != NULL )
     {
-		return  ( ( (Mp4VideoTrack *) mediatracks[MP4_VIDEO_TRACK])->IsVideoStarted() && waitVideo == 0) ? 1 : 0;
+	if (vt->IsVideoStarted() && waitVideo == 0) return 1;
+	if (depak != NULL && depak->MayBeIntra() ) return 1;
+	return 0;
     }
     return -1;
 }

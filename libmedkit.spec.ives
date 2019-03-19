@@ -47,7 +47,8 @@ make DESTDIR=$RPM_BUILD_ROOT install
 * Fri Mar 15 2019 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - Corrected mp4play to be compatible with existing MP4 files.
 - removed saving SPS / PPS packets from the tracks of MP4 files
-- version 1.6.3
+- check compatibility with VM and improvement of resilience
+- version 1.6.4
 
 * Mon Jul 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected SPS decoding

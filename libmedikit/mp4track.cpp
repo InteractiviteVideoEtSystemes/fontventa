@@ -561,7 +561,7 @@ int Mp4VideoTrack::DoWritePrevFrame(DWORD duration)
 					catch (std::runtime_error e)
 					{
 						Error("Failed to decode SPS packet. Skipping it.\n");
-						continue
+						continue;
 					}
 					
 					//Dump
@@ -1011,12 +1011,10 @@ Mp4TextTrack::~Mp4TextTrack()
                 // If there is an active text file, write it before closing
                 encoder.GetCurrentLine(curline);
                 if ( curline.length() > 0 )
-				{
+		{
                 	write( textfile, curline.data(), curline.length() );
-					savedText += curline;
-					write( textfile, "\r\n", 2);
-					savedText +=  "\r\n";
-				}
+			write( textfile, "\r\n", 2);
+		}
         }
 	
 	if (conv1) delete conv1;

@@ -423,7 +423,7 @@ static int mp4_play(struct ast_channel *chan, void *data)
 		break;
 	    }
 	    
-            //ast_log(LOG_DEBUG, "mp4_play: next frame to be streamed in %d ms.\n", ms);
+            if (ms >1000) ast_log(LOG_NOTICE, "mp4_play: next frame to be streamed in %d ms.\n", ms);
 	    // Wait x ms 
 	    while (ms > 0)
 	    {

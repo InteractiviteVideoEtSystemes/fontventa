@@ -55,6 +55,8 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %changelog
 * Thu Mar 12 2019 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected RTT recorind in text file
+- integrated with VM
+- see libmedkit logs for details
 - version 1.6.3
 
 * Mon Jul 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>

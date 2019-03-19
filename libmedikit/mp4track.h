@@ -191,7 +191,19 @@ public:
     virtual int ProcessFrame( const MediaFrame * f );
     virtual const MediaFrame * ReadFrame();
     void RenderAsReatimeText(bool render);
-	const std::string & GetSavedText() { return savedText; }
+	const std::string & GetSavedTextForVm() 
+	{ 
+		std::string curline;
+		savedText.insert(0, "\n");
+		encoder.GetCurrentLine(curline);
+
+		if ( curline.length() > 0 )
+		{
+			savedText += curline;
+			savedText +=  "\n";
+		}
+		return savedText;
+	}
     
 private:
     TextEncoder encoder;
