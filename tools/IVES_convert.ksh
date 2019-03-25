@@ -878,7 +878,7 @@ create_Mp4H264MP3_file_from_org()
 create_html5_file()
 {
     cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $inFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
-         -bt $V_BR_TOLERANCE_H264 -acodec libfdk_aac -ac 1 -ar 32000 $outFile"
+         -bt $V_BR_TOLERANCE_H264 -acodec aac -ac 1 -ar 32000 $outFile"
     printLine "Create MP4/HTML file : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -894,8 +894,8 @@ create_html5_file()
 
 create_html5_file_from_org()
 {
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
-         -bt $V_BR_TOLERANCE_H264 -acodec libfdk_aac -ar 32000 -ac 1 $outFile "
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -vcodec copy -b:v $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -acodec aac -ar 32000 -ac 1 $outFile "
     printLine "Create HTML5/MP4 file (from org) : "
     echo $cmd >> $LOG_FILE
     $cmd #>> $LOG_FILE 2>&1
