@@ -93,7 +93,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		if (packets.find(seq) != packets.end())
 		{
 			//ast_log(LOG_DEBUG, "Received duplicate packet %ld.\n", seq);
-			if (traceFile) fprintf("ADD: duplicate packet seq %lu\n", seq);
+			if (traceFile) fprintf(traceFile, "ADD: duplicate packet seq %lu\n", seq);
 			pthread_mutex_unlock(&mutex);
 			return false;
 		}
@@ -109,7 +109,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		if ( bigJumps > 20)
 		{
 			ast_log(LOG_WARNING, "Too many out of sequence packet. Resyncing.\n");
-			if (traceFile) fprintf("ADD: seq=%lu < next=%lu: too many out of sequence packet\n", seq, next);
+			if (traceFile) fprintf(traceFile,  "ADD: seq=%lu < next=%lu: too many out of sequence packet\n", seq, next);
 			hurryUp  = true;
 			bigJumps = 0;
 			
@@ -238,19 +238,19 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				else if (next != (DWORD)-1 && seq > next)
 				{
 					nbLost = seq - next;
-					if (traceFile) fprintf("GET: seq=%lu. lost packets: %lu\n", seq, nbLost);
+					if (traceFile) fprintf(traceFile, "GET: seq=%lu. lost packets: %lu\n", seq, nbLost);
 				}
 				else if (next == (DWORD)-1)
 				{
-					if (traceFile) fprintf("GET: seq=%lu next=0xFFFFFFFF\n", seq);
+					if (traceFile) fprintf(traceFile, "GET: seq=%lu next=0xFFFFFFFF\n", seq);
 				}
 				else if (hurryUp)
 				{
-					if (traceFile) fprintf("GET: seq=%lu HURRY UP\n", seq);
+					if (traceFile) fprintf(traceFile, "GET: seq=%lu HURRY UP\n", seq);
 				}
 				else
 				{
-					if (traceFile) fprintf("GET: seq=%lu strange case\n", seq);
+					if (traceFile) fprintf(traceFile, "GET: seq=%lu strange case\n", seq);
 				}
 				
 				//Update next
@@ -266,7 +266,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			
 			if (seq < next)
 			{
-				if (traceFile) fprintf("GET: dropping paquet seq=%lu, next=%lu\n", seq, next);
+				if (traceFile) fprintf(traceFile, "GET: dropping paquet seq=%lu, next=%lu\n", seq, next);
 				packets.erase(it);
 				continue;
 			}
