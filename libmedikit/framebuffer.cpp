@@ -123,7 +123,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 				ast_log(LOG_WARNING, "-Out of order non recoverable packet: %p seq=%u, next=%u diff=%u\n", this, seq, next, diff);
 				bigJumps++;
 			}
-			if (traceFile) fprintf("ADD: seq=%lu < next=%lu: out of sequence packet. dropping it\n", seq, next);
+			if (traceFile) fprintf(traceFile, "ADD: seq=%lu < next=%lu: out of sequence packet. dropping it\n", seq, next);
 			pthread_mutex_unlock(&mutex);
 			return false;
 		}
@@ -233,7 +233,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				if (seq==next) 
 				{
 					bigJumps = 0;
-					if (traceFile) fprintf("GET: seq=%lu - normal case.\n", seq, next);
+					if (traceFile) fprintf(traceFile, "GET: seq=%lu - normal case.\n", seq, next);
 				}
 				else if (next != (DWORD)-1 && seq > next)
 				{
