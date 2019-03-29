@@ -92,6 +92,8 @@ public:
 		
 	static int WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbFb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[]);
 
+	bool OpenTraceFile(const char * filename);
+	
 private:
 	void ClearPackets();
 	void Notify();
@@ -140,6 +142,7 @@ private:
 	pthread_cond_t          cond;
 
 	int				nbLost;
+	FILE *			traceFile;
 };
 
 #endif
@@ -253,7 +256,10 @@ extern "C"
      **/
 
 	int AstFbWaitMulti(struct AstFb * fbTab[], unsigned long nbFb, unsigned long maxWaitTime, struct AstFb * fbTabOut[]);
-	 
+	
+	
+	void AstFbTrace(struct AstFb * fb, const char * filename);
+	
 #ifdef __cplusplus
 }
 #endif

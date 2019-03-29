@@ -1,5 +1,6 @@
 #include <poll.h>
 #include <fcntl.h>
+#include <stdio.h>
 #include <medkit/log.h>
 #include <astmedkit/framebuffer.h>
 
@@ -29,6 +30,8 @@ AstFrameBuffer::AstFrameBuffer(bool blocking, bool fifo)
 	pcond = &cond;
 	
 	signalled = false;
+	
+	traceFile = NULL;
 }
 
 AstFrameBuffer::~AstFrameBuffer()
@@ -36,6 +39,7 @@ AstFrameBuffer::~AstFrameBuffer()
 	pthread_mutex_destroy(&mutex);
 	pthread_cond_destroy(&cond);
     Clear();
+	if (traceFile) fclose(traceFile);
 }
 
 void AstFrameBuffer::Notify()
@@ -89,6 +93,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		if (packets.find(seq) != packets.end())
 		{
 			//ast_log(LOG_DEBUG, "Received duplicate packet %ld.\n", seq);
+			if (traceFile) fprintf("ADD: duplicate packet seq %lu\n", seq);
 			pthread_mutex_unlock(&mutex);
 			return false;
 		}
@@ -104,6 +109,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 		if ( bigJumps > 20)
 		{
 			ast_log(LOG_WARNING, "Too many out of sequence packet. Resyncing.\n");
+			if (traceFile) fprintf("ADD: seq=%lu < next=%lu: too many out of sequence packet\n", seq, next);
 			hurryUp  = true;
 			bigJumps = 0;
 			
@@ -117,6 +123,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 				ast_log(LOG_WARNING, "-Out of order non recoverable packet: %p seq=%u, next=%u diff=%u\n", this, seq, next, diff);
 				bigJumps++;
 			}
+			if (traceFile) fprintf("ADD: seq=%lu < next=%lu: out of sequence packet. dropping it\n", seq, next);
 			pthread_mutex_unlock(&mutex);
 			return false;
 		}
@@ -226,15 +233,30 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				if (seq==next) 
 				{
 					bigJumps = 0;
-					if (hurryUp) hurryUp = false;
+					if (traceFile) fprintf("GET: seq=%lu - normal case.\n", seq, next);
 				}
 				else if (next != (DWORD)-1 && seq > next)
 				{
 					nbLost = seq - next;
-				}					
+					if (traceFile) fprintf("GET: seq=%lu. lost packets: %lu\n", seq, nbLost);
+				}
+				else if (next == (DWORD)-1)
+				{
+					if (traceFile) fprintf("GET: seq=%lu next=0xFFFFFFFF\n", seq);
+				}
+				else if (hurryUp)
+				{
+					if (traceFile) fprintf("GET: seq=%lu HURRY UP\n", seq);
+				}
+				else
+				{
+					if (traceFile) fprintf("GET: seq=%lu strange case\n", seq);
+				}
 				
 				//Update next
 				next = seq+1;
+				if (hurryUp) hurryUp = false;
+				
 			        //Log("Got packet buff=%p seq=%lu, next=%lu, blocking=%d\n", this, seq, next, blocking);
 				//Remove it
 				packets.erase(it);
@@ -244,6 +266,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			
 			if (seq < next)
 			{
+				if (traceFile) fprintf("GET: dropping paquet seq=%lu, next=%lu\n", seq, next);
 				packets.erase(it);
 				continue;
 			}
@@ -357,6 +380,23 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 	return -5;
 }
 
+bool AstFrameBuffer::OpenTraceFile(const char * filename)
+{
+	if (traceFile != NULL)
+	{
+		traceFile = fopen(filename, "a");
+		if (traceFile == NULL)
+		{
+			Error("Failed to open trace file %s. Error %s.\n", strerror(errno));
+			return false;
+		}
+		return true;
+	}
+	Log("Trace file already open.\m");
+	return true;
+}
+			
+		
 /* ------------------------ C API ------------------------------------ */
 
 struct AstFb *AstFbCreate(unsigned long maxWaitTime, int blocking, int fifo)
@@ -426,4 +466,13 @@ int AstFbWaitMulti(struct AstFb * fbTab[], unsigned long nbFb, unsigned long max
 	AstFrameBuffer ** fbTab2 = (AstFrameBuffer **) fbTab;
 	AstFrameBuffer ** fbTabOut2 = (AstFrameBuffer **) fbTabOut;
 	return AstFrameBuffer::WaitMulti(fbTab2, nbFb, maxWaitTime, fbTabOut2);
+}
+
+void AstFbTrace(struct AstFb * fb, const char * filename)
+{
+	AstFrameBuffer * fb2 = (AstFrameBuffer *) fb;
+	if (fb2)
+	{
+		fb2->OpenTraceFile(filename);
+	}
 }

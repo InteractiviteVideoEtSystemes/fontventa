@@ -552,6 +552,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	struct mp4rec * recorder;
 	char metadata[100];
 	MP4FileHandle mp4;
+	char traceFileName[200];
 
 	/*  whether we send back the video packets to the caller */
 	int videoLoopback = 0;
@@ -735,6 +736,9 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	queueTab[0] = audioInQueue;
 	queueTab[1] = videoInQueue;
 	queueTab[2] = textInQueue;
+	
+	sprintf(traceFilename, "/var/log/asterisk/mp4save-videojb-%p.log", videoInQueue);
+	AstFbTrace(videoInQueue, traceFilename);
 	
 	while ( onrecord )
 	{
