@@ -552,7 +552,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	struct mp4rec * recorder;
 	char metadata[100];
 	MP4FileHandle mp4;
-	char traceFileName[200];
+	char traceFilename[200];
 
 	/*  whether we send back the video packets to the caller */
 	int videoLoopback = 0;

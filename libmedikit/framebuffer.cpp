@@ -138,6 +138,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 
 	if (ignore_cseq) f2->seqno = (seq & 0xFFFF);
 	packets[seq] = f2;
+	if (traceFile) fprintf(traceFile, "ADD: seq=%lu - normal case\n", seq);
 
 	pthread_mutex_unlock(&mutex);
 	//Signal
@@ -382,7 +383,7 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 
 bool AstFrameBuffer::OpenTraceFile(const char * filename)
 {
-	if (traceFile != NULL)
+	if (traceFile == NULL)
 	{
 		traceFile = fopen(filename, "a");
 		if (traceFile == NULL)
@@ -392,7 +393,7 @@ bool AstFrameBuffer::OpenTraceFile(const char * filename)
 		}
 		return true;
 	}
-	Log("Trace file already open.\m");
+	Log("Trace file already open.\n");
 	return true;
 }
 			
