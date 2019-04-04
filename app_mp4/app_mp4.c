@@ -738,7 +738,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	queueTab[2] = textInQueue;
 	
 	sprintf(traceFilename, "/var/log/asterisk/mp4save-videojb-%p.log", videoInQueue);
-	AstFbTrace(videoInQueue, traceFilename);
+	//AstFbTrace(videoInQueue, traceFilename);
 	
 	while ( onrecord )
 	{
