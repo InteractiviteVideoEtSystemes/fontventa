@@ -120,7 +120,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 
 			if (diff > 10)
 			{
-				ast_log(LOG_WARNING, "-Out of order non recoverable packet: %p seq=%u, next=%u diff=%u\n", this, seq, next, diff);
+				Log("-Out of order non recoverable packet: %p seq=%u, next=%u diff=%u\n", this, seq, next, diff);
 				bigJumps++;
 			}
 			if (traceFile) fprintf(traceFile, "ADD: seq=%lu < next=%lu: out of sequence packet. dropping it\n", seq, next);
