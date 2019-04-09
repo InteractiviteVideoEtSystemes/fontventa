@@ -185,9 +185,10 @@ int mp4recorder::IsVideoStarted()
     Mp4VideoTrack * vt = (Mp4VideoTrack *) mediatracks[MP4_VIDEO_TRACK];
     if ( vt != NULL )
     {
-	if (vt->IsVideoStarted() && waitVideo == 0) return 1;
-	if (depak != NULL && depak->MayBeIntra() ) return 1;
-	return 0;
+		if (waitVideo == 0) return 1;
+		if ( vt->IsVideoStarted() ) return 1;
+		if (depak != NULL && depak->MayBeIntra() ) return 1;
+		return 0;
     }
     return -1;
 }
@@ -208,7 +209,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 			
 		if ( mediatracks[MP4_AUDIO_TRACK] )
 		{
-			//if (waitVideo) return 0;
+			if (waitVideo) return 0;
 	    
 			if ( mediatracks[MP4_AUDIO_TRACK]->IsEmpty() )
 			{
@@ -270,7 +271,6 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				}
 				else 
 				{
-					// Skip the first I-frame on purpbose because it contains CACA
 					Log("-mp4recorder: skipping first I-frame on purpose.\n");
 					// this return code shoudl cause client to send FIR
 					return -333;
