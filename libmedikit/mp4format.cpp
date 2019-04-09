@@ -213,7 +213,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 	    
 			if ( mediatracks[MP4_AUDIO_TRACK]->IsEmpty() )
 			{
-				DWORD delay = initialDelay + (getDifTime(&firstframets)/1000);
+				
 				// adjust initial delay
 				//if ( mediatracks[MP4_VIDEO_TRACK] )
 				//{
@@ -222,9 +222,19 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				//}
 				//else
 				//{
-					// no video
-				Log("Adding %u of initial delay for audio.\n", delay);
+				// no video
+				if (addVideoPrologue)
+				{
+					DWORD delay = initialDelay + (getDifTime(&firstframets)/1000);
+					
+					Log("Adding %u of initial delay + video start for audio.\n", delay);
 					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay(delay);
+				}
+				else (initialDelay > 0)
+				{
+					Log("Adding %u of initial delay for audio.\n", delay);
+					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay(delay);
+				}					
 				//}
 			}
 
@@ -252,7 +262,7 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 				{
 					DWORD delay = initialDelay + (getDifTime(&firstframets)/1000);
 					Log("-mp4recorder: Initializing video prologue.\n" );
-					Log("Adding %u of initial delay for audio.\n", delay);
+					Log("Adding %u of initial delay for video.\n", delay);
 					pcstream = new  PictureStreamer();
 					pcstream->SetCodec(tr->GetCodec(), properties);
 					pcstream->SetFrameRate(25, 100, 50);
