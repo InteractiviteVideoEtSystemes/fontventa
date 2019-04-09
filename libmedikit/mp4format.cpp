@@ -230,10 +230,10 @@ int mp4recorder::ProcessFrame( const MediaFrame * f, bool secondary )
 					Log("Adding %u of initial delay + video start for audio.\n", delay);
 					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay(delay);
 				}
-				else (initialDelay > 0)
+				else if (initialDelay > 0)
 				{
-					Log("Adding %u of initial delay for audio.\n", delay);
-					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay(delay);
+					Log("Adding %u of initial delay for audio.\n", initialDelay);
+					mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay(initialDelay);
 				}					
 				//}
 			}
