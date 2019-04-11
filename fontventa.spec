@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   1.6.4
+Version:   1.6.5
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -53,8 +53,13 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Thu Apr 11 2019  Emmanuel BUU
+- corrected regression on audio/video sync
+- version 1.6.5
+
 * Thu Mar 26 2019 Emmanuel BUU 
 - backported improvment of IVES_convert script from branch 0.5
+- version 1.6.4
 
 * Thu Mar 12 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected RTT recorind in text file
