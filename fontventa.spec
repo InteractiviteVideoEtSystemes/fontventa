@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   1.6.5
+Version:   1.6.6
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -53,6 +53,11 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Thu Apr 23 2019 Emmanuel BUU
+- corrected regression on MP4play when using Voximal
+- see limedikit log for details
+- version 1.6.6
+
 * Thu Apr 11 2019  Emmanuel BUU
 - corrected regression on audio/video sync
 - version 1.6.5

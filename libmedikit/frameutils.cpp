@@ -28,6 +28,11 @@ int AstFormatToCodecList(int format, AudioCodec::Type codecList[], unsigned int 
         codecList[i++] = AudioCodec::AMR; 
     }
     
+	    if ( i < maxSize && (format & AST_FORMAT_SLINEAR) )
+    {
+        codecList[i++] = AudioCodec::SLIN; 
+    }
+	
     return i;
 }
 
