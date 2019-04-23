@@ -1327,6 +1327,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			{
 				delete p;
 				Error("mp4play: Failed to obtain preferred audio codec for chan %s\n", chan->name);
+				Error("mp4play: write format is %s (%x).\n", ast_getformatname(chan->writeformat), chan->writeformat);
 				return NULL;
 			}
 			
