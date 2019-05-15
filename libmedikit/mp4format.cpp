@@ -1005,6 +1005,18 @@ bool mp4player::Eof(void)
     return true;
 }
 
+bool GetCodec(AudioCodec & codec) const
+{
+	if ( mediatracks[MP4_AUDIO_TRACK] )
+	{
+		AudioTrack * audiot = (AudioTrack *) mediatracks[MP4_AUDIO_TRACK];
+		
+		codec = audiot->GetCodec();
+		return true;
+	}
+	return false;
+}
+
 int mp4player::Rewind()
 {
 	gettimeofday(&startPlaying,0);
@@ -1353,12 +1365,15 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			}
 			else
 			{
-				CodecToAstFormat(p->GetCodec(), ast_codec);
-				
-				Log("mp4play: [%s] activating audio transcoding from %s.\n", chan->name, AudioCodec::GetNameFor( p->GetCodec() ) );
-				if ( (chan->nativeformats & ast_codec) == 0 )
+				if ( p->GetCodec(ac) )
 				{
-					ast_set_write_format(ast_codec); 
+					CodecToAstFormat(ac, ast_codec);
+				
+					Log("mp4play: [%s] activating audio transcoding from %s.\n", chan->name, AudioCodec::GetNameFor(ac) );
+					if ( (chan->nativeformats & ast_codec) == 0 )
+					{
+						ast_set_write_format(ast_codec); 
+					}
 				}
 			}
 	    }
