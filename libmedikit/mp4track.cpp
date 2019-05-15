@@ -304,7 +304,7 @@ const MediaFrame * Mp4Basetrack::ReadFrameWithoutHint()
 int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
 {
     // Create audio track
-    
+    AACSpecificConfig config(samplerate,1);
     uint8_t type;
     switch (codec)
     {
@@ -356,14 +356,13 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
 	
 	
 	case AudioCodec::AAC:
-		// TODO: complete AAC support
+	    // TODO: complete AAC support
 	    mediatrack = MP4AddAudioTrack(mp4, samplerate, 1024, MP4_MPEG2_AAC_LC_AUDIO_TYPE);
 	    // Create no hint track
         
-		AACSpecificConfig config(samplerate,1);
-        // Set channel and sample properties
-        MP4SetTrackESConfiguration(mp4, mediatrack, config.GetData(),config.GetSize());
-		break;
+       	    // Set channel and sample properties
+	    MP4SetTrackESConfiguration(mp4, mediatrack, config.GetData(),config.GetSize());
+	    break;
 
 	default:
 	    Error("-mp4recorder: unsupported codec %s for audio track.\n", AudioCodec::GetNameFor((AudioCodec::Type) codec));

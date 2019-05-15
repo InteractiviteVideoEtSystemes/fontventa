@@ -671,7 +671,6 @@ mp4player::mp4player(void * ctxdata, MP4FileHandle mp4)
 	redenc = NULL;	
 	gettimeofday(&startPlaying,0);
 	nextBOMorRepeat = MP4_INVALID_TIMESTAMP;
-	audioDec = NULL:
 }
 
 
@@ -1005,11 +1004,11 @@ bool mp4player::Eof(void)
     return true;
 }
 
-bool GetCodec(AudioCodec & codec) const
+bool mp4player::GetCodec(AudioCodec::Type & codec) const
 {
 	if ( mediatracks[MP4_AUDIO_TRACK] )
 	{
-		AudioTrack * audiot = (AudioTrack *) mediatracks[MP4_AUDIO_TRACK];
+		 Mp4AudioTrack * audiot = (Mp4AudioTrack *) mediatracks[MP4_AUDIO_TRACK];
 		
 		codec = audiot->GetCodec();
 		return true;
@@ -1372,7 +1371,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 					Log("mp4play: [%s] activating audio transcoding from %s.\n", chan->name, AudioCodec::GetNameFor(ac) );
 					if ( (chan->nativeformats & ast_codec) == 0 )
 					{
-						ast_set_write_format(ast_codec); 
+						ast_set_write_format(chan, ast_codec); 
 					}
 				}
 			}

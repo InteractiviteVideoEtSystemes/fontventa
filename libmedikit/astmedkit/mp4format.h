@@ -188,7 +188,7 @@ public:
 
     BYTE buffer[2000];
 
-	bool GetCodec(AudioCodec & codec) const;
+	bool GetCodec(AudioCodec::Type & codec) const;
 	
 protected:
     //MP4TrackId IterateTracks(int trackIdx, const char * trackType, bool useHint = true);
