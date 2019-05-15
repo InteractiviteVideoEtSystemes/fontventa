@@ -74,6 +74,11 @@ int CodecToAstFormat( AudioCodec::Type ac, int & fmt )
 	    fmt |= AST_FORMAT_AMRNB;
 	    break;
 
+	case AudioCodec::SLIN:
+	    fmt |= AST_FORMAT_SLINEAR;
+	    break;
+
+		
 	default:
 	    return 0;
     }

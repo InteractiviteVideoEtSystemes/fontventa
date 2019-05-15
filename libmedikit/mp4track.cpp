@@ -4,6 +4,7 @@
 #include "medkit/avcdescriptor.h"
 #include "h264/h264.h"
 #include "h264/h264depacketizer.h"
+#include "aac/aacconfig.h"
 #include "mp4track.h"
 #include "medkit/audiosilence.h"
 
@@ -330,6 +331,18 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
 	    MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.ulaw.channels", 1);
 	    MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.ulaw.sampleSize", 8);
 	    break;
+		
+	case AudioCodec::SLIN:
+		mediatrack =  MP4AddAudioTrack(mp4, 8000, 160, MP4_PCM16_BIG_ENDIAN_AUDIO_TYPE);
+		// Create audio hint track
+		hinttrack = MP4AddHintTrack(mp4, mediatrack);
+		// Set payload type for hint track
+		type = 0;
+		MP4SetHintTrackRtpPayload(mp4, hinttrack, "PCMU", &type, 0, NULL, 1, 0);
+		 // Set channel and sample properties
+		MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.slin.channels", 1);
+		MP4SetTrackIntegerProperty(mp4, mediatrack, "mdia.minf.stbl.stsd.slin.sampleSize", 16);
+		break;
 
 	case AudioCodec::AMR:
 	    mediatrack = MP4AddAmrAudioTrack(mp4, samplerate, 0, 0, 1, 0);
@@ -341,8 +354,17 @@ int Mp4AudioTrack::Create(const char * trackName, int codec, DWORD samplerate)
 	    MP4SetAudioProfileLevel(mp4, 0xFE);
 	    break;
 	
-	// TODO: Add AAC support
 	
+	case AudioCodec::AAC:
+		// TODO: complete AAC support
+	    mediatrack = MP4AddAudioTrack(mp4, samplerate, 1024, MP4_MPEG2_AAC_LC_AUDIO_TYPE);
+	    // Create no hint track
+        
+		AACSpecificConfig config(samplerate,1);
+        // Set channel and sample properties
+        MP4SetTrackESConfiguration(mp4, mediatrack, config.GetData(),config.GetSize());
+		break;
+
 	default:
 	    Error("-mp4recorder: unsupported codec %s for audio track.\n", AudioCodec::GetNameFor((AudioCodec::Type) codec));
 	    return 0;

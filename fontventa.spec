@@ -53,6 +53,11 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Thu May 15 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected no audio on MP4play when using Voximal
+- see limedikit log for details
+- version 1.6.7
+
 * Thu Apr 23 2019 Emmanuel BUU
 - corrected regression on MP4play when using Voximal
 - see limedikit log for details

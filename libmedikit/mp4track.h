@@ -77,6 +77,8 @@ public:
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
 	
+	AudioCodec::Type GetCodec() { return codec; }
+
 private:
     AudioCodec::Type codec;
 

@@ -671,6 +671,7 @@ mp4player::mp4player(void * ctxdata, MP4FileHandle mp4)
 	redenc = NULL;	
 	gettimeofday(&startPlaying,0);
 	nextBOMorRepeat = MP4_INVALID_TIMESTAMP;
+	audioDec = NULL:
 }
 
 
@@ -1224,17 +1225,26 @@ struct mp4rec * Mp4RecorderCreate(struct ast_channel * chan, MP4FileHandle mp4, 
     if ( partName == NULL ) partName = chan->cid.cid_name ? chan->cid.cid_name: "unknown";
     if ( r != NULL)
     {
+#define MP4_SUPPORTED_AUDIO_FMT ( AST_FORMAT_ALAW | AST_FORMAT_AMRNB | AST_FORMAT_ULAW )
+
+		int audio = (chan->nativeformats & AST_FORMAT_AUDIO_MASK);
+		
+		
+		if ( audio !=0 && (audio & MP4_SUPPORTED_AUDIO_FMT) == 0)
+		{
+			Log("-mp4recorder: no supported audio codec. Defaulting to U-Law.\n");
+			ast_set_read_format( chan, AST_FORMAT_ULAW );
+		}
+		
         r->SetParticipantName( partName );
         if ( videoformat != NULL && strlen(videoformat) > 0 && (chan->nativeformats & AST_FORMAT_VIDEO_MASK) != 0 )
         {
             // Hardcoded for now
-	    r->AddTrack(VideoCodec::H264, 640, 480, 256, partName, false );
+			r->AddTrack(VideoCodec::H264, 640, 480, 256, partName, false );		
+		}
 	
-        }
-	
-	if ( chan->nativeformats & AST_FORMAT_TEXT_MASK )
+		if ( chan->nativeformats & AST_FORMAT_TEXT_MASK )
 	        r->AddTrack( TextCodec::T140, partName, textfile );
-	
     }
     
     return (struct mp4rec *) r;
@@ -1322,6 +1332,7 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			AudioCodec::Type acodecList[10];
 			unsigned int nbACodecs = 0;
 			AudioCodec::Type ac = (AudioCodec::Type) -1;
+			int ast_codec = 0;
 
 			if ( ! AstFormatToCodecList(chan->writeformat, &ac) )
 			{
@@ -1332,13 +1343,23 @@ struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, b
 			}
 			
 			// Add additionnal codecs to activate trancoding if nativeformat are not enough
-			haveAudio |= AST_FORMAT_ALAW | AST_FORMAT_ULAW | AST_FORMAT_SLINEAR;
+			haveAudio |= AST_FORMAT_ALAW | AST_FORMAT_ULAW | AST_FORMAT_SLINEAR ;
 			
 			nbACodecs = AstFormatToCodecList(haveAudio, acodecList, 10);
 			
 			if ( p->OpenTrack(acodecList, nbACodecs, ac, true) < 0 )
 			{
 				Error("mp4play: [%s] No suitable audio track found.\n", chan->name);
+			}
+			else
+			{
+				CodecToAstFormat(p->GetCodec(), ast_codec);
+				
+				Log("mp4play: [%s] activating audio transcoding from %s.\n", chan->name, AudioCodec::GetNameFor( p->GetCodec() ) );
+				if ( (chan->nativeformats & ast_codec) == 0 )
+				{
+					ast_set_write_format(ast_codec); 
+				}
 			}
 	    }
 	    
