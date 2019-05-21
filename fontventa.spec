@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   1.6.6
+Version:   1.6.7
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -54,8 +54,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 
 %changelog
 * Thu May 15 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
+- mp4save() now removes the MP4 file automatically if video has not started.
+- this is the correction of bug SC-57
 - corrected no audio on MP4play when using Voximal
-- see limedikit log for details
+- see libedikit log for details
 - version 1.6.7
 
 * Thu Apr 23 2019 Emmanuel BUU
