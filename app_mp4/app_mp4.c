@@ -62,11 +62,6 @@
 #undef i6net
 #undef i6net_lock
 
-#ifdef i6net_lock
-#include <app_vxml.h>
-#endif
-
-
 
 #ifndef _STR_CODEC_SIZE
 #define _STR_CODEC_SIZE         512
@@ -811,18 +806,32 @@ static int mp4_save(struct ast_channel *chan, void *data)
 	}
 	
 mp4_save_cleanup:	    
-	 
+	
 	/* flush queues in file */
 	record_frames(queueTab, chan, recorder, videoLoopback, 1);
 	
 	/* destroy resources */
-	if (recorder) Mp4RecorderDestroy(recorder);
+	waitVideo = -1;
+	if (recorder)
+	{
+		waitVideo = Mp4RecorderHasVideoStarted(recorder);
+		Mp4RecorderDestroy(recorder);
+	}
+	
 	if (audioInQueue) AstFbDestroy(audioInQueue);
 	if (videoInQueue) AstFbDestroy(videoInQueue);
 	if (textInQueue) AstFbDestroy(textInQueue);
 	
 	/* Close file */
 	MP4Close(mp4, 0);
+	
+	/* Remove file if video had not started */
+	if (waitVideo == 0) 
+	{
+		ast_verbose(VERBOSE_PREFIX_3 "Removed recorde MP4 file %s because no intraframe was received.\n");
+		unlink((char *) data);
+	}
+	
 	if (textfile >= 0) 
 	{
 	    ast_log(LOG_DEBUG, "Closed text file fd %d\n", textfile);
