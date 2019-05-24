@@ -828,7 +828,7 @@ mp4_save_cleanup:
 	/* Remove file if video had not started */
 	if (waitVideo == 0) 
 	{
-		ast_verbose(VERBOSE_PREFIX_3 "Removed recorde MP4 file %s because no intraframe was received.\n");
+		ast_verbose(VERBOSE_PREFIX_3 "Removed recorde MP4 file %s because no intraframe was received.\n", (char *) data);
 		unlink((char *) data);
 	}
 	
