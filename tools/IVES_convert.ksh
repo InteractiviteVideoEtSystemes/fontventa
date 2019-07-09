@@ -522,7 +522,7 @@ CheckMP4File()
 
     # Ulaw ? 
     if [ "$std_out" != "" ] ; then printLine "Audio track Ulaw " ; fi 
-    cmd="grep uLaw $INFO_FILE" 
+    cmd="grep -i uLaw $INFO_FILE" 
     $cmd >>  $LOG_FILE
     ret=$? 
     if [ "$ret" -eq "0" ]
@@ -544,7 +544,7 @@ CheckMP4File()
 
     # Alaw ? 
     if [ "$std_out" != "" ] ; then printLine "Audio track Alaw " ; fi 
-    cmd="grep aLaw $INFO_FILE" 
+    cmd="grep -i aLaw $INFO_FILE" 
     $cmd >>  $LOG_FILE
     ret=$? 
     if [ "$ret" -eq "0" ]
