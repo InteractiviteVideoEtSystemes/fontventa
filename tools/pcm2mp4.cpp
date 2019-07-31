@@ -87,12 +87,12 @@ int main(int argc,char **argv)
 	if (!strcmp(inputAudio +inputlen-5, ".alaw"))
 	{
 		/* Create audio track */
-		audio = MP4AddAudioTrack(mp4,8000,480,MP4_ALAW_AUDIO_TYPE);
+		audio = MP4AddALawAudioTrack(mp4,8000,480,MP4_ALAW_AUDIO_TYPE);
 			
     MP4SetTrackIntegerProperty(mp4, audio, 
-      "mdia.minf.stbl.stsd.mp4a.channels", 1);
+      "mdia.minf.stbl.stsd.alaw.channels", 1);
 		MP4SetTrackIntegerProperty(mp4, audio, 
-      "mdia.minf.stbl.stsd.mp4a.sampleSize", 8);
+      "mdia.minf.stbl.stsd.alaw.sampleSize", 8);
       	
 		/* Create hint track for aufio */
 		hintAudio = MP4AddHintTrack(mp4,audio);
@@ -104,12 +104,12 @@ int main(int argc,char **argv)
 	else
 	{
 		/* Create audio track */
-		audio = MP4AddAudioTrack(mp4,8000,480,MP4_ULAW_AUDIO_TYPE);
+		audio = MP4AddULawAudioTrack(mp4,8000,480,MP4_ULAW_AUDIO_TYPE);
 
     MP4SetTrackIntegerProperty(mp4, audio, 
-      "mdia.minf.stbl.stsd.mp4a.channels", 1);
+      "mdia.minf.stbl.stsd.ulaw.channels", 1);
 		MP4SetTrackIntegerProperty(mp4, audio, 
-      "mdia.minf.stbl.stsd.mp4a.sampleSize", 8);
+      "mdia.minf.stbl.stsd.ulaw.sampleSize", 8);
       	
 		/* Create hint track for aufio */
 		hintAudio = MP4AddHintTrack(mp4,audio);
