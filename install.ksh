@@ -54,9 +54,11 @@ function copy_rpmInstall
     cp $PROJET/app_rtsp/app_rtsp.so $1/$DESTDIR_MOD/app_rtsp.so 
     chmod 755 $1/$DESTDIR_MOD/app_rtsp.so
     cp $PROJET/tools/mp4tool $1/$DESTDIR_BIN/mp4tool
+	cp $PROJET/tools/pcm2mp4 $1/$DESTDIR_BIN/pcm2mp4
     cp $PROJET/tools/IVES_convert.ksh $1/$DESTDIR_BIN/IVES_convert.ksh
     cp /usr/bin/ffmpeg $1/$DESTDIR_BIN/IVeS_ffmpeg
     chmod 755 $1/$DESTDIR_BIN/mp4tool
+	chmod 755 $1/$DESTDIR_BIN/pcm2mp4
     chmod 755 $1/$DESTDIR_BIN/IVES_convert.ksh
     chmod 755 $1/$DESTDIR_BIN/IVeS_ffmpeg
     cp Makeinclude $1/
