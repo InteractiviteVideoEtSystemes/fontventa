@@ -682,7 +682,9 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 		MP4TrackId trackId = -1;
 		MP4TrackId lastHintMatch = MP4_INVALID_TRACK_ID;
 		MP4TrackId lastTrackMatch = MP4_INVALID_TRACK_ID;
+		AudioCodec::Type lastCodecMatch;
 		AudioCodec::Type c;
+		
 		int idxTrack = 0;
 		
 		if (mediatracks[MP4_AUDIO_TRACK] != NULL)
@@ -732,8 +734,9 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 						// This is the preffered codec !
 						// use it and stop here
 						
-						lastTrackMatch = trackId;
-						lastHintMatch = hintId;
+						lastTrackMatch 	= trackId;
+						lastHintMatch 	= hintId;
+						lastCodecMatch 	= c;
 						break;
 					}    
 					else if ( lastTrackMatch == MP4_INVALID_TRACK_ID)
@@ -742,8 +745,9 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 						{
 							if ( outputCodecs[i] == c )
 							{
-								lastTrackMatch = trackId;
-								lastHintMatch = hintId;
+								lastTrackMatch 	= trackId;
+								lastHintMatch 	= hintId;
+								lastCodecMatch 	= c;
 							}
 						}
 					}
@@ -799,8 +803,9 @@ audio_track_loop1:
 						// This is the preffered codec !
 						// use it and stop here
 						
-						lastTrackMatch = trackId;
-						lastHintMatch = hintId;
+						lastTrackMatch 	= trackId;
+						lastHintMatch 	= hintId;
+						lastCodecMatch 	= c;
 						break;
 					}    
 					
@@ -810,8 +815,9 @@ audio_track_loop1:
 						{
 							if ( outputCodecs[i] == c )
 							{
-								lastTrackMatch = trackId;
-								lastHintMatch = hintId;
+								lastTrackMatch 	= trackId;
+								lastHintMatch 	= hintId;
+								lastCodecMatch 	= c;
 							}
 						}
 					}
@@ -830,7 +836,7 @@ audio_track_loop2:
 		
 		if ( lastTrackMatch != MP4_INVALID_TRACK_ID)
 		{
-			mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, c);
+			mediatracks[MP4_AUDIO_TRACK] = new Mp4AudioTrack(mp4, lastTrackMatch, lastHintMatch, lastCodecMatch);
 			next[MP4_AUDIO_TRACK] = mediatracks[MP4_AUDIO_TRACK]->GetNextFrameTime();
 			Log("Opened audio track ID %d.\n", lastTrackMatch);
 			return 1;
