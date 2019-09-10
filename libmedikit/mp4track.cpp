@@ -721,7 +721,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame * f )
 const MediaFrame * Mp4VideoTrack::ReadFrame()
 {
 	VideoFrame * vf = (VideoFrame *) Mp4Basetrack::ReadFrame();
-	if (paramFrame != NULL && vf->IsIntra())
+	if (paramFrame != NULL && vf != NULL && vf->IsIntra())
 	{
 		// H.264 If frame is an intra prepend the SEQ / PICT headers
 		if ( ! vf->PrependWithFrame(paramFrame) )
