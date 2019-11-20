@@ -198,8 +198,9 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 		}
 	}		
 
-	// Copy frame timestamp
+	// Copy frame timestamp 
 	astf.ts = mf->GetTimeStamp();
-	
+	//change the delivery time for avoiding WebRTC bug with timestamp to zero
+	astf.delivery = ast_tvnow();
 	return true;	
 }
