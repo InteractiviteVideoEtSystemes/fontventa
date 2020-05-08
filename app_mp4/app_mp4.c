@@ -663,7 +663,7 @@ static int mp4_save(struct ast_channel *chan, void *data)
 
 	time_t now;
 	struct tm *tmvalue; 
-	const MP4Tags * tags = MP4TagsAlloc();
+	MP4Tags * tags = MP4TagsAlloc();
 
 	time(&now);
 	tmvalue = localtime(&now);
@@ -822,6 +822,7 @@ mp4_save_cleanup:
 	if (videoInQueue) AstFbDestroy(videoInQueue);
 	if (textInQueue) AstFbDestroy(textInQueue);
 	
+	MP4TagsFree(tags);
 	/* Close file */
 	MP4Close(mp4, 0);
 	

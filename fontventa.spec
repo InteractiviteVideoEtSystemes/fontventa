@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   1.6.11
+Version:   1.6.12
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -53,6 +53,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Mon May 11 2020 Emmanuel BUU <emmanuel.buu@ives.fr>
+- minor memory leak saved in app_mp4
+- version 1.6.12
+
 * Thu May 15 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
 - mp4save() now removes the MP4 file automatically if video has not started.
 - this is the correction of bug SC-57
