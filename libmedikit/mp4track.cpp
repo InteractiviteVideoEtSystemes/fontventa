@@ -785,8 +785,10 @@ VideoFrame * Mp4VideoTrack::ReadH264Params()
 		Error("No H.264 picture parameter found video track ID %d.\n", mediatrack);
 	}
 
-	if (pictheader) free(pictheader);
-	if (pictheadersize) free(pictheadersize);
+	if (pictheader) MP4Free(pictheader);
+	if (pictheadersize) MP4Free(pictheadersize);
+	if (seqheader) MP4Free(seqheader);
+	if (seqheadersize) MP4Free(seqheadersize);
 
 	if ( vf->GetLength() == 0 )
 	{

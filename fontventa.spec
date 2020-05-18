@@ -54,7 +54,8 @@ make DESTDIR=$RPM_BUILD_ROOT install
 
 %changelog
 * Mon May 11 2020 Emmanuel BUU <emmanuel.buu@ives.fr>
-- minor memory leak saved in app_mp4
+- minor memory leak for mp4save() in app_mp4
+- memory leak for mp4play() in app_mp4
 - version 1.6.12
 
 * Thu May 15 2019 Emmanuel BUU <emmanuel.buu@ives.fr>

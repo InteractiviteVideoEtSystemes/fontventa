@@ -724,6 +724,8 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 						if ( ! AudioCodec::GetCodecFor(name, c) )
 						{
 							Log("Unsupported audio codec %s for hint track ID %d.\n", name, hintId);
+							MP4Free(name);
+							name = NULL;
 							goto audio_track_loop1;
 						}
 					}
@@ -737,6 +739,8 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 						lastTrackMatch 	= trackId;
 						lastHintMatch 	= hintId;
 						lastCodecMatch 	= c;
+						if (c != AudioCodec::AMR) MP4Free(name);
+						name = NULL;
 						break;
 					}    
 					else if ( lastTrackMatch == MP4_INVALID_TRACK_ID)
@@ -756,6 +760,8 @@ int mp4player::OpenTrack(AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
 					{
 						Log("Codec %s is not compatible with requested output codecs.\n", name);
 					}
+					if (c != AudioCodec::AMR) MP4Free(name);
+					name = NULL;
 				}		
 			}
 			else
@@ -896,6 +902,8 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 						if ( ! VideoCodec::GetCodecFor(name, c) )
 						{
 							Log("Unsupported video codec %d for hint track ID %d.\n", name, hintId);
+							MP4Free(name);
+							name = NULL;
 							goto video_track_loop;
 						}
 					}
@@ -908,6 +916,8 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 						Debug("Video track %d matches preferred codec %s\n", trackId, VideoCodec::GetNameFor(c));
 						lastTrackMatch = trackId;
 						lastHintMatch = hintId;
+						MP4Free(name);
+						name = NULL;
 						break;
 					}    
 					
@@ -927,6 +937,8 @@ int mp4player::OpenTrack(VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
 					{
 						Debug("Video codec %s is not compatible with requested output codecs.\n", name);
 					}
+					MP4Free(name);
+					name = NULL;
 				}
 			}
 			else
