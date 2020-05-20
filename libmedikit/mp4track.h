@@ -23,7 +23,11 @@ public:
 	
     virtual ~Mp4Basetrack() 
     {
-		if (frame) delete frame;    
+	if (frame)
+	{
+		frame->ClearRTPPacketizationInfo();
+		delete frame;    
+	}
     }
     
     virtual int Create(const char * trackName, int codec, DWORD bitrate) = 0;

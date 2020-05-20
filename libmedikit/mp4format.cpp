@@ -1490,6 +1490,7 @@ int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p)
 				//no need to free. Everything is static
 				//ast_frfree(&f2);
 			}
+			f->ClearRTPPacketizationInfo();
 		}
 		else
 		{
