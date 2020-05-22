@@ -1,14 +1,14 @@
 Name:      libmedkit
-Version:   1.6.7
+Version:   1.6.12
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
-Release:   1.ives_distrib
+Release:   1.ives%{?dist}
 Summary:   [IVeS] librairies multemedia pour app IVes
 Vendor:   IVeS
 Group:     Applications/Internet
 License: GPL
 URL:       http://www.ives.fr
-BuildArchitectures: ives_archi
+BuildArchitectures: x86_64
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:  ivespkg 
 BuildRequires: ffmpeg-devel >= 0.4.2, gcc-c++, asteriskv-devel
@@ -44,23 +44,19 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
+* Fri May 22 2020
+- corrected memory leaks in mp4track and mp4format
+- simplified packaging.
+- version 1.6.12
+
 * Thu May 15 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
-- improving MP4 player/recorder support when SLINEAR is the only native codec of the channel
+- this is the correction of bug SC-57
+- corrected no audio on MP4play when using Voximal
 - version 1.6.7
 
-* Thu Apr 23 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
-- added SLINEAR support on write codec
-- version 1.6.6
-
-* Thu Apr 11 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
-- corrected audio / video sync when no prologue is used
+* Thu Apr 11 2019  Emmanuel BUU
+- corrected regression on audio/video sync
 - version 1.6.5
-
-* Fri Mar 15 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
-- Corrected mp4play to be compatible with existing MP4 files.
-- removed saving SPS / PPS packets from the tracks of MP4 files
-- check compatibility with VM and improvement of resilience
-- version 1.6.4
 
 * Mon Jul 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected SPS decoding
