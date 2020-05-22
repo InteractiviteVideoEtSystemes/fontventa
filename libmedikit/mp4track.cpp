@@ -189,7 +189,7 @@ const MediaFrame * Mp4Basetrack::ReadFrameFromHint()
 			//Error
 			Error("Error reading packet from hinttrack ID %d mediatrack %d index %d]\n", hinttrack, mediatrack,packetIndex);
 			//Exit
-			return NULL;
+			break;
 	    }
 
 		if (rtpdata != NULL && rtpLen > 0)

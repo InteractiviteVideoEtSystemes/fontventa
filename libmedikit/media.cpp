@@ -50,9 +50,7 @@ bool MediaFrame::PrependWithFrame(MediaFrame * f)
 		for (RtpPacketizationInfo::iterator it = oldRtpInfo.begin(); it != oldRtpInfo.end(); it++)
 		{
 			MediaFrame::RtpPacketization * rtp = (*it);
-			AddRtpPacket(rtp->GetPos() + f->GetLength(), 
-				     rtp->GetSize(), rtp->GetPrefixData(), rtp->GetPrefixLen(),
-				     rtp->IsMark());
+			rtpInfo.push_back(rtp);
 		}
 	}
 	return true;
