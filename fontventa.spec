@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   1.6.12
+Version:   1.6.13
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -53,6 +53,10 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
+* Mon May 22 2020 Emmanuel BUU <emmanuel.buu@ives.fr>
+- memory leak for mp4play() in app_mp4
+- version 1.6.13
+
 * Mon May 11 2020 Emmanuel BUU <emmanuel.buu@ives.fr>
 - minor memory leak for mp4save() in app_mp4
 - memory leak for mp4play() in app_mp4
