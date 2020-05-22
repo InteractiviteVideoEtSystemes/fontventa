@@ -44,7 +44,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
-* Fri May 22 2020
+* Fri May 22 2020 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected memory leaks in mp4track and mp4format
 - simplified packaging.
 - version 1.6.12
@@ -54,7 +54,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 - corrected no audio on MP4play when using Voximal
 - version 1.6.7
 
-* Thu Apr 11 2019  Emmanuel BUU
+* Thu Apr 11 2019  Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected regression on audio/video sync
 - version 1.6.5
 
