@@ -26,45 +26,6 @@ function svn_export
 }
 
 
-#Copie des fichiers composants le rpm dans un repertoire temporaire
-# Le premier parametre donne le repertoire destination
-function copy_rpmInstall
-{
-    if [ ! -d $1 ]
-      then 
-        echo "[ERROR] Veuillez passer en parametre a install.ksh le repertoire temporaire de destination"
-        return
-    fi
-    if [ ! -d ./$PROJET ]
-      then
-        echo "[ERROR] Repertoire projet inexistant. Verifier le checkout dans " $PWD
-        return
-    fi
-  
-    #Copie des shared lib
-    mkdir -p $1/$DESTDIR_INC
-    mkdir -p $1/$DESTDIR_LIB
-    mkdir -p $1/$DESTDIR_MOD
-    mkdir -p $1/$DESTDIR_BIN
-    pwd
-    cp $PROJET/app_mp4/app_mp4.so $1/$DESTDIR_MOD/app_mp4.so 
-    chmod 755 $1/$DESTDIR_MOD/app_mp4.so
-    #cp $PROJET/app_transcoder/app_transcoder.so $1/$DESTDIR_MOD/app_transcoder.so 
-    #chmod 755 $1/$DESTDIR_MOD/app_transcoder.so
-    cp $PROJET/app_rtsp/app_rtsp.so $1/$DESTDIR_MOD/app_rtsp.so 
-    chmod 755 $1/$DESTDIR_MOD/app_rtsp.so
-    cp $PROJET/tools/mp4tool $1/$DESTDIR_BIN/mp4tool
-	cp $PROJET/tools/pcm2mp4 $1/$DESTDIR_BIN/pcm2mp4
-    cp $PROJET/tools/IVES_convert.ksh $1/$DESTDIR_BIN/IVES_convert.ksh
-    cp /usr/bin/ffmpeg $1/$DESTDIR_BIN/IVeS_ffmpeg
-    chmod 755 $1/$DESTDIR_BIN/mp4tool
-	chmod 755 $1/$DESTDIR_BIN/pcm2mp4
-    chmod 755 $1/$DESTDIR_BIN/IVES_convert.ksh
-    chmod 755 $1/$DESTDIR_BIN/IVeS_ffmpeg
-    cp Makeinclude $1/
-    echo "Fin de la copie des fichiers dans " $1
-}
-
 #Creation de l'environnement de packaging rpm
 function create_rpm
 {
@@ -94,6 +55,7 @@ function create_rpm
     mkdir -p rpmbuild/RPMS/x86_64
     #Recuperation de la description du package 
     cd ./rpmbuild/SPECS/
+    ln -s ../.. ${PROJET}
     cp ../../${PROJET}.spec ${PROJET}.spec
     cd ../../
     #Cree le package
@@ -108,7 +70,6 @@ function create_rpm
     then
         echo "************************* fin du rpmbuild ****************************"
         #Recuperation du rpm
-        mv -f $PWD/rpmbuild/RPMS/i386/*.rpm $PWD/.
         mv -f $PWD/rpmbuild/RPMS/x86_64/*.rpm $PWD/.
     fi
     clean
@@ -116,25 +77,26 @@ function create_rpm
 
 function clean
 {
-  	# On efface les liens ainsi que le package precedemment cr��
-  	echo Effacement des fichiers et liens gnupg rpmbuild ${PROJET}.rpm ${TEMPDIR}/${PROJET}
-  	rm -rf gnupg rpmbuild ${PROJET}.rpm ${TEMPDIR}/${PROJET}
+        # On efface les liens ainsi que le package precedemment crÃÃs
+        echo Effacement des fichiers et liens
+        rm -f rpmbuild/SOURCES/${PROJET}
+        rm -rf rpmbuild/SPECS/${PROJET}.spec
 }
 
 case $1 in
   	"clean")
   		echo "Nettoyage des liens et du package crees par la cible dev"
   		clean ;;
-  	"rpmInstall")
-  		#rpmInstall est appele automatiquement par le script de creation de rpm
-  		echo "Copie des fichiers du rpm dans la localisation temporaire"
-  		copy_rpmInstall $2;;
   	"rpm")
   		echo "Creation du rpm"
   		create_rpm $2;;
+
+	"prereq")
+		sudo yum -y install ffmpeg-devel mpeg4ip-devel asteriskv-devel SDL-devel ;;
   	*)
   		echo "usage: install.ksh [options]" 
   		echo "options :"
   		echo "  rpm		Generation d'un package rpm"
-  		echo "  clean		Nettoie tous les fichiers cree par le present script, liens, tar.gz et rpm";;
+  		echo "  prepreq		Install des prerequis"
+  		echo "  clean		Nettoie tous les fichiers ";;
 esac
