@@ -2,7 +2,7 @@ Name:      fontventa
 Version:   1.6.13
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
-Release:   2.ives%{?dist}
+Release:   3.ives%{?dist}
 Summary:   [IVeS] librairies partag�es pour asterisk de Fontventa.
 Vendor:   IVeS
 Group:     Applications/Internet
@@ -18,16 +18,15 @@ Un ensemble de librairies partag�es pour asterisk de Fontventa.
   
 %clean
 echo "############################# Clean"
+cd $RPM_SOURCE_DIR/%name
+make clean
+cd ..
+rm -f %name
 echo Clean du repertoire $RPM_BUILD_ROOT
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf "$RPM_BUILD_ROOT"
 
 %prep
-echo "Export du SVN ives"
-svn export --force http://svn.ives.fr/svn-libs-dev/asterisk/%name/tags/%version
-
-%build
-echo "Build"
-cd %version
+cd $RPM_SOURCE_DIR/%name
 #Repertoire d'installation des librairies
 if [ "`uname -m`" == "x86_64" ]
 then
@@ -36,7 +35,10 @@ else
         DESTDIR_LIB=/usr/lib
 fi
 echo "SYS_LIB=$DESTDIR_LIB" >Makeinclude
-#
+
+%build
+echo "Build"
+cd $RPM_SOURCE_DIR/%name
 make
 
 %install
@@ -46,9 +48,14 @@ make DESTDIR=$RPM_BUILD_ROOT install
 
 %files
 %defattr(-,root,root,-)
-%{_libdir}/
+%{_libdir}/asterisik/modules/app_*.so
 #/usr/include/*.h
-/usr/bin/*
+/usr/bin/IVES_convert.ksh
+/usr/bin/mp4asterisk
+/usr/bin/mp4band
+/usr/bin/mp4creator
+/usr/bin/mp4tool
+/usr/bin/pcm2mp4
 /usr/sbin/astlog
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
