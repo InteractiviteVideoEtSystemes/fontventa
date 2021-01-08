@@ -81,16 +81,16 @@ case $1 in
   	"clean")
   		echo "Nettoyage des liens et du package crees par la cible dev"
   		clean ;;
-  	"rpmInstall")
-  		#rpmInstall est appele automatiquement par le script de creation de rpm
-  		echo "Copie des fichiers du rpm dans la localisation temporaire"
-  		copy_rpmInstall $2;;
+	"prereq")
+                sudo yum -y install ffmpeg-devel mpeg4ip-devel asteriskv-devel SDL-devel ;;
+
   	"rpm")
   		echo "Creation du rpm"
   		create_rpm $2;;
   	*)
-  		echo "usage: install.ksh [options]" 
+  		echo "usage: install_lib.ksh [options]" 
   		echo "options :"
   		echo "  rpm		Generation d'un package rpm"
+  		echo "  prepreq		Installation des prerequis"
   		echo "  clean		Nettoie tous les fichiers cree par le present script, liens, tar.gz et rpm";;
 esac

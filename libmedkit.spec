@@ -1,5 +1,5 @@
 Name:      libmedkit
-Version:   1.6.12
+Version:   1.6.13
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -18,22 +18,23 @@ Un ensemble de librairies partag�es pour asterisk de Fontventa.
   
 %clean
 echo "############################# Clean"
+cd $RPM_SOURCE_DIR/%name
+make clean
+cd ..
+rm -f %name
 echo Clean du repertoire $RPM_BUILD_ROOT
 [ "$RPM_BUILD_ROOT" != "/" ] && rm -rf "$RPM_BUILD_ROOT"
 
 %prep
-echo "Export du SVN ives"
-svn export http://svn.ives.fr/svn-libs-dev/asterisk/fontventa/tags/%version
 
 %build
 echo "Build"
-cd %version
-cd libmedikit
+cd $RPM_SOURCE_DIR/%name
 make all
 
 %install
 echo "############################# Install"
-cd %version
+cd $RPM_SOURCE_DIR/%name
 cd libmedikit
 make DESTDIR=$RPM_BUILD_ROOT install
 

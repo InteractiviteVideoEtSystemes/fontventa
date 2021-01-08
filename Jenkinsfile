@@ -40,6 +40,8 @@ pipeline {
 	           sh """
 		   ./install.ksh prereq
                    ./install.ksh rpm nosign
+		   ./install_lib.ksh prepreq
+		   ./install_lib.ksh rpm nosign
 	           """
               }
            }
