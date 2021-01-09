@@ -71,7 +71,7 @@ pipeline {
                    buildingTag()
                }
                steps {
-                   archiveArtifacts(artifacts: '*.rpm,vrn.html', onlyIfSuccessful: true)
+                   archiveArtifacts(artifacts: 'fontventa*.rpm,vrn.html', onlyIfSuccessful: true)
                }
            }
         } // stages 

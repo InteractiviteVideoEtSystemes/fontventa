@@ -51,6 +51,8 @@ function create_rpm
     #Recuperation de la description du package 
     cd ./rpmbuild/SPECS/
     cp ../../${PROJET}.spec ${PROJET}.spec
+    cd ../SOURCES
+    ln -s ../.. ${PROJET}
     cd ../../
     #Cree le package
     if [[ -z $1 || $1 -ne nosign ]]
