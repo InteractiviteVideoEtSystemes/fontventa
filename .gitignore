@@ -2,3 +2,6 @@
 *.a
 *.rpm
 Makeinclude
+tools/mp4asterisk
+tools/mp4band
+tools/pcm2mp4

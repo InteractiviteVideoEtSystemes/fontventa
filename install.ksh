@@ -55,8 +55,9 @@ function create_rpm
     mkdir -p rpmbuild/RPMS/x86_64
     #Recuperation de la description du package 
     cd ./rpmbuild/SPECS/
-    ln -s ../.. ${PROJET}
     cp ../../${PROJET}.spec ${PROJET}.spec
+    cd ../SOURCES
+    ln -s ../.. ${PROJET}
     cd ../../
     #Cree le package
     if [[ -z $1 || $1 -ne nosign ]]
@@ -80,7 +81,8 @@ function clean
         # On efface les liens ainsi que le package precedemment crÃÃs
         echo Effacement des fichiers et liens
         rm -f rpmbuild/SOURCES/${PROJET}
-        rm -rf rpmbuild/SPECS/${PROJET}.spec
+        rm -f rpmbuild/SPECS/${PROJET}.spec
+	rm -rf rpmbuild gnupg
 }
 
 case $1 in

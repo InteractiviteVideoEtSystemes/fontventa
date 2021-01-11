@@ -43,12 +43,12 @@ make
 
 %install
 echo "############################# Install"
-cd %version
+cd $RPM_SOURCE_DIR/%name
 make DESTDIR=$RPM_BUILD_ROOT install
 
 %files
 %defattr(-,root,root,-)
-%{_libdir}/asterisik/modules/app_*.so
+%{_libdir}/asterisk/modules/app_*.so
 #/usr/include/*.h
 /usr/bin/IVES_convert.ksh
 /usr/bin/mp4asterisk
@@ -60,7 +60,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 #%config(noreplace) %attr(0640,root,root) /etc/asterisk/*.conf
 
 %changelog
-* Mon May 22 2020 Emmanuel BUU <emmanuel.buu@ives.fr>
+* Fri May 22 2020 Emmanuel BUU <emmanuel.buu@ives.fr>
 - memory leak for mp4play() in app_mp4
 - version 1.6.13
 
@@ -69,14 +69,14 @@ make DESTDIR=$RPM_BUILD_ROOT install
 - memory leak for mp4play() in app_mp4
 - version 1.6.12
 
-* Thu May 15 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
+* Wed May 15 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
 - mp4save() now removes the MP4 file automatically if video has not started.
 - this is the correction of bug SC-57
 - corrected no audio on MP4play when using Voximal
 - see libedikit log for details
 - version 1.6.7
 
-* Thu Apr 23 2019 Emmanuel BUU
+* Tue Apr 23 2019 Emmanuel BUU
 - corrected regression on MP4play when using Voximal
 - see limedikit log for details
 - version 1.6.6
@@ -85,87 +85,32 @@ make DESTDIR=$RPM_BUILD_ROOT install
 - corrected regression on audio/video sync
 - version 1.6.5
 
-* Thu Mar 26 2019 Emmanuel BUU 
+* Tue Mar 26 2019 Emmanuel BUU 
 - backported improvment of IVES_convert script from branch 0.5
 - version 1.6.4
 
-* Thu Mar 12 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
+* Tue Mar 12 2019 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected RTT recorind in text file
 - integrated with VM
 - see libmedkit logs for details
 - version 1.6.3
 
-* Mon Jul 16 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+* Mon Jul 16 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected SPS decoding in libmedikit
 - version 1.6.2
 
-* Wed Jun 7 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+* Thu Jun 7 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected tools to use mp4v2
 - version 1.6.1
 
-* Wed Jun 6 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
+* Wed Jun 6 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
 - tested recording and play correctly
 - migrated to ffmpeg 3.3.7
 - version 1.6.0
-* Mon Mar 16 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
+* Fri Mar 16 2018 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected recorder and player. mp4record and play are now using libmedkit
 - version 1.4.0
 * Thu Feb 22 2018 Emmanuel BUU  Emmanuel BUU <emmanuel.buu@ives.fr>
 - reimplemented mp4play / mp4save using libmedikit
 - version 1.0.0
-* Fri Nov 21 2014 Emmanuel BUU <emmanuel.buu@ives.fr>
-- accent were filtered. Removed filter.
-- version 0.5.8
-* Tue Aug 26 2014 Philippe Verney <philippe.verney@ives.fr>
-- Suppress transcoder ( link error with ffmpeg ) 
-- Fix video echo on H.264
-- version 0.5.7
-* Wed Dec 5 2013 Philippe Verney <philippe.verney@ives.fr>
-- Fix pb de synchro audio / video h264
-- version 0.5.6
-* Mon Jul 15 2013 Maquin Olivier <olivier.maquin@ives.fr>
-- static link with FFMPEG , suppress x264 , static with mp4IP
-- version 0.5.4
-* Wed May 22 2013 Emmanuel BUU <emmannuel.buu@ives.fr>
-- static link with FFMPEG and X264
-- version 0.5.3
-* Fri Nov 09 2012 Philippe Verney <philippe.verney@ives.fr> 
-- version 0.5.2
-- Add filter BOM on T140
-- Change stat string to resolv conflit "video" find on mp4
-* Tue Jun 21 2012 Philippe Verney <philippe.verney@ives.fr> 
-- version 0.5.1
-- Add rtp stat on file   
-* Tue Jun 20 2012 Philippe Verney <philippe.verney@ives.fr> 
-- version 0.5.0
-- Fix h263 play/rec , fix T140 record msg
-* Fri Jun 01 2012 Thomas Carvello <thomas.carvello@ives.fr> 
-- version 0.4.1
-* Tue May 15 2012 Olivier Maquin <olivier.maquin@ives.fr> 
-- version 0.4.0
-- static linking for libpt
-- compatibility of app_transcoder with ffmpeg 0.9.1
-* Wed Jul 27 2011 Emmanuel BUU <emmanuel.buu@ives.fr>
-- support for multiple audo codec negocation (asterisk-i1.4.19r)
-* Wed Jul 7 2011 Sergio <sergio@fontventa.com>
-- added H.264 support for Transcoder application
-* Wed Sep 24 2010 Philippe Verney <philippe.verney@ives.fr>
-- Suppress work arround on h323
-* Mon Mar 17 2010 Philippe Verney <philippe.verney@ives.fr>
-- new well tested fix for video timestamping
-* Wed Mar 17 2010 Philippe Verney <philippe.verney@ives.fr>
-- fixed issue with video packet in bad order when recording
-* Mon Jan 18 2010 Philippe Verney <philippe.verney@ives.fr>
-- Fix IVES_convert.ksh ( No sound track & video quality )
-* Fri Aug 7 2009 Emmanuel BUU <emmanuel.buu@ives.fr>
-- Added IVES_convert.ksh script, added compilation requirement in .spec
-- added ability to configure H.245 bit order in h324M.conf
-* Sun Jun 14 2009 Emmanuel BUU <emmanuel.buu@ives.fr>
-- 0.2.1 -> support enreg test. Suppression logs inutiles
-* Fri Apr 17 2009 Eric Delas <eric.delas@ives.fr> 0.1.1-3.ives
-- Package for 1.4.19f-1.ives asterisk version
-* Mon Apr 07 2009 Emmanuel BUU <emmanuel.buu@ives.fr> 0.1.1-2.ives
-- Integration livraison app_mp4 de Borja
-* Mon Mar 09 2009 Didier Chabanol <didier.chabanol@ives.fr> 0.1.0-1.ives
-- Initial package
 
