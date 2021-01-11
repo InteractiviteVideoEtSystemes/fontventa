@@ -131,14 +131,14 @@ bool MP4AV_RfcCryptoAudioHinter(
         mp4av_ismacrypParams *icPp,
 	bool interleave DEFAULT_PARM(false),
 	u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE),
-	char* PayloadMIMEType DEFAULT_PARM(""));
+	const char* PayloadMIMEType DEFAULT_PARM(""));
 
 bool MP4AV_RfcCryptoVideoHinter(
 	MP4FileHandle mp4File, 
 	MP4TrackId mediaTrackId, 
         mp4av_ismacrypParams *icPp,
 	u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE),
-	char* PayloadMIMEType DEFAULT_PARM(""));
+	const char* PayloadMIMEType DEFAULT_PARM(""));
 
   MP4TrackId MP4AV_H264_HintTrackCreate(MP4FileHandle mp4File,
 					MP4TrackId mediaTrackId);

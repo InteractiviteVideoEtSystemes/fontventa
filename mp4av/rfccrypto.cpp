@@ -991,7 +991,7 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
         mp4av_ismacrypParams *icPp,
 	bool interleave,
 	u_int16_t maxPayloadSize,
-	char* PayloadMIMEType)
+	const char* PayloadMIMEType)
 {
 
   // gather information, and check for validity
@@ -1240,7 +1240,7 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
 	MP4TrackId mediaTrackId, 
         mp4av_ismacrypParams *icPp,
 	u_int16_t maxPayloadSize,
-	char* PayloadMIMEType)
+	const char* PayloadMIMEType)
 {
   u_int32_t numSamples = MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
   u_int32_t maxSampleSize = MP4GetTrackMaxSampleSize(mp4File, mediaTrackId);
