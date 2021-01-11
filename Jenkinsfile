@@ -48,8 +48,11 @@ pipeline {
                  expression { params.SIGNRPM }
               }
               steps {
-		sh "echo \"${params.PASSPHRASE}\" | rpm --resign ${PROJET}*.rpm"
-          	sh "rm -rf ./gnupg"
+		sh """
+		svn export https://svn.ives.fr/svn-libs-dev/gnupg
+		echo \"${params.PASSPHRASE}\" | rpm --resign ${PROJET}*.rpm"
+          	rm -rf ./gnupg
+		"""
               }
            }
            stage('Inst. le RPM') {
