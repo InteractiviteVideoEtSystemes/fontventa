@@ -1,5 +1,4 @@
-def PROJET = 'app_conference'
-def PROJET2 = ''
+def PROJET = 'fontventa'
 
 import hudson.model.*
 import jenkins.model.*
@@ -50,7 +49,7 @@ pipeline {
               steps {
 		sh """
 		svn export https://svn.ives.fr/svn-libs-dev/gnupg
-		echo \"${params.PASSPHRASE}\" | rpm --resign ${PROJET}*.rpm"
+		echo \"${params.PASSPHRASE}\" | rpm --resign ${PROJET}*.rpm
           	rm -rf ./gnupg
 		"""
               }
