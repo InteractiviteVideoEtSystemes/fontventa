@@ -638,11 +638,11 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 			}
 		    }
 
-		    //char ttr[800];
-		    //
-		    // strncpy( ttr, (const char *) red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
-		    //ttr[  red.GetPrimaryPayloadSize() ] = '\0';
-		    //Log("Primary data [%s] len %d.\n", ttr, red.GetPrimaryPayloadSize() );
+		    /* char ttr[800];
+		    
+		    strncpy( ttr, (const char *) red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
+		    ttr[  red.GetPrimaryPayloadSize() ] = '\0';
+		    Log("Primary data [%s] len %d.\n", ttr, red.GetPrimaryPayloadSize() ); */
 		    tf.SetFrame( text_ts, red.GetPrimaryPayloadData(), red.GetPrimaryPayloadSize() );
 		}
 		else /* assume plain text */

@@ -45,11 +45,27 @@ int TextEncoder::Accumulate(const std::wstring & text)
 		{
 			//Get char
 			wchar_t ch = text.at(i);
+
 			//Depending on the char
 			switch (ch)
 			{
-				//MEssage delimiter
+				//0xA - ignore if if previous char is 0x0D
 				case 0x0A:
+					if (i > 0 && text.at(i-1) == 0x0D)
+					{
+					}
+					else
+					{
+						//Append an end line
+						line.push_back(0x0A);
+						//push the line
+						scroll.push_back(line);
+						//Empty it
+						line.clear();
+						ret = 2;
+					}
+					break;
+
 				case 0x2028:
 				case 0x2029:
 				case 0x0D:

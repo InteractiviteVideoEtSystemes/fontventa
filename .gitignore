@@ -1,7 +1,11 @@
+*.so
 *.o
 *.a
 *.rpm
+app_rtsp/app_rtsp.so
 Makeinclude
 tools/mp4asterisk
 tools/mp4band
 tools/pcm2mp4
+tools/mp4nfo
+tools/mp4creator
