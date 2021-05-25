@@ -20,6 +20,7 @@
 ***********************************/
 TextEncoder::TextEncoder()
 {
+	listener = NULL;
 }
 
 /*******************************
@@ -30,6 +31,36 @@ TextEncoder::~TextEncoder()
 {
 }
 
+void TextEncoder::SendLineToHistory()
+{
+	//push the line
+	scroll.push_back(line);
+	if (listener)
+	{
+		std::string utf8line;
+    		UTF8Parser p(line);
+    		p.Serialize(utf8line);
+		listener->onNewLine(utf8line);
+	}
+	//Empty it
+	line.clear();
+}
+
+void TextEncoder::PopLineFromHistory()
+{
+	if (scroll.size() > 0)
+	{
+		line = scroll.back();
+		scroll.pop_back();
+	        if (listener)
+        	{
+                	std::string utf8line;
+                	UTF8Parser p(line);
+                	p.Serialize(utf8line);
+                	listener->onLineRemoved(utf8line);
+		}
+        }
+}
 /*******************************************
 * Encode
 *	Capturamos el text y lo mandamos
@@ -40,6 +71,7 @@ int TextEncoder::Accumulate(const std::wstring & text)
 	if (! text.empty())
 	{
 		int ret = 1;
+		int nb_backspaces = 0;
 		//Search each character
 		for (int i=0;i<text.length();i++)
 		{
@@ -59,9 +91,7 @@ int TextEncoder::Accumulate(const std::wstring & text)
 						//Append an end line
 						line.push_back(0x0A);
 						//push the line
-						scroll.push_back(line);
-						//Empty it
-						line.clear();
+						SendLineToHistory();
 						ret = 2;
 					}
 					break;
@@ -72,17 +102,23 @@ int TextEncoder::Accumulate(const std::wstring & text)
 					//Append an end line
 					line.push_back(0x0A);
 					//push the line
-					scroll.push_back(line);
-					//Empty it
-					line.clear();
+					SendLineToHistory();
 					ret = 2;
 					break;
 				//Check backspace
 				case 0x08:
 					//If not empty
+					if (line.size() == 0)
+					{
+						PopLineFromHistory();
+						Log("RTT: editing previous line\n");
+					}
+					//Remove last
 					if (line.size())
-						//Remove last
+					{
 						line.erase(line.length()-1,1);
+						nb_backspaces++;
+					}
 					break;
 				//BOM
 				case 0xFEFF:
@@ -93,39 +129,40 @@ int TextEncoder::Accumulate(const std::wstring & text)
 					//Append .
 					line.push_back('.');
 					break;
+#if 0 /* disable line wrap */
 				//Any other
 				case ' ':
-					if (line.size() > 40 )
+					line.push_back(ch);
+					if (line.size() > 80 )
 					{
 						line.push_back(0x0A);
 						//push the line
-						scroll.push_back(line);
-						//Empty it
-						line.clear();
+						SendLineToHistory();
 						ret = 2;
-					}
-					else
-					{
-						line.push_back(ch);
 					}
 					break;
 
 				case '-':
 					line.push_back(ch);
-					if (line.size() > 40 )
+					if (line.size() > 80 )
 					{
 						line.push_back(0x0A);
 						//push the line
-						scroll.push_back(line);
-						//Empty it
-						line.clear();
+						SendLineToHistory();
 						ret = 2;
 					}
 					break;
 
+				//Any other
+#endif
 				default:
 					//Append it
 					line.push_back(ch);
+					break;
+			}
+			if (ch != 0x08)
+			{
+				nb_backspaces = 0;
 			}
 		}
 		return ret;
@@ -186,6 +223,25 @@ void TextEncoder::GetCurrentLine(std::string & curline)
     {
 		curline.clear();
     }
+}
+
+void TextEncoder::GetFullText(std::string & text)
+{
+	//Append lines in scroll
+	text.clear();
+	for (std::list<std::wstring>::iterator it=scroll.begin(); it!=scroll.end(); it++)
+	{
+		UTF8Parser p(*it);
+		//Append
+		p.Serialize(text, true);
+	}
+
+	if (line.size() > 0)
+	{
+		UTF8Parser p(line);
+		p.Serialize(text, true);
+		text.push_back('\n');
+	}
 }
 
 void SubtitleToRtt::GetTextDiff(const std::string & sub, unsigned int & nbdel, std::string & diff)

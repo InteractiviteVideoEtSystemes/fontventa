@@ -59,14 +59,14 @@ void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 		BYTE type = payload[i++] & 0x7F;
 		//Get offset
 		WORD offset = payload[i++];
-		offset = offset <<6 | payload[i]>>2;
+		offset = offset << 6 | payload[i]>>2;
 		//Get size
-		WORD size = payload[i++] & 0x03;
-		size = size <<6 | payload[i++];
+		WORD sz = payload[i++] & 0x03;
+		sz = (sz << 8) | ((WORD) payload[i++]);
 		//Append new red header
-		headers.push_back(RedHeader(type,offset,skip,size));
+		headers.push_back(RedHeader(type,offset,skip,sz));
 		//Skip the redundant payload
-		skip += size;
+		skip += sz;
 		//Check if it is the last
 		last = !(payload[i]>>7);
 	}

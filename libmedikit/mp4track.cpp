@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "medkit/red.h"
 #include "medkit/log.h"
 #include "medkit/textencoder.h"
@@ -838,6 +839,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 			Log("Adding %d ms of initial delay on text track id:%d.\n", initialDelay, mediatrack);
 		}
 		frameduration = 100; 
+		if (textfile >= 0) ::ftruncate(textfile, 0);
 	}
 	else
 	{
@@ -851,20 +853,9 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
 	if (frameduration > MAX_SUBTITLE_DURATION) frameduration = MAX_SUBTITLE_DURATION;
 	
 	sampleId++;
-	
-	if ( encoder.Accumulate( f2->GetWString() ) == 2)
-	{
-	    // Current line has just been flushed into history
-	    if ( textfile >= 0 ) 
-	    {
-	        // If there is an active text file, write it
-		encoder.GetFirstHistoryLine(subtitle);
-		int ret = ::write( textfile, subtitle.data(), subtitle.length() );
-		savedText += subtitle;
-	    }
-	}
-	
+	encoder.Accumulate( f2->GetWString() );
 	encoder.GetSubtitle(subtitle);
+
 	unsigned int subsize = subtitle.length();
 
 	
@@ -900,6 +891,32 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame * f )
     }
     return 0;
 }
+
+void Mp4TextTrack::onNewLine(std::string & prevline)
+{
+    if ( textfile >= 0 ) 
+    {
+	::write( textfile, prevline.data(), prevline.length() );
+    }
+}
+
+
+void Mp4TextTrack::onLineRemoved(std::string & prevline)
+{
+	if (textfile >= 0 && !prevline.empty())
+	{
+		off_t cur = lseek(textfile, 0, SEEK_CUR);
+		if (prevline.size() < cur)
+		{
+			cur = cur - prevline.size();
+		}
+		else
+		{
+			cur = 0;
+		}
+		ftruncate(textfile, cur);
+	}	
+} 
 
 const MediaFrame * Mp4TextTrack::ReadFrame()
 {

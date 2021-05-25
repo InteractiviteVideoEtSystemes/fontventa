@@ -70,7 +70,8 @@ mp4recorder::~mp4recorder()
 	if (mediatracks[MP4_TEXT_TRACK] != NULL)
 	{
 		Mp4TextTrack * txttrack = (Mp4TextTrack *) mediatracks[MP4_TEXT_TRACK];
-		const std::string & texte(txttrack->GetSavedTextForVm());
+		std::string texte;
+		txttrack->GetSavedTextForVm(texte);
 		
 		if (saveTxtInComment && texte.length() > 0)
 		{
@@ -622,6 +623,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 		    
 		    if (lost > 0 && red.GetRedundantCount() > 0)
 		    {
+			Log("text frame seqno %d, lost %d\n", f->seqno, lost);
 		        if ( lost > red.GetRedundantCount()  )
 			{
 			    /* cas ou l'on a perdu + de paquet de le niv de red. On ne fait rien */
@@ -634,6 +636,7 @@ int mp4recorder::ProcessFrame(struct ast_frame * f, bool secondary )
 				//Create frame from recovered data - check timestamps ...
 				tf.SetTimestamp( text_ts - red.GetRedundantTimestampOffset(i) );
 				tf.SetMedia( red.GetRedundantPayloadData(i),red.GetRedundantPayloadSize(i) );
+				Log("Recovering lost packet seqno %d from redundant data.", textSeqNo-i);
 				ProcessFrame ( &tf );
 			}
 		    }

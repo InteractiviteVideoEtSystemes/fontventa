@@ -220,10 +220,10 @@ DWORD UTF8Parser::Serialize(BYTE* buffer,DWORD size)
 }
 
 
-DWORD UTF8Parser::Serialize(std::string & str)
+DWORD UTF8Parser::Serialize(std::string & str, bool append)
 {
      std::wstring::iterator it;
-     str.clear();
+     if (!append) str.clear();
      
      for ( it = value.begin(); it != value.end(); it++ )
      {

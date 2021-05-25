@@ -1,5 +1,5 @@
 Name:      fontventa
-Version:   1.6.13
+Version:   1.6.14
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   3.ives%{?dist}

@@ -1,5 +1,5 @@
 Name:      libmedkit
-Version:   1.6.13
+Version:   1.6.14
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}
@@ -45,6 +45,11 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
+* Thu May 05 2021 Emmanuel BUU <emmanuel.buu@ives.fr>
+- corrected handling of CFLF in text recording
+- corrected handling of large redundent text packets
+- version 1.6.14
+
 * Fri May 22 2020 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected memory leaks in mp4track and mp4format
 - simplified packaging.

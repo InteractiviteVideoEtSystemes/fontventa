@@ -6,6 +6,13 @@
 class TextEncoder
 {
 public:
+	class Listener
+	{
+	public:
+		virtual void onNewLine(std::string & prevline) = 0;
+		virtual void onLineRemoved(std::string & prevline) = 0;
+	};
+public:
 	TextEncoder();
 	~TextEncoder();
 
@@ -15,10 +22,21 @@ public:
 	void GetSubtitle(std::wstring & sub);
 	void GetSubtitle(std::string & sub);
 	TextFrame * GetSubTitle();
+	void SetListener(Listener * l)
+	{
+		listener = l;
+	}
+
+	void GetFullText(std::string & text);
+
 private:
 	std::list<std::wstring> scroll;
 	std::wstring line;
 	TextFrame f;
+	Listener * listener;
+
+	void SendLineToHistory();
+	void PopLineFromHistory();
 };
 
 class SubtitleToRtt

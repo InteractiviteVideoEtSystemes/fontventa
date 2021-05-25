@@ -6,7 +6,6 @@
 #include "medkit/text.h"
 #include "medkit/textencoder.h"
 
-class SubtitleToRtt;
 
 class Mp4Basetrack
 {
@@ -181,12 +180,13 @@ private:
 
 #define MAX_SUBTITLE_DURATION 7000
 
-class Mp4TextTrack : public Mp4Basetrack
+class Mp4TextTrack : public Mp4Basetrack, TextEncoder::Listener 
 {
 public:
     Mp4TextTrack(MP4FileHandle mp4, int textfile, unsigned long delay) : Mp4Basetrack(mp4, delay) 
     { 
 		this->textfile = textfile;
+		encoder.SetListener(this);
 		conv1 = NULL;
     }
     
@@ -197,19 +197,10 @@ public:
     virtual int ProcessFrame( const MediaFrame * f );
     virtual const MediaFrame * ReadFrame();
     void RenderAsReatimeText(bool render);
-	const std::string & GetSavedTextForVm() 
-	{ 
-		std::string curline;
-		savedText.insert(0, "\n");
-		encoder.GetCurrentLine(curline);
-
-		if ( curline.length() > 0 )
-		{
-			savedText += curline;
-			savedText +=  "\n";
-		}
-		return savedText;
-	}
+    void GetSavedTextForVm(std::string & text) 
+    { 
+	encoder.GetFullText(text);
+    }
     
 private:
     TextEncoder encoder;
@@ -217,5 +208,7 @@ private:
     int textfile;
     SubtitleToRtt * conv1;
     BYTE buffer[600];
-	std::string savedText;
+
+    virtual void onNewLine(std::string & prevline);
+    virtual void onLineRemoved(std::string & prevline);
 };

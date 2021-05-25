@@ -21,7 +21,7 @@ public:
 	void SetWChar(const wchar_t* buffer,DWORD bufferLen);
 	DWORD SetString(const char* str);
 	DWORD Serialize(BYTE *data,DWORD size);
-	DWORD Serialize(std::string & str);
+	DWORD Serialize(std::string & str, bool append = false);
 	DWORD Truncate(DWORD size);
 
 private:
