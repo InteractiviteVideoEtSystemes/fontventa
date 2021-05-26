@@ -97,16 +97,16 @@ pipeline {
 
 void notifFail(e)
 {
-  office365ConnectorSend(message: "💔:  *BUILD FAIL asteriskv $BRANCH_NAME* : \n\n Lien du Build : <RUN_DISPLAY_URL|JENKINS-#$BUILD_NUMBER> \n \n Cordialement, Jenkins", status: 'Success', webhookUrl: 'https://outlook.office.com/webhook/a8d2a9bb-d91a-48b9-8774-a1907c4bce10@dda7df9a-8948-410e-8cd6-c830a3370b09/JenkinsCI/1c7e9437aaad42a8a2407afabdbfc096/37c3465b-9ab9-4181-8220-d38b79c27fe3', color:'00ff00')
+  office365ConnectorSend(message: "💔:  *BUILD FAIL asteriskv $BRANCH_NAME* : \n\n Lien du Build : <RUN_DISPLAY_URL|JENKINS-#$BUILD_NUMBER> \n \n Cordialement, Jenkins", status: 'Success', webhookUrl: 'https://elioz.webhook.office.com/webhookb2/a8d2a9bb-d91a-48b9-8774-a1907c4bce10@dda7df9a-8948-410e-8cd6-c830a3370b09/JenkinsCI/0839cdb150fc4e1b85d3b25b37c89ad6/a2ddc743-0cdf-46cd-a9de-deef999c22df', color:'00ff00')
 
 }
 
 void notifSuccess()
 {
-  office365ConnectorSend(message: "✅:  *BUILD SUCCESS asteriskv $BRANCH_NAME* : \n\n Lien du Build  <$RUN_DISPLAY_URL|JENKINS-#$BUILD_NUMBER> \n \n Cordialement, Jenkins", status: 'Success', webhookUrl: 'https://outlook.office.com/webhook/a8d2a9bb-d91a-48b9-8774-a1907c4bce10@dda7df9a-8948-410e-8cd6-c830a3370b09/JenkinsCI/1c7e9437aaad42a8a2407afabdbfc096/37c3465b-9ab9-4181-8220-d38b79c27fe3', color:'00ff00')
+  office365ConnectorSend(message: "✅:  *BUILD SUCCESS asteriskv $BRANCH_NAME* : \n\n Lien du Build  <$RUN_DISPLAY_URL|JENKINS-#$BUILD_NUMBER> \n \n Cordialement, Jenkins", status: 'Success', webhookUrl: 'https://elioz.webhook.office.com/webhookb2/a8d2a9bb-d91a-48b9-8774-a1907c4bce10@dda7df9a-8948-410e-8cd6-c830a3370b09/JenkinsCI/0839cdb150fc4e1b85d3b25b37c89ad6/a2ddc743-0cdf-46cd-a9de-deef999c22df', color:'00ff00')
 }
 
 void notifSuccessInstalled()
 {
-  office365ConnectorSend(message: "✅:  *BUILD SUCCESS asteriskv $BRANCH_NAME* : \n\n Lien du Build : $RUN_DISPLAY_URL|JENKINS-#$BUILD_NUMBER> \n \n Cordialement, Jenkins", status: 'Success', webhookUrl: 'https://outlook.office.com/webhook/a8d2a9bb-d91a-48b9-8774-a1907c4bce10@dda7df9a-8948-410e-8cd6-c830a3370b09/JenkinsCI/1c7e9437aaad42a8a2407afabdbfc096/37c3465b-9ab9-4181-8220-d38b79c27fe3', color:'00ff00')
+  office365ConnectorSend(message: "✅:  *BUILD SUCCESS asteriskv $BRANCH_NAME* : \n\n Lien du Build : $RUN_DISPLAY_URL|JENKINS-#$BUILD_NUMBER> \n \n Cordialement, Jenkins", status: 'Success', webhookUrl: 'https://elioz.webhook.office.com/webhookb2/a8d2a9bb-d91a-48b9-8774-a1907c4bce10@dda7df9a-8948-410e-8cd6-c830a3370b09/JenkinsCI/0839cdb150fc4e1b85d3b25b37c89ad6/a2ddc743-0cdf-46cd-a9de-deef999c22df', color:'00ff00')
 }
