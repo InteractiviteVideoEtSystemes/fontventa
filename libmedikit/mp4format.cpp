@@ -1004,7 +1004,7 @@ int mp4player::OpenTrack(TextCodec::Type c, BYTE pt, int rendering)
     }
     else
     {
-		Error("Could not find any text track in this file.\n");
+		Debug("No text track in this file.\n");
 		mediatracks[MP4_TEXT_TRACK] = NULL;
 		next[MP4_TEXT_TRACK] = MP4_INVALID_TIMESTAMP;
 		return -1;
@@ -1197,13 +1197,13 @@ MediaFrame * mp4player::GetNextFrame( int & errcode, unsigned long & waittime )
 		}
 		else
 		{
-			Debug("failed to get next TS.\n");
+			//failed to get next TS, probably end of file
 			waittime = 0;
 		}
 	}
 	else
 	{
-		Debug("mp4Play: eof.\n");
+		//mp4Play: eof
 		errcode = -1;
 	}
 	return f2;
