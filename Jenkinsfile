@@ -19,6 +19,7 @@ pipeline {
        }
        steps {
           sh """
+	  rm -rf ./gnupg
           git clone git@git.ives.fr:internal/gnupg.git
           echo "${params.PARAPHRASE}" |  gpg -q --local-user IVeSkey --batch --homedir ./gnupg/ --passphrase-fd 0 --sign > /dev/null
           """
@@ -49,6 +50,7 @@ pipeline {
               }
               steps {
 		sh """
+		rm -rf ./gnupg
 		git clone git@git.ives.fr:internal/gnupg.git
 		echo \"${params.PASSPHRASE}\" | rpm --resign ${PROJET}*.rpm
           	rm -rf ./gnupg
