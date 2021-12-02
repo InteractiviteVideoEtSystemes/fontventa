@@ -1,4 +1,4 @@
-def PROJET = 'app_conference'
+def PROJET = 'fontventa'
 def PROJET2 = ''
 
 import hudson.model.*
@@ -52,7 +52,7 @@ pipeline {
 		sh """
 		rm -rf ./gnupg
 		git clone git@git.ives.fr:internal/gnupg.git
-		echo \"${params.PASSPHRASE}\" | rpm --resign ${PROJET}*.rpm
+		echo "${params.PASSPHRASE}" | rpm --resign ${PROJET}*.rpm
           	rm -rf ./gnupg
 		"""
               }
