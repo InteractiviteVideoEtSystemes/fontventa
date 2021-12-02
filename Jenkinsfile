@@ -49,7 +49,7 @@ pipeline {
               }
               steps {
 		sh """
-		svn export https://svn.ives.fr/svn-libs-dev/gnupg
+		git clone git@git.ives.fr:internal/gnupg.git
 		echo \"${params.PASSPHRASE}\" | rpm --resign ${PROJET}*.rpm"
           	rm -rf ./gnupg
 		"""
