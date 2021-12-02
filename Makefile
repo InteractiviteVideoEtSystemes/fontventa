@@ -32,6 +32,8 @@ install: all
 	cd mp4creator ; make install
 
 clean:
+	cd mp4av ; make clean
+	cd libmedikit ; make clean
 	cd app_mp4; make clean
 	cd app_rtsp; make clean
 	cd astlog ; make clean

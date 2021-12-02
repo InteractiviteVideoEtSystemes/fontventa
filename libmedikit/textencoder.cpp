@@ -41,6 +41,7 @@ void TextEncoder::SendLineToHistory()
     		UTF8Parser p(line);
     		p.Serialize(utf8line);
 		listener->onNewLine(utf8line);
+		//Log("Pushed line [%s].\n", utf8line.c_str());
 	}
 	//Empty it
 	line.clear();
