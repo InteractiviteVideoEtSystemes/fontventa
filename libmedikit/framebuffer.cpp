@@ -52,7 +52,10 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 {
 	DWORD seq;
 	ast_frame * f2;
-	
+
+	if (f == NULL || f->data == NULL)
+		return false;
+
 	pthread_mutex_lock(&mutex);
 	if (cancel) 
 	{
