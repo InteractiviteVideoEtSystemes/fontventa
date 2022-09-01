@@ -218,7 +218,6 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			//Get first seq num
 			DWORD seq = it->first;
 			//Get packet
-			struct ast_frame * candidate = it->second;
 			//Get time of the packet
 /*
 			if (seq != next)
@@ -268,6 +267,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			if (seq < next)
 			{
 				if (traceFile) fprintf(traceFile, "GET: dropping paquet seq=%lu, next=%lu\n", seq, next);
+				ast_frfree(it->second);
 				packets.erase(it);
 				continue;
 			}
@@ -280,10 +280,10 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			{                        				
 				ret = conf_wait_timeout(pcond,&mutex,maxWaitTime);
                 //Check if there is an errot different than timeout
-                		if (ret)
+                if (ret)
 				{					
 					if (ret != ETIMEDOUT)
-                            Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
+                        Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
 					else
 						hurryUp = true;
 				}
