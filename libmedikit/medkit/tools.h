@@ -14,7 +14,7 @@
 * blocksignals
 *       Bloquea todas las sygnals para esa thread
 *************************************/
-inline int blocksignals()
+inline int blocksignals(void)
 {
 	sigset_t mask;
 
@@ -67,7 +67,8 @@ inline int msleep(long msec)
 	tv2.tv_usec=msec-tv2.tv_sec*1000000;
 	return select(0,0,0,0,&tv2);
 }
-inline QWORD getTime()
+
+inline QWORD getTime(void)
 {
 	//Obtenemos ahora
 	struct timeval now;
