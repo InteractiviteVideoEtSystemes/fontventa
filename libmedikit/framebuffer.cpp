@@ -53,9 +53,6 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	DWORD seq;
 	ast_frame * f2;
 
-	if (f == NULL || f->data == NULL)
-		return false;
-
 	pthread_mutex_lock(&mutex);
 	if (cancel) 
 	{
@@ -194,7 +191,7 @@ static int conf_wait_timeout(pthread_cond_t * p_cond, pthread_mutex_t * p_mutex,
 	}
 	ts.tv_nsec = now.tv_usec*1000;
 	
-	return pthread_cond_timedwait(p_cond,p_mutex,&ts);
+	return pthread_cond_timedwait(p_cond, p_mutex, &ts);
 }
 
 struct ast_frame * AstFrameBuffer::Wait(bool block)
@@ -281,12 +278,12 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			int ret;
 			if (maxWaitTime > 0)
 			{                        				
-				ret = conf_wait_timeout(pcond,&mutex,maxWaitTime);
+				ret = conf_wait_timeout(pcond,&mutex, maxWaitTime);
                 //Check if there is an errot different than timeout
                 if (ret)
 				{					
 					if (ret != ETIMEDOUT)
-                        Error("-WaitQueue cond timedwait error [%d,%d]\n",ret,errno);
+                        Error("-WaitQueue cond timedwait error [%d,%d]\n", ret, errno);
 					else
 						hurryUp = true;
 				}
@@ -295,7 +292,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			{
                 ret = ETIMEDOUT;
 				hurryUp = false;
-				ret = pthread_cond_wait(pcond,&mutex);
+				ret = pthread_cond_wait(pcond, &mutex);
 			}
 			
 			if (ret < 0)
@@ -319,10 +316,10 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 void AstFrameBuffer::ClearPackets()
 {
        //For each item, list shall be locked before
-        for (RTPOrderedPackets::iterator it=packets.begin(); it!=packets.end(); ++it)
+        for (RTPOrderedPackets::iterator it = packets.begin(); it != packets.end(); ++it)
         {
-                //Delete rtp
-                ast_frfree(it->second);
+			//Delete rtp
+			ast_frfree(it->second);
         }
 
         //Clear all list
@@ -346,40 +343,40 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 			jbTabOut[i] = NULL;
 		}
 		
-			/* Use condition pointer of first framebuffer. Normally, all pcond of all jitterbuffer should be the same */
-			pthread_mutex_lock(&jbTab[0]->mutex);
-			ret = conf_wait_timeout(jbTab[0]->pcond, &jbTab[0]->mutex, maxWaitTime);
-			pthread_mutex_unlock(&jbTab[0]->mutex);
-			if (ret >= 0)
+		/* Use condition pointer of first framebuffer. Normally, all pcond of all jitterbuffer should be the same */
+		pthread_mutex_lock(&jbTab[0]->mutex);
+		ret = conf_wait_timeout(jbTab[0]->pcond, &jbTab[0]->mutex, maxWaitTime);
+		pthread_mutex_unlock(&jbTab[0]->mutex);
+		if (ret >= 0)
+		{
+			ret = 0;
+			for (int i =0 ;i < nbjb; i++)
 			{
-				ret = 0;
-				for (int i =0 ;i < nbjb; i++)
+				if (jbTab[i])
 				{
-					if (jbTab[i])
+					pthread_mutex_lock(&jbTab[i]->mutex);
+					if (! jbTab[i]->packets.empty() )
 					{
-						pthread_mutex_lock(&jbTab[i]->mutex);
-						if (! jbTab[i]->packets.empty() )
+						RTPOrderedPackets::iterator it = jbTab[i]->packets.begin();
+						if ( jbTab[i]->HasPacketReady(it->first) )
 						{
-							RTPOrderedPackets::iterator it = jbTab[i]->packets.begin();
-							if ( jbTab[i]->HasPacketReady(it->first) )
-							{
-								jbTabOut[i] = jbTab[i];
-								ret++;
-							}
+							jbTabOut[i] = jbTab[i];
+							ret++;
 						}
-						pthread_mutex_unlock(&jbTab[i]->mutex);
 					}
+					pthread_mutex_unlock(&jbTab[i]->mutex);
 				}
 			}
-			else if (ret == ETIMEDOUT)
+		}
+		else if (ret == ETIMEDOUT)
+		{
+			for (int i=0; i<nbjb; i++)
 			{
-				for (int i=0; i<nbjb; i++)
-				{
-					if (jbTab[i] && jbTab[i]->Length() > 2) jbTab[i]->HurryUp();
-				}
-				ret = 0;
+				if (jbTab[i] && jbTab[i]->Length() > 2) jbTab[i]->HurryUp();
 			}
-			return ret;
+			ret = 0;
+		}
+		return ret;
 	}
 	return -5;
 }
