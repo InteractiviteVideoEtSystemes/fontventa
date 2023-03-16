@@ -250,7 +250,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 			switch(nal_unit_type)
 			{
 				case 0x05: // Intraframe 
-					if ( !hasSPS || !hasPPS)
+					if ( !hasSPS || !hasPPS )
 					{
 						Log("H.264: I-frame but missing PPS or SPS Possible packetization issue.\n");
 					}
@@ -258,7 +258,7 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 					break;
 				
 				case 0x01: // P-frame
-					if ( hasSPS || hasPPS)
+					if ( hasSPS || hasPPS )
 					{
 						Log("H.264: P-frame but has PPS or SPS Possible packetization issue.\n");
 					}					
@@ -273,7 +273,6 @@ MediaFrame* H264Depacketizer::AddPayload(BYTE* payload, DWORD payload_len, bool 
 					//Log("H.264: Got PPS\n");
 					hasPPS = true;
 					break;
-					
 			}
 			
 			/* the entire payload is the output buffer */
