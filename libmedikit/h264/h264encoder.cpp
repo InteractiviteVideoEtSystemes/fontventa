@@ -243,6 +243,7 @@ int H264Encoder::OpenCodec()
 			//Baseline
 			Log("h264: encoding with profile baseline and level %d.\n", level);
 			x264_param_apply_profile(&params,"baseline");
+			break;
 	}
 
 	// Open encoder
