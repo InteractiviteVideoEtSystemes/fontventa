@@ -175,8 +175,10 @@ void TextEncoder::GetSubtitle( std::wstring &sub )
 {
     //Append lines in scroll
     for( std::list<std::wstring>::iterator it = scroll.begin(); it != scroll.end(); it++ )
+    {
         //Append
         sub += (*it);
+    }
 
     //Append line also
     sub += line;
@@ -184,7 +186,7 @@ void TextEncoder::GetSubtitle( std::wstring &sub )
     //Check number of lines in scroll
     while( scroll.size() > 2 ) scroll.pop_front();
 
-	Log("Subititle has %d lines. Content: %ls.\n", scroll.size(), sub.c_str() );
+	Log("Subtitle has %d lines. Content: '%ls'.\n", scroll.size(), sub.c_str() );
 }
 
 void TextEncoder::GetSubtitle( std::string &sub )

@@ -846,8 +846,8 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame *f )
             frameduration = (f2->GetTimeStamp() - prevts);
         }
 
-        //Log("Process TEXT frame  ts:%lu, duration %lu [%ls].\n",  f2->GetTimeStamp(), frameduration, f2->GetWString().c_str());
-        //Log("Process TEXT frame  ts:%lu, duration %lu. sampleId=%d\n",  f2->GetTimeStamp(), frameduration, sampleId );
+        //Log("Process TEXT frame ts: %lu, duration: %lu, content: '%ls'.\n", f2->GetTimeStamp(), frameduration, f2->GetWString().c_str());
+        //Log("Process TEXT frame ts: %lu, duration: %lu. sample id: %d\n", f2->GetTimeStamp(), frameduration, sampleId );
         prevts = f->GetTimeStamp();
         duration = frameduration;
         if( frameduration > MAX_SUBTITLE_DURATION ) frameduration = MAX_SUBTITLE_DURATION;
@@ -887,6 +887,7 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame *f )
 
         return 1;
     }
+
     return 0;
 }
 
@@ -959,8 +960,10 @@ const MediaFrame *Mp4TextTrack::ReadFrame()
             &renderingOffset,		// MP4Duration* pRenderingOffset
             NULL				// bool* pIsSyncSample
             ) )
+        {
             //Last
             return NULL;
+        }
 
         //Log("Got text frame [time:%d,start:%d,duration:%d,lenght:%d,offset:%d\n",frameTime,startTime,duration,dataLen,renderingOffset);
         //Dump(data,dataLen);
@@ -1037,8 +1040,6 @@ const MediaFrame *Mp4TextTrack::ReadFrame()
     frame->SetTimestamp( startTime );
     return frame;
 }
-
-
 
 Mp4TextTrack::~Mp4TextTrack()
 {
