@@ -69,19 +69,17 @@ mp4recorder::~mp4recorder()
 
     if( mediatracks[MP4_TEXT_TRACK] != NULL )
     {
-        Mp4TextTrack *txttrack = (Mp4TextTrack *)mediatracks[MP4_TEXT_TRACK];
         std::string texte;
+        Mp4TextTrack *txttrack = (Mp4TextTrack *)mediatracks[MP4_TEXT_TRACK];
+
         txttrack->GetSavedTextForVm( texte );
 
         if( saveTxtInComment && texte.length() > 0 )
         {
-
-
             if( !MP4TagsSetComments( tags, texte.c_str() ) )
             {
                 ast_log( LOG_WARNING, "mp4recorder: Save text inside mp4 comment tag failed.\n" );
             }
-
         }
     }
 

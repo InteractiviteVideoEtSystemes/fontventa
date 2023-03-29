@@ -376,6 +376,7 @@ int Mp4AudioTrack::Create( const char *trackName, int codec, DWORD samplerate )
             (trackName != NULL) ? trackName : "unnamed",
             mediatrack, hinttrack, AudioCodec::GetNameFor( (AudioCodec::Type)codec ) );
     }
+
     if( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
     this->codec = (AudioCodec::Type)codec;
 
@@ -534,7 +535,6 @@ int Mp4VideoTrack::Create( const char *trackName, int codec, DWORD bitrate )
 
     Log( "-mp4recorder: created video track [%s] id:%d, hinttrack id:%d using codec %s.\n",
         this->trackName.c_str(), mediatrack, hinttrack, VideoCodec::GetNameFor( (VideoCodec::Type)codec ) );
-
 }
 
 
@@ -609,7 +609,6 @@ int Mp4VideoTrack::DoWritePrevFrame( DWORD duration )
                         //Update widht an ehight
                         MP4SetTrackIntegerProperty( mp4, mediatrack, "mdia.minf.stbl.stsd.avc1.width", sps.GetWidth() );
                         MP4SetTrackIntegerProperty( mp4, mediatrack, "mdia.minf.stbl.stsd.avc1.height", sps.GetHeight() );
-
                     }
                     //continue;
                 }
@@ -638,7 +637,6 @@ int Mp4VideoTrack::DoWritePrevFrame( DWORD duration )
 
             //Add rtp data
             MP4AddRtpSampleData( mp4, hinttrack, sampleId, rtp->GetPos(), rtp->GetSize() );
-
         }
 
         //Save rtp
@@ -1047,7 +1045,7 @@ Mp4TextTrack::~Mp4TextTrack()
 
     if( textfile >= 0 )
     {
-            // If there is an active text file, write it before closing
+        // If there is an active text file, write it before closing
         encoder.GetCurrentLine( curline );
         if( curline.length() > 0 )
         {
