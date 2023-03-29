@@ -203,15 +203,17 @@ public:
         if( textfile >= 0 )
         {
             char szBuffer[256];
-            int posCur = ::lseek( textfile, 0, SEEK_SET );
+            size_t nRead;
+                
+            ::lseek( textfile, 0, SEEK_SET );
 
             text = "\r\n"; // Pour l'extraction par les scripts IVES_convert.sh et awk
-            posCur = ::read( textfile, szBuffer, sizeof( szBuffer ) );
-            while( posCur > 0 )
+            nRead = ::read( textfile, szBuffer, sizeof( szBuffer ) );
+            while( nRead > 0 )
             {
-                text.append( szBuffer, posCur );
+                text.append( szBuffer, nRead );
 
-                posCur = ::read( textfile, szBuffer, sizeof( szBuffer ) );
+                nRead = ::read( textfile, szBuffer, sizeof( szBuffer ) );
             }
         }
     }
