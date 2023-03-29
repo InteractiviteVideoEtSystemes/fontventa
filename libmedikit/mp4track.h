@@ -196,10 +196,24 @@ public:
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
     virtual const MediaFrame * ReadFrame();
-    void RenderAsReatimeText(bool render);
     void GetSavedTextForVm(std::string & text) 
     { 
-	encoder.GetFullText(text);
+        //encoder.GetFullText(text);
+
+        if( textfile >= 0 )
+        {
+            char szBuffer[256];
+            int posCur = ::lseek( textfile, 0, SEEK_SET );
+
+            text = "\r\n"; // Pour l'extraction par les scripts IVES_convert.sh et awk
+            posCur = ::read( textfile, szBuffer, sizeof( szBuffer ) );
+            while( posCur > 0 )
+            {
+                text.append( szBuffer, posCur );
+
+                posCur = ::read( textfile, szBuffer, sizeof( szBuffer ) );
+            }
+        }
     }
     
 private:

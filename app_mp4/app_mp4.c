@@ -657,7 +657,7 @@ static int mp4_save( struct ast_channel *chan, void *data )
         strcpy( textFileName, (char *)data );
         strcat( textFileName, ".txt" );
 
-        textfile = open( textFileName, O_CREAT | O_WRONLY );
+        textfile = open( textFileName, O_CREAT | O_RDWR /*O_WRONLY*/ );
         if( textfile == -1 )
         {
             ast_log( LOG_WARNING, "Fail to create text file %s.\n", textFileName );
@@ -848,6 +848,7 @@ mp4_save_cleanup:
     {
         ast_log( LOG_DEBUG, "Closed text file fd %d\n", textfile );
         close( textfile );
+        textfile = -1;
     }
     if( option_verbose > 2 )
     {
