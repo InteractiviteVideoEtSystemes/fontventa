@@ -109,6 +109,7 @@ Html5File=0
 #gestion des mp4 h264 + amr 
 Mp4H264MP3File=0
 H263Only=0
+WebMOnly=0
 
 # =============================================================================
 # Affichage
@@ -206,6 +207,7 @@ usage()
     printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats \n"
     printf "\t\033[1m -t \033[0m time of background duration   \n"
     printf "\t\033[1m -T textfile \033[0m extract text on mp4    \n"
+    printf "\t\033[1m -webm \033[0m  only convert WebM file    \n"
     printf "\t   if you dont use this , duration of background are\n"
     printf "\t   build with audio track duration \n"
     printf "\t\033[1m COMMANDS \033[0m \n"
@@ -1497,6 +1499,16 @@ MakeH263Only()
     whatFile $outFile    
 }
 
+MakeWebMOnly()
+{
+    CopyIn2tmp
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -acodec aac -ac 1 -ar 32000 -strict -2 $tmpVideoFile"
+    $cmd > $INFO_FILE 2>&1
+    cp $tmpWorkInFile $outFile
+    whatFile $outFile    
+}
+
 MakeHtml5()
 {
     CopyIn2tmp
@@ -1563,9 +1575,12 @@ Execute()
                   then MakeQueueFile
                   else if [ $Html5File -eq 1  ]
                        then MakeHtml5
-                       else if [ $H263Only -eq 1 ]
-                            then MakeH263Only
-                            else MakeMp4
+                       else if [ $WebMOnly -eq 1 ]
+                            then MakeWebMOnly
+                            else if [ $H263Only -eq 1 ]
+                                    then MakeH263Only
+                                    else MakeMp4
+                            fi
                        fi
                   fi
              fi
@@ -1588,6 +1603,9 @@ while [ "$1" ]
       ;;
       -h263)
       H263Only=1
+      ;;
+      -webm)
+      WebMOnly=1
       ;;
       -i)
       shift
