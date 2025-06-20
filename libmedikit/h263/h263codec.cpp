@@ -146,8 +146,11 @@ int H263Encoder::OpenCodec()
 	ctx->rc_max_rate	= bitrate;
 	ctx->rc_buffer_size	= bitrate/fps+1;
 	ctx->rc_initial_buffer_occupancy = 0;
-	ctx->rc_qsquish 	= 1;
 	ctx->max_b_frames	= 0;
+	// Tell the encoder to use fixed quantizer (qscale)
+	ctx->flags |= AV_CODEC_FLAG_QSCALE;
+	// Set the global quality based on a quantizer value of 10
+	ctx->global_quality = FF_QP2LAMBDA * 10;
 
 	// Open codec
 	if (avcodec_open2(ctx, codec, NULL)<0)
