@@ -311,7 +311,7 @@ int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 	int ret = 1;
 
 	// Check total length
-	if (bufLen+inLen+FF_INPUT_BUFFER_PADDING_SIZE>bufSize)
+	if (bufLen+inLen+AV_INPUT_BUFFER_PADDING_SIZE>bufSize)
 	{
 		// Reset buffer
 		bufLen = 0;
@@ -321,13 +321,13 @@ int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 	}
 
 	//Aumentamos la longitud
-	bufLen += h264_append(buffer,bufLen,bufSize-FF_INPUT_BUFFER_PADDING_SIZE,in,inLen);
+	bufLen += h264_append(buffer,bufLen,bufSize-AV_INPUT_BUFFER_PADDING_SIZE,in,inLen);
 
 	//Si es el ultimo
 	if(last)
 	{
 		//Borramos el final
-		memset(buffer+bufLen,0,FF_INPUT_BUFFER_PADDING_SIZE);
+		memset(buffer+bufLen,0,AV_INPUT_BUFFER_PADDING_SIZE);
 		//Decode
 		ret = Decode(buffer,bufLen);
 		//Y resetamos el buffer
