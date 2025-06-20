@@ -24,7 +24,7 @@ int main(int argc,char **argv)
 
 	//Init session
 	session.Init();
-	
+
 	//Read
 	unsigned char buffer[160];
 	int len;
@@ -53,5 +53,5 @@ int main(int argc,char **argv)
 	session.End();
 
 	return 0;
-	
+
 }

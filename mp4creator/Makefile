@@ -39,6 +39,6 @@ clean:
 
 install: mp4creator
 	cp mp4creator $(DESTDIR)/usr/bin
-	
+
 uninstall:
 	rm -f  $(DESTDIR)/usr/bin/mp4creator

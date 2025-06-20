@@ -3,34 +3,34 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 
 #include <mp4av_common.h>
 
-bool MP4AV_AudioConsecutiveHinter( 
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+bool MP4AV_AudioConsecutiveHinter(
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	MP4Duration sampleDuration, 
+	MP4Duration sampleDuration,
 	u_int8_t perPacketHeaderSize,
 	u_int8_t perSampleHeaderSize,
 	u_int8_t maxSamplesPerPacket,
@@ -40,23 +40,23 @@ bool MP4AV_AudioConsecutiveHinter(
 	MP4AV_AudioFragmenter pFragmenter)
 {
 	bool rc;
-	u_int32_t numSamples = 
+	u_int32_t numSamples =
 		MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
 
 	u_int16_t bytesThisHint = perPacketHeaderSize;
 	u_int16_t samplesThisHint = 0;
-	MP4SampleId* pSampleIds = 
+	MP4SampleId* pSampleIds =
 		new MP4SampleId[maxSamplesPerPacket];
 
 	for (MP4SampleId sampleId = 1; sampleId <= numSamples; sampleId++) {
 
-		u_int32_t sampleSize = 
+		u_int32_t sampleSize =
 			(*pSizer)(mp4File, mediaTrackId, sampleId);
 
 		// sample won't fit in this packet
 		// or we've reached the limit on samples per packet
-		if ((int16_t)(sampleSize + perSampleHeaderSize) 
-		    > maxPayloadSize - bytesThisHint 
+		if ((int16_t)(sampleSize + perSampleHeaderSize)
+		    > maxPayloadSize - bytesThisHint
 		  || samplesThisHint == maxSamplesPerPacket) {
 
 			if (samplesThisHint > 0) {
@@ -70,7 +70,7 @@ bool MP4AV_AudioConsecutiveHinter(
 				}
 			}
 
-			// start a new hint 
+			// start a new hint
 			samplesThisHint = 0;
 			bytesThisHint = perPacketHeaderSize;
 
@@ -85,7 +85,7 @@ bool MP4AV_AudioConsecutiveHinter(
 			bytesThisHint += (sampleSize + perSampleHeaderSize);
 			pSampleIds[samplesThisHint++] = sampleId;
 
-		} else { 
+		} else {
 			// jumbo frame, need to fragment it
 			rc = (*pFragmenter)(mp4File, mediaTrackId, hintTrackId,
 				sampleId, sampleSize, sampleDuration, maxPayloadSize);
@@ -94,7 +94,7 @@ bool MP4AV_AudioConsecutiveHinter(
 				return false;
 			}
 
-			// start a new hint 
+			// start a new hint
 			samplesThisHint = 0;
 			bytesThisHint = perPacketHeaderSize;
 		}
@@ -105,7 +105,7 @@ bool MP4AV_AudioConsecutiveHinter(
 				samplesThisHint, pSampleIds,
 				samplesThisHint * sampleDuration,
 				maxPayloadSize);
-	  
+
 	  if (!rc) {
 	    return false;
 	  }
@@ -116,18 +116,18 @@ bool MP4AV_AudioConsecutiveHinter(
 	return true;
 }
 
-bool MP4AV_AudioInterleaveHinter( 
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+bool MP4AV_AudioInterleaveHinter(
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	MP4Duration sampleDuration, 
-	u_int8_t stride, 
+	MP4Duration sampleDuration,
+	u_int8_t stride,
 	u_int8_t bundle,
 	u_int16_t maxPayloadSize,
 	MP4AV_AudioConcatenator pConcatenator)
 {
 	bool rc;
-	u_int32_t numSamples = 
+	u_int32_t numSamples =
 		MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
 
 	MP4SampleId* pSampleIds = new MP4SampleId[bundle];
@@ -155,7 +155,7 @@ bool MP4AV_AudioInterleaveHinter(
 			}
 
 			// compute hint duration
-			// note this is used to control the RTP timestamps 
+			// note this is used to control the RTP timestamps
 			// that are emitted for the packet,
 			// it isn't the actual duration of the samples in the packet
 			MP4Duration hintDuration;
@@ -190,11 +190,11 @@ bool MP4AV_AudioInterleaveHinter(
 }
 
 MP4Duration MP4AV_GetAudioSampleDuration(
-	MP4FileHandle mp4File, 
+	MP4FileHandle mp4File,
 	MP4TrackId mediaTrackId)
 {
 	MP4SampleId sampleId = 1;
-	MP4SampleId numSamples = 
+	MP4SampleId numSamples =
 		MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
 
 	// find first non-zero size sample

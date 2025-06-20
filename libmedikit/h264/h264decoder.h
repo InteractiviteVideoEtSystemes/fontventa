@@ -2,7 +2,7 @@
 #define _H264DECODER_H_
 extern "C" {
 #include <libavcodec/avcodec.h>
-} 
+}
 #include "../medkit/codecs.h"
 #include "../medkit/video.h"
 

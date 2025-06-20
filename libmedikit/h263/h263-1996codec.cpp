@@ -24,7 +24,7 @@ H263Decoder1996::H263Decoder1996()
 	codec = NULL;
 	type = VideoCodec::H263_1996;
 	bufLen = 0;
-	
+
 	//Registramos todo
 	avcodec_register_all();
 
@@ -48,7 +48,7 @@ H263Decoder1996::H263Decoder1996()
 	frame = NULL;
 	frameSize = 0;
 	src = 0;
-	
+
 	//Lo abrimos
 	avcodec_open2(ctx, codec, NULL);
 }
@@ -68,7 +68,7 @@ H263Decoder1996::~H263Decoder1996()
 }
 
 /***********************
-* DecodePacket 
+* DecodePacket
 *	Decodifica un packete
 ************************/
 int H263Decoder1996::DecodePacket(BYTE *in,DWORD len,int lost,int last)
@@ -372,7 +372,7 @@ int H263Encoder1996::OpenCodec()
 	ctx->rc_initial_buffer_occupancy = 0;
 	ctx->rc_qsquish 	= 1;
 	ctx->max_b_frames	= 0;
-	
+
 	// Open codec
 	if (avcodec_open2(ctx, codec, NULL)<0)
 		return Error("Unable to open H263 codec\n");
@@ -438,10 +438,10 @@ VideoFrame* H263Encoder1996::EncodeFrame(BYTE *in,DWORD len)
 
 	//Paquetize
 	paquetizer.PaquetizeFrame(frame);
-	
+
 	//From the first
 	num = 0;
-	
+
 	return frame;
 }
 

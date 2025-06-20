@@ -5,7 +5,7 @@
 #define MEDIA_VIDEO 	1
 
 #define CODEC_AMR  	0
-#define CODEC_H263	1 
+#define CODEC_H263	1
 
 #define CALLSTATE_NONE		0
 #define CALLSTATE_SETUP		1
@@ -47,7 +47,7 @@ unsigned char * FrameGetData(void* frame);
 unsigned int 	FrameGetLength(void *frame);
 void 	FrameDestroy(void *frame);
 
-#ifdef __cplusplus    
+#ifdef __cplusplus
 }
 #endif
 

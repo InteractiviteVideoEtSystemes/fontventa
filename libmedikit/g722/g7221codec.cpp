@@ -1,7 +1,7 @@
-/* 
+/*
  * File:   NellyCodec.cpp
  * Author: Sergio
- * 
+ *
  * Created on 7 de diciembre de 2011, 23:29
  */
 #include <sys/types.h>
@@ -37,14 +37,14 @@ void G7221Encoder::OpenCodec()
 	case 16000:
 	    s = g722_1_encode_init(&state, 32000, rate);
 	    break;
-	    
+
 	case 32000
 	    s = g722_1_encode_init(&state, 48000, rate);
 	    break;
-	    
+
     }
-    
-    if (s == NULL) 
+
+    if (s == NULL)
 	Error("g7221: failed to open encoder.\n");
     else
     {
@@ -73,7 +73,7 @@ G7221Encoder::~G7221Encoder()
     {
         g722_1_encode_release(&state);
 	open = false;
-    }     
+    }
 }
 
 int G7221Encoder::Encode (SWORD *in,int inLen,BYTE* out,int outLen)
@@ -97,7 +97,7 @@ G7221Decoder::G7221Decoder()
 	memset(&state, 0, sizeof(state));
 	open = false;
 	OpenCodec();
-	
+
 }
 
 
@@ -112,15 +112,15 @@ void G7221Decoder::OpenCodec()
 	    if ( bitrate == 0 ) bitrate = 32000;
 	    s = g722_1_decode_init(&state, bitrate, rate);
 	    break;
-	    
+
 	case 32000
 	    if ( bitrate == 0 ) bitrate = 48000;
 	    s = g722_1_encode_init(&state, bitrate, rate);
 	    break;
-	    
+
     }
-    
-    if (s == NULL) 
+
+    if (s == NULL)
 	Error("g7221: failed to open encoder.\n");
     else
     {
@@ -148,7 +148,7 @@ G7221Decoder::~G7221Decoder()
     {
         g722_1_decode_release(&state);
 	open = false;
-    }     
+    }
 }
 
 int G7221Decoder::Decode(BYTE *in, int inLen, SWORD* out, int outLen)
@@ -157,7 +157,7 @@ int G7221Decoder::Decode(BYTE *in, int inLen, SWORD* out, int outLen)
 	int got_frame;
 	SWORD buffer16[512];
 	DWORD len16 = 512;
-	
+
 	//If we have input
 	// TODO: inLen is big cut buffer into pieces
 	if (inLen>0)

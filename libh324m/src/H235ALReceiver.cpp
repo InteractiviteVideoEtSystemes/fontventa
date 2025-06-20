@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -65,7 +65,7 @@ H223ALReceiver::~H223ALReceiver()
 }
 
 
-/* 
+/*
  * write the byte to the incoming data buffer.
  */
 void H223ALReceiver::Send(BYTE b)
@@ -76,11 +76,11 @@ void H223ALReceiver::Send(BYTE b)
 /*
  * called by mux to signal the end of an AL-PDU.
  *
- * check the crc on the data in incoming buffer (incoming_data).  if it 
- * is good, transfers the data to the outgoing buffer (outgoing_data).  
+ * check the crc on the data in incoming buffer (incoming_data).  if it
+ * is good, transfers the data to the outgoing buffer (outgoing_data).
  */
 void H223ALReceiver::SendClosingFlag()
-    
+
 {
 	byte inbuf[MAX_AL_BUFFER_SIZE];
 	byte inbyte;
@@ -88,15 +88,15 @@ void H223ALReceiver::SendClosingFlag()
 	unsigned short computedCRC16,receivedCRC16;
 	int i;
 	int len=blevel(incoming_data);
-  
+
 	//Check length
-	if (len <= 0) 
+	if (len <= 0)
 		return;
 
-	if (type == AL1) 
+	if (type == AL1)
 	{
 		/* just transfer incoming buffer to outgoing buffer.. */
-		for(i=0;i<len;i++) 
+		for(i=0;i<len;i++)
 		{
 			bread(incoming_data,(void *) &inbyte);
 			bwrite(outgoing_data,(void *) &inbyte);
@@ -105,7 +105,7 @@ void H223ALReceiver::SendClosingFlag()
 		/* check one byte crc, if good transfer to outgoing.  if not, put back
 		into incoming */
 		computedCRC = 0;
-		for(i=0;i<len-1;i++) 
+		for(i=0;i<len-1;i++)
 		{
 			bread(incoming_data,(char *) inbuf+i);
 			crc8(&computedCRC,inbuf[i]);
@@ -113,12 +113,12 @@ void H223ALReceiver::SendClosingFlag()
 		bread(incoming_data,(char *) inbuf+(len-1));
 		receivedCRC = inbuf[len-1];
 		if (computedCRC == receivedCRC)
-		{ 
+		{
 			/* put data without crc into outgoing buf */
 			Debug("AL receiving good CRC\n");
 			for(i=0;i<len-1;i++)
 				bwrite(outgoing_data,(char *) inbuf + i);
-		} else { 
+		} else {
 			/* put all data back into incoming_data, bad crc */
 			Debug("AL receiving bad CRC\n");
 			for(i=0;i<len;i++)
@@ -128,7 +128,7 @@ void H223ALReceiver::SendClosingFlag()
 		/* check two byte crc, if good transfer to outgoing.  if not, put back into
 			incoming */
 		computedCRC16 = 0;
-		for(i=0;i<len-2;i++) 
+		for(i=0;i<len-2;i++)
 		{
 			bread(incoming_data,(char *) inbuf+i);
 			crc16((short *)&computedCRC16,inbuf[i]);
@@ -138,7 +138,7 @@ void H223ALReceiver::SendClosingFlag()
 		receivedCRC16 = inbuf[len-2];
 		receivedCRC16 = (receivedCRC16 << 8) | (inbuf[len-1]);
 		if (computedCRC16 == receivedCRC16)
-		{ 
+		{
 			/* put data without crc into outgoing buf */
 			Debug("AL receiving good CRC\n");
 			for(i=0;i<len-2;i++)
@@ -167,7 +167,7 @@ int H223ALReceiver::Indication()
 		return 0;
 }
 
-/* 
+/*
  * called by al_user, which must call al_indication before
  */
 BYTE H223ALReceiver::Receive()

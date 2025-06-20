@@ -3,35 +3,35 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 
 #include <mp4av_common.h>
 
 bool MP4AV_RfcIsmaConcatenator(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	u_int8_t samplesThisHint, 
-	MP4SampleId* pSampleIds, 
+	u_int8_t samplesThisHint,
+	MP4SampleId* pSampleIds,
 	MP4Duration hintDuration,
 	u_int16_t maxPayloadSize)
 {
@@ -71,7 +71,7 @@ bool MP4AV_RfcIsmaConcatenator(
 	for (i = 0; i < samplesThisHint; i++) {
 		MP4SampleId sampleId = pSampleIds[i];
 
-		u_int32_t sampleSize = 
+		u_int32_t sampleSize =
 			MP4GetSampleSize(mp4File, mediaTrackId, sampleId);
 
 		if (auPayloadHdrSize == 1) {
@@ -87,11 +87,11 @@ bool MP4AV_RfcIsmaConcatenator(
 		}
 
 		if (i > 0) {
-			payloadHeader[auPayloadHdrSize - 1] 
-				|= ((sampleId - pSampleIds[i-1]) - 1); 
+			payloadHeader[auPayloadHdrSize - 1]
+				|= ((sampleId - pSampleIds[i-1]) - 1);
 		}
 #if 0
-		printf("sample %u size %u %02x %02x prev sample %d\n", 
+		printf("sample %u size %u %02x %02x prev sample %d\n",
 		       sampleId, sampleSize, payloadHeader[0],
 		       payloadHeader[1], pSampleIds[i-1]);
 #endif
@@ -104,7 +104,7 @@ bool MP4AV_RfcIsmaConcatenator(
 	for (i = 0; i < samplesThisHint; i++) {
 		MP4SampleId sampleId = pSampleIds[i];
 
-		u_int32_t sampleSize = 
+		u_int32_t sampleSize =
 			MP4GetSampleSize(mp4File, mediaTrackId, sampleId);
 
 		MP4AddRtpSampleData(mp4File, hintTrackId, sampleId, 0, sampleSize);
@@ -117,11 +117,11 @@ bool MP4AV_RfcIsmaConcatenator(
 }
 
 bool MP4AV_RfcIsmaFragmenter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	MP4SampleId sampleId, 
-	u_int32_t sampleSize, 
+	MP4SampleId sampleId,
+	u_int32_t sampleSize,
 	MP4Duration sampleDuration,
 	u_int16_t maxPayloadSize)
 {
@@ -150,10 +150,10 @@ bool MP4AV_RfcIsmaFragmenter(
 		sampleOffset += fragLength;
 
 		if (sampleSize - sampleOffset > maxPayloadSize) {
-			fragLength = maxPayloadSize; 
+			fragLength = maxPayloadSize;
 			MP4AddRtpPacket(mp4File, hintTrackId, false);
 		} else {
-			fragLength = sampleSize - sampleOffset; 
+			fragLength = sampleSize - sampleOffset;
 			if (fragLength) {
 				MP4AddRtpPacket(mp4File, hintTrackId, true);
 			}
@@ -166,8 +166,8 @@ bool MP4AV_RfcIsmaFragmenter(
 }
 
 extern "C" bool MP4AV_RfcIsmaHinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	bool interleave,
 	u_int16_t maxPayloadSize)
 {
@@ -200,13 +200,13 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 
 	if (audioType == MP4_MPEG4_AUDIO_TYPE) {
 		// check that track contains either MPEG-4 AAC or CELP
-		if (!MP4_IS_MPEG4_AAC_AUDIO_TYPE(mpeg4AudioType) 
+		if (!MP4_IS_MPEG4_AAC_AUDIO_TYPE(mpeg4AudioType)
 		  && mpeg4AudioType != MP4_MPEG4_CELP_AUDIO_TYPE) {
 			return false;
 		}
 	}
 
-	MP4Duration sampleDuration = 
+	MP4Duration sampleDuration =
 		MP4AV_GetAudioSampleDuration(mp4File, mediaTrackId);
 
 	if (sampleDuration == MP4_INVALID_DURATION) {
@@ -223,11 +223,11 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 	if (!pConfig) {
 		return false;
 	}
-     
+
 	channels = MP4AV_AacConfigGetChannels(pConfig);
 
 	/* convert ES Config into ASCII form */
-	char* sConfig = 
+	char* sConfig =
 		MP4BinaryToBase16(pConfig, configSize);
 
 	free(pConfig);
@@ -237,7 +237,7 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 	}
 
 	/* create the appropriate SDP attribute */
-	char* sdpBuf = 
+	char* sdpBuf =
 		(char*)malloc(strlen(sConfig) + 256);
 
 	if (!sdpBuf) {
@@ -261,7 +261,7 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 	if (channels != 1) {
 	  snprintf(buffer, sizeof(buffer), "%u", channels);
 	}
-	MP4SetHintTrackRtpPayload(mp4File, hintTrackId, 
+	MP4SetHintTrackRtpPayload(mp4File, hintTrackId,
 				  "mpeg4-generic", &payloadNumber, 0,
 				  channels != 1 ? buffer : NULL);
 
@@ -274,7 +274,7 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 			"SizeLength=6; IndexLength=2; IndexDeltaLength=2; Profile=0;"
 			"\015\012",
 				payloadNumber,
-				sConfig); 
+				sConfig);
 
 		// 200 ms max latency for ISMA profile 1
 		maxLatency = timeScale / 5;
@@ -286,7 +286,7 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 			"SizeLength=13; IndexLength=3; IndexDeltaLength=3;"
 			"\015\012",
 				payloadNumber,
-				sConfig); 
+				sConfig);
 
 		// 500 ms max latency for ISMA profile 1
 		maxLatency = timeScale / 2;
@@ -299,13 +299,13 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 	free(sdpBuf);
 
 	u_int32_t samplesPerPacket = 0;
- 
+
 	if (interleave) {
 		u_int32_t maxSampleSize =
 			MP4GetTrackMaxSampleSize(mp4File, mediaTrackId);
 
 		// compute how many maximum size samples would fit in a packet
-		samplesPerPacket = 
+		samplesPerPacket =
 			(maxPayloadSize - 2) / (maxSampleSize + 2);
 
 		// can't interleave if this number is 0 or 1
@@ -330,10 +330,10 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 		       samplesPerPacket, stride);
 #endif
 		rc = MP4AV_AudioInterleaveHinter(
-			mp4File, 
-			mediaTrackId, 
+			mp4File,
+			mediaTrackId,
 			hintTrackId,
-			sampleDuration, 
+			sampleDuration,
 			stride,		// stride
 			samplesPerPacket,						// bundle
 			maxPayloadSize,
@@ -341,10 +341,10 @@ extern "C" bool MP4AV_RfcIsmaHinter(
 
 	} else {
 		rc = MP4AV_AudioConsecutiveHinter(
-			mp4File, 
-			mediaTrackId, 
+			mp4File,
+			mediaTrackId,
 			hintTrackId,
-			sampleDuration, 
+			sampleDuration,
 			2,										// perPacketHeaderSize
 			2,										// perSampleHeaderSize
 			maxLatency / sampleDuration,			// maxSamplesPerPacket

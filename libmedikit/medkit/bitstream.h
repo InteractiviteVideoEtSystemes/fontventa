@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   bitstream.h
  * Author: Sergio
  *
@@ -182,7 +182,7 @@ public:
 		//Get bits
 		DWORD ret = cache >> (32-n);
 		//Debug("GetCached: cache %x, ret: %x, nb cached: %d.\n", cache, ret, cached);
-		//BitDump(cache, cached);	
+		//BitDump(cache, cached);
 		//Skip thos bits
 		SkipCached(n);
 		//Return bits
@@ -228,7 +228,7 @@ public:
 		FlushCache();
 		return bufferLen;
 	}
-	
+
 	inline void FlushCache()
 	{
 		//Check if we have already finished
@@ -276,7 +276,7 @@ public:
 	{
 		if (cached%8==0)
 			return;
-		
+
 		if (cached>24)
 			Put(32-cached,0);
 		else if (cached>16)

@@ -4,24 +4,24 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include <unistd.h>
 #include <string.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <mp4v2/mp4v2.h>
@@ -65,7 +65,7 @@ int main(int argc,char **argv)
 					0,  // createFlags,
 					1,  // add ftyp atom
 					0,  // don't add iods
-			
+
 					p3gppSupportedBrands[0],
 					0x0001,
 					p3gppSupportedBrands,
@@ -81,19 +81,19 @@ int main(int argc,char **argv)
 
        int inputlen=strlen(inputAudio );
 
-	MP4TrackId audio;	
+	MP4TrackId audio;
 	MP4TrackId hintAudio;
 
 	if (!strcmp(inputAudio +inputlen-5, ".alaw"))
 	{
 		/* Create audio track */
 		audio = MP4AddALawAudioTrack(mp4,8000);
-			
-    MP4SetTrackIntegerProperty(mp4, audio, 
+
+    MP4SetTrackIntegerProperty(mp4, audio,
       "mdia.minf.stbl.stsd.alaw.channels", 1);
-		MP4SetTrackIntegerProperty(mp4, audio, 
+		MP4SetTrackIntegerProperty(mp4, audio,
       "mdia.minf.stbl.stsd.alaw.sampleSize", 8);
-      	
+
 		/* Create hint track for aufio */
 		hintAudio = MP4AddHintTrack(mp4,audio);
 
@@ -106,11 +106,11 @@ int main(int argc,char **argv)
 		/* Create audio track */
 		audio = MP4AddULawAudioTrack(mp4,8000);
 
-    MP4SetTrackIntegerProperty(mp4, audio, 
+    MP4SetTrackIntegerProperty(mp4, audio,
       "mdia.minf.stbl.stsd.ulaw.channels", 1);
-		MP4SetTrackIntegerProperty(mp4, audio, 
+		MP4SetTrackIntegerProperty(mp4, audio,
       "mdia.minf.stbl.stsd.ulaw.sampleSize", 8);
-      	
+
 		/* Create hint track for aufio */
 		hintAudio = MP4AddHintTrack(mp4,audio);
 

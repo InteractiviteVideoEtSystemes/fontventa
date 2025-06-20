@@ -3,19 +3,19 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2004.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May wmay@cisco.com
  */
 
@@ -66,7 +66,7 @@ typedef struct mpeg2ps_record_pes_t
 /*
  * information about reading a stream
  */
-typedef struct mpeg2ps_stream_t 
+typedef struct mpeg2ps_stream_t
 {
   mpeg2ps_record_pes_t *record_first, *record_last;
   FDTYPE m_fd;
@@ -141,6 +141,6 @@ void mpeg2ps_message(int loglevel, const char *fmt, ...);
 void mpeg2ps_record_pts(mpeg2ps_stream_t *sptr, off_t location,
 			mpeg2ps_ts_t *pTs);
 
-mpeg2ps_record_pes_t *search_for_ts(mpeg2ps_stream_t *sptr, 
+mpeg2ps_record_pes_t *search_for_ts(mpeg2ps_stream_t *sptr,
 				    uint64_t dts);
 #endif

@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   stunmessage.h
  * Author: Sergio
  *
@@ -42,7 +42,7 @@ public:
 			IceControlled = 0x8029,
 			IceControlling = 0x802A
 		};
-		
+
 		Attribute(WORD type,BYTE *attr,WORD size)
 		{
 			//Copy values

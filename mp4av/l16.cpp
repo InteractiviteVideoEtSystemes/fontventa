@@ -3,26 +3,26 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May   wmay@cisco.com
  */
 #include <sys/param.h>
 #include <mp4av_common.h>
 
 #define DEBUG_L16 1
-extern "C" bool L16Hinter (MP4FileHandle mp4file, 
+extern "C" bool L16Hinter (MP4FileHandle mp4file,
 			   MP4TrackId trackid,
 			   uint16_t maxPayloadSize)
 {
@@ -52,7 +52,7 @@ extern "C" bool L16Hinter (MP4FileHandle mp4file,
 #ifdef DEBUG_L16
   for (unsigned int ix = 1; ix < MIN(10, numSamples); ix++) {
     printf("sampleId %d, size %u duration "U64" time "U64"\n",
-	   ix, MP4GetSampleSize(mp4file, trackid, ix), 
+	   ix, MP4GetSampleSize(mp4file, trackid, ix),
 	   MP4GetSampleDuration(mp4file, trackid, ix),
 	   MP4GetSampleTime(mp4file, trackid, ix));
   }
@@ -73,10 +73,10 @@ extern "C" bool L16Hinter (MP4FileHandle mp4file,
   duration = MP4GetSampleDuration(mp4file, trackid, sampleId);
 
   sampleSize /= sizeof(uint16_t);
-  
+
   if ((sampleSize % duration) != 0) {
 #ifdef DEBUG_L16
-    printf("Number of samples not correct - duration "U64" sample %d\n", 
+    printf("Number of samples not correct - duration "U64" sample %d\n",
 	   duration, sampleSize);
 #endif
     return false;
@@ -117,7 +117,7 @@ extern "C" bool L16Hinter (MP4FileHandle mp4file,
     uint16_t bytes_left_this_packet;
     bytes_left_this_packet = maxPayloadSize - bytes_this_hint;
     if (sampleSize >= bytes_left_this_packet) {
-      MP4AddRtpSampleData(mp4file, hintTrackId, 
+      MP4AddRtpSampleData(mp4file, hintTrackId,
 			  sampleId, sampleOffset, bytes_left_this_packet);
       bytes_this_hint += bytes_left_this_packet;
       sampleSize -= bytes_left_this_packet;
@@ -126,7 +126,7 @@ extern "C" bool L16Hinter (MP4FileHandle mp4file,
       printf("Added sample with %d bytes\n", bytes_left_this_packet);
 #endif
     } else {
-      MP4AddRtpSampleData(mp4file, hintTrackId, 
+      MP4AddRtpSampleData(mp4file, hintTrackId,
 			  sampleId, sampleOffset, sampleSize);
       bytes_this_hint += sampleSize;
 #ifdef DEBUG_L16
@@ -161,7 +161,7 @@ extern "C" bool L16Hinter (MP4FileHandle mp4file,
       sampleOffset = 0;
     }
   }
-	
+
   return true; // will never reach here
 }
-  
+

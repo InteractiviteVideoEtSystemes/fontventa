@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -35,7 +35,7 @@ H245LogicalChannelRate::H245LogicalChannelRate(H245Connection & con)
 	outState = e_Idle;
 }
 
-H245LogicalChannelRate::~H245LogicalChannelRate() 
+H245LogicalChannelRate::~H245LogicalChannelRate()
 {
 }
 
@@ -45,10 +45,10 @@ H245LogicalChannelRate::~H245LogicalChannelRate()
 BOOL H245LogicalChannelRate::HandleIncoming(const H245_LogicalChannelRateRequest& pdu)
 {
 	Logger::Debug("H245 Received LogicalChannelRate\n");
-	
+
 	//Check secuence number
-	if (pdu.m_sequenceNumber == inSequenceNumber) 
-		return TRUE;	
+	if (pdu.m_sequenceNumber == inSequenceNumber)
+		return TRUE;
 
 	//Get incoming sequence number
 	inSequenceNumber = pdu.m_sequenceNumber;
@@ -63,7 +63,7 @@ BOOL H245LogicalChannelRate::HandleIncoming(const H245_LogicalChannelRateRequest
 BOOL H245LogicalChannelRate::HandleAck(const H245_LogicalChannelRateAcknowledge& pdu)
 {
 	Logger::Debug("H245 Received H245_LogicalChannelRateAck\n");
-	
+
 	//Check sequence number
 	if (pdu.m_sequenceNumber != outSequenceNumber)
 		//Exit
@@ -83,7 +83,7 @@ BOOL H245LogicalChannelRate::HandleAck(const H245_LogicalChannelRateAcknowledge&
 BOOL H245LogicalChannelRate::HandleReject(const H245_LogicalChannelRateReject & pdu)
 {
 	Logger::Debug("H245 Received LogicalChannelRateSetReject\n");
-	
+
 	//Check sequence number
 	if (pdu.m_sequenceNumber != outSequenceNumber)
 		//Exit
@@ -117,10 +117,10 @@ BOOL H245LogicalChannelRate::TransferRequest( int targetChannel, int bitRate)
 {
     	Logger::Debug("H245 H245LogicalChannelRate TransferRequest\n");
 
-	//We are already in progress 
-	if (outState != e_Idle) 
+	//We are already in progress
+	if (outState != e_Idle)
 		return TRUE;
-	
+
 	//Increment out sequence number
 	outSequenceNumber = (outSequenceNumber+1)%256;
 
@@ -130,7 +130,7 @@ BOOL H245LogicalChannelRate::TransferRequest( int targetChannel, int bitRate)
 	//Build PDU
 	H324ControlPDU pdu;
 
-	pdu.BuildLogicalChannelRequest(outSequenceNumber, 
+	pdu.BuildLogicalChannelRequest(outSequenceNumber,
 		targetChannel, bitRate);
 
 	return connection.WriteControlPDU(pdu);
@@ -145,20 +145,20 @@ BOOL H245LogicalChannelRate::TransferResponse( int accept, int logicalChannel, i
 	if (accept)
 		reply.BuildLogicalChannelRateAck(
 			inSequenceNumber,
-			logicalChannel, 
+			logicalChannel,
 			bitRate
 		);
 	else
 		reply.BuildLogicalChannelRateReject(
-			(unsigned int)inSequenceNumber, 
+			(unsigned int)inSequenceNumber,
 			logicalChannel,
 			bitRate,
 			(H245_LogicalChannelRateRejectReason::Choices)cause
 		);
-	
+
 	//State
 	inState = e_Idle;
-	
+
 	//Exit
 	return connection.WriteControlPDU(reply);
 }

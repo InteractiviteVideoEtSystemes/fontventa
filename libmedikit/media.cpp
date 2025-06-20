@@ -4,24 +4,24 @@
 
 bool MediaFrame::PrependWithFrame(MediaFrame * f)
 {
-	if ( !ownsbuffer ) return false;	
+	if ( !ownsbuffer ) return false;
 	if ( f->GetType() != f->GetType() ) return false;
 
 	DWORD oldSz = GetLength();
 	DWORD newSz = f->GetLength() + oldSz;
 	RtpPacketizationInfo oldRtpInfo = rtpInfo;
-		
+
 	if ( newSz > GetMaxMediaLength() )
 	{
 		Alloc(newSz);
 	}
-		
-	// Move data of 
+
+	// Move data of
 	memmove( buffer + f->GetLength(), buffer, oldSz );
-		
+
 	// prepend data
 	memcpy( buffer, f->GetData(), f->GetLength() );
-		
+
 	// Adjust size
 	SetLength(newSz);
 
@@ -31,7 +31,7 @@ bool MediaFrame::PrependWithFrame(MediaFrame * f)
 		// do not use ClearTypPacketizationInfo() as we reuse the ptr
 		int i = 0;
 		rtpInfo.clear();
-			
+
 		if ( f->HasRtpPacketizationInfo() )
 		{
 			for (RtpPacketizationInfo::iterator it = f->rtpInfo.begin(); it != f->rtpInfo.end(); it++)
@@ -46,7 +46,7 @@ bool MediaFrame::PrependWithFrame(MediaFrame * f)
 			// Add dummy packet
 			AddRtpPacket(0, f->GetLength(), NULL, 0, false);
 		}
-		
+
 		for (RtpPacketizationInfo::iterator it = oldRtpInfo.begin(); it != oldRtpInfo.end(); it++)
 		{
 			MediaFrame::RtpPacketization * rtp = (*it);

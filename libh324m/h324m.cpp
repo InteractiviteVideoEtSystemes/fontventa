@@ -1,4 +1,4 @@
-extern "C" 
+extern "C"
 {
 #include "bits.c"
 }
@@ -7,12 +7,12 @@ extern "C"
 
 static bool _reverseBits = true;
 
-extern "C" 
+extern "C"
 {
 
 void H324MLoggerSetLevel(int level)
 {
-	Logger::SetLevel(level);	
+	Logger::SetLevel(level);
 }
 
 void H324MSetReverseBits(int reverse)
@@ -27,69 +27,69 @@ void H324MLoggerSetCallback(int (*callback)  (const char *, va_list))
 
 void * H324MSessionCreate()
 {
-	return (void *)new H324MSession(); 
-}	
+	return (void *)new H324MSession();
+}
 
 void H324MSessionDestroy(void * id)
 {
-	delete ((H324MSession*)id); 
-}	
+	delete ((H324MSession*)id);
+}
 
 int  H324MSessionInit(void * id)
 {
-	return ((H324MSession*)id)->Init(); 
+	return ((H324MSession*)id)->Init();
 }
 
 int  H324MSessionResetMediaQueue(void * id)
-{ 
-	return ((H324MSession*)id)->ResetMediaQueue(); 
+{
+	return ((H324MSession*)id)->ResetMediaQueue();
 }
 
 int  H324MSessionEnd(void * id)
-{ 
-	return ((H324MSession*)id)->End(); 
+{
+	return ((H324MSession*)id)->End();
 }
 
 int  H324MSessionRead(void * id,unsigned char *buffer,int len)
-{ 
+{
 	if (_reverseBits) TIFFReverseBits(buffer,len);
-	return ((H324MSession*)id)->Read(buffer,len); 
+	return ((H324MSession*)id)->Read(buffer,len);
 }
 
 int  H324MSessionWrite(void * id,unsigned char *buffer,int len)
-{ 	
-	int ret = ((H324MSession*)id)->Write(buffer,len); 
+{
+	int ret = ((H324MSession*)id)->Write(buffer,len);
 	if (_reverseBits) TIFFReverseBits(buffer,len);
 	return ret;
 }
 
 void * H324MSessionGetFrame(void * id)
-{ 	
+{
 	return (void *)((H324MSession*)id)->GetFrame();
 }
 
 int  H324MSessionSendFrame(void * id,void *frame)
-{ 	
+{
 	return ((H324MSession*)id)->SendFrame((Frame*)frame);
 }
 
 char * H324MSessionGetUserInput(void * id)
-{ 	
+{
 	return ((H324MSession*)id)->GetUserInput();
 }
 
 int  H324MSessionSendUserInput(void * id,char *input)
-{ 	
+{
 	return ((H324MSession*)id)->SendUserInput((char*)input);
 }
 
 int  H324MSessionSendVideoFastUpdatePicture(void * id)
-{ 	
+{
 	return ((H324MSession*)id)->SendVideoFastUpdatePicture();
 }
 
 int  H324MSessionGetState(void * id)
-{ 	
+{
 	return ((H324MSession*)id)->GetState();
 }
 

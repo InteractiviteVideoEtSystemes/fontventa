@@ -23,7 +23,7 @@ INCLUDE+= -I$(CUSTOM_ASTPATH)
 
 ifeq ($(DEBUG),yes)
 	TAG=debug
-#	OPTS+= -g 
+#	OPTS+= -g
 else
 	OPTS+= -O3
 	TAG=release
@@ -84,14 +84,14 @@ VPATH += %.cpp $(H264DIR)
 VPATH += %.cpp $(G711DIR)
 VPATH += %.c $(G711DIR)
 # VPATH += %.cpp $(G722DIR)
-LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lx264  -lbz2 -lssl -lcrypto -lpthread  
+LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lx264  -lbz2 -lssl -lcrypto -lpthread
 
 #For abyss
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g
-#OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS 
+#OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS
 CFLAGS  += $(INCLUDE) $(OPTS)
 #CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x
-CXXFLAGS+= $(INCLUDE) $(OPTS) 
+CXXFLAGS+= $(INCLUDE) $(OPTS)
 
 all: libmedkit.a
 
@@ -127,7 +127,7 @@ install64:
 	install libmedkit.a $(DESTDIR)/opt/ives/lib64
 	echo "64 bits install"
 
-	
+
 install: libmedkit.a
 	echo LIBMEDKIT installer
 	rm -rf $(DESTDIR)/opt/ives/include/medkit $(DESTDIR)/opt/ives/include/astmedkit
@@ -140,7 +140,7 @@ uninstall:
 	rm -rf $(DESTDIR)/opt/ives/include/medkit $(DESTDIR)/opt/ives/include/astmedkit
 	rm -f $(DESTDIR)/opt/ives/lib/libmedkit.a -f $(DESTDIR)/opt/ives/lib64/libmedkit.a
 
-app_conference: 
+app_conference:
 	sudo make install
 	cd ../../app_conference; make
 	sudo /usr/sbin/asterisk -rx 'restart now'
@@ -148,4 +148,4 @@ app_conference:
 testsps.o: medkit/bitstream.h
 
 #testsps: testsps.o libmedkit.a
-#	g++ -o testsps testsps.o libmedkit.a -l mp4v2	
+#	g++ -o testsps testsps.o libmedkit.a -l mp4v2

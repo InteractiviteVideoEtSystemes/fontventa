@@ -39,16 +39,16 @@ public:
 	TextFrame() : MediaFrame(MediaFrame::Text,0)
 	{
 	}
-	
+
 	TextFrame(bool owns) : MediaFrame(MediaFrame::Text,0, owns)
 	{
 	}
-	
+
 	TextFrame(DWORD ts,const BYTE *buffer,DWORD bufferLen) : MediaFrame(MediaFrame::Text,bufferLen)
 	{
 		SetFrame(ts,buffer,bufferLen);
 	}
-	
+
 	TextFrame(DWORD ts,const std::wstring& str) : MediaFrame(MediaFrame::Text,str.length()*4)
 	{
 		SetFrame(ts,str);

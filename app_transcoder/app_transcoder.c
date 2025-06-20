@@ -17,7 +17,7 @@
 /*! \file
  *
  * \brief Video transcoding
- * 
+ *
  * \ingroup applications
  */
 
@@ -91,7 +91,7 @@ struct VideoTranscoder
     AVCodecContext  *encoderCtx;
     AVFrame         *encoderPic;
     int		encoderOpened;
-	
+
     uint8_t		*buffer;
     uint32_t	bufferSize;
     uint32_t	bufferLen;
@@ -112,7 +112,7 @@ struct VideoTranscoder
 #ifndef i6net
     int flip;
     int mirror;
-#endif			
+#endif
 
     /* Encoder thread */
     pthread_t encoderThread;
@@ -160,25 +160,25 @@ static void mirror_yuv_image(AVFrame *pict, int frame_index, int width, int heig
   /* Y */
   for(y=0;y<height;y++) {
     for(x=0;x<width/2;x++) {
-      int sample; 
+      int sample;
       //pict->data[0][y * pict->linesize[0] + x] = x + y + i * 3;
       sample = pict->data[0][y * pict->linesize[0] + x];
       pict->data[0][y * pict->linesize[0] + x] = pict->data[0][y * pict->linesize[0] + width - x];
       pict->data[0][y * pict->linesize[0] + width - x] = sample;
     }
   }
-    
+
   /* Cb and Cr */
   for(y=0;y<height/2;y++) {
     for(x=0;x<width/4;x++) {
       //pict->data[1][y * pict->linesize[1] + x] = 128 + y + i * 2;
       //pict->data[2][y * pict->linesize[2] + x] = 64 + x + i * 5;
       int sample;
-      sample = pict->data[1][y * pict->linesize[1] + x]; 
+      sample = pict->data[1][y * pict->linesize[1] + x];
       pict->data[1][y * pict->linesize[1] + x] = pict->data[1][y * pict->linesize[1] + (width/2) - x];
       pict->data[1][y * pict->linesize[1] + (width/2) - x] = sample;
-             
-      sample = pict->data[2][y * pict->linesize[2] + x]; 
+
+      sample = pict->data[2][y * pict->linesize[2] + x];
       pict->data[2][y * pict->linesize[2] + x] = pict->data[2][y * pict->linesize[2] + (width/2) - x];
       pict->data[2][y * pict->linesize[2] + (width/2) - x] = sample;
     }
@@ -217,7 +217,7 @@ static uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, 
 
 	ast_log(LOG_DEBUG, "h264 receiving %d bytes nal unit type %d\n", payload_len, nal_unit_type);
 
-	switch (nal_unit_type) 
+	switch (nal_unit_type)
 	{
 		case 0:
 		case 30:
@@ -228,7 +228,7 @@ static uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, 
 			/* STAP-B		Single-time aggregation packet		 5.7.1 */
 			/* 2 byte extra header for DON */
 			/** Not supported */
-			return 0;	
+			return 0;
 		case 24:
 		{
 			/**
@@ -262,9 +262,9 @@ static uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, 
 			/* Skip STAP-A NAL HDR */
 			payload++;
 			payload_len--;
-			
+
 			/* STAP-A Single-time aggregation packet 5.7.1 */
-			while (payload_len > 2) 
+			while (payload_len > 2)
 			{
 				/* Get NALU size */
 				nalu_size = (payload[0] << 8) | payload[1];
@@ -282,7 +282,7 @@ static uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, 
 
 				/* Check size */
 				if (outsize + destLen >destSize)
-				{	
+				{
 					ast_log(LOG_DEBUG, "Frame to small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
 					return 0;
 				}
@@ -328,7 +328,7 @@ static uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, 
 
 			ast_log(LOG_DEBUG, "S %d, E %d", S, E);
 
-			if (S) 
+			if (S)
 			{
 				/* NAL unit starts here */
 				uint8_t nal_header;
@@ -362,7 +362,7 @@ static uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, 
 			}
 
 			/* if NAL unit ends, flush the adapter */
-			if (E) 
+			if (E)
 			{
 				ast_log(LOG_DEBUG, "output %d bytes", outsize);
 
@@ -461,7 +461,7 @@ static void SendH264VideoFrame(struct VideoTranscoder *vtc)
 
 		if (nalSize==0)
 			return;
-			
+
 		/* Check if it fits in a udp packet */
 		if (nalSize<1400)
 		{
@@ -479,7 +479,7 @@ static void SendH264VideoFrame(struct VideoTranscoder *vtc)
 			if (first)
 				/* Set timestamp */
 				send->samples = 90000/vtc->fps;
-			else 
+			else
 				/* Set timestamp */
 				send->samples = 0;
 			/* Set video type*/
@@ -498,7 +498,7 @@ static void SendH264VideoFrame(struct VideoTranscoder *vtc)
 			/* Debug */
 			ast_log(LOG_DEBUG,"Sending h264 NAL [%d,%d,%d,%d,%d]\n",send->datalen,nalSize,dataLen,first,lastNal);
 		} else {
-			/*  RTP payload format for FU-As. 
+			/*  RTP payload format for FU-As.
 			 *  An FU-A consists of a fragmentation unit indicator of one octet,
 			 *  a fragmentation unit header of one octet, and a fragmentation unit payload.
 			 *
@@ -535,7 +535,7 @@ static void SendH264VideoFrame(struct VideoTranscoder *vtc)
 
 				/* Get the frame pointer */
 				frameData = AST_FRAME_GET_BUFFER(send);
-				
+
 				/* Check sizes */
 				if (nalSize-sent<1400)
 				{
@@ -551,7 +551,7 @@ static void SendH264VideoFrame(struct VideoTranscoder *vtc)
 				ast_log(LOG_DEBUG, "Inside  FU-A fragmentation len=%d\n last=%d", len, last);
 
 
-				/* FU indicator 
+				/* FU indicator
 				 * The FU indicator octet has the following format:
 
 				      +---------------+
@@ -562,7 +562,7 @@ static void SendH264VideoFrame(struct VideoTranscoder *vtc)
 				**/
 				frameData[0] = (nalHeader & 0x60) | 28;
 
-				/* FU Header 
+				/* FU Header
 				 * The FU header has the following format:
 
 				      +---------------+
@@ -591,7 +591,7 @@ static void SendH264VideoFrame(struct VideoTranscoder *vtc)
 				      The NAL unit payload type as defined in table 7-1 of [1].
 				**/
 				frameData[1] = (first << 7) | (last << 6) | (nalHeader & 0x1f);
-				
+
 				/* Copy the rest of the data skipping NAL header*/
 				memcpy (frameData+2, data+sent, len);
 
@@ -602,7 +602,7 @@ static void SendH264VideoFrame(struct VideoTranscoder *vtc)
 				if (first)
 					/* Set timestamp */
 					send->samples = 90000/vtc->fps;
-				else 
+				else
 					/* Set timestamp */
 					send->samples = 0;
 
@@ -668,7 +668,7 @@ static void SendVideoFrame(struct VideoTranscoder *vtc, uint8_t *data, uint32_t 
 		memcpy(frameData+2, data+2, size-2);
 		/* Set header */
 		frameData[0] = 0x04;
-		frameData[1] = 0x00; 
+		frameData[1] = 0x00;
 		/* Set timestamp */
 		send->samples = 90000/vtc->fps;
 	} else {
@@ -703,13 +703,13 @@ static void SendVideoFrameRFC2190(struct VideoTranscoder *vtc, uint8_t *data, ui
 	uint8_t frameBuffer[PKT_SIZE];
 	struct ast_frame *send = (struct ast_frame *) frameBuffer;
 	uint8_t *frameData = NULL;
-	
+
  	unsigned char RFC2190_header[4] = {0} ;
-	
+
   uint32_t *p = (uint32_t *) data;
   int gob_num = (ntohl(*p) >> 10) & 0x1f;
-  char *dat = (char *)data;	
-  
+  char *dat = (char *)data;
+
   static uint32_t tr = 0; //Static to have it when needed for splitting into multiple
   static uint32_t sz = 0; //packets (a hack that works for one video connection
   //         only, must be stored elsewhere for more)
@@ -755,7 +755,7 @@ static void SendVideoFrameRFC2190(struct VideoTranscoder *vtc, uint8_t *data, ui
   /* Construct payload header.
      Set videosize and the temporal reference to that of the frame */
   ((uint32_t *)RFC2190_header)[0] = ntohl((sz << 21) | (tr & 0x000000ff));
-  
+
 	/* Set frame len*/
 	send->datalen = size+4;
 	/* Set header */
@@ -785,13 +785,13 @@ static void SendVideoFrameRFC2190_bis(struct VideoTranscoder *vtc, uint8_t *data
 	uint8_t frameBuffer[PKT_SIZE];
 	struct ast_frame *send = (struct ast_frame *) frameBuffer;
 	uint8_t *frameData = NULL;
-	
+
  	unsigned char RFC2190_header[4] = {0} ;
-	
+
   uint32_t *p = (uint32_t *) data;
   int gob_num = (ntohl(*p) >> 10) & 0x1f;
-  char *dat = (char *)data;	
-  
+  char *dat = (char *)data;
+
   static uint32_t tr = 0; //Static to have it when needed for splitting into multiple
   static uint32_t sz = 0; //packets (a hack that works for one video connection
   //         only, must be stored elsewhere for more)
@@ -837,7 +837,7 @@ static void SendVideoFrameRFC2190_bis(struct VideoTranscoder *vtc, uint8_t *data
   /* Construct payload header.
      Set videosize and the temporal reference to that of the frame */
   ((uint32_t *)RFC2190_header)[0] = ntohl((sz << 21) | (tr & 0x000000ff));
-  
+
 	/* Set frame len*/
 	send->datalen = size;
 	/* Set header */
@@ -917,7 +917,7 @@ void * VideoTranscoderEncode(void *param)
 #ifdef DISABLE_THREAD
 #error
 	if (!vtc->end)
-#else	
+#else
     while (!vtc->end)
 #endif
     {
@@ -951,7 +951,7 @@ void * VideoTranscoderEncode(void *param)
             /* Next frame */
 #ifdef DISABLE_THREAD
             return 0;
-#else				
+#else
 					continue;
 #endif
 
@@ -976,7 +976,7 @@ void * VideoTranscoderEncode(void *param)
 
           /* Set resized buffer */
           buffer = vtc->resizeBuffer;
-        } 
+        }
 
         /* Set counters */
         vtc->mb = 0;
@@ -996,21 +996,21 @@ void * VideoTranscoderEncode(void *param)
 
 #ifndef i6net
         if (vtc->flip)
-        {			
-          vtc->encoderPic->data[0] += vtc->encoderPic->linesize[0] * (vtc->encoderHeight - 1); 
-          vtc->encoderPic->linesize[0] *= -1; 
+        {
+          vtc->encoderPic->data[0] += vtc->encoderPic->linesize[0] * (vtc->encoderHeight - 1);
+          vtc->encoderPic->linesize[0] *= -1;
 
-          if (vtc->encoderCtx->pix_fmt == PIX_FMT_YUV420P) { 
-            vtc->encoderPic->data[1] += vtc->encoderPic->linesize[1] * (vtc->encoderHeight / 2 - 1); 
-            vtc->encoderPic->linesize[1] *= -1; 
-            vtc->encoderPic->data[2] += vtc->encoderPic->linesize[2] * (vtc->encoderHeight / 2 - 1); 
-            vtc->encoderPic->linesize[2] *= -1; 
+          if (vtc->encoderCtx->pix_fmt == PIX_FMT_YUV420P) {
+            vtc->encoderPic->data[1] += vtc->encoderPic->linesize[1] * (vtc->encoderHeight / 2 - 1);
+            vtc->encoderPic->linesize[1] *= -1;
+            vtc->encoderPic->data[2] += vtc->encoderPic->linesize[2] * (vtc->encoderHeight / 2 - 1);
+            vtc->encoderPic->linesize[2] *= -1;
           }
-        } 	
-      
+        }
+
         if (vtc->mirror)
-          mirror_yuv_image(vtc->encoderPic, vtc->flip++, vtc->encoderWidth, vtc->encoderHeight);      	
-#endif	
+          mirror_yuv_image(vtc->encoderPic, vtc->flip++, vtc->encoderWidth, vtc->encoderHeight);
+#endif
 
         /* Encode */
         vtc->bufferLen = avcodec_encode_video(vtc->encoderCtx,vtc->buffer,vtc->bufferSize,vtc->encoderPic);
@@ -1019,12 +1019,12 @@ void * VideoTranscoderEncode(void *param)
         /* Debug */
 			  if ( option_debug > 4 )
           ast_log(LOG_DEBUG,"Encoded frame [%d,0x%.2x,0x%.2x,0x%.2x,0x%.2x]\n",vtc->bufferLen,vtc->buffer[0],vtc->buffer[1],vtc->buffer[2],vtc->buffer[3]);
-			
+
         int first = 1;
         int last  = 0;
         uint32_t sent  = 0;
         uint32_t len   = 0;
-			
+
         /* Send */
         if ( vtc->encoderFormat == AST_FORMAT_H264)
         {
@@ -1042,7 +1042,7 @@ void * VideoTranscoderEncode(void *param)
               last = 1;
               /* send the rest */
               len = vtc->bufferLen-sent;
-            } else 
+            } else
               /* Fill */
               len = 1400;
 
@@ -1069,7 +1069,7 @@ void * VideoTranscoderEncode(void *param)
 
 	/* Exit */
 	return 0;
-		
+
 }
 
 static int VideoTranscoderDestroy(struct VideoTranscoder *vtc)
@@ -1221,7 +1221,7 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 #ifndef i6net
 	vtc->flip = 0;
 	vtc->mirror = 0;
-#endif				
+#endif
 
 	/* Get first parameter */
 	i = strchr(format,'@');
@@ -1266,8 +1266,8 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 			/* Flip the image */
 			vtc->flip = 1;
 			vtc->mirror = 1;
-#endif			
-		}		
+#endif
+		}
 
 		/* Find next param*/
 		i = strchr(i,'/');
@@ -1287,7 +1287,7 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 			vtc->encoderWidth  = 352;
 			vtc->encoderHeight = 288;
 			break;
-	}	
+	}
 
 	/* Malloc input frame */
 	vtc->frameSize	= 65535;
@@ -1332,7 +1332,7 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 	vtc->encoderCtx->pix_fmt 	= PIX_FMT_YUV420P;
 	vtc->encoderCtx->width		= vtc->encoderWidth;
 	vtc->encoderCtx->height 	= vtc->encoderHeight;
-        
+
 	/* fps*/
 	if (vtc->fps>0)
 		/* set encoder params*/
@@ -1358,7 +1358,7 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 		/* set encoder params*/
 		vtc->encoderCtx->rc_min_rate        = vtc->bitrate;
 		vtc->encoderCtx->rc_max_rate        = vtc->bitrate;
-	}	
+	}
 
 	/* qMin */
 	if (vtc->qMin>0)
@@ -1379,7 +1379,7 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 #ifdef _H264_
   if ( vtc->encoderFormat == AST_FORMAT_H264 )
   {
-		vtc->encoder = avcodec_find_encoder(CODEC_ID_H264); 
+		vtc->encoder = avcodec_find_encoder(CODEC_ID_H264);
 		/* Add x4->params.i_slice_max_size     = 1350; in X264_init function of in libavcodec/libx264.c */
 		/* Fast encodinf parameters */
 		vtc->encoderCtx->refs = 1;
@@ -1393,9 +1393,9 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
   {
     vtc->encoder = avcodec_find_encoder(CODEC_ID_H263);
     vtc->encoderCtx->mb_decision = FF_MB_DECISION_SIMPLE;
-    vtc->encoderCtx->flags |= CODEC_FLAG_QSCALE;                 
+    vtc->encoderCtx->flags |= CODEC_FLAG_QSCALE;
   }
-	
+
 	/* Open encoder */
 	vtc->encoderOpened = avcodec_open(vtc->encoderCtx, vtc->encoder) != -1;
 
@@ -1407,7 +1407,7 @@ static struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channe
 		/* Destroy it */
 		VideoTranscoderDestroy(vtc);
 		/* Exit */
-		return NULL;	
+		return NULL;
 	}
 
 #ifndef DISABLE_THREAD
@@ -1561,7 +1561,7 @@ static uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer,
     if ( option_debug > 4 )
       ast_log(LOG_DEBUG,"RFC2190 cut %d ebit (%d)\n", headers->ebits, bufferLen-len);
 	  in[bufferLen-len-1] &= 0xff << headers->ebits;
-	}	
+	}
 
 	/* Mix first and end byte */
 	if(headers->sbits!=0 && destLen>0)
@@ -1570,15 +1570,15 @@ static uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer,
       ast_log(LOG_DEBUG,"RFC2190 mix %d sbit\n", headers->sbits);
 
 		/* Append to previous byte */
-    in[0] &= 0xff >> headers->sbits;		
+    in[0] &= 0xff >> headers->sbits;
 		dest[destLen-1] |= in[0];
 		/* Skip first */
 		in++;
 		len++;
-	}	
+	}
 
 	/* Copy the rest */
-	memcpy(dest+destLen,in,bufferLen-len);	
+	memcpy(dest+destLen,in,bufferLen-len);
 
   if ( option_debug > 4 )
     ast_log(LOG_DEBUG,"RFC2190 max write %d\n", destLen+bufferLen-len);
@@ -1751,7 +1751,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
 
 	  if ( option_debug > 4 )
       ast_log(LOG_WARNING,"audioformats  %x\n",audioformats);
-	
+
     if (!strncasecmp(revParams, "noamr", 5))
     {
       if (audioformats & AST_FORMAT_AMR)
@@ -1787,13 +1787,13 @@ static int app_transcode(struct ast_channel *chan, void *data)
 	/* Request new channel */
 	pseudo = ast_request("Local", AST_FORMAT_H263 | AST_FORMAT_MPEG4 | AST_FORMAT_H263_PLUS | chan->rawwriteformat, local, &reason);
 #endif
- 
+
 	/* If somthing has gone wrong */
 	if (!pseudo)
   {
-    ast_log(LOG_WARNING,"Null pseudo\n");   
+    ast_log(LOG_WARNING,"Null pseudo\n");
 		/* goto end */
-		goto end; 
+		goto end;
   }
   else
   {
@@ -1814,7 +1814,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
 	if (ast_call(pseudo,data,0))
   {
 		/* if fail goto clean */
-    ast_log(LOG_WARNING,"ast_call failed \n");   
+    ast_log(LOG_WARNING,"ast_call failed \n");
 		goto clean_pseudo;
   }
 
@@ -1841,12 +1841,12 @@ static int app_transcode(struct ast_channel *chan, void *data)
 		/* If not frame */
 		if (!f)
 		{
-			
+
       ast_log(LOG_WARNING,"Null frame received from pseudo %s. Exiting",pseudo->name);
       break;
 		}
 
-#if 1 // Debug phv 
+#if 1 // Debug phv
     if ( option_debug > 5 )
     {
       switch ( f->frametype )
@@ -1870,13 +1870,13 @@ static int app_transcode(struct ast_channel *chan, void *data)
 #endif
 
 		/* If it's a control frame */
-		if (f->frametype == AST_FRAME_CONTROL) 
+		if (f->frametype == AST_FRAME_CONTROL)
     {
       if ( option_debug > 4 )
         ast_log(LOG_DEBUG," control frame management  \n");
 			/* Dependinf on the event */
 			switch (f->subclass) {
-				case AST_CONTROL_RINGING:       
+				case AST_CONTROL_RINGING:
 					break;
 				case AST_CONTROL_BUSY:
 				case AST_CONTROL_CONGESTION:
@@ -1891,7 +1891,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
         break;
 				case AST_CONTROL_ANSWER:
 					/* Set UP*/
-					reason = 0;	
+					reason = 0;
 					break;
 			}
 		}
@@ -1904,7 +1904,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
   {
 		/* goto end */
     ast_log(LOG_WARNING,"No answer \n");
-		goto clean_pseudo; 
+		goto clean_pseudo;
   }
 
 	/* Log */
@@ -1928,7 +1928,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
 
 #ifdef DISABLE_THREAD
 	while (!reason)
-  { 
+  {
     /* Timeout for send the video */
     ms = 500;
     where = ast_waitfor_n(channels, 2, &ms);
@@ -1938,12 +1938,12 @@ static int app_transcode(struct ast_channel *chan, void *data)
       VideoTranscoderEncode(fwd);
     if (rev)
       VideoTranscoderEncode(rev);
-	 
+
     if (where == NULL)
-      continue;	
-#else	 
+      continue;
+#else
     /* Wait for data avaiable on any channel */
-    while (!reason && (where = ast_waitfor_n(channels, 2, &ms)) != NULL) 
+    while (!reason && (where = ast_waitfor_n(channels, 2, &ms)) != NULL)
     {
 #endif
 
@@ -1954,32 +1954,32 @@ static int app_transcode(struct ast_channel *chan, void *data)
         break;
 
 #ifndef i6net
-      if ((f->frametype == AST_FRAME_VIDEO) || (f->frametype == AST_FRAME_VOICE)) 
+      if ((f->frametype == AST_FRAME_VIDEO) || (f->frametype == AST_FRAME_VOICE))
       {
         if ((fwdLostfactor) && (where == chan))
-        {      
+        {
           if ((rand()%fwdLostfactor)==1)
-          {     
-            ast_log(LOG_WARNING,"Forward frame skipped !!!\n");            
+          {
+            ast_log(LOG_WARNING,"Forward frame skipped !!!\n");
             ast_frfree(f);
             continue;
-          }    
+          }
         }
 
         if ((revLostfactor) && (where == pseudo))
-        {      
+        {
           if ((rand()%revLostfactor)==1)
-          {        
-            ast_log(LOG_WARNING,"Reverse frame skipped !!!\n");            
+          {
+            ast_log(LOG_WARNING,"Reverse frame skipped !!!\n");
             ast_frfree(f);
             continue;
-          }    
+          }
         }
       }
 #endif
 
       /* Depending on the channel */
-      if (where == chan) 
+      if (where == chan)
       {
         /* if it's video */
         if (f->frametype == AST_FRAME_VIDEO) {
@@ -1997,14 +1997,14 @@ static int app_transcode(struct ast_channel *chan, void *data)
           if (f->subclass == AST_CONTROL_HANGUP)
           {
             char *dialstatus = NULL;
-				
+
             dialstatus = (char *)pbx_builtin_getvar_helper(pseudo, "DIALSTATUS");
             if (dialstatus != NULL)
-              ast_verbose(VERBOSE_PREFIX_2 "DIALSTATUS=%s\n", dialstatus);					
-					
+              ast_verbose(VERBOSE_PREFIX_2 "DIALSTATUS=%s\n", dialstatus);
+
             /* Hangup */
             reason = AST_CAUSE_NORMAL_CLEARING;
-            ast_log(LOG_WARNING,"-AST_CONTROL_HANGUP\n"); 
+            ast_log(LOG_WARNING,"-AST_CONTROL_HANGUP\n");
           }
           /* delete frame */
         } else {
@@ -2102,7 +2102,7 @@ static int app_transcode(struct ast_channel *chan, void *data)
         ast_log(LOG_DEBUG,"[%s @ %p] %s",avc->item_name(ptr), avc, msg);
     }
     else
-    { 
+    {
         if ( option_debug > 4 )
           ast_log(LOG_DEBUG, msg);
     }
@@ -2115,8 +2115,8 @@ static int app_transcode(struct ast_channel *chan, void *data)
 
     /* Init avcodec */
     avcodec_init();
-	
-    /* Register all codecs */	
+
+    /* Register all codecs */
     avcodec_register_all();
 
     return ast_register_application(name_transcode, app_transcode, syn_transcode, des_transcode);

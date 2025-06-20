@@ -12,7 +12,7 @@ public:
 	H223MuxSDU();
 	H223MuxSDU(BYTE *b,int len);
 	~H223MuxSDU();
-	
+
 	int  Push(BYTE b);
 	int  Push(BYTE *b,int len);
 	BYTE Pop();

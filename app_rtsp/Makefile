@@ -7,7 +7,7 @@
 #
 # i6net support@i6net.com
 #
-# This program is free software and may be modified and 
+# This program is free software and may be modified and
 # distributed under the terms of the GNU Public License.
 #
 
@@ -39,8 +39,8 @@ INSTALL = install
 CC = gcc
 
 INCLUDE = -I$(ASTERISK_INCLUDE_DIR)
-LIBS = 
-DEBUG := -g 
+LIBS =
+DEBUG := -g
 
 CFLAGS = -DAST_MODULE=\"app_rtsp\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE -fPIC
 
@@ -48,13 +48,13 @@ CFLAGS = -DAST_MODULE=\"app_rtsp\" -pipe -Wall -Wmissing-prototypes -Wmissing-de
 # targets
 #
 
-all: $(SHAREDOS) 
+all: $(SHAREDOS)
 
 clean:
 	rm -f *.so *.o $(OBJS)
 
 app_rtsp.so : $(OBJS)
-	$(CC) -pg -shared -Xlinker -x -o $@ $(OBJS) $(LIBS) 
+	$(CC) -pg -shared -Xlinker -x -o $@ $(OBJS) $(LIBS)
 
 install: all
 	@if [ "`uname -m`" == "x86_64" ] ; then make install64 ; else make install32 ; fi

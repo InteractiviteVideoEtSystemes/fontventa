@@ -3,28 +3,28 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2004.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May   wmay@cisco.com
  */
 
 #include <mp4av_common.h>
 
 //#define DEBUG_RFC3267 1
-static short blockSize[16] = 
+static short blockSize[16] =
   { 12, 13, 15, 17, 19, 20, 26, 31,  5, -1, -1, -1, -1, -1, -1, -1};
-static short blockSizeWB[16] = 
+static short blockSizeWB[16] =
   { 17, 23, 32, 36, 40, 46, 50, 58, 60,  5,  5, -1, -1, -1,  0,  0 };
 
 /*
@@ -42,12 +42,12 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
 				     MP4TrackId mediaTrackId,
 				     uint16_t maxPayloadSize)
 {
-  uint32_t numSamples = 
+  uint32_t numSamples =
     MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
 
   if (numSamples == 0) return false;
 
-  const char *media_data_name = 
+  const char *media_data_name =
     MP4GetTrackMediaDataName(mp4File, mediaTrackId);
 
   bool isAmrWb = strcmp(media_data_name, "sawb") == 0;
@@ -58,7 +58,7 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
   }
 
 
-  MP4TrackId hintTrackId = 
+  MP4TrackId hintTrackId =
     MP4AddHintTrack(mp4File, mediaTrackId);
 
   if (hintTrackId == MP4_INVALID_TRACK_ID) {
@@ -67,8 +67,8 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
 
   uint8_t payloadNumber = MP4_SET_DYNAMIC_PAYLOAD;
 
-  MP4SetHintTrackRtpPayload(mp4File, 
-			    hintTrackId, 
+  MP4SetHintTrackRtpPayload(mp4File,
+			    hintTrackId,
 			    isAmrWb ? "AMR-WB" : "AMR",
 			    &payloadNumber,
 			    0,
@@ -81,7 +81,7 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
 	  payloadNumber);
 
   MP4AppendHintTrackSdp(mp4File, hintTrackId, sdpBuf);
-  
+
   struct {
     MP4SampleId sid;
     uint32_t offset;
@@ -115,14 +115,14 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
       printf("reading sample %u\n", sid);
 #endif
       MP4ReadSample(mp4File, mediaTrackId, sid,
-		    &buffer, &sampleSize, 
-		    &startTime, &duration, 
+		    &buffer, &sampleSize,
+		    &startTime, &duration,
 		    &renderingOffset, &isSyncSample);
       offset_on = 0;
     }
     uint16_t frameSize = MP4AV_AmrFrameSize(buffer[0], isAmrWb);
 
-    if (bytes_in_pak + frameSize > maxPayloadSize || 
+    if (bytes_in_pak + frameSize > maxPayloadSize ||
 	toc_on >= 12) {
       // write it
       MP4AddRtpHint(mp4File, hintTrackId);
@@ -134,14 +134,14 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
 			     toc, toc_on + 1);
       for (uint32_t ix = 0; ix < toc_on; ix++) {
 #ifdef DEBUG_RFC3267
-	printf("pak - writing sid %u %u %u\n", 
-	       PakBuffer[ix].sid, 
-	       PakBuffer[ix].offset, 
+	printf("pak - writing sid %u %u %u\n",
+	       PakBuffer[ix].sid,
+	       PakBuffer[ix].offset,
 	       PakBuffer[ix].len);
 #endif
-	MP4AddRtpSampleData(mp4File, 
-			    hintTrackId, 
-			    PakBuffer[ix].sid, 
+	MP4AddRtpSampleData(mp4File,
+			    hintTrackId,
+			    PakBuffer[ix].sid,
 			    PakBuffer[ix].offset,
 			    PakBuffer[ix].len);
       }
@@ -152,7 +152,7 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
     }
     if (toc_on > 0) toc[toc_on] |= 0x80;
 #ifdef DEBUG_RFC3267
-    printf("toc %d %x sample %d offset %d len %d\n", 
+    printf("toc %d %x sample %d offset %d len %d\n",
 	   toc_on, buffer[0], sid, offset_on, frameSize);
 #endif
     toc[toc_on + 1] = (buffer[0] & 0x78) | 0x04;
@@ -167,7 +167,7 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
     toc_on++;
   }
 
-  // finish it.  
+  // finish it.
 
   if (toc_on > 0) {
     MP4AddRtpHint(mp4File, hintTrackId);
@@ -175,9 +175,9 @@ extern "C" bool MP4AV_Rfc3267Hinter (MP4FileHandle mp4File,
     MP4AddRtpImmediateData(mp4File, hintTrackId,
 			   toc, toc_on + 1);
     for (uint32_t ix = 0; ix < toc_on; ix++) {
-      MP4AddRtpSampleData(mp4File, 
-			  hintTrackId, 
-			  PakBuffer[ix].sid, 
+      MP4AddRtpSampleData(mp4File,
+			  hintTrackId,
+			  PakBuffer[ix].sid,
 			  PakBuffer[ix].offset,
 			  PakBuffer[ix].len);
     }

@@ -80,7 +80,7 @@ uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32
     if ( option_debug > 4 )
       ast_log(LOG_DEBUG,"RFC2190 cut %d ebit (%d)\n", headers->ebits, bufferLen-len);
 	  in[bufferLen-len-1] &= 0xff << headers->ebits;
-	}	
+	}
 
 	/* Mix first and end byte */
 	if(headers->sbits!=0 && destLen>0)
@@ -89,15 +89,15 @@ uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32
       ast_log(LOG_DEBUG,"RFC2190 mix %d sbit\n", headers->sbits);
 
 		/* Append to previous byte */
-    in[0] &= 0xff >> headers->sbits;		
+    in[0] &= 0xff >> headers->sbits;
 		dest[destLen-1] |= in[0];
 		/* Skip first */
 		in++;
 		len++;
-	}	
+	}
 
 	/* Copy the rest */
-	memcpy(dest+destLen,in,bufferLen-len);	
+	memcpy(dest+destLen,in,bufferLen-len);
 
   if ( option_debug > 4 )
     ast_log(LOG_DEBUG,"RFC2190 max write %d\n", destLen+bufferLen-len);
@@ -141,7 +141,7 @@ uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, uint8_t
 
 	ast_log(LOG_DEBUG, "h264 receiving %d bytes nal unit type %d\n", payload_len, nal_unit_type);
 
-	switch (nal_unit_type) 
+	switch (nal_unit_type)
 	{
 		case 0:
 		case 30:
@@ -152,7 +152,7 @@ uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, uint8_t
 			/* STAP-B		Single-time aggregation packet		 5.7.1 */
 			/* 2 byte extra header for DON */
 			/** Not supported */
-			return 0;	
+			return 0;
 		case 24:
 		{
 			/**
@@ -186,9 +186,9 @@ uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, uint8_t
 			/* Skip STAP-A NAL HDR */
 			payload++;
 			payload_len--;
-			
+
 			/* STAP-A Single-time aggregation packet 5.7.1 */
-			while (payload_len > 2) 
+			while (payload_len > 2)
 			{
 				/* Get NALU size */
 				nalu_size = (payload[0] << 8) | payload[1];
@@ -206,7 +206,7 @@ uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, uint8_t
 
 				/* Check size */
 				if (outsize + destLen >destSize)
-				{	
+				{
 					ast_log(LOG_DEBUG, "Frame to small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
 					return 0;
 				}
@@ -252,7 +252,7 @@ uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, uint8_t
 
 			ast_log(LOG_DEBUG, "S %d, E %d", S, E);
 
-			if (S) 
+			if (S)
 			{
 				/* NAL unit starts here */
 				uint8_t nal_header;
@@ -286,7 +286,7 @@ uint32_t h264_append(uint8_t *dest, uint32_t destLen, uint32_t destSize, uint8_t
 			}
 
 			/* if NAL unit ends, flush the adapter */
-			if (E) 
+			if (E)
 			{
 				ast_log(LOG_DEBUG, "output %d bytes", outsize);
 

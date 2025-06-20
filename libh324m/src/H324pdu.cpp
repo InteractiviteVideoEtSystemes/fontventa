@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -61,7 +61,7 @@ H245_IndicationMessage & H324ControlPDU::Build(H245_IndicationMessage::Choices i
 }
 
 
-H245_MasterSlaveDetermination & 
+H245_MasterSlaveDetermination &
       H324ControlPDU::BuildMasterSlaveDetermination(unsigned terminalType,
                                                     unsigned statusDeterminationNumber)
 {
@@ -386,13 +386,13 @@ H245_MiscellaneousCommand & H324ControlPDU::BuilVideoFastUpdatePicture(unsigned 
 
 H245_LogicalChannelRateRequest & H324ControlPDU::BuildLogicalChannelRequest(
 	unsigned int seqOrder,
-	unsigned int channel, 
+	unsigned int channel,
 	unsigned int bitRate)
 {
 	H245_LogicalChannelRateRequest & cmd =
 		Build(H245_RequestMessage::e_logicalChannelRateRequest);
 
-	cmd.m_sequenceNumber = seqOrder;	
+	cmd.m_sequenceNumber = seqOrder;
 	cmd.m_logicalChannelNumber = channel;
 	cmd.m_maximumBitRate = bitRate;
 	return cmd;
@@ -400,13 +400,13 @@ H245_LogicalChannelRateRequest & H324ControlPDU::BuildLogicalChannelRequest(
 
 H245_LogicalChannelRateAcknowledge & H324ControlPDU::BuildLogicalChannelRateAck(
 		unsigned int seqOrder,
-		unsigned int channel, 
+		unsigned int channel,
 		unsigned int bitRate)
 {
 	H245_LogicalChannelRateAcknowledge & cmd =
 		Build(H245_ResponseMessage::e_logicalChannelRateAcknowledge);
-		
-	cmd.m_sequenceNumber = seqOrder;	
+
+	cmd.m_sequenceNumber = seqOrder;
 	cmd.m_logicalChannelNumber = channel;
 	cmd.m_maximumBitRate = bitRate;
 	return cmd;
@@ -415,7 +415,7 @@ H245_LogicalChannelRateAcknowledge & H324ControlPDU::BuildLogicalChannelRateAck(
 H245_LogicalChannelRateReject &
 	H324ControlPDU::BuildLogicalChannelRateReject(
 		unsigned int seqOrder,
-		unsigned int channel, 
+		unsigned int channel,
 		unsigned int bitRate,
 		H245_LogicalChannelRateRejectReason::Choices reason)
 {
@@ -430,6 +430,6 @@ H245_LogicalChannelRateReject &
 }
 
 
-	
+
 
 /////////////////////////////////////////////////////////////////////////////

@@ -13,7 +13,7 @@ extern "C" {
 
 FrameScaler::FrameScaler()
 {
-	// No resize 
+	// No resize
 	resizeCtx	= NULL;
 	resizeWidth	= 0;
 	resizeHeight	= 0;
@@ -30,7 +30,7 @@ FrameScaler::FrameScaler()
 	tmpU		= NULL;
 	tmpV		= NULL;
 
-	// Bicubic by default 
+	// Bicubic by default
 	resizeFlags	= SWS_BICUBIC;
 }
 FrameScaler::~FrameScaler()
@@ -72,7 +72,7 @@ int FrameScaler::SetResize(int srcWidth,int srcHeight,int srcLineWidth,int dstWi
 
 	// Create new context
 	if (!(resizeCtx = sws_alloc_context()))
-		// Exit 
+		// Exit
 		return 0;
 
 	// Set property's of context
@@ -84,7 +84,7 @@ int FrameScaler::SetResize(int srcWidth,int srcHeight,int srcLineWidth,int dstWi
 	av_opt_set_int(resizeCtx, "dsth",       dstHeight		,AV_OPT_SEARCH_CHILDREN);
 	av_opt_set_int(resizeCtx, "dst_format", AV_PIX_FMT_YUV420P	,AV_OPT_SEARCH_CHILDREN);
 	av_opt_set_int(resizeCtx, "sws_flags",  resizeFlags		,AV_OPT_SEARCH_CHILDREN);
-	
+
 	// Init context
 	if (sws_init_context(resizeCtx, NULL, NULL) < 0)
 	{
@@ -92,11 +92,11 @@ int FrameScaler::SetResize(int srcWidth,int srcHeight,int srcLineWidth,int dstWi
 		sws_freeContext(resizeCtx);
 		//Nullify it
 		resizeCtx = NULL;
-		// Exit 
+		// Exit
 		return Error("Couldn't init sws context");
 	}
 
-	// Set values 
+	// Set values
 	resizeWidth 	= srcWidth;
 	resizeHeight 	= srcHeight;
 	resizeDstWidth	= dstWidth;
@@ -134,22 +134,22 @@ int FrameScaler::SetResize(int srcWidth,int srcHeight,int srcLineWidth,int dstWi
 	tmpU = tmpY+tmpWidth*tmpHeight;
 	tmpV = tmpU+tmpWidth*tmpHeight/4;
 
-	// exit 
+	// exit
 	return 1;
 }
 
 int FrameScaler::Resize(BYTE *srcY,BYTE *srcU,BYTE *srcV,BYTE *dstY, BYTE *dstU, BYTE *dstV)
 {
-	// src & dst 
+	// src & dst
 	BYTE* src[3];
 	BYTE* dst[3];
 
-	// Check 
+	// Check
 	if (!resizeCtx)
 		//Error
 		return 0;
 
-	// Set pointers 
+	// Set pointers
 	src[0] = srcY;
 	src[1] = srcU;
 	src[2] = srcV;
@@ -160,7 +160,7 @@ int FrameScaler::Resize(BYTE *srcY,BYTE *srcU,BYTE *srcV,BYTE *dstY, BYTE *dstU,
 	dst[1] = tmpU;
 	dst[2] = tmpV;
 
-	// Resize frame 
+	// Resize frame
 	sws_scale(resizeCtx, src, resizeSrc, 0, resizeHeight, dst, resizeDst);
 
 	//Copy to destination
@@ -178,7 +178,7 @@ int FrameScaler::Resize(BYTE *srcY,BYTE *srcU,BYTE *srcV,BYTE *dstY, BYTE *dstU,
 
 	//Done
 	return 1;
-} 
+}
 
 int FrameScaler::Resize(BYTE *src,DWORD srcWidth,DWORD srcHeight,BYTE *dst,DWORD dstWidth,DWORD dstHeight)
 {

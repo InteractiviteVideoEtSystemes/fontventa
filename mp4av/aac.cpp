@@ -3,25 +3,25 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 #include <stdlib.h>
 #include <mp4av_common.h>
@@ -32,7 +32,7 @@
  * AudioObjectType 			5 bits
  * samplingFrequencyIndex 	4 bits
  * if (samplingFrequencyIndex == 0xF)
- *	samplingFrequency	24 bits 
+ *	samplingFrequency	24 bits
  * channelConfiguration 	4 bits
  * GA_SpecificConfig
  * 	FrameLengthFlag 		1 bit 1024 or 960
@@ -116,7 +116,7 @@ extern "C" bool MP4AV_AacGetConfiguration(
 		return false;
 	}
 
-	u_int8_t samplingRateIndex = 
+	u_int8_t samplingRateIndex =
 		MP4AV_AdtsFindSamplingRateIndex(samplingRate);
 
 	pConfig[0] =
@@ -156,7 +156,7 @@ extern "C" bool MP4AV_AacGetConfiguration_SBR(
     return false;
   }
 
-  u_int8_t samplingRateIndex = 
+  u_int8_t samplingRateIndex =
     MP4AV_AdtsFindSamplingRateIndex(samplingRate);
 
   pConfig[0] =
@@ -170,7 +170,7 @@ extern "C" bool MP4AV_AacGetConfiguration_SBR(
 
   /* SBR stuff */
   const u_int16_t syncExtensionType = 0x2B7;
-  u_int8_t extensionSamplingRateIndex = 
+  u_int8_t extensionSamplingRateIndex =
     MP4AV_AdtsFindSamplingRateIndex(2*samplingRate);
 
   pConfig[2] = (syncExtensionType >> 3) & 0xFF;

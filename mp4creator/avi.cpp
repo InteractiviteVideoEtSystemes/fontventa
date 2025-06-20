@@ -3,32 +3,32 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 
 #include <mp4creator.h>
 #include <avilib.h>
-static void set_es_config (MP4FileHandle mp4File, 
-			   MP4TrackId trackId, 
-			   uint8_t *pBuffer, 
+static void set_es_config (MP4FileHandle mp4File,
+			   MP4TrackId trackId,
+			   uint8_t *pBuffer,
 			   uint32_t len)
 {
   uint8_t *outbuf = (uint8_t *)malloc(len);
@@ -63,7 +63,7 @@ static void set_es_config (MP4FileHandle mp4File,
   if (skip) {
     outlen -= 3; // we wrote 00 00 01 before skip
   }
-      
+
   MP4SetTrackESConfiguration(mp4File, trackId,
 			     outbuf, outlen);
 }
@@ -76,8 +76,8 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   int32_t ix;
   int32_t frameSize;
   int32_t maxFrameSize = 0;
-  static u_int8_t startCode[3] = { 
-    0x00, 0x00, 0x01, 
+  static u_int8_t startCode[3] = {
+    0x00, 0x00, 0x01,
   };
   u_int32_t vopStart = 0;
   bool foundVOP = false;
@@ -100,7 +100,7 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   if (strcasecmp(videoType, "divx")
       && strcasecmp(videoType, "dx50")
       && strcasecmp(videoType, "xvid")) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: video compressor %s not recognized\n",
 	    ProgName, videoType);
     return MP4_INVALID_TRACK_ID;
@@ -114,7 +114,7 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
     }
 
     if (ismacrypGetScheme(ismaCrypSId, &(icPp->scheme_type)) != ismacryp_rc_ok) {
-      fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n", 
+      fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n",
 	      ProgName, ismaCrypSId);
       ismacrypEndSession(ismaCrypSId);
       return MP4_INVALID_TRACK_ID;
@@ -155,17 +155,17 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   double frameRate = AVI_video_frame_rate(aviFile);
 
   if (frameRate == 0) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: no video frame rate in avi file\n", ProgName);
     return MP4_INVALID_TRACK_ID;
   }
 
 #ifdef _WIN32
   MP4Duration mp4FrameDuration;
-  mp4FrameDuration = 
+  mp4FrameDuration =
     (MP4Duration)((double)Mp4TimeScale / frameRate);
 #else
-  MP4Duration mp4FrameDuration = 
+  MP4Duration mp4FrameDuration =
     (MP4Duration)(Mp4TimeScale / frameRate);
 #endif
 
@@ -173,24 +173,24 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   if (doEncrypt) {
     trackId = MP4AddEncVideoTrack(
 				  mp4File,
-				  Mp4TimeScale, 
-				  mp4FrameDuration, 
-				  AVI_video_width(aviFile), 
-				  AVI_video_height(aviFile), 
+				  Mp4TimeScale,
+				  mp4FrameDuration,
+				  AVI_video_width(aviFile),
+				  AVI_video_height(aviFile),
 				  icPp,
 				  MP4_MPEG4_VIDEO_TYPE);
   } else {
     trackId = MP4AddVideoTrack(
 			       mp4File,
-			       Mp4TimeScale, 
-			       mp4FrameDuration, 
-			       AVI_video_width(aviFile), 
-			       AVI_video_height(aviFile), 
+			       Mp4TimeScale,
+			       mp4FrameDuration,
+			       AVI_video_width(aviFile),
+			       AVI_video_height(aviFile),
 			       MP4_MPEG4_VIDEO_TYPE);
   }
 
   if (trackId == MP4_INVALID_TRACK_ID) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't create video track\n", ProgName);
     return MP4_INVALID_TRACK_ID;
   }
@@ -212,7 +212,7 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   pFrameBuffer = ppFrames[0];
 
   if (pFrameBuffer == NULL) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't allocate memory\n", ProgName);
     MP4DeleteTrack(mp4File, trackId);
     return MP4_INVALID_TRACK_ID;
@@ -224,7 +224,7 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   frameSize = AVI_read_frame(aviFile, (char*)pFrameBuffer);
 
   if (frameSize < 0) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't read video frame 1: %s\n",
 	    ProgName, AVI_strerror());
     MP4DeleteTrack(mp4File, trackId);
@@ -250,27 +250,27 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
 	u_int16_t frameDuration = 3000;
 	u_int16_t frameWidth = 0;
 	u_int16_t frameHeight = 0;
-	if (MP4AV_Mpeg4ParseVol(pFrameBuffer + ix, frameSize - ix, 
-				&timeBits, &timeTicks, &frameDuration, 
+	if (MP4AV_Mpeg4ParseVol(pFrameBuffer + ix, frameSize - ix,
+				&timeBits, &timeTicks, &frameDuration,
 				&frameWidth, &frameHeight) == false) {
 	  fprintf(stderr, "Couldn't parse vol\n");
 	}
 	if (frameWidth != AVI_video_width(aviFile)) {
-	  fprintf(stderr, 
-		  "%s:avi file video width does not match VOL header - %d vs. %d\n", 
+	  fprintf(stderr,
+		  "%s:avi file video width does not match VOL header - %d vs. %d\n",
 		  ProgName, frameWidth, AVI_video_width(aviFile));
 	}
 	if (frameHeight != AVI_video_height(aviFile)) {
-	  fprintf(stderr, 
-		  "%s:avi file video height does not match VOL header - %d vs. %d\n", 
+	  fprintf(stderr,
+		  "%s:avi file video height does not match VOL header - %d vs. %d\n",
 		  ProgName, frameHeight, AVI_video_height(aviFile));
 	}
 	foundVOL = true;
-	      
+
       } else if (pFrameBuffer[ix + 3] == MP4AV_MPEG4_VOSH_START) {
 	foundVOSH = true;
-	MP4AV_Mpeg4ParseVosh(pFrameBuffer + ix, 
-			     frameSize - ix, 
+	MP4AV_Mpeg4ParseVosh(pFrameBuffer + ix,
+			     frameSize - ix,
 			     &videoProfileLevel);
       } else if (pFrameBuffer[ix + 3] == MP4AV_MPEG4_VO_START) {
 	foundVisualObjectStart = true;
@@ -282,7 +282,7 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   }
 
   if (foundVOSH == false) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s:Warning: no Visual Object Sequence Start (VOSH) header found "
 	    "in MPEG-4 video.\n"
 	    "This can cause problems with players other than those included\n"
@@ -290,7 +290,7 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   } else {
     if (VideoProfileLevelSpecified &&
 	videoProfileLevel != VideoProfileLevel) {
-      fprintf(stderr, 
+      fprintf(stderr,
 	      "%s:You have specified a different video profile level than "
 	      "was detected in the VOSH header\n"
 	      "The level you specified was %d and %d was read from the VOSH\n",
@@ -299,20 +299,20 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   }
 
   if (foundVisualObjectStart == false) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s:Warning: no Visual Object start header found in MPEG-4 video.\n"
 	    "This can cause problems with players other than those included\n"
 	    "with this package.\n", ProgName);
   }
-	  
+
   if (foundVO == false) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s:Warning: No VO header found in mpeg-4 video.\n"
 	    "This can cause problems with players other than mp4player\n",
 	    ProgName);
   }
   if (foundVOL == false) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: fatal: No VOL header found in mpeg-4 video stream\n",
 	    ProgName);
     MP4DeleteTrack(mp4File, trackId);
@@ -340,7 +340,7 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
     frameSize = AVI_read_frame(aviFile, (char*)pFrameBuffer);
 
     if (frameSize < 0) {
-      fprintf(stderr,	
+      fprintf(stderr,
 	      "%s: can't read video frame %i: %s\n",
 	      ProgName, ix + 1, AVI_strerror());
       MP4DeleteTrack(mp4File, trackId);
@@ -352,7 +352,7 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
     // header - only VOPs are allowed to be written
     // wmay - 6-2004
     uint8_t *vophdr = MP4AV_Mpeg4FindVop(pFrameBuffer, frameSize);
-		
+
     if (vophdr != NULL) {
       int32_t diff = vophdr - pFrameBuffer;
       frameSize -= diff;
@@ -360,15 +360,15 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
 
       vopType = MP4AV_Mpeg4GetVopType(pPrevFrameBuffer, prevFrameSize);
 
-      MP4WriteSample(mp4File, trackId, 
-		     pPrevFrameBuffer, prevFrameSize, dur, 0, 
+      MP4WriteSample(mp4File, trackId,
+		     pPrevFrameBuffer, prevFrameSize, dur, 0,
 		     vopType  == VOP_TYPE_I);
       dur = mp4FrameDuration;
       pPrevFrameBuffer = vophdr;
       prevFrameSize = frameSize;
       use_buffer = use_buffer == 0 ? 1 : 0;
     } else {
-      fprintf(stderr, 
+      fprintf(stderr,
 	      "Video frame %d does not have a VOP code - skipping\n",
 	      ix + 1);
       dur += mp4FrameDuration;
@@ -379,16 +379,16 @@ static MP4TrackId VideoCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
 
   // write the last frame
   vopType = MP4AV_Mpeg4GetVopType(pPrevFrameBuffer, prevFrameSize);
-  MP4WriteSample(mp4File, trackId, 
-		 pPrevFrameBuffer, prevFrameSize, dur, 0, 
+  MP4WriteSample(mp4File, trackId,
+		 pPrevFrameBuffer, prevFrameSize, dur, 0,
 		 vopType  == VOP_TYPE_I);
 
   return trackId;
 }
 
-static inline u_int32_t BytesToInt32(u_int8_t* pBytes) 
+static inline u_int32_t BytesToInt32(u_int8_t* pBytes)
 {
-  return (pBytes[0] << 24) | (pBytes[1] << 16) 
+  return (pBytes[0] << 24) | (pBytes[1] << 16)
     | (pBytes[2] << 8) | pBytes[3];
 }
 
@@ -401,7 +401,7 @@ static MP4TrackId AudioCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
 
   // Check for MP3 audio type
   if (audioType != 0x55) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: audio compressor 0x%x not recognized\n",
 	    ProgName, audioType);
     return MP4_INVALID_TRACK_ID;
@@ -415,7 +415,7 @@ static MP4TrackId AudioCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
     }
 
     if (ismacrypGetScheme(ismaCrypSId, &(icPp->scheme_type)) != ismacryp_rc_ok) {
-      fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n", 
+      fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n",
 	      ProgName, ismaCrypSId);
       ismacrypEndSession(ismaCrypSId);
       return MP4_INVALID_TRACK_ID;
@@ -459,7 +459,7 @@ static MP4TrackId AudioCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   AVI_seek_start(aviFile);
 
   if (AVI_read_audio(aviFile, (char*)&temp, 4) != 4) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't read audio frame 0: %s\n",
 	    ProgName, AVI_strerror());
     return MP4_INVALID_TRACK_ID;
@@ -468,41 +468,41 @@ static MP4TrackId AudioCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
 
   // check mp3header sanity
   if ((mp3header & 0xFFE00000) != 0xFFE00000) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: data in file doesn't appear to be valid mp3 audio\n",
 	    ProgName);
     return MP4_INVALID_TRACK_ID;
   }
 
-  u_int16_t samplesPerSecond = 
+  u_int16_t samplesPerSecond =
     MP4AV_Mp3GetHdrSamplingRate(mp3header);
-  u_int16_t samplesPerFrame = 
+  u_int16_t samplesPerFrame =
     MP4AV_Mp3GetHdrSamplingWindow(mp3header);
-  u_int8_t mp4AudioType = 
+  u_int8_t mp4AudioType =
     MP4AV_Mp3ToMp4AudioType(MP4AV_Mp3GetHdrVersion(mp3header));
 
   if (audioType == MP4_INVALID_AUDIO_TYPE
       || samplesPerSecond == 0) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: data in file doesn't appear to be valid mp3 audio\n",
 	    ProgName);
     return MP4_INVALID_TRACK_ID;
   }
 
-	
+
   MP4TrackId trackId;
   if (doEncrypt) {
-    trackId = MP4AddEncAudioTrack(mp4File, samplesPerSecond, 
-				  samplesPerFrame, 
+    trackId = MP4AddEncAudioTrack(mp4File, samplesPerSecond,
+				  samplesPerFrame,
 				  icPp,
 				  mp4AudioType);
   } else {
-    trackId = MP4AddAudioTrack(mp4File, samplesPerSecond, 
+    trackId = MP4AddAudioTrack(mp4File, samplesPerSecond,
 			       samplesPerFrame, mp4AudioType);
   }
 
   if (trackId == MP4_INVALID_TRACK_ID) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't create audio track\n", ProgName);
     return MP4_INVALID_TRACK_ID;
   }
@@ -531,7 +531,7 @@ static MP4TrackId AudioCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
   u_int8_t* pFrameBuffer = (u_int8_t*)malloc(maxAviFrameSize);
 
   if (pFrameBuffer == NULL) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't allocate memory\n", ProgName);
     MP4DeleteTrack(mp4File, trackId);
     return MP4_INVALID_TRACK_ID;
@@ -554,27 +554,27 @@ static MP4TrackId AudioCreator(MP4FileHandle mp4File, avi_t* aviFile, bool doEnc
       AVI_read_audio(aviFile, (char*)&pFrameBuffer[4], mp3FrameSize - 4);
 
     if (bytesRead != mp3FrameSize - 4) {
-      fprintf(stderr,	
+      fprintf(stderr,
 	      "%s: Warning, incomplete audio frame %u, ending audio track\n",
 	      ProgName, mp3FrameNumber);
       break;
     }
 
-    if (!MP4WriteSample(mp4File, trackId, 
+    if (!MP4WriteSample(mp4File, trackId,
 			&pFrameBuffer[0], mp3FrameSize)) {
-      fprintf(stderr,	
+      fprintf(stderr,
 	      "%s: can't write audio frame %u\n", ProgName, mp3FrameNumber);
       MP4DeleteTrack(mp4File, trackId);
       return MP4_INVALID_TRACK_ID;
     }
-	
+
     mp3FrameNumber++;
   }
 
   return trackId;
 }
 
-MP4TrackId* AviCreator(MP4FileHandle mp4File, const char* aviFileName, 
+MP4TrackId* AviCreator(MP4FileHandle mp4File, const char* aviFileName,
 		       bool doEncrypt)
 {
   static MP4TrackId trackIds[3];
@@ -582,13 +582,13 @@ MP4TrackId* AviCreator(MP4FileHandle mp4File, const char* aviFileName,
 
   avi_t* aviFile = AVI_open_input_file(aviFileName, true);
   if (aviFile == NULL) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't open %s: %s\n",
 	    ProgName, aviFileName, AVI_strerror());
 
   } else {
     if (AVI_video_frames(aviFile) > 0) {
-      trackIds[numTracks] = VideoCreator(mp4File, aviFile, 
+      trackIds[numTracks] = VideoCreator(mp4File, aviFile,
 					 doEncrypt);
       if (trackIds[numTracks] != MP4_INVALID_TRACK_ID) {
 	numTracks++;
@@ -596,7 +596,7 @@ MP4TrackId* AviCreator(MP4FileHandle mp4File, const char* aviFileName,
     }
 
     if (AVI_audio_bytes(aviFile) > 0) {
-      trackIds[numTracks] = AudioCreator(mp4File, aviFile, 
+      trackIds[numTracks] = AudioCreator(mp4File, aviFile,
 					 doEncrypt);
       if (trackIds[numTracks] != MP4_INVALID_TRACK_ID) {
 	numTracks++;

@@ -184,7 +184,7 @@ const MediaFrame *Mp4Basetrack::ReadFrameFromHint()
             &rtpLen,					// u_int32_t* pNumBytes
             0,				// u_int32_t ssrc DEFAULT(0)
             0,				// bool includeHeader DEFAULT(true)
-            1				// bool includePayload DEFAULT(true) 
+            1				// bool includePayload DEFAULT(true)
             ) )
         {
             //Error
@@ -1007,7 +1007,7 @@ const MediaFrame *Mp4TextTrack::ReadFrame()
             unsigned int nbdel = 0;
 
             //Debug("mp4play: read subtitle %s. renderingOffset=%d, len=%d.\n",
-            //	txtsample.c_str(), renderingOffset, dataLen - renderingOffset);		
+            //	txtsample.c_str(), renderingOffset, dataLen - renderingOffset);
             conv1->GetTextDiff( txtsample, nbdel, rttstr );
             if( nbdel > 0 ) rttstr.insert( 0, 0x08, nbdel );
 

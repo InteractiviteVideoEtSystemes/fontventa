@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-int MP4AV_Ac3ParseHeader(const uint8_t *buf, 
+int MP4AV_Ac3ParseHeader(const uint8_t *buf,
 			 uint32_t buflen,
 			 const uint8_t **ppFrame,
 			 uint32_t *bitrate,

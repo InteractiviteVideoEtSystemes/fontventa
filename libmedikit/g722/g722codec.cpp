@@ -1,7 +1,7 @@
-/* 
+/*
  * File:   G722.cpp
  * Author: Emmanuel BUU
- * 
+ *
  * Created on 7 de diciembre de 2011, 23:29
  */
 #include <sys/types.h>
@@ -56,7 +56,7 @@ G722Encoder::G722Encoder(const Properties &properties)
 	else
 	{
 		//Get the number of samples
-		if ( ctx->frame_size > 0 ) 
+		if ( ctx->frame_size > 0 )
 			numFrameSamples = ctx->frame_size;
 		else
 		{
@@ -154,7 +154,7 @@ int G722Decoder::Decode(BYTE *in, int inLen, SWORD* out, int outLen)
 	int got_frame;
 	SWORD buffer8[512];
 	DWORD len8 = 512;
-	
+
 	//If we have input
 	if (inLen>0)
 	{

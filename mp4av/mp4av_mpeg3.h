@@ -3,19 +3,19 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May (wmay@cisco.com)
  */
 #ifndef __MP4AV_MPEG3_H__
@@ -39,14 +39,14 @@ typedef struct mpeg3_pts_to_dts_t {
   uint64_t last_i_dts;
   uint64_t last_dts;
 } mpeg3_pts_to_dts_t;
-  
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-  int MP4AV_Mpeg3ParseSeqHdr(const uint8_t *pbuffer, uint32_t buflen, 
+  int MP4AV_Mpeg3ParseSeqHdr(const uint8_t *pbuffer, uint32_t buflen,
 			     int *have_mpeg2,
-			      uint32_t *height, uint32_t *width, 
+			      uint32_t *height, uint32_t *width,
 			      double *frame_rate, double *bitrate,
 			     double *aspect_ratio,
 			     uint8_t *profile_code);
@@ -55,15 +55,15 @@ extern "C" {
 
   uint16_t MP4AV_Mpeg3PictHdrTempRef(const uint8_t *pbuffer);
 
-  int MP4AV_Mpeg3FindPictHdr(const uint8_t *pbuffer, 
-			     uint32_t buflen, 
+  int MP4AV_Mpeg3FindPictHdr(const uint8_t *pbuffer,
+			     uint32_t buflen,
 			     int *ftype);
-  int MP4AV_Mpeg3FindNextStart(const uint8_t *pbuffer, 
+  int MP4AV_Mpeg3FindNextStart(const uint8_t *pbuffer,
 			       uint32_t buflen,
-			       uint32_t *optr, 
+			       uint32_t *optr,
 			       uint32_t *scode);
   int MP4AV_Mpeg3FindNextSliceStart(const uint8_t *pbuffer,
-				     uint32_t startoffset, 
+				     uint32_t startoffset,
 				     uint32_t buflen,
 				     uint32_t *slice_offset);
   int mpeg3_find_dts_from_pts(mpeg3_pts_to_dts_t *ptr,

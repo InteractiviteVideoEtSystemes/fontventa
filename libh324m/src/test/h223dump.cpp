@@ -39,10 +39,10 @@ int main(int argc,char **argv)
 	H223MuxTable localTable;
 	DumpChannel dumpChannel;
 	H223Demuxer demuxer;
-	
+
 	//Set entry
 	localTable.SetEntry(0,"","0");
-	
+
 	//Set demuxer channels
 	demuxer.SetChannel(0,&dumpChannel);
 
@@ -65,5 +65,5 @@ int main(int argc,char **argv)
 	close(f);
 
 	return 0;
-	
+
 }

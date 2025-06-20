@@ -4,7 +4,7 @@
 #include "log.h"
 #define linesize 104
 
-class FileLogger : 
+class FileLogger :
 	public Logger
 {
 public:

@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include "../../bits.c"
 
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
 	//Check params
 	if (argc<3)
@@ -45,13 +45,13 @@ int main(int argc, char** argv)
 		//Reverse bits
                	TIFFReverseBits(buffer,len);
 		//Write
-		write(fdOut,buffer,len);	
-	}	
-	
+		write(fdOut,buffer,len);
+	}
+
 	//close files
 	close(fdOut);
 	close(fdIn);
 
 	//Exit
 	return(0);
-} 
+}

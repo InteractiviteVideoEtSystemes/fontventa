@@ -24,7 +24,7 @@ H264Decoder::H264Decoder()
 	bufSize = 0;
 	ctx = NULL;
 	picture = NULL;
-	
+
 	//Registramos todo
 	avcodec_register_all();
 
@@ -49,7 +49,7 @@ H264Decoder::H264Decoder()
 	frame = NULL;
 	frameSize = 0;
 	src = 0;
-	
+
 	//Lo abrimos
 	avcodec_open2(ctx, codec, NULL);
 }
@@ -71,7 +71,7 @@ H264Decoder::~H264Decoder()
 	}
 	if (picture)
 		free(picture);
-	
+
 }
 /* 3 zero bytes syncword */
 static const uint8_t sync_bytes[] = { 0, 0, 0, 1 };
@@ -114,7 +114,7 @@ DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, 
 	/* at least one byte header with type */
 	header_len = 1;
 
-	switch (nal_unit_type) 
+	switch (nal_unit_type)
 	{
 		case 0:
 		case 30:
@@ -125,7 +125,7 @@ DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, 
 			/* STAP-B		Single-time aggregation packet		 5.7.1 */
 			/* 2 byte extra header for DON */
 			/** Not supported */
-			return 0;	
+			return 0;
 		case 24:
 		{
 			/**
@@ -158,9 +158,9 @@ DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, 
 			/* Skip STAP-A NAL HDR */
 			payload++;
 			payload_len--;
-			
+
 			/* STAP-A Single-time aggregation packet 5.7.1 */
-			while (payload_len > 2) 
+			while (payload_len > 2)
 			{
 				/* Get NALU size */
 				nalu_size = (payload[0] << 8) | payload[1];
@@ -223,7 +223,7 @@ DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, 
 			S = (payload[1] & 0x80) == 0x80;
 			E = (payload[1] & 0x40) == 0x40;
 
-			if (S) 
+			if (S)
 			{
 				/* NAL unit starts here */
 				BYTE nal_header;
@@ -242,10 +242,10 @@ DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, 
 				//Check size
 				if (outsize + destLen >destSize)
 					return Error("Frame too small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
-				
+
 				memcpy (outdata, sync_bytes, sizeof (sync_bytes));
 				outdata += sizeof (sync_bytes);
-				
+
 				//Set nal
 				if (nals && nalSize-1>*num)
 					//Add it
@@ -306,13 +306,13 @@ DWORD h264_append(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, DWORD
 }
 
 /***********************
-* DecodePacket 
+* DecodePacket
 *	Decodifica un packete
 ************************/
 int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 {
 	int ret = 1;
-	
+
 	// Check total length
 	if (bufLen+inLen+FF_INPUT_BUFFER_PADDING_SIZE>bufSize)
 	{
@@ -374,7 +374,7 @@ int H264Decoder::Decode(BYTE *buffer,DWORD size)
 			frame = (BYTE*) malloc(size);
 			frameSize = size;
 		}
-		
+
 
 		//Copaamos  el Cy
 		for(int i=0;i<ctx->height;i++)

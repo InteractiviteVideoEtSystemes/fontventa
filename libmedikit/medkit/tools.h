@@ -43,7 +43,7 @@ inline int createPriorityThread(pthread_t *thread, void *(*function)(void *), vo
 
 	//Log
 	//Log("-Created thread [%p]\n",thread);
-	
+
 	return 1;
 	/*
 	 * //Aumentamos la prioridad

@@ -37,7 +37,7 @@ H263Encoder::H263Encoder(const Properties& properties)
 
 	//No estamos abiertos
 	opened = false;
- 
+
 	//Alocamos el conto y el picture
 	ctx = avcodec_alloc_context3(codec);
 	picture = av_frame_alloc();
@@ -70,7 +70,7 @@ int H263Encoder::SetSize(int width, int height)
 {
 	Log("-SetSize [%d,%d]\n",width,height);
 
-	// Set pixel format 
+	// Set pixel format
 	ctx->pix_fmt		= AV_PIX_FMT_YUV420P;
 	ctx->width 		= width;
 	ctx->height 		= height;
@@ -119,7 +119,7 @@ int H263Encoder::OpenCodec()
 	if (codec==NULL)
 		return Error("No codec\n");
 
-	// Check 
+	// Check
 	if (opened)
 		return Error("Already opened\n");
 
@@ -177,7 +177,7 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 	av_init_packet(&pkt);
 	pkt.data = frame->GetData();
 	pkt.size = frame->GetMaxMediaLength();
-	
+
 	int numPixels = ctx->width*ctx->height;
 
 	//Comprobamos el tama�o
@@ -220,14 +220,14 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 	//Set header for first
 	prefix[0] = 0x04;
 	prefix[1] = 0x00;
-	
+
 	//Clean all previous packets
 	frame->ClearRTPPacketizationInfo();
 
 	//Copy all
 	DWORD lenpkt;
 	bool mark ;
-	
+
 	while(ini<pkt.size)
 	{
 		mark = false;
@@ -240,7 +240,7 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 			//Fix it
 			lenpkt=pkt.size-ini;
 		}
-		
+
 		//Add rtp packet
 		frame->AddRtpPacket(ini,lenpkt,prefix,2, mark );
 
@@ -251,11 +251,11 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 			prefix[0] = 0x00;
 			prefix[1] = 0x00;
 		}
-		
+
 		//Increase pointer
 		ini += lenpkt;
 	}
-	
+
 	return frame;
 }
 
@@ -291,7 +291,7 @@ H263Decoder::H263Decoder()
 	codec = NULL;
 	type = VideoCodec::H263_1998;
 	bufLen = 0;
-	
+
 	//Registramos todo
 	avcodec_register_all();
 
@@ -319,7 +319,7 @@ H263Decoder::H263Decoder()
 	frame = NULL;
 	frameSize = 0;
 	src = 0;
-	
+
 	//Lo abrimos
 	avcodec_open2(ctx, codec, NULL);
 }
@@ -339,7 +339,7 @@ H263Decoder::~H263Decoder()
 }
 
 /***********************
-* DecodePacket 
+* DecodePacket
 *	Decodifica un packete
 ************************/
 int H263Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)

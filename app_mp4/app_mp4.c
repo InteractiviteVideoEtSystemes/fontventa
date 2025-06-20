@@ -68,9 +68,9 @@
 #endif
 
 #define PKT_OFFSET	(sizeof(struct ast_frame) + AST_FRIENDLY_OFFSET)
-#define AST_MAX_TXT_SIZE 0x8000 
+#define AST_MAX_TXT_SIZE 0x8000
 #define NO_CODEC         -1
-#define MS_2_SEC         1000000   // Micro secondes -> Sec 
+#define MS_2_SEC         1000000   // Micro secondes -> Sec
 #define MAX_DTMF_BUFFER_SIZE 25
 
 #define TIMEVAL_TO_MS( tv , ms ) \
@@ -168,7 +168,7 @@ typedef enum
     NATIVE_VIDEO_CODEC_H264 = 0,
     NATIVE_VIDEO_CODEC_H263P,
     NATIVE_VIDEO_CODEC_H263,
-    NATIVE_VIDEO_CODEC_LAST // Always last 
+    NATIVE_VIDEO_CODEC_LAST // Always last
 } NativeCodec;
 #endif
 
@@ -431,7 +431,7 @@ static int mp4_play( struct ast_channel *chan, void *data )
         }
 
         if( ms > 1000 ) ast_log( LOG_NOTICE, "mp4_play: next frame to be streamed in %d ms.\n", ms );
-    // Wait x ms 
+    // Wait x ms
         while( ms > 0 )
         {
             ms = ast_waitfor( chan, ms );

@@ -3,22 +3,22 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2001-2004.  All Rights Reserved.
- * 
+ *
  * Portions created by Ximpo Group Ltd. are
  * Copyright (C) Ximpo Group Ltd. 2003, 2004.  All Rights Reserved.
  *
- * Contributor(s): 
+ * Contributor(s):
  *		Dave Mackie			dmackie@cisco.com
  *		Alix Marchandise-Franquet	alix@cisco.com
  *		Ximpo Group Ltd.		mp4v2@ximpo.com
@@ -51,21 +51,21 @@
 #define AMR_MAGIC_AMRWB "#!AMR-WB\n"
 
 MP4TrackId* CreateMediaTracks(
-			      MP4FileHandle mp4File, 
+			      MP4FileHandle mp4File,
 			      const char* inputFileName,
 			      bool doEncrypt);
 
 void CreateHintTrack(
-		     MP4FileHandle mp4File, 
+		     MP4FileHandle mp4File,
 		     MP4TrackId mediaTrackId,
-		     const char* payloadName, 
-		     bool interleave, 
+		     const char* payloadName,
+		     bool interleave,
 		     u_int16_t maxPayloadSize,
 		     bool doEncrypt);
 
 void ExtractTrack(
-		  MP4FileHandle mp4File, 
-		  MP4TrackId trackId, 
+		  MP4FileHandle mp4File,
+		  MP4TrackId trackId,
 		  const char* outputFileName);
 
 static bool Is3GPP(MP4FileHandle mp4File);
@@ -73,7 +73,7 @@ static bool Is3GPP(MP4FileHandle mp4File);
 // external declarations
 
 // track creators
-MP4TrackId* AviCreator(MP4FileHandle mp4File, const char* aviFileName, 
+MP4TrackId* AviCreator(MP4FileHandle mp4File, const char* aviFileName,
 		       bool doEncrypt);
 
 MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt);
@@ -100,7 +100,7 @@ static bool allowAvi = false;
 // main routine
 int main(int argc, char** argv)
 {
-  const char* usageString = 
+  const char* usageString =
     " <options> <mp4-file>\n"
     "  Options:\n"
     "  -aac-old-file-format    Use old file format with 58 bit adts headers\n"
@@ -208,7 +208,7 @@ int main(int argc, char** argv)
 
     if (c == -1)
       break;
-    
+
     switch (c) {
     case 'a':
       aacUseOldFile = true;
@@ -239,7 +239,7 @@ int main(int argc, char** argv)
 	exit(EXIT_COMMAND_LINE);
       }
       if (sscanf(optarg, "%u", &deleteTrackId) != 1) {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s: bad track-id specified: %s\n",
 		ProgName, optarg);
 	exit(EXIT_COMMAND_LINE);
@@ -253,7 +253,7 @@ int main(int argc, char** argv)
       }
 
       if (sscanf(optarg, "%u", &extractTrackId) != 1) {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s: bad track-id specified: %s\n",
 		ProgName, optarg);
 	exit(EXIT_COMMAND_LINE);
@@ -263,18 +263,18 @@ int main(int argc, char** argv)
     case 'E':
       doEncrypt = true;
       if (optarg) {
-        // if the short version of option is given, optarg has 
-        // an = at the beginning. this causes sscanf to fail. 
-        // if the long version of the option is given, there 
+        // if the short version of option is given, optarg has
+        // an = at the beginning. this causes sscanf to fail.
+        // if the long version of the option is given, there
         // is no =
         if ( optarg[0] == '=' ) optarg[0] = ' ';
 	if (sscanf(optarg, "%d", &encryptTrackId) != 1) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
 		  "%s: bad track-id specified: %s\n",
 		  ProgName, optarg);
 	  exit(EXIT_COMMAND_LINE);
 	}
-      }	
+      }
       break;
     case 'G':
       force3GPCompliance = true;
@@ -282,13 +282,13 @@ int main(int argc, char** argv)
     case 'H':
       doHint = true;
       if (optarg) {
-        // if the short version of option is given, optarg has 
-        // an = at the beginning. this causes sscanf to fail. 
-        // if the long version of the option is given, there 
+        // if the short version of option is given, optarg has
+        // an = at the beginning. this causes sscanf to fail.
+        // if the long version of the option is given, there
         // is no =
         if ( optarg[0] == '=' ) optarg[0] = ' ';
 	if (sscanf(optarg, "%u", &hintTrackId) != 1) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
 		  "%s: bad track-id specified: %s\n",
 		  ProgName, optarg);
 	  exit(EXIT_COMMAND_LINE);
@@ -319,7 +319,7 @@ int main(int argc, char** argv)
 	exit(EXIT_COMMAND_LINE);
       }
       if (sscanf(optarg, "%u", &mtu) != 1 || mtu < 64) {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s: bad mtu specified: %s\n",
 		ProgName, optarg);
 	exit(EXIT_COMMAND_LINE);
@@ -360,7 +360,7 @@ int main(int argc, char** argv)
 	exit(EXIT_COMMAND_LINE);
       }
       if (sscanf(optarg, "%lf", &VideoFrameRate) != 1) {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s: bad rate specified: %s\n",
 		ProgName, optarg);
 	exit(EXIT_COMMAND_LINE);
@@ -372,7 +372,7 @@ int main(int argc, char** argv)
 	exit(EXIT_COMMAND_LINE);
       }
       if (sscanf(optarg, "%u", &Mp4TimeScale) != 1) {
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s: bad timescale specified: %s\n",
 		ProgName, optarg);
 	exit(EXIT_COMMAND_LINE);
@@ -392,7 +392,7 @@ int main(int argc, char** argv)
       break;
     case 'U':
       createFlags |= MP4_CREATE_64BIT_TIME;
-      break;  
+      break;
     case 'v':
       Verbosity |= (MP4_DETAILS_READ | MP4_DETAILS_WRITE);
       if (optarg) {
@@ -400,16 +400,16 @@ int main(int argc, char** argv)
 	if (sscanf(optarg, "%u", &level) == 1) {
 	  if (level >= 2) {
 	    Verbosity |= MP4_DETAILS_TABLE;
-	  } 
+	  }
 	  if (level >= 3) {
 	    Verbosity |= MP4_DETAILS_SAMPLE;
-	  } 
+	  }
 	  if (level >= 4) {
 	    Verbosity |= MP4_DETAILS_HINT;
-	  } 
+	  }
 	  if (level >= 5) {
 	    Verbosity = MP4_DETAILS_ALL;
-	  } 
+	  }
 	}
       }
       break;
@@ -417,14 +417,14 @@ int main(int argc, char** argv)
       fprintf(stderr, "usage: %s %s", ProgName, usageString);
       exit(EXIT_SUCCESS);
     case 'V':
-      fprintf(stderr, "%s - %s version %s\n", 
+      fprintf(stderr, "%s - %s version %s\n",
 	      ProgName, MP4V2_PROJECT_name, MP4V2_PROJECT_version);
       exit(EXIT_SUCCESS);
     case 'Z':
       allowVariableFrameRate = true;
       break;
     default:
-      fprintf(stderr, "%s: unknown option specified, ignoring: %c\n", 
+      fprintf(stderr, "%s: unknown option specified, ignoring: %c\n",
 	      ProgName, c);
     }
   }
@@ -434,7 +434,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "usage: %s %s", ProgName, usageString);
     exit(EXIT_COMMAND_LINE);
   }
-  
+
   if ((argc - optind) == 1) {
     mp4FileName = argv[optind++];
   } else {
@@ -462,28 +462,28 @@ int main(int argc, char** argv)
   }
 
   // operations consistency checks
-  
-  if (!doList && !doCreate && !doHint && !doEncrypt  
+
+  if (!doList && !doCreate && !doHint && !doEncrypt
       && !doOptimize && !doExtract && !doDelete && !doIsma) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: no operation specified\n",
 	    ProgName);
     exit(EXIT_COMMAND_LINE);
   }
   if ((doCreate || doHint || doEncrypt || doIsma) && doExtract) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: extract operation must be done separately\n",
 	    ProgName);
     exit(EXIT_COMMAND_LINE);
   }
   if ((doCreate || doHint || doEncrypt || doIsma) && doDelete) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: delete operation must be done separately\n",
 	    ProgName);
     exit(EXIT_COMMAND_LINE);
   }
   if (doExtract && doDelete) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: extract and delete operations must be done separately\n",
 	    ProgName);
     exit(EXIT_COMMAND_LINE);
@@ -496,8 +496,8 @@ int main(int argc, char** argv)
     char* info = MP4FileInfo(mp4FileName);
 
     if (!info) {
-      fprintf(stderr, 
-	      "%s: can't open %s\n", 
+      fprintf(stderr,
+	      "%s: can't open %s\n",
 	      ProgName, mp4FileName);
       exit(EXIT_INFO);
     }
@@ -539,12 +539,12 @@ int main(int argc, char** argv)
 	}
       } else if (doEncrypt) {
 	fprintf(stderr,
-		"%s: can't encrypt track in file that doesn't exist\n", 
+		"%s: can't encrypt track in file that doesn't exist\n",
 		ProgName);
 	exit(EXIT_CREATE_FILE);
       } else {
 	fprintf(stderr,
-		"%s: can't hint track in file that doesn't exist\n", 
+		"%s: can't hint track in file that doesn't exist\n",
 		ProgName);
 	exit(EXIT_CREATE_FILE);
       }
@@ -564,8 +564,8 @@ int main(int argc, char** argv)
     bool allMpeg4Streams = true;
 
     if (doCreate) {
-      MP4TrackId* pCreatedTrackIds = 
-	CreateMediaTracks(mp4File, inputFileName, 
+      MP4TrackId* pCreatedTrackIds =
+	CreateMediaTracks(mp4File, inputFileName,
 			  doEncrypt);
       if (pCreatedTrackIds == NULL) {
 	MP4Close(mp4File);
@@ -576,25 +576,25 @@ int main(int argc, char** argv)
       // we do this if audio and/or video are MPEG-4
       MP4TrackId* pTrackId = pCreatedTrackIds;
 
-      while (*pTrackId != MP4_INVALID_TRACK_ID) {			       
+      while (*pTrackId != MP4_INVALID_TRACK_ID) {
 	const char *type =
 	  MP4GetTrackType(mp4File, *pTrackId);
 	// look for objectTypeId (GetTrackEsdsObjectTypeId)
 	uint64_t temp;
 	newverbosity = Verbosity & ~(MP4_DETAILS_ERROR);
 	//MP4SetVerbosity(mp4File, newverbosity);
-	bool ret = 
+	bool ret =
 	  MP4GetTrackIntegerProperty(mp4File, *pTrackId,
 				     "mdia.minf.stbl.stsd.*.esds.decConfigDescr.objectTypeId",
 				     &temp);
 	//MP4SetVerbosity(mp4File, Verbosity);
 	if (ret) {
-	  if (!strcmp(type, MP4_AUDIO_TRACK_TYPE)) { 
+	  if (!strcmp(type, MP4_AUDIO_TRACK_TYPE)) {
 	    allMpeg4Streams &=
-	      (MP4GetTrackEsdsObjectTypeId(mp4File, *pTrackId) 
+	      (MP4GetTrackEsdsObjectTypeId(mp4File, *pTrackId)
 	       == MP4_MPEG4_AUDIO_TYPE);
-	    
-	  } else if (!strcmp(type, MP4_VIDEO_TRACK_TYPE)) { 
+
+	  } else if (!strcmp(type, MP4_VIDEO_TRACK_TYPE)) {
 	    allMpeg4Streams &=
 	      (MP4GetTrackEsdsObjectTypeId(mp4File, *pTrackId)
 	       == MP4_MPEG4_VIDEO_TYPE);
@@ -607,7 +607,7 @@ int main(int argc, char** argv)
 		  pTrackId = pCreatedTrackIds;
 
 	while (*pTrackId != MP4_INVALID_TRACK_ID) {
-	  CreateHintTrack(mp4File, *pTrackId, payloadName, 
+	  CreateHintTrack(mp4File, *pTrackId, payloadName,
 			  doInterleave, maxPayloadSize, doEncrypt);
 	  pTrackId++;
 	}
@@ -615,7 +615,7 @@ int main(int argc, char** argv)
     } else if (doHint) {
       // in this case, we only hint the track specified in the command line
 
-      CreateHintTrack(mp4File, hintTrackId, payloadName, 
+      CreateHintTrack(mp4File, hintTrackId, payloadName,
 		      doInterleave, maxPayloadSize, doEncrypt);
 
       uint32_t trackNum;
@@ -623,26 +623,26 @@ int main(int argc, char** argv)
       trackNum = MP4GetNumberOfTracks(mp4File);
       for (uint32_t ix = 0; ix < trackNum; ix++) {
 	MP4TrackId trackId = MP4FindTrackId(mp4File, ix);
-	
+
 	const char *type =
 	  MP4GetTrackType(mp4File, trackId);
 	uint64_t temp;
 	if (MP4GetTrackIntegerProperty(mp4File, trackId,
-					"mdia.minf.stbl.stsd.*.esds.decConfigDescr.objectTypeId", 
+					"mdia.minf.stbl.stsd.*.esds.decConfigDescr.objectTypeId",
 				       &temp)) {
-	  if (!strcmp(type, MP4_AUDIO_TRACK_TYPE)) { 
+	  if (!strcmp(type, MP4_AUDIO_TRACK_TYPE)) {
 	    newverbosity = Verbosity & ~(MP4_DETAILS_ERROR);
 	    //MP4SetVerbosity(mp4File, newverbosity);
 	    allMpeg4Streams &=
-	      (MP4GetTrackEsdsObjectTypeId(mp4File, trackId) 
+	      (MP4GetTrackEsdsObjectTypeId(mp4File, trackId)
 	       == MP4_MPEG4_AUDIO_TYPE);
 	    //MP4SetVerbosity(mp4File, Verbosity);
-			    
-	  } else if (!strcmp(type, MP4_VIDEO_TRACK_TYPE)) { 
+
+	  } else if (!strcmp(type, MP4_VIDEO_TRACK_TYPE)) {
 	    newverbosity = Verbosity & ~(MP4_DETAILS_ERROR);
 	    //MP4SetVerbosity(mp4File, newverbosity);
 	    allMpeg4Streams &=
-	      (MP4GetTrackEsdsObjectTypeId(mp4File, trackId) 
+	      (MP4GetTrackEsdsObjectTypeId(mp4File, trackId)
 	       == MP4_MPEG4_VIDEO_TYPE);
 	    //MP4SetVerbosity(mp4File, Verbosity);
 	  }
@@ -650,19 +650,19 @@ int main(int argc, char** argv)
       }
     }
 
-    const MP4Tags * tags = MP4TagsAlloc();  
+    const MP4Tags * tags = MP4TagsAlloc();
     char *buffer;
     char *value;
     newverbosity = Verbosity & ~(MP4_DETAILS_ERROR);
     //MP4SetVerbosity(mp4File, newverbosity);
     bool retval =  MP4TagsFetch (tags, mp4File);
-    
+
     //MP4SetVerbosity(mp4File, Verbosity);
-    if (retval) 
+    if (retval)
     {
       char metadata[100];
       time_t now;
-      struct tm *tmvalue; 
+      struct tm *tmvalue;
 
       time(&now);
       tmvalue = localtime(&now);
@@ -677,7 +677,7 @@ int main(int argc, char** argv)
       MP4TagsStore(tags, mp4File);
     }
     bool is3GPP = Is3GPP(mp4File);
-    
+
     MP4Close(mp4File);
     if (is3GPP || (force3GPCompliance)) {
       // If we created the file, CreateEX already takes care of this...
@@ -686,16 +686,16 @@ int main(int argc, char** argv)
                           0x0001,
                           (char **) p3gppSupportedBrands,
                           sizeof(p3gppSupportedBrands) / sizeof(p3gppSupportedBrands[0]));
-    } 
-  } else if (doEncrypt) { 
+    }
+  } else if (doEncrypt) {
     // just encrypting, not creating nor hinting, but may already be hinted
     if (!mp4FileExists) {
       fprintf(stderr,
-	      "%s: can't encrypt track in file that doesn't exist\n", 
+	      "%s: can't encrypt track in file that doesn't exist\n",
 	      ProgName);
       exit(EXIT_CREATE_FILE);
     }
-    
+
     mp4File = MP4Read(mp4FileName);
     if (!mp4File) {
       // mp4 library should have printed a message
@@ -704,7 +704,7 @@ int main(int argc, char** argv)
 
     char tempName[PATH_MAX];
     if (outputFileName == NULL) {
-      snprintf(tempName, sizeof(tempName), 
+      snprintf(tempName, sizeof(tempName),
 	       "enc-%s", mp4FileName);
       outputFileName = tempName;
     }
@@ -717,32 +717,32 @@ int main(int argc, char** argv)
       const char *type = MP4GetTrackType(mp4File, curTrackId);
       // encrypt only the specified track
       // if no track was specified in the command-line, encrypt all
-      // audio and video tracks 
+      // audio and video tracks
       // hint tracks are removed, so need to rehint afterwards
       // if the track is already encrypted, just copy it
 #ifdef MP4V15
-      if (((curTrackId == encryptTrackId) 
-	  || ((encryptTrackId == MP4_INVALID_TRACK_ID) 
+      if (((curTrackId == encryptTrackId)
+	  || ((encryptTrackId == MP4_INVALID_TRACK_ID)
 	      && !strcmp(type, MP4_AUDIO_TRACK_TYPE))
-	  || ((encryptTrackId == MP4_INVALID_TRACK_ID) 
+	  || ((encryptTrackId == MP4_INVALID_TRACK_ID)
 	      && !strcmp(type, MP4_VIDEO_TRACK_TYPE)))
 	  && !(MP4IsIsmaCrypMediaTrack(mp4File,curTrackId))){
 
 	ismacryp_session_id_t ismaCrypSId;
         ismacryp_keytype_t key_type;
 
-        if ( !strcmp(type, MP4_VIDEO_TRACK_TYPE) ) { 
+        if ( !strcmp(type, MP4_VIDEO_TRACK_TYPE) ) {
            key_type = KeyTypeVideo;
         }
         else {
-           if ( !strcmp(type, MP4_AUDIO_TRACK_TYPE) ) 
+           if ( !strcmp(type, MP4_AUDIO_TRACK_TYPE) )
               key_type = KeyTypeAudio;
            else
               key_type = KeyTypeOther;
         }
 
 	if (ismacrypInitSession(&ismaCrypSId, key_type) != ismacryp_rc_ok) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
 		  "%s: could not initialize the ISMAcryp session\n", ProgName);
 	  exit(EXIT_ISMACRYP_INIT);
 	}
@@ -750,43 +750,43 @@ int main(int argc, char** argv)
         memset(icPp, 0, sizeof(mp4v2_ismacrypParams));
 
         if (ismacrypGetScheme(ismaCrypSId, &(icPp->scheme_type)) != ismacryp_rc_ok) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
              "%s: could not get ismacryp scheme type. sid %d\n", ProgName, ismaCrypSId);
 	  ismacrypEndSession(ismaCrypSId);
 	  exit(EXIT_ISMACRYP_END);
         }
         if (ismacrypGetSchemeVersion(ismaCrypSId, &(icPp->scheme_version)) != ismacryp_rc_ok) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
             "%s: could not get ismacryp scheme ver. sid %d\n", ProgName, ismaCrypSId);
 	  ismacrypEndSession(ismaCrypSId);
 	  exit(EXIT_ISMACRYP_END);
         }
         if (ismacrypGetKMSUri(ismaCrypSId, &(icPp->kms_uri)) != ismacryp_rc_ok) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
             "%s: could not get ismacryp kms uri. sid %d\n", ProgName, ismaCrypSId);
           if (icPp->kms_uri != NULL) free(icPp->kms_uri);
 	  ismacrypEndSession(ismaCrypSId);
 	  exit(EXIT_ISMACRYP_END);
         }
        if ( ismacrypGetSelectiveEncryption(ismaCrypSId, &(icPp->selective_enc)) != ismacryp_rc_ok ) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
             "%s: could not get ismacryp selec enc. sid %d\n", ProgName, ismaCrypSId);
 	  ismacrypEndSession(ismaCrypSId);
 	  exit(EXIT_ISMACRYP_END);
         }
         if (ismacrypGetKeyIndicatorLength(ismaCrypSId, &(icPp->key_ind_len)) != ismacryp_rc_ok) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
             "%s: could not get ismacryp key ind len. sid %d\n", ProgName, ismaCrypSId);
 	  ismacrypEndSession(ismaCrypSId);
 	  exit(EXIT_ISMACRYP_END);
         }
         if (ismacrypGetIVLength(ismaCrypSId, &(icPp->iv_len)) != ismacryp_rc_ok) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
             "%s: could not get ismacryp iv len. sid %d\n", ProgName, ismaCrypSId);
 	  ismacrypEndSession(ismaCrypSId);
 	  exit(EXIT_ISMACRYP_END);
         }
- 
+
 	//MP4EncAndCopyTrack(mp4File, curTrackId, ismaCrypSId, outputFile);
 	MP4EncAndCopyTrack(mp4File, curTrackId, icPp,
                               ismacrypEncryptSampleAddHeader2,
@@ -794,7 +794,7 @@ int main(int argc, char** argv)
                               outputFile);
 
 	if (ismacrypEndSession(ismaCrypSId) != ismacryp_rc_ok) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
 		  "%s: could not end the ISMAcryp session\n", ProgName);
 	  exit(EXIT_ISMACRYP_END);
 	}
@@ -811,7 +811,7 @@ int main(int argc, char** argv)
   } else if (doExtract) {
     if (!mp4FileExists) {
       fprintf(stderr,
-	      "%s: can't extract track in file that doesn't exist\n", 
+	      "%s: can't extract track in file that doesn't exist\n",
 	      ProgName);
       exit(EXIT_CREATE_FILE);
     }
@@ -824,7 +824,7 @@ int main(int argc, char** argv)
 
     char tempName[PATH_MAX];
     if (outputFileName == NULL) {
-      snprintf(tempName, sizeof(tempName), 
+      snprintf(tempName, sizeof(tempName),
 	       "%s.t%u", mp4FileName, extractTrackId);
       outputFileName = tempName;
     }
@@ -836,7 +836,7 @@ int main(int argc, char** argv)
   } else if (doDelete) {
     if (!mp4FileExists) {
       fprintf(stderr,
-	      "%s: can't delete track in file that doesn't exist\n", 
+	      "%s: can't delete track in file that doesn't exist\n",
 	      ProgName);
       exit(EXIT_CREATE_FILE);
     }
@@ -853,7 +853,7 @@ int main(int argc, char** argv)
 
     doOptimize = true;	// to purge unreferenced track data
   }
-  
+
   if (doIsma) {
     MP4MakeIsmaCompliant(mp4FileName, Verbosity);
   }
@@ -874,7 +874,7 @@ MP4TrackId* CreateMediaTracks(MP4FileHandle mp4File, const char* inputFileName,
   FILE* inFile = fopen(inputFileName, "rb");
 
   if (inFile == NULL) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: can't open file %s: %s\n",
 	    ProgName, inputFileName, strerror(errno));
     return NULL;
@@ -882,14 +882,14 @@ MP4TrackId* CreateMediaTracks(MP4FileHandle mp4File, const char* inputFileName,
 
   struct stat s;
   if (fstat(fileno(inFile), &s) < 0) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: can't stat file %s: %s\n",
 	    ProgName, inputFileName, strerror(errno));
     return NULL;
   }
 
   if (s.st_size == 0) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: file %s is empty\n",
 	    ProgName, inputFileName);
     return NULL;
@@ -897,7 +897,7 @@ MP4TrackId* CreateMediaTracks(MP4FileHandle mp4File, const char* inputFileName,
 
   const char* extension = strrchr(inputFileName, '.');
   if (extension == NULL) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: no file type extension\n", ProgName);
     return NULL;
   }
@@ -913,7 +913,7 @@ MP4TrackId* CreateMediaTracks(MP4FileHandle mp4File, const char* inputFileName,
     if (allowAvi) {
       fprintf(stderr, "You are creating an mp4 file from an avi file\n"
 	      "This is not supported anymore\n");
-      
+
       exit(-1);
       //pTrackIds = AviCreator(mp4File, inputFileName, doEncrypt);
     } else {
@@ -955,7 +955,7 @@ MP4TrackId* CreateMediaTracks(MP4FileHandle mp4File, const char* inputFileName,
 	     (strcasecmp(extension, ".264") == 0)) {
     trackIds[0] = H264Creator(mp4File, inFile);
   } else {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: unknown file type\n", ProgName);
     return NULL;
   }
@@ -972,14 +972,14 @@ MP4TrackId* CreateMediaTracks(MP4FileHandle mp4File, const char* inputFileName,
 }
 
 void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
-		     const char* payloadName, bool interleave, 
+		     const char* payloadName, bool interleave,
 		     u_int16_t maxPayloadSize, bool doEncrypt)
 {
 
   bool rc = FALSE;
 
   if (MP4GetTrackNumberOfSamples(mp4File, mediaTrackId) == 0) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: couldn't create hint track, no media samples\n", ProgName);
     MP4Close(mp4File);
     exit(EXIT_CREATE_HINT);
@@ -997,72 +997,72 @@ void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
 
     if (!strcmp(trackType, MP4_AUDIO_TRACK_TYPE)) {
        if (ismacrypInitSession(&icSID, KeyTypeAudio) != 0) {
-          fprintf(stderr, 
+          fprintf(stderr,
 	      "%s: can't hint, error in init ismacryp session\n", ProgName);
           goto quit_error;
        }
     }
     else if (!strcmp(trackType, MP4_VIDEO_TRACK_TYPE)) {
        if (ismacrypInitSession(&icSID, KeyTypeVideo) != 0) {
-          fprintf(stderr, 
+          fprintf(stderr,
 	      "%s: can't hint, error in init ismacryp session\n", ProgName);
           goto quit_error;
        }
     }
     else {
-      fprintf(stderr, 
+      fprintf(stderr,
 	      "%s: can't hint track type %s\n", ProgName, trackType);
       goto quit_error;
     }
-    
+
     // get all the ismacryp parameters needed by the hinters:
     if (ismacrypGetKeyCount(icSID, &(icPp->key_count)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting key count for session %d\n", 
+      fprintf(stderr,
+	      "%s: can't hint, error getting key count for session %d\n",
                ProgName, icSID);
       goto quit_error;
     }
     if (ismacrypGetKeyIndicatorLength(icSID, &(icPp->key_ind_len)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting key ind len for session %d\n", 
+      fprintf(stderr,
+	      "%s: can't hint, error getting key ind len for session %d\n",
                ProgName, icSID);
       goto quit_error;
     }
 
     if (ismacrypGetKeyIndPerAU(icSID, &(icPp->key_ind_perau)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting key ind per au for session %d\n", 
+      fprintf(stderr,
+	      "%s: can't hint, error getting key ind per au for session %d\n",
                ProgName, icSID);
       goto quit_error;
     }
     if (ismacrypGetSelectiveEncryption(icSID, &(icPp->selective_enc)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting selective enc for session %d\n", 
+      fprintf(stderr,
+	      "%s: can't hint, error getting selective enc for session %d\n",
                ProgName, icSID);
       goto quit_error;
     }
     if (ismacrypGetDeltaIVLength(icSID, &(icPp->delta_iv_len)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting delta iv len for session %d\n", 
+      fprintf(stderr,
+	      "%s: can't hint, error getting delta iv len for session %d\n",
                ProgName, icSID);
       goto quit_error;
     }
     if (ismacrypGetIVLength(icSID, &(icPp->iv_len)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting iv len for session %d\n", 
+      fprintf(stderr,
+	      "%s: can't hint, error getting iv len for session %d\n",
                ProgName, icSID);
       goto quit_error;
     }
     if (ismacrypGetScheme(icSID, (ismacryp_scheme_t *) &(icPp->scheme)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting scheme for session %d\n", 
+      fprintf(stderr,
+	      "%s: can't hint, error getting scheme for session %d\n",
                ProgName, icSID);
       goto quit_error;
     }
     if (ismacrypGetKey(icSID, 1,&(icPp->key_len),&(icPp->salt_len),
                        &(icPp->key),&(icPp->salt),&(icPp->key_life)) != 0) {
-      fprintf(stderr, 
-	      "%s: can't hint, error getting scheme for session %d\n", 
+      fprintf(stderr,
+	      "%s: can't hint, error getting scheme for session %d\n",
                ProgName, icSID);
       goto quit_error;
     }
@@ -1075,19 +1075,19 @@ void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
     ok_continue:
 
     if (!strcmp(trackType, MP4_AUDIO_TRACK_TYPE)) {
-      rc = MP4AV_RfcCryptoAudioHinter(mp4File, mediaTrackId, 
-                                      icPp, 
-				      interleave, maxPayloadSize, 
+      rc = MP4AV_RfcCryptoAudioHinter(mp4File, mediaTrackId,
+                                      icPp,
+				      interleave, maxPayloadSize,
 				      "enc-mpeg4-generic");
       ismacrypEndSession(icSID);
     } else if (!strcmp(trackType, MP4_VIDEO_TRACK_TYPE)) {
-      rc = MP4AV_RfcCryptoVideoHinter(mp4File, mediaTrackId, 
-                                      icPp, 
+      rc = MP4AV_RfcCryptoVideoHinter(mp4File, mediaTrackId,
+                                      icPp,
                                       maxPayloadSize,
 				      "enc-mpeg4-generic");
       ismacrypEndSession(icSID);
     } else {
-      fprintf(stderr, 
+      fprintf(stderr,
 	      "%s: can't hint track type %s\n", ProgName, trackType);
     }
   }
@@ -1096,35 +1096,35 @@ void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
   if (!strcmp(trackType, MP4_AUDIO_TRACK_TYPE)) {
     const char *media_data_name;
     media_data_name = MP4GetTrackMediaDataName(mp4File, mediaTrackId);
-    
+
     if (strcasecmp(media_data_name, "mp4a") == 0) {
       u_int8_t audioType = MP4GetTrackEsdsObjectTypeId(mp4File, mediaTrackId);
 
       switch (audioType) {
       case MP4_INVALID_AUDIO_TYPE:
       case MP4_MPEG4_AUDIO_TYPE:
-	if (payloadName && 
+	if (payloadName &&
 	    (strcasecmp(payloadName, "latm") == 0 ||
 	     strcasecmp(payloadName, "mp4a-latm") == 0)) {
-	  rc = MP4AV_Rfc3016LatmHinter(mp4File, mediaTrackId, 
+	  rc = MP4AV_Rfc3016LatmHinter(mp4File, mediaTrackId,
 				       maxPayloadSize);
 	  break;
 	}
       case MP4_MPEG2_AAC_MAIN_AUDIO_TYPE:
       case MP4_MPEG2_AAC_LC_AUDIO_TYPE:
       case MP4_MPEG2_AAC_SSR_AUDIO_TYPE:
-	rc = MP4AV_RfcIsmaHinter(mp4File, mediaTrackId, 
+	rc = MP4AV_RfcIsmaHinter(mp4File, mediaTrackId,
 				 interleave, maxPayloadSize);
 	break;
       case MP4_MPEG1_AUDIO_TYPE:
       case MP4_MPEG2_AUDIO_TYPE:
-	if (payloadName && 
-	    (!strcasecmp(payloadName, "3119") 
+	if (payloadName &&
+	    (!strcasecmp(payloadName, "3119")
 	     || !strcasecmp(payloadName, "mpa-robust"))) {
-	  rc = MP4AV_Rfc3119Hinter(mp4File, mediaTrackId, 
+	  rc = MP4AV_Rfc3119Hinter(mp4File, mediaTrackId,
 				   interleave, maxPayloadSize);
 	} else {
-	  rc = MP4AV_Rfc2250Hinter(mp4File, mediaTrackId, 
+	  rc = MP4AV_Rfc2250Hinter(mp4File, mediaTrackId,
 				   false, maxPayloadSize);
 	}
 	break;
@@ -1133,7 +1133,7 @@ void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
 	rc = L16Hinter(mp4File, mediaTrackId, maxPayloadSize);
 	break;
       default:
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s: can't hint non-MPEG4/non-MP3 audio type\n", ProgName);
       }
     } else if (strcasecmp(media_data_name, "samr") == 0 ||
@@ -1143,10 +1143,10 @@ void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
   } else if (!strcmp(trackType, MP4_VIDEO_TRACK_TYPE)) {
     const char *media_data_name;
     media_data_name = MP4GetTrackMediaDataName(mp4File, mediaTrackId);
-    
+
     if (strcasecmp(media_data_name, "mp4v") == 0) {
       u_int8_t videoType = MP4GetTrackEsdsObjectTypeId(mp4File, mediaTrackId);
-      
+
       switch (videoType) {
       case MP4_MPEG4_VIDEO_TYPE:
 	rc = MP4AV_Rfc3016Hinter(mp4File, mediaTrackId, maxPayloadSize);
@@ -1157,7 +1157,7 @@ void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
 	rc = Mpeg12Hinter(mp4File, mediaTrackId, maxPayloadSize);
 	break;
       default:
-	fprintf(stderr, 
+	fprintf(stderr,
 		"%s: can't hint non-MPEG4 video type\n", ProgName);
 	break;
       }
@@ -1168,19 +1168,19 @@ void CreateHintTrack(MP4FileHandle mp4File, MP4TrackId mediaTrackId,
       rc = MP4AV_Rfc2429Hinter(mp4File, mediaTrackId, maxPayloadSize);
     }
   } else {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: can't hint track type %s\n", ProgName, trackType);
   }
 
   if (!rc) {
-    fprintf(stderr, 
+    fprintf(stderr,
 	    "%s: error hinting track %u\n", ProgName, mediaTrackId);
     MP4Close(mp4File);
     exit(EXIT_CREATE_HINT);
   }
 }
 
-static void extract_h264_track (MP4FileHandle mp4File, 
+static void extract_h264_track (MP4FileHandle mp4File,
 				MP4TrackId trackId,
 				int outFd,
 				const char *outputFileName)
@@ -1189,7 +1189,7 @@ static void extract_h264_track (MP4FileHandle mp4File,
   uint32_t *pictheadersize, *seqheadersize;
   uint32_t ix;
   uint8_t header[4] = {0, 0, 0, 1};
-  MP4GetTrackH264SeqPictHeaders(mp4File, trackId, 
+  MP4GetTrackH264SeqPictHeaders(mp4File, trackId,
 				&seqheader, &seqheadersize,
 				&pictheader, &pictheadersize);
   for (ix = 0; seqheadersize[ix] != 0; ix++) {
@@ -1200,8 +1200,8 @@ static void extract_h264_track (MP4FileHandle mp4File,
     write(outFd, header, 4);
     write(outFd, pictheader[ix], pictheadersize[ix]);
   }
-  
-  MP4SampleId numSamples = 
+
+  MP4SampleId numSamples =
     MP4GetTrackNumberOfSamples(mp4File, trackId);
   u_int8_t* pSample;
   u_int32_t sampleSize;
@@ -1213,10 +1213,10 @@ static void extract_h264_track (MP4FileHandle mp4File,
     pSample = NULL;
     sampleSize = 0;
     int rc = MP4ReadSample(
-			 mp4File, 
-			 trackId, 
-			 sampleId, 
-			 &pSample, 
+			 mp4File,
+			 trackId,
+			 sampleId,
+			 &pSample,
 			 &sampleSize);
     if (rc == 0) {
       fprintf(stderr, "%s: read sample %u for %s failed\n",
@@ -1231,12 +1231,12 @@ static void extract_h264_track (MP4FileHandle mp4File,
 #endif
     do {
 #if 0
-      printf("read offset %u buflen %u sample Size %u\n", 
+      printf("read offset %u buflen %u sample Size %u\n",
 	     read_offset, buflen_size, sampleSize);
 #endif
       if (read_offset + buflen_size >= sampleSize) {
-	fprintf(stderr, 
-		"extra bytes at end of sample %d - nal len size %u, %u bytes left", 
+	fprintf(stderr,
+		"extra bytes at end of sample %d - nal len size %u, %u bytes left",
 		sampleId, buflen_size, sampleSize - read_offset);
 	read_offset = sampleSize;
       } else {
@@ -1250,11 +1250,11 @@ static void extract_h264_track (MP4FileHandle mp4File,
 	  }
 	}
 #if 0
-	printf("read offset %u nallen %u sample Size %u %d\n", 
+	printf("read offset %u nallen %u sample Size %u %d\n",
 	       read_offset, nal_len, sampleSize, first);
 #endif
 	if (read_offset + nal_len > sampleSize) {
-	  fprintf(stderr, 
+	  fprintf(stderr,
 		  "nal length past end of buffer - sample %u size %u frame offset %u left %u\n",
 		  sampleId, nal_len, read_offset, sampleSize - read_offset);
 	  read_offset = sampleSize;
@@ -1279,7 +1279,7 @@ static void extract_h264_track (MP4FileHandle mp4File,
 
 
 
-void ExtractTrack (MP4FileHandle mp4File, MP4TrackId trackId, 
+void ExtractTrack (MP4FileHandle mp4File, MP4TrackId trackId,
 		   const char* outputFileName)
 {
   int openFlags = O_WRONLY | O_TRUNC | OPEN_CREAT;
@@ -1301,7 +1301,7 @@ void ExtractTrack (MP4FileHandle mp4File, MP4TrackId trackId,
 
   const char* trackType =
     MP4GetTrackType(mp4File, trackId);
-  const char *media_data_name = 
+  const char *media_data_name =
     MP4GetTrackMediaDataName(mp4File, trackId);
 
   if (!strcmp(trackType, MP4_VIDEO_TRACK_TYPE)) {
@@ -1313,9 +1313,9 @@ void ExtractTrack (MP4FileHandle mp4File, MP4TrackId trackId,
   } else if (!strcmp(trackType, MP4_AUDIO_TRACK_TYPE)) {
 
     if (strcmp(media_data_name, "mp4a") == 0) {
-      uint8_t type = 	
+      uint8_t type =
 	MP4GetTrackEsdsObjectTypeId(mp4File, trackId);
-      if (MP4_IS_AAC_AUDIO_TYPE(type) || 
+      if (MP4_IS_AAC_AUDIO_TYPE(type) ||
 	  type == MP4_MPEG4_INVALID_AUDIO_TYPE)
       prependADTS = true;
     } else if (strcmp(media_data_name, "sawb") == 0) {
@@ -1343,7 +1343,7 @@ void ExtractTrack (MP4FileHandle mp4File, MP4TrackId trackId,
     }
   }
 
-  MP4SampleId numSamples = 
+  MP4SampleId numSamples =
     MP4GetTrackNumberOfSamples(mp4File, trackId);
   u_int8_t* pSample;
   u_int32_t sampleSize;
@@ -1352,7 +1352,7 @@ void ExtractTrack (MP4FileHandle mp4File, MP4TrackId trackId,
   for (MP4SampleId sampleId = 1 ; sampleId <= numSamples; sampleId++) {
     int rc;
 
-    // signal to ReadSample() 
+    // signal to ReadSample()
     // that it should malloc a buffer for us
     pSample = NULL;
     sampleSize = 0;
@@ -1369,10 +1369,10 @@ void ExtractTrack (MP4FileHandle mp4File, MP4TrackId trackId,
     } else {
       // read the sample
       rc = MP4ReadSample(
-			 mp4File, 
-			 trackId, 
-			 sampleId, 
-			 &pSample, 
+			 mp4File,
+			 trackId,
+			 sampleId,
+			 &pSample,
 			 &sampleSize);
 
       if (rc == 0) {
@@ -1384,10 +1384,10 @@ void ExtractTrack (MP4FileHandle mp4File, MP4TrackId trackId,
       if (prependES && sampleId == 1) {
 	u_int8_t* pConfig = NULL;
 	u_int32_t configSize = 0;
-	
-	if (MP4GetTrackESConfiguration(mp4File, trackId, 
+
+	if (MP4GetTrackESConfiguration(mp4File, trackId,
 				       &pConfig, &configSize)) {
-			
+
 	  if (configSize != 0) {
 	    write(outFd, pConfig, configSize);
 	  }
@@ -1416,7 +1416,7 @@ bool Is3GPP(MP4FileHandle mp4File)
 {
   u_int32_t numberOfTracks = MP4GetNumberOfTracks(mp4File);
   u_int32_t i;
- 
+
 
   for (i = 0 ; i < numberOfTracks ; i++) {
     MP4TrackId trackId = MP4FindTrackId(mp4File, i);

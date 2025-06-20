@@ -20,17 +20,17 @@ AstFrameBuffer::AstFrameBuffer(bool blocking, bool fifo)
 	//Create condition
 	bigJumps = 0;
 	cycle = 0;
-	
+
 	this->blocking = blocking;
 	this->isfifo = fifo;
 
 	pthread_mutex_init(&mutex,NULL);
 	//Create condition
-	pthread_cond_init(&cond,NULL);	
+	pthread_cond_init(&cond,NULL);
 	pcond = &cond;
-	
+
 	signalled = false;
-	
+
 	traceFile = NULL;
 }
 
@@ -54,12 +54,12 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	ast_frame * f2;
 
 	pthread_mutex_lock(&mutex);
-	if (cancel) 
+	if (cancel)
 	{
 		pthread_mutex_unlock(&mutex);
 		return false;
 	}
-	
+
 	if (ignore_cseq || isfifo)
 	{
 		seq = dummyCseq;
@@ -68,7 +68,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 	else
 	{
 		seq = f->seqno + cycle*0x10000;
-		
+
 		// Ignoring strange frames
 		if (f->seqno > 0xFFFF)
 		{
@@ -76,14 +76,14 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 			pthread_mutex_unlock(&mutex);
 			return false;
 		}
-		
+
 		if (f->seqno == 0xFFFF)
 		{
 			cycle++;
 		}
 		else if (seq < dummyCseq && dummyCseq-seq > 0xF000 )
 		{
-			// We missed the cycle because of packet loss ... 
+			// We missed the cycle because of packet loss ...
 			cycle++;
 			// We need to reecompute seq
 			seq = f->seqno + cycle*0x10000;
@@ -98,7 +98,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 			return false;
 		}
 	}
-		
+
 	//ast_log(LOG_DEBUG, "Adding packet %p seq=%ld, isfifo=%d, ignorecseq=%d.\n", this, seq, isfifo, ignore_cseq);
 
 	//If already past
@@ -112,9 +112,9 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 			if (traceFile) fprintf(traceFile,  "ADD: seq=%lu < next=%lu: too many out of sequence packet\n", seq, next);
 			hurryUp  = true;
 			bigJumps = 0;
-			
+
 		}
-		else 
+		else
 		{
 			DWORD diff = next-seq;
 
@@ -131,7 +131,7 @@ bool AstFrameBuffer::Add(const ast_frame * f, bool ignore_cseq)
 
 	//Add event
 	f2 = ast_frdup(f);
-	
+
 	// 0 = use native CSEQ
 	// 1 = overwrite CSEQ
 	// 2 = behave as simple fifo but do NOT rewrite CSEQ
@@ -177,9 +177,9 @@ static int conf_wait_timeout(pthread_cond_t * p_cond, pthread_mutex_t * p_mutex,
 {
 	timespec ts;
 	struct timeval now;
-		
+
 	gettimeofday(&now,0);
-	
+
 	if (ms <= 0) return 0;
 	//Calculate until when we have to sleep
 	ts.tv_sec  = (time_t) (now.tv_sec + ms / 1000);
@@ -190,7 +190,7 @@ static int conf_wait_timeout(pthread_cond_t * p_cond, pthread_mutex_t * p_mutex,
 		now.tv_usec -= 1000000;
 	}
 	ts.tv_nsec = now.tv_usec*1000;
-	
+
 	return pthread_cond_timedwait(p_cond, p_mutex, &ts);
 }
 
@@ -205,7 +205,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 
 	//Lock
 	pthread_mutex_lock(&mutex);
-	
+
 	len = 0;
 	//While we have to wait
 	while (!cancel)
@@ -222,7 +222,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 /*
 			if (seq != next)
 			    Log("seq=%lu, next=%lu, sz=%u, blocking=%d\n", seq, next, sz, blocking);
-*/			
+*/
 			//Check if first is the one expected or wait if not
 			if (HasPacketReady(seq))
 			{
@@ -230,7 +230,7 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				rtp = it->second;
 				nbLost = 0;
 
-				if (seq==next) 
+				if (seq==next)
 				{
 					bigJumps = 0;
 					if (traceFile) fprintf(traceFile, "GET: seq=%lu - normal case.\n", seq, next);
@@ -252,18 +252,18 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				{
 					if (traceFile) fprintf(traceFile, "GET: seq=%lu strange case\n", seq);
 				}
-				
+
 				//Update next
 				next = seq+1;
 				if (hurryUp) hurryUp = false;
-				
+
 			        //Log("Got packet buff=%p seq=%lu, next=%lu, blocking=%d\n", this, seq, next, blocking);
 				//Remove it
 				packets.erase(it);
 				//Return it!
 				break;
 			}
-			
+
 			if (seq < next)
 			{
 				if (traceFile) fprintf(traceFile, "GET: dropping paquet seq=%lu, next=%lu\n", seq, next);
@@ -271,17 +271,17 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				packets.erase(it);
 				continue;
 			}
-		} 
-		
-		if (blocking && block) 
-		{			
+		}
+
+		if (blocking && block)
+		{
 			int ret;
 			if (maxWaitTime > 0)
-			{                        				
+			{
 				ret = conf_wait_timeout(pcond,&mutex, maxWaitTime);
                 //Check if there is an errot different than timeout
                 if (ret)
-				{					
+				{
 					if (ret != ETIMEDOUT)
                         Error("-WaitQueue cond timedwait error [%d,%d]\n", ret, errno);
 					else
@@ -294,11 +294,11 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 				hurryUp = false;
 				ret = pthread_cond_wait(pcond, &mutex);
 			}
-			
+
 			if (ret < 0)
 			{
 				break;
-			}		
+			}
 		}
 		else
 		{
@@ -306,9 +306,9 @@ struct ast_frame * AstFrameBuffer::Wait(bool block)
 			break;
 		}
 	}
-	
+
 	pthread_mutex_unlock(&mutex);
-	
+
 	//canceled
 	return rtp;
 }
@@ -332,7 +332,7 @@ void AstFrameBuffer::ClearPackets()
 int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWORD maxWaitTime, AstFrameBuffer * jbTabOut[])
 {
 	if (!jbTab[0]) return -1;
-	
+
 	if (nbjb > MAX_FDS_FOR_JB) nbjb = MAX_FDS_FOR_JB;
 	if (nbjb > 0)
 	{
@@ -342,7 +342,7 @@ int AstFrameBuffer::WaitMulti(AstFrameBuffer * jbTab[], unsigned long nbjb, DWOR
 		{
 			jbTabOut[i] = NULL;
 		}
-		
+
 		/* Use condition pointer of first framebuffer. Normally, all pcond of all jitterbuffer should be the same */
 		pthread_mutex_lock(&jbTab[0]->mutex);
 		ret = conf_wait_timeout(jbTab[0]->pcond, &jbTab[0]->mutex, maxWaitTime);
@@ -396,8 +396,8 @@ bool AstFrameBuffer::OpenTraceFile(const char * filename)
 	Log("Trace file already open.\n");
 	return true;
 }
-			
-		
+
+
 /* ------------------------ C API ------------------------------------ */
 
 struct AstFb *AstFbCreate(unsigned long maxWaitTime, int blocking, int fifo)
@@ -438,8 +438,8 @@ void AstFbCancel(struct AstFb *fb)
 void AstFbReset(struct AstFb *fb)
 {
 	((AstFrameBuffer *) fb)->Reset();
-} 
- 
+}
+
 DWORD AstFbLength(struct AstFb *fb)
 {
 	return ((AstFrameBuffer *) fb)->Length();

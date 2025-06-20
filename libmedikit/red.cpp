@@ -9,8 +9,8 @@ RTPRedundantPayload::RTPRedundantPayload(BYTE *data,DWORD size)
 	primaryType = 0;
 	primaryData = NULL;
 	primarySize = 0;
-	
-	if ( data != NULL && size > 0 ) ParseRed(data, size); 
+
+	if ( data != NULL && size > 0 ) ParseRed(data, size);
 }
 
 void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
@@ -54,7 +54,7 @@ void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 		       block excluding header.
 
 		 */
-		
+
 		//Get Type
 		BYTE type = payload[i++] & 0x7F;
 		//Get offset
@@ -97,7 +97,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
     BYTE* red = (BYTE *) redFrame->GetData();
     //Init buffer length
     DWORD bufferLen = 0;
-    
+
     //Fill with empty redundant packets
     for (int i=0;i<2-reds.size();i++)
     {
@@ -178,7 +178,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
             //Push new empty frame
             reds.push_back(new TextFrame(lastTime,(wchar_t*)NULL,0));
     }
-	
+
     //Check size of the queue
     if (reds.size()==3)
     {
@@ -188,7 +188,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
             reds.pop_front();
     }
 	bool isNotNull=false;
-	
+
     //Calculate timeouts
     if (frame)
     {
@@ -200,7 +200,7 @@ void RTPRedundantEncoder::Encode(MediaFrame * frame)
     else
     {
         int nbactivefr = 0;
-		
+
         for (RedFrames::iterator it = reds.begin();it!=reds.end();++it)
         {
             //Get frame and go to next
@@ -254,6 +254,6 @@ RTPRedundantEncoder::~RTPRedundantEncoder()
         //Dequeue
         reds.pop_front();
     }
-	
+
 	if (redFrame) delete redFrame;
 }

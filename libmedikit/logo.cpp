@@ -36,17 +36,17 @@ Logo & Logo::operator =(const Logo& l)
 		free(frame);
 		frame = NULL;
 	}
-	
+
     width = l.width;
     height= l.height;
 	//Get size with padding
 	DWORD size = (((width/32+1)*32)*((height/32+1)*32)*3)/2;
-	
+
 	//Allocate frame
 	if (frame == NULL) frame = (BYTE*)malloc(size); /* size for YUV 420 */
-	
+
 	memcpy(frame,l.frame, size);
-   
+
 }
 
 int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
@@ -64,8 +64,8 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 	int size = 0;
 
 	//Init ffmpeg in case it wasn't
-	av_register_all();	
-	
+	av_register_all();
+
 	//Create context from file
 	if(avformat_open_input(&fctx, fileName, NULL, NULL)<0)
 		return Error("Couldn't open the logo image file [%s]\n",fileName);
@@ -96,7 +96,7 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 		//Free resources
 		goto end;
 	}
-	
+
 	//Open codec
 	if (avcodec_open2(ctx, codec, NULL)<0)
 	{
@@ -197,7 +197,7 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 	av_opt_set_int(sws, "dsth",       height		,AV_OPT_SEARCH_CHILDREN);
 	av_opt_set_int(sws, "dst_format", AV_PIX_FMT_YUV420P	,AV_OPT_SEARCH_CHILDREN);
 	av_opt_set_int(sws, "sws_flags",  SWS_FAST_BILINEAR	,AV_OPT_SEARCH_CHILDREN);
-	
+
 	// Init YUV rescaller context
 	if (sws_init_context(sws, NULL, NULL) < 0)
 	{
@@ -233,7 +233,7 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 
 	//Convert
 	sws_scale(sws, logoRGB->data, logoRGB->linesize, 0, height, logo->data, logo->linesize);
-	
+
 	//Everything was ok
 	res = 1;
 
@@ -254,7 +254,7 @@ end:
 		avformat_close_input(&fctx);
 
 	//Exit
-	return res;	
+	return res;
 }
 
 int Logo::GetWidth()
@@ -306,19 +306,19 @@ void Logo::PaintBlackRectangle(unsigned int pwidth, unsigned int pheight)
 		free(frame);
 		frame = NULL;
 	}
-	
+
 	width = pwidth;
 	height = pheight;
 	unsigned int size =  GetSize();
 	unsigned int numPixels = pwidth*pheight;
 	frame = (BYTE*)malloc(size); /* size for YUV 420 */
-	
+
 	if ( frame )
 	{
 	    BYTE *lineaY = frame;
 	    BYTE *lineaU = frame + numPixels;
 	    BYTE *lineaV = lineaU + numPixels/4;
-	    
+
 	    memset(lineaY, 0, numPixels);
 	    memset(lineaU, (BYTE) -128, numPixels/4);
 	    memset(lineaV, (BYTE) -128, numPixels/4);

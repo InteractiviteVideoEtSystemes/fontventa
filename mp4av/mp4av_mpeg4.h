@@ -3,19 +3,19 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
@@ -36,13 +36,13 @@
 extern "C" {
 #endif
 
-int32_t MP4AV_Mpeg4FindHeader (const uint8_t *pStart, 
+int32_t MP4AV_Mpeg4FindHeader (const uint8_t *pStart,
 			       uint32_t buflen,
-			       bool do_header_type DEFAULT_PARM(false), 
+			       bool do_header_type DEFAULT_PARM(false),
 			       uint8_t header_type DEFAULT_PARM(0));
   uint8_t *MP4AV_Mpeg4FindVosh(uint8_t *pBuf, uint32_t bufLen);
 bool MP4AV_Mpeg4ParseVosh(
-	u_int8_t* pVoshBuf, 
+	u_int8_t* pVoshBuf,
 	u_int32_t voshSize,
 	u_int8_t* pProfileLevel);
 
@@ -59,12 +59,12 @@ bool MP4AV_Mpeg4CreateVo(
   uint8_t *MP4AV_Mpeg4FindVol(uint8_t *pBuf, uint32_t buflen);
 
 bool MP4AV_Mpeg4ParseVol(
-	u_int8_t* pVolBuf, 
+	u_int8_t* pVolBuf,
 	u_int32_t volSize,
-	u_int8_t* pTimeBits, 
-	u_int16_t* pTimeTicks, 
-	u_int16_t* pFrameDuration, 
-	u_int16_t* pFrameWidth, 
+	u_int8_t* pTimeBits,
+	u_int16_t* pTimeTicks,
+	u_int16_t* pFrameDuration,
+	u_int16_t* pFrameWidth,
 	u_int16_t* pFrameHeight,
 	u_int8_t * aspectRatioDefine DEFAULT_PARM(NULL),
 	u_int8_t * aspectRatioWidth DEFAULT_PARM(NULL),
@@ -82,23 +82,23 @@ bool MP4AV_Mpeg4CreateVol(
 	u_int8_t* pTimeBits DEFAULT_PARM(NULL));
 
 bool MP4AV_Mpeg4ParseGov(
-	u_int8_t* pGovBuf, 
+	u_int8_t* pGovBuf,
 	u_int32_t govSize,
-	u_int8_t* pHours, 
-	u_int8_t* pMinutes, 
+	u_int8_t* pHours,
+	u_int8_t* pMinutes,
 	u_int8_t* pSeconds);
 
   uint8_t *MP4AV_Mpeg4FindVop(uint8_t *pBuf, uint32_t buflen);
 bool MP4AV_Mpeg4ParseVop(
-	u_int8_t* pVopBuf, 
+	u_int8_t* pVopBuf,
 	u_int32_t vopSize,
-	int* pVopType, 
-	u_int8_t timeBits, 
-	u_int16_t timeTicks, 
+	int* pVopType,
+	u_int8_t timeBits,
+	u_int16_t timeTicks,
 	u_int32_t* pVopTimeIncrement);
 
 int MP4AV_Mpeg4GetVopType(
-	u_int8_t* pVopBuf, 
+	u_int8_t* pVopBuf,
 	u_int32_t vopSize);
 
   const char *MP4AV_Mpeg4VisualProfileName (uint8_t profile);

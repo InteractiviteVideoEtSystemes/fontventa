@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -74,7 +74,7 @@ void H223AL2Receiver::SendClosingFlag()
 
 	//Dump media
 	logger->DumpMediaInput(data+useSN,dataLen-useSN-1);
-	
+
 	//Calc
 	if (data[dataLen-1]!=crc.Calc())
 		goto clean;
@@ -127,7 +127,7 @@ H223MuxSDU* H223AL2Sender::GetNextPDU()
 	//Get next element from jitter buffer
 	pdu = jitBuf.GetSDU();
 
-	//Send 
+	//Send
 	return pdu;
 }
 

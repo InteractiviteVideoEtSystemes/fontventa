@@ -25,7 +25,7 @@ private:
 	int segmentableChannel;
 	H223SDUListener* sduListener;
 	H223MuxSDU sdu;
-	Logger *logger;	
+	Logger *logger;
 };
 
 
@@ -55,7 +55,7 @@ private:
 	jitterBuffer jitBuf;
 	int minPackets;
 	int minDelay;
-	Logger *logger;	
+	Logger *logger;
 };
 
 #endif

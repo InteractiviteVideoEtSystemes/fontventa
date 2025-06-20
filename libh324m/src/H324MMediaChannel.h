@@ -61,7 +61,7 @@ private:
 	DWORD nextPacket;
 };
 
-class H324MAudioChannel : 
+class H324MAudioChannel :
 	public H324MMediaChannel
 {
 public:

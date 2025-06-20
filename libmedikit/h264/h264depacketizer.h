@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   h264depacketizer.h
  * Author: Sergio
  *
@@ -23,7 +23,7 @@ public:
 	{
 		useStartCode = use;
 	}
-	
+
 	bool MayBeIntra() { return hasPPS || hasSPS || frame.IsIntra(); }
 private:
 	VideoFrame frame;

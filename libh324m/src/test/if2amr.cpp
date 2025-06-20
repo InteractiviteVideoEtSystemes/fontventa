@@ -8,7 +8,7 @@
 
 static short blockSize[16] = { 12, 13, 15, 17, 19, 20, 26, 31,  5, -1, -1, -1, -1, -1, -1, -1};
 
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
 	//Check params
 	if (argc<3)
@@ -77,15 +77,15 @@ int main(int argc, char** argv)
 
 		//Reverse
 		TIFFReverseBits(buffer+1,size);
-			
+
 		//Save frame
-		write(fdOut,buffer,size+1);	
-	}	
-	
+		write(fdOut,buffer,size+1);
+	}
+
 	//close files
 	close(fdOut);
 	close(fdIn);
 
 	//Exit
 	return(0);
-} 
+}

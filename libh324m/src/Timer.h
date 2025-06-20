@@ -18,11 +18,11 @@ private:
 		bool	set;
 		DWORD	when;
 
-		Data(Handler h,void* d);		
+		Data(Handler h,void* d);
 		void Set(DWORD t);
 		void Reset();
 	};
-	
+
 	typedef list<Data*> ListTimers;
 public:
 	Timer();

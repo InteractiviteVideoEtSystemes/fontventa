@@ -18,7 +18,7 @@ app_mp4.so: libmedkit.a
 app_transcoder.so:
 	cd app_transcoder; make
 
-app_rtsp.so: 
+app_rtsp.so:
 	cd app_rtsp ; make
 
 astlog:

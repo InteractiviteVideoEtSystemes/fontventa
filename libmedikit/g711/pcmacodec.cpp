@@ -50,5 +50,5 @@ int PCMADecoder::Decode (BYTE *in,int inLen,SWORD* out,int outLen)
 	for (int j = 0; j< inLen ;j++)
 		out[j]=alaw2linear(in[j]);
 
-	return inLen;	
+	return inLen;
 }

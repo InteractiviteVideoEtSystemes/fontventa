@@ -269,7 +269,7 @@ H263MVDTableVlc::H263MVDTableVlc()
 	for (int i=0;i<64;i++)
 		//add vlc code
 		AddValue(H263MVDTable[i].code,H263MVDTable[i].len,&H263MVDTable[i]);
-	
+
 
 }
 H263TCOEFTableVlc::H263TCOEFTableVlc()
@@ -867,7 +867,7 @@ bool H263RFC2190Paquetizer::PaquetizeFrame(VideoFrame	*frame)
 						frame->AddRtpPacket(ini/8, packsetSize, headerA.GetData(), headerA.GetSize(), true);
 						//Move the begining of the last gob
 						ini = lastGOB+1;
-					} else { 
+					} else {
 						//We are not in mode A anymore
 						modeA = false;
 					}

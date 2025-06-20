@@ -2,11 +2,11 @@
 #define _H245_CONNECTION_
 #include "H324pdu.h"
 
-class H245Connection 
+class H245Connection
 {
 public:
 	//Enums
-	enum ControlProtocolSource 
+	enum ControlProtocolSource
 	{
 		e_MasterSlaveDetermination,
 		e_CapabilityExchange,
@@ -16,7 +16,7 @@ public:
 		e_MultiplexTable,
 		e_LogicalChannelRate
 	};
-	
+
 	//Events
 	struct Event
 	{

@@ -3,25 +3,25 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2001-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  *		Mark Baugher		mbaugher@cisco.com
  */
 
 #ifndef __MP4AV_HINTERS_INCLUDED__
-#define __MP4AV_HINTERS_INCLUDED__ 
+#define __MP4AV_HINTERS_INCLUDED__
 
 #define MP4AV_DFLT_PAYLOAD_SIZE		1460
 
@@ -32,38 +32,38 @@ extern "C" {
 #endif
 
 bool MP4AV_Rfc2250Hinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	bool interleave DEFAULT_PARM(false),
 	u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE));
 
 bool MP4AV_Rfc3119Hinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	bool interleave DEFAULT_PARM(false),
 	u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE));
 
 bool MP4AV_RfcIsmaHinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	bool interleave DEFAULT_PARM(false),
 	u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE));
 
 bool MP4AV_RfcIsmaConcatenator(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	u_int8_t samplesThisHint, 
-	MP4SampleId* pSampleIds, 
+	u_int8_t samplesThisHint,
+	MP4SampleId* pSampleIds,
 	MP4Duration hintDuration,
 	u_int16_t maxPayloadSize);
 
 bool MP4AV_RfcIsmaFragmenter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	MP4SampleId sampleId, 
-	u_int32_t sampleSize, 
+	MP4SampleId sampleId,
+	u_int32_t sampleSize,
 	MP4Duration sampleDuration,
 	u_int16_t maxPayloadSize);
 
@@ -83,15 +83,15 @@ void MP4AV_Rfc3016_HintAddSample (
 				  uint16_t maxPayloadSize);
 
 bool MP4AV_Rfc3016Hinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE));
 
-bool MP4AV_Rfc3016LatmHinter(MP4FileHandle mp4File, 
-			     MP4TrackId mediaTrackId, 
+bool MP4AV_Rfc3016LatmHinter(MP4FileHandle mp4File,
+			     MP4TrackId mediaTrackId,
 			     u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE));
 
-bool G711Hinter(MP4FileHandle mp4file, 
+bool G711Hinter(MP4FileHandle mp4file,
 		MP4TrackId trackid,
 		uint16_t maxPayloadSize);
 
@@ -126,16 +126,16 @@ u_int8_t   *salt;
 } mp4av_ismacrypParams;
 
 bool MP4AV_RfcCryptoAudioHinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
         mp4av_ismacrypParams *icPp,
 	bool interleave DEFAULT_PARM(false),
 	u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE),
 	const char* PayloadMIMEType DEFAULT_PARM(""));
 
 bool MP4AV_RfcCryptoVideoHinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
         mp4av_ismacrypParams *icPp,
 	u_int16_t maxPayloadSize DEFAULT_PARM(MP4AV_DFLT_PAYLOAD_SIZE),
 	const char* PayloadMIMEType DEFAULT_PARM(""));
@@ -153,8 +153,8 @@ bool MP4AV_RfcCryptoVideoHinter(
 				bool isSyncSample,
 				uint16_t maxPayloadSize);
 
-  bool MP4AV_H264Hinter(MP4FileHandle mp4File, 
-			MP4TrackId mediaTrackId, 
+  bool MP4AV_H264Hinter(MP4FileHandle mp4File,
+			MP4TrackId mediaTrackId,
 			u_int16_t maxPayloadSize);
 
   int16_t MP4AV_AmrFrameSize(uint8_t mode, bool isAmrWb);
@@ -162,12 +162,12 @@ bool MP4AV_RfcCryptoVideoHinter(
 			   MP4TrackId mediaTrackId,
 			   uint16_t maxPayloadSize);
 
-  bool HrefHinter(MP4FileHandle mp4file, 
+  bool HrefHinter(MP4FileHandle mp4file,
 		  MP4TrackId trackid,
 		  uint16_t maxPayloadSize);
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* __MP4AV_HINTERS_INCLUDED__ */ 
+#endif /* __MP4AV_HINTERS_INCLUDED__ */
 

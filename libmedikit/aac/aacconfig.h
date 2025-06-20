@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   aac.h
  * Author: Sergio
  *
@@ -18,7 +18,7 @@ public:
 	{
 		//Put bytes
 		BitWritter writter(data,24);
-		
+
 		//object type - AAC-LC
 		writter.Put(5,2);
 		//Get rate index
@@ -49,7 +49,7 @@ public:
 	{
 		return data;
 	}
-	
+
 	BYTE GetSampleRateIndex(DWORD rate)
 	{
 		const int rates[16] = {

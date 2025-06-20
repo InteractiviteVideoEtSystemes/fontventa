@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -46,10 +46,10 @@ BOOL H245TerminalCapability::TransferRequest(H245Capabilities* capabilities)
 	//Logger::Debug
 	Logger::Debug("H245 TerminalCapabilitySet TransferRequest\n");
 
-	//We are already in progress 
-	if (outState != e_Idle) 
+	//We are already in progress
+	if (outState != e_Idle)
 		return TRUE;
-	
+
 	//Incremente out secuance number
 	outSequenceNumber = (outSequenceNumber+1)%256;
 
@@ -69,7 +69,7 @@ BOOL H245TerminalCapability::TransferRequest(H245Capabilities* capabilities)
 BOOL H245TerminalCapability::HandleAck(const H245_TerminalCapabilitySetAck & pdu)
 {
 	Logger::Debug("H245 Received TerminalCapabilitySetAck\n");
-	
+
 	//Check sequence number
 	if (pdu.m_sequenceNumber != outSequenceNumber)
 		//Exit
@@ -90,7 +90,7 @@ BOOL H245TerminalCapability::HandleAck(const H245_TerminalCapabilitySetAck & pdu
 BOOL H245TerminalCapability::HandleReject(const H245_TerminalCapabilitySetReject & pdu)
 {
 	Logger::Debug("H245 Received TerminalCapabilitySetReject\n");
-	
+
 	//Check sequence number
 	if (pdu.m_sequenceNumber != outSequenceNumber)
 		//Exit
@@ -114,10 +114,10 @@ BOOL H245TerminalCapability::HandleReject(const H245_TerminalCapabilitySetReject
 BOOL H245TerminalCapability::HandleIncoming(const H245_TerminalCapabilitySet & pdu)
 {
 	Logger::Debug("H245 Received TerminalCapabilitySet\n");
-	
+
 	//Check secuence number
-	if (pdu.m_sequenceNumber == inSequenceNumber) 
-		return TRUE;	
+	if (pdu.m_sequenceNumber == inSequenceNumber)
+		return TRUE;
 
 	//Get incoming sequence number
 	inSequenceNumber = pdu.m_sequenceNumber;
@@ -130,7 +130,7 @@ BOOL H245TerminalCapability::HandleIncoming(const H245_TerminalCapabilitySet & p
 
 	//Send indication
 	return connection.OnEvent(Event(e_TransferIndication,&remoteCapabilities));
-	
+
 }
 
 BOOL H245TerminalCapability::TransferResponse(int accept)
@@ -147,10 +147,10 @@ BOOL H245TerminalCapability::TransferResponse(int accept)
 		reply.BuildTerminalCapabilitySetAck(inSequenceNumber);
 	else
 		reply.BuildTerminalCapabilitySetReject(inSequenceNumber,H245_TerminalCapabilitySetReject_cause::e_unspecified);
-	
+
 	//State
 	inState = e_Idle;
-	
+
 	//Exit
 	return connection.WriteControlPDU(reply);
 }

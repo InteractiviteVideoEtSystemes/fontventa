@@ -157,7 +157,7 @@ public:
 	{
 
 	}
-	
+
 	inline int Error(const char *msg, ...)
 	{
 		return 0;

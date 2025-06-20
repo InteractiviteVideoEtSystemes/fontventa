@@ -5,7 +5,7 @@ extern "C" uint32_t MP4AV_AmrGetSamplingWindow (uint32_t freq)
   return freq == 16000 ? 320 : 160;
 }
 
-extern "C" bool MP4AV_AmrGetNextFrame (const uint8_t *buf, 
+extern "C" bool MP4AV_AmrGetNextFrame (const uint8_t *buf,
 				       uint32_t buflen,
 				       uint32_t *frame_len,
 				       bool have_amr_nb)
@@ -29,7 +29,7 @@ extern "C" bool MP4AV_AmrGetNextFrame (const uint8_t *buf,
     }
 
     *frame_len = pBlockSize[decMode] + 1;
-    if (buflen < *frame_len) 
+    if (buflen < *frame_len)
       return false;
     return true;
 }

@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -135,13 +135,13 @@ void H324CCSRLayer::SendClosingFlag()
 			{
 				//Decode
 				H324ControlPDU pdu;
-	
+
 				//Decode
 				while (!ccsrl.IsAtEnd() && pdu.Decode(ccsrl))
 				{
 					//Launch event
 					OnControlPDU(pdu);
-					
+
 					//Byte aling the stream
 					ccsrl.ByteAlign();
 
@@ -153,7 +153,7 @@ void H324CCSRLayer::SendClosingFlag()
 				//Reset the decoder just if something went wrong
 				ccsrl.ResetDecoder();
 
-				//Clean 
+				//Clean
 				ccsrl.SetSize(0);
 			}
 			break;
@@ -202,7 +202,7 @@ void H324CCSRLayer::SendNSRP(BYTE sn)
 
 	//Get the crc
 	WORD c = crc.Calc();
-	
+
 	//Create the SDU
 	H223MuxSDU* rpl = new H223MuxSDU(header,2);
 
@@ -290,7 +290,7 @@ void H324CCSRLayer::BuildCMD()
 
 		//Get the crc
 		WORD c = crc.Calc();
-	
+
 		//Add crc
 		cmd->Push(((BYTE*)&c)[0]);
 		cmd->Push(((BYTE*)&c)[1]);
@@ -335,7 +335,7 @@ H223MuxSDU* H324CCSRLayer::GetNextPDU()
 			//No comand
 			cmd = NULL;
 		}
-		
+
 		//If we don't have elements
 		if (cmds.size()==0)
 			return NULL;
@@ -344,7 +344,7 @@ H223MuxSDU* H324CCSRLayer::GetNextPDU()
 		cmd = cmds.front();
 
 		//Remove
-		cmds.pop_front();	
+		cmds.pop_front();
 
 		//Update last sequence numbar
 		cmdsn = (cmdsn+1)%256;
@@ -352,13 +352,13 @@ H223MuxSDU* H324CCSRLayer::GetNextPDU()
 		//Sending cmd
 		Logger::Debug("Sending CMD [%d] - %d left\n",cmdsn,cmds.size());
 		{
-			
+
 			PPER_Stream aux;
 			aux.Concatenate(PBYTEArray(cmd->GetPointer()+3,cmd->Length()-5));
 
 			//Decode
 			H324ControlPDU pdu;
-			
+
 			fstream log;
 			//log.open ("c:\\logs\\h245.txt",ios::out|ios::app);
 			log.open ("h245.log",ios::out|ios::app);
@@ -393,7 +393,7 @@ H223MuxSDU* H324CCSRLayer::GetNextPDU()
 
 		//Logger::Debug("-Send retry CMD\n");
 	}
-	
+
 	//Return cmd
 	return cmd;
 }
@@ -422,7 +422,7 @@ int H324CCSRLayer::OnControlPDU(H324ControlPDU &pdu)
 
 int H324CCSRLayer::IsSegmentable()
 {
-	//In fact it should be nonsegmentable and framed but.. 
+	//In fact it should be nonsegmentable and framed but..
 	//for muxer its segmentable to send the closing flag
 	return 1;
 }

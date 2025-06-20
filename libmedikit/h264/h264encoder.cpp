@@ -125,7 +125,7 @@ int H264Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 		//Reconfig
 		x264_encoder_reconfig(enc,&params);
 	}
-	
+
 	return 1;
 }
 
@@ -137,7 +137,7 @@ int H264Encoder::OpenCodec()
 {
 	Log("-OpenCodec H264 [%dkbps,%dfps,%dintra]\n",bitrate,fps,intraPeriod);
 
-	// Check 
+	// Check
 	if (opened)
 		return Error("Codec already opened\n");
 
@@ -179,7 +179,7 @@ int H264Encoder::OpenCodec()
 	params.rc.i_lookahead       = 0;
 	params.i_sync_lookahead	    = 0;
 	params.i_bframe             = 0;
-	params.b_annexb		    = 0; 
+	params.b_annexb		    = 0;
 	params.b_repeat_headers     = 1;
 	params.i_fps_num	    = fps;
 	params.i_fps_den	    = 1;
@@ -259,7 +259,7 @@ int H264Encoder::OpenCodec()
 
 	//Set picture type
 	pic.i_type = X264_TYPE_AUTO;
-	
+
 	// We are opened
 	opened = true;
 
@@ -293,18 +293,18 @@ VideoFrame* H264Encoder::EncodeFrame(BYTE *buffer,DWORD bufferSize)
 	pic.img.plane[2] = buffer+numPixels*5/4;
 	pic.img.i_stride[0] = width;
 	pic.img.i_stride[1] = width/2;
-	pic.img.i_stride[2] = width/2; 
+	pic.img.i_stride[2] = width/2;
 	pic.img.i_csp   = X264_CSP_I420;
 	pic.img.i_plane = 3;
 	pic.i_pts  = pts++;
-	
+
 	/* IVeS - patch send one I-frame every 2 sec during first intra period */
 	if ( pic.i_pts < 8*fps && (pic.i_pts % (2*fps) == 0) )
     {
         pic.i_type = X264_TYPE_I;
     }
-	
-	
+
+
 	// Encode frame and get length
 	int len = x264_encoder_encode(enc, &nals, &numNals, &pic, &pic_out);
 
@@ -361,7 +361,7 @@ VideoFrame* H264Encoder::EncodeFrame(BYTE *buffer,DWORD bufferSize)
 
 	//Set first nal
 	curNal = 0;
-	
+
 	return frame;
 }
 

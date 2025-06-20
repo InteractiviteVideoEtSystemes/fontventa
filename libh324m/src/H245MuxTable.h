@@ -5,7 +5,7 @@
 #include "H223MuxTable.h"
 
 class H245MuxTable:
-	public H245Negotiator 
+	public H245Negotiator
 {
 public:
 

@@ -128,18 +128,18 @@ class H324ControlPDU : public H245_MultimediaSystemControlMessage
 	);
 
 	H245_LogicalChannelRateRequest & BuildLogicalChannelRequest(
-			unsigned int seqOrder, 
-			unsigned int channel, 
+			unsigned int seqOrder,
+			unsigned int channel,
 			unsigned int bitRate
 		);
 	H245_LogicalChannelRateAcknowledge & BuildLogicalChannelRateAck(
-			unsigned int seqOrder, 
-			unsigned int channel, 
+			unsigned int seqOrder,
+			unsigned int channel,
 			unsigned int bitRate);
 
 	H245_LogicalChannelRateReject & BuildLogicalChannelRateReject(
-			unsigned int seqOrder, 
-			unsigned int channel, 
+			unsigned int seqOrder,
+			unsigned int channel,
 			unsigned int bitRate,
 			H245_LogicalChannelRateRejectReason::Choices reason);
 };

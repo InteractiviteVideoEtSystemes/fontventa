@@ -3,25 +3,25 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May   wmay@cisco.com
  */
 
 #include <mp4av_common.h>
 
-extern "C" bool HrefHinter (MP4FileHandle mp4file, 
+extern "C" bool HrefHinter (MP4FileHandle mp4file,
 			    MP4TrackId trackid,
 			    uint16_t maxPayloadSize)
 {
@@ -44,13 +44,13 @@ extern "C" bool HrefHinter (MP4FileHandle mp4file,
 
   payload = MP4_SET_DYNAMIC_PAYLOAD;
 
-  MP4SetHintTrackRtpPayload(mp4file, 
-			    hintTrackId, 
-			    "X-HREF", 
-			    &payload, 
+  MP4SetHintTrackRtpPayload(mp4file,
+			    hintTrackId,
+			    "X-HREF",
+			    &payload,
 			    0,
 			    NULL,
-			    true, 
+			    true,
 			    false);
 
   for (sampleId = 1; sampleId <= numSamples; sampleId++) {
@@ -66,11 +66,11 @@ extern "C" bool HrefHinter (MP4FileHandle mp4file,
     MP4AddRtpImmediateData(mp4file, hintTrackId, payloadHeader, sizeof(payloadHeader));
 
     MP4AddRtpSampleData(mp4file, hintTrackId, sampleId, 0, sampleSize);
-    MP4WriteRtpHint(mp4file, 
-		    hintTrackId, 
+    MP4WriteRtpHint(mp4file,
+		    hintTrackId,
 		    MP4GetSampleDuration(mp4file, trackid, sampleId));
   }
 
   return true; // will never reach here
 }
-  
+

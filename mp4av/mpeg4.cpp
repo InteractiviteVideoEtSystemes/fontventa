@@ -3,32 +3,32 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2004.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 
 #include <mp4av_common.h>
 
-extern "C" int32_t MP4AV_Mpeg4FindHeader (const uint8_t *pStart, 
+extern "C" int32_t MP4AV_Mpeg4FindHeader (const uint8_t *pStart,
 					  uint32_t buflen,
-					  bool do_header_type, 
+					  bool do_header_type,
 					  uint8_t header_type)
 {
   const uint8_t *pBuf = pStart;
@@ -47,15 +47,15 @@ extern "C" int32_t MP4AV_Mpeg4FindHeader (const uint8_t *pStart,
 
 extern "C" uint8_t *MP4AV_Mpeg4FindVosh (uint8_t *pBuf, uint32_t buflen)
 {
-  int32_t ret = 
+  int32_t ret =
     MP4AV_Mpeg4FindHeader(pBuf, buflen, true, MP4AV_MPEG4_VOSH_START);
   if (ret < 0) return NULL;
-  
+
   return pBuf + ret;
 }
 
 extern "C" bool MP4AV_Mpeg4ParseVosh(
-				     u_int8_t* pVoshBuf, 
+				     u_int8_t* pVoshBuf,
 				     u_int32_t voshSize,
 				     u_int8_t* pProfileLevel)
 {
@@ -140,28 +140,28 @@ extern "C" bool MP4AV_Mpeg4CreateVo(
 
 extern "C" uint8_t *MP4AV_Mpeg4FindVol (uint8_t *pBuf, uint32_t buflen)
 {
-  int32_t ret = 
+  int32_t ret =
     MP4AV_Mpeg4FindHeader(pBuf, buflen, true, MP4AV_MPEG4_VOL_START);
   if (ret < 0) return NULL;
-  
+
   return pBuf + ret;
 }
 extern "C" uint8_t *MP4AV_Mpeg4FindVop (uint8_t *pBuf, uint32_t buflen)
 {
-  int32_t ret = 
+  int32_t ret =
     MP4AV_Mpeg4FindHeader(pBuf, buflen, true, MP4AV_MPEG4_VOP_START);
   if (ret < 0) return NULL;
-  
+
   return pBuf + ret;
 }
 
 extern "C" bool MP4AV_Mpeg4ParseVol(
-	u_int8_t* pVolBuf, 
+	u_int8_t* pVolBuf,
 	u_int32_t volSize,
-	u_int8_t* pTimeBits, 
-	u_int16_t* pTimeTicks, 
-	u_int16_t* pFrameDuration, 
-	u_int16_t* pFrameWidth, 
+	u_int8_t* pTimeBits,
+	u_int16_t* pTimeTicks,
+	u_int16_t* pFrameDuration,
+	u_int16_t* pFrameWidth,
 	u_int16_t* pFrameHeight,
 	u_int8_t * aspectRatioDefine,
 	u_int8_t * aspectRatioWidth,
@@ -187,11 +187,11 @@ extern "C" bool MP4AV_Mpeg4ParseVol(
 		if (aspectRatioDefine != NULL)
 		  *aspectRatioDefine = aspect;
 		if (aspect == 0xF) { 	// aspect ratio info
-		  if (aspectRatioWidth != NULL) 
+		  if (aspectRatioWidth != NULL)
 		    *aspectRatioWidth = vol.GetBits(8);
 		  else
 		    vol.SkipBits(8);				// par width
-		  if (aspectRatioHeight != NULL) 
+		  if (aspectRatioHeight != NULL)
 		    *aspectRatioHeight = vol.GetBits(8);
 		  else
 		    vol.SkipBits(8);				// par height
@@ -218,7 +218,7 @@ extern "C" bool MP4AV_Mpeg4ParseVol(
 			vol.SkipBits(4);				// object layer shape extension
 		}
 		vol.SkipBits(1);				// marker bit
-		*pTimeTicks = vol.GetBits(16);		// vop time increment resolution 
+		*pTimeTicks = vol.GetBits(16);		// vop time increment resolution
 
 		u_int8_t i;
 		u_int32_t powerOf2 = 1;
@@ -233,7 +233,7 @@ extern "C" bool MP4AV_Mpeg4ParseVol(
 		vol.SkipBits(1);				// marker bit
 		if (vol.GetBits(1)) {			// fixed vop rate
 			// fixed vop time increment
-			*pFrameDuration = vol.GetBits(*pTimeBits); 
+			*pFrameDuration = vol.GetBits(*pTimeBits);
 		} else {
 			*pFrameDuration = 0;
 		}
@@ -287,7 +287,7 @@ extern "C" bool MP4AV_Mpeg4CreateVol(
 		/* 1 bit - random access = 0 (1 only if every VOP is an I frame) */
 		vol.PutBits(0, 1);
 		/*
-		 * 8 bits - type indication 
+		 * 8 bits - type indication
 		 * 		= 1 (simple profile)
 		 * 		= 4 (main profile)
 		 */
@@ -295,9 +295,9 @@ extern "C" bool MP4AV_Mpeg4CreateVol(
 		/* 1 bit - is object layer id = 1 */
 		vol.PutBits(1, 1);
 		/* 4 bits - visual object layer ver id = 1 */
-		vol.PutBits(1, 4); 
+		vol.PutBits(1, 4);
 		/* 3 bits - visual object layer priority = 1 */
-		vol.PutBits(1, 3); 
+		vol.PutBits(1, 3);
 
 		/* 4 bits - aspect ratio info = 1 (square pixels) */
 		vol.PutBits(1, 4);
@@ -333,7 +333,7 @@ extern "C" bool MP4AV_Mpeg4CreateVol(
 		} else {
 			vol.PutBits(1, 1);
 
-			u_int16_t frameDuration = 
+			u_int16_t frameDuration =
 				(u_int16_t)((double)ticks / frameRate);
 
 			/* 1-16 bits - fixed vop time increment in ticks */
@@ -406,10 +406,10 @@ extern "C" bool MP4AV_Mpeg4CreateVol(
 }
 
 extern "C" bool MP4AV_Mpeg4ParseGov(
-	u_int8_t* pGovBuf, 
+	u_int8_t* pGovBuf,
 	u_int32_t govSize,
-	u_int8_t* pHours, 
-	u_int8_t* pMinutes, 
+	u_int8_t* pHours,
+	u_int8_t* pMinutes,
 	u_int8_t* pSeconds)
 {
 	CMemoryBitstream gov;
@@ -431,7 +431,7 @@ extern "C" bool MP4AV_Mpeg4ParseGov(
 }
 
 static bool Mpeg4ParseShortHeaderVop(
-	u_int8_t* pVopBuf, 
+	u_int8_t* pVopBuf,
 	u_int32_t vopSize,
 	int* pVopType)
 {
@@ -441,7 +441,7 @@ static bool Mpeg4ParseShortHeaderVop(
 
 	try {
 		// skip start code, temporal ref, and into type
-		vop.SkipBits(22 + 8 + 5 + 3);	
+		vop.SkipBits(22 + 8 + 5 + 3);
 		if (vop.GetBits(1) == 0) {
 			*pVopType = VOP_TYPE_I;
 		} else {
@@ -456,11 +456,11 @@ static bool Mpeg4ParseShortHeaderVop(
 }
 
 extern "C" bool MP4AV_Mpeg4ParseVop(
-	u_int8_t* pVopBuf, 
+	u_int8_t* pVopBuf,
 	u_int32_t vopSize,
-	int* pVopType, 
-	u_int8_t timeBits, 
-	u_int16_t timeTicks, 
+	int* pVopType,
+	u_int8_t timeBits,
+	u_int16_t timeTicks,
 	u_int32_t* pVopTimeIncrement)
 {
 	CMemoryBitstream vop;
@@ -499,7 +499,7 @@ extern "C" bool MP4AV_Mpeg4ParseVop(
 		}
 		vop.SkipBits(1);		// skip marker
 		u_int16_t numTicks = vop.GetBits(timeBits);
-		*pVopTimeIncrement = (numSecs * timeTicks) + numTicks; 
+		*pVopTimeIncrement = (numSecs * timeTicks) + numTicks;
 	}
 	catch (int e) {
 		return false;
@@ -517,11 +517,11 @@ extern "C" int MP4AV_Mpeg4GetVopType(u_int8_t* pVopBuf, u_int32_t vopSize)
 		return vopType;
 	}
 
-	if (pVopBuf[0] == 0 && pVopBuf[1] == 0 
+	if (pVopBuf[0] == 0 && pVopBuf[1] == 0
 	  && (pVopBuf[2] & 0xFC) == 0x08 && (pVopBuf[3] & 0x03) == 0x02) {
 		// H.263, (MPEG-4 short header mode)
 		Mpeg4ParseShortHeaderVop(pVopBuf, vopSize, &vopType);
-		
+
 	} else {
 		// MPEG-4 (normal mode)
 		MP4AV_Mpeg4ParseVop(pVopBuf, vopSize, &vopType, 0, 0, NULL);
@@ -531,7 +531,7 @@ extern "C" int MP4AV_Mpeg4GetVopType(u_int8_t* pVopBuf, u_int32_t vopSize)
 }
 
 // MP4AV_calculate_dts_from_pts
-// a crude method of determining the decode timestamp from the 
+// a crude method of determining the decode timestamp from the
 // presentation timestamp.
 // the player needs the decode timestamp - it uses that coupled with
 // if the decoder returns a decoded frame for timing
@@ -545,7 +545,7 @@ extern "C" int MP4AV_calculate_dts_from_pts (mp4av_pts_to_dts_t *ptr,
     ptr->last_type = type;
     ptr->last_dts = *dts = pts;
     return 0;
-  } 
+  }
   // We have a I or P type.
   if (ptr->have_last_pts && ptr->last_pts >= ptr->last_dts) {
     // if we have a PTS stored, and the PTS is greater than the last
@@ -558,7 +558,7 @@ extern "C" int MP4AV_calculate_dts_from_pts (mp4av_pts_to_dts_t *ptr,
     ptr->last_type = type;
     return 0;
   }
- 
+
   // we don't have a pts stored, or we have a situation where the last
   // stored pts is less that dts we've gotten from B frames - this is
   // when lost I or P frames occur

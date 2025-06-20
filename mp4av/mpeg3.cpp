@@ -3,19 +3,19 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2002 - 2004.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May (wmay@cisco.com)
  */
 
@@ -38,7 +38,7 @@ static double mpeg3_frame_rate_table[16] =
   60.0,
 
   1,                    /* Unofficial economy rates */
-  5, 
+  5,
   10,
   12,
   15,
@@ -72,12 +72,12 @@ extern "C" int MP4AV_Mpeg3ParseSeqHdr (const uint8_t *pbuffer,
   uint32_t scode, ix;
   int found = -1;
   *have_mpeg2 = 0;
-  if (mpeg2_profile != NULL) 
+  if (mpeg2_profile != NULL)
     *mpeg2_profile = 0;
   buflen -= 6;
   bitrate_int = 0;
   for (ix = 0; ix < buflen; ix++, pbuffer++) {
-    scode = (pbuffer[0] << 24) | (pbuffer[1] << 16) | (pbuffer[2] << 8) | 
+    scode = (pbuffer[0] << 24) | (pbuffer[1] << 16) | (pbuffer[2] << 8) |
       pbuffer[3];
 
     if (scode == MPEG3_SEQUENCE_START_CODE) {
@@ -97,13 +97,13 @@ extern "C" int MP4AV_Mpeg3ParseSeqHdr (const uint8_t *pbuffer,
 	case 4: *aspect_ratio = 2.21; break;
 	}
       }
-	  
-	
+
+
       framerate_code = pbuffer[3] & 0xf;
       *frame_rate = mpeg3_frame_rate_table[framerate_code];
       // 18 bits
-      bitrate_int = (pbuffer[4] << 10) | 
-	(pbuffer[5] << 2) | 
+      bitrate_int = (pbuffer[4] << 10) |
+	(pbuffer[5] << 2) |
 	((pbuffer[6] >> 6) & 0x3);
       *bitrate = bitrate_int;
       *bitrate *= 400.0;
@@ -117,10 +117,10 @@ extern "C" int MP4AV_Mpeg3ParseSeqHdr (const uint8_t *pbuffer,
 	switch ((pbuffer[0] >> 4) & 0xf) {
 	case SEQ_ID:
 	  *have_mpeg2 = 1;
-	  if (mpeg2_profile != NULL) 
-	    *mpeg2_profile = ((pbuffer[0] & 0xf) << 4) | 
+	  if (mpeg2_profile != NULL)
+	    *mpeg2_profile = ((pbuffer[0] & 0xf) << 4) |
 	      ((pbuffer[1] >> 4) & 0xf);
-	  *height = ((pbuffer[1] & 0x1) << 13) | 
+	  *height = ((pbuffer[1] & 0x1) << 13) |
 	    ((pbuffer[2] & 0x80) << 5) |
 	    (*height & 0x0fff);
 	  *width = (((pbuffer[2] >> 5) & 0x3) << 12) | (*width & 0x0fff);
@@ -147,7 +147,7 @@ extern "C" int MP4AV_Mpeg3ParseSeqHdr (const uint8_t *pbuffer,
   int ix;
   CBitstream bs(pbuffer, buflen);
 
-  
+
   try {
 
     while (bs.PeekBits(32) != MPEG3_SEQUENCE_START_CODE) {
@@ -203,9 +203,9 @@ extern "C" uint16_t MP4AV_Mpeg3PictHdrTempRef (const uint8_t *pbuffer)
   return ((pbuffer[0] << 2) | ((pbuffer[1] >> 6) & 0x3));
 }
 
-extern "C" int MP4AV_Mpeg3FindNextStart (const uint8_t *pbuffer, 
+extern "C" int MP4AV_Mpeg3FindNextStart (const uint8_t *pbuffer,
 					 uint32_t buflen,
-					 uint32_t *optr, 
+					 uint32_t *optr,
 					 uint32_t *scode)
 {
   uint32_t value;
@@ -216,7 +216,7 @@ extern "C" int MP4AV_Mpeg3FindNextStart (const uint8_t *pbuffer,
 #ifdef WORDS_BIGENDIAN
     value = *(uint32_t *)pbuffer >> 8;
 #else
-    value = (pbuffer[0] << 16) | (pbuffer[1] << 8) | (pbuffer[2] << 0); 
+    value = (pbuffer[0] << 16) | (pbuffer[1] << 8) | (pbuffer[2] << 0);
 #endif
 
     if (value == MPEG3_START_CODE_PREFIX) {
@@ -229,17 +229,17 @@ extern "C" int MP4AV_Mpeg3FindNextStart (const uint8_t *pbuffer,
 }
 
 extern "C" int MP4AV_Mpeg3FindNextSliceStart (const uint8_t *pbuffer,
-					      uint32_t startoffset, 
+					      uint32_t startoffset,
 					      uint32_t buflen,
 					      uint32_t *slice_offset)
 {
   uint32_t slicestart, code;
-  while (MP4AV_Mpeg3FindNextStart(pbuffer + startoffset, 
-		       buflen - startoffset, 
-		       &slicestart, 
+  while (MP4AV_Mpeg3FindNextStart(pbuffer + startoffset,
+		       buflen - startoffset,
+		       &slicestart,
 		       &code) >= 0) {
 #ifdef DEBUG_MPEG3_HINT
-    printf("Code %x at offset %d\n", 
+    printf("Code %x at offset %d\n",
 	   code, startoffset + slicestart);
 #endif
     if ((code >= MPEG3_SLICE_MIN_START) &&
@@ -251,7 +251,7 @@ extern "C" int MP4AV_Mpeg3FindNextSliceStart (const uint8_t *pbuffer,
   }
   return -1;
 }
-				  
+
 extern "C" int MP4AV_Mpeg3FindPictHdr (const uint8_t *pbuffer,
 				       uint32_t buflen,
 				       int *frame_type)
@@ -260,14 +260,14 @@ extern "C" int MP4AV_Mpeg3FindPictHdr (const uint8_t *pbuffer,
   uint32_t offset;
   int ftype;
   for (offset = 0; offset < buflen; offset++, pbuffer++) {
-    value = (pbuffer[0] << 24) | (pbuffer[1] << 16) | (pbuffer[2] << 8) | 
+    value = (pbuffer[0] << 24) | (pbuffer[1] << 16) | (pbuffer[2] << 8) |
       pbuffer[3];
 
     if (value == MPEG3_PICTURE_START_CODE) {
       ftype = MP4AV_Mpeg3PictHdrType(pbuffer);
       if (frame_type != NULL) *frame_type = ftype;
       return offset;
-    } 
+    }
   }
   return -1;
 }
@@ -330,8 +330,8 @@ extern "C" bool Mpeg12Hinter (MP4FileHandle mp4file,
     bool isSyncSample;
 
     bool rc = MP4ReadSample(mp4file, trackid, sid,
-			    &buffer, &sampleSize, 
-			    &startTime, &duration, 
+			    &buffer, &sampleSize,
+			    &startTime, &duration,
 			    &renderingOffset, &isSyncSample);
 #ifdef DEBUG_MPEG3_HINT
     printf("sid %d - sample size %d\n", sid, sampleSize);
@@ -349,9 +349,9 @@ extern "C" bool Mpeg12Hinter (MP4FileHandle mp4file,
     do {
       uint32_t oldoffset;
       oldoffset = offset;
-      if (MP4AV_Mpeg3FindNextStart(pbuffer + offset, 
-			sampleSize - offset, 
-			&offset, 
+      if (MP4AV_Mpeg3FindNextStart(pbuffer + offset,
+			sampleSize - offset,
+			&offset,
 			&scode) < 0) {
 	// didn't find the start code
 #ifdef DEBUG_MPEG3_HINT
@@ -367,7 +367,7 @@ extern "C" bool Mpeg12Hinter (MP4FileHandle mp4file,
 	offset += 4; // start with next value
       }
     } while (scode != MPEG3_PICTURE_START_CODE && stop == false);
-    
+
     pstart = pbuffer + offset; // point to inside of picture start
     type = (pstart[1] >> 3) & 0x7;
 
@@ -387,10 +387,10 @@ extern "C" bool Mpeg12Hinter (MP4FileHandle mp4file,
 
     MP4AddRtpVideoHint(mp4file, hintTrackId, type == 3, renderingOffset);
     // Find the next slice.  Then we can add the header if the next
-    // slice will be in the start.  This lets us set the S bit in 
+    // slice will be in the start.  This lets us set the S bit in
     // rfc2250[2].  Then we need to loop to find the next slice that's
     // not in the buffer size - this should be in the while loop.
-    
+
     prev_slice = 0;
     if (MP4AV_Mpeg3FindNextSliceStart(pbuffer, offset, sampleSize, &next_slice) < 0) {
       slice_at_begin = false;
@@ -437,7 +437,7 @@ extern "C" bool Mpeg12Hinter (MP4FileHandle mp4file,
 	// the end of the slice.
 	if (found_slice) len_to_write = prev_slice;
 	else len_to_write = MIN(maxPayloadSize, sampleSize);
-      } 
+      }
 
       rfc2250[2] = rfc2250_2;
       if (have_seq != 0) {
@@ -457,8 +457,8 @@ extern "C" bool Mpeg12Hinter (MP4FileHandle mp4file,
 #ifdef DEBUG_MPEG3_HINT
       printf("Adding packet, sid %u prev slice %u len_to_write %u\n",
 	     sid, prev_slice, len_to_write);
-      printf("Next slice %u offset %u %x %x %x %x\n\n", 
-	     next_slice, offset, 
+      printf("Next slice %u offset %u %x %x %x %x\n\n",
+	     next_slice, offset,
 	     rfc2250[0], rfc2250[1], rfc2250[2], rfc2250[3]);
 #endif
 
@@ -484,7 +484,7 @@ extern "C" bool Mpeg12Hinter (MP4FileHandle mp4file,
 
 // mpeg3_find_dts_from_pts - given a pts, a frame type, and the
 // temporal reference from the frame type, calculate the dts
-// pts = presentation time stamp 
+// pts = presentation time stamp
 // dts = decode time stamp.
 int mpeg3_find_dts_from_pts (mpeg3_pts_to_dts_t *ptr,
 			     uint64_t pts_in_msec,
@@ -509,22 +509,22 @@ int mpeg3_find_dts_from_pts (mpeg3_pts_to_dts_t *ptr,
     ptr->last_i_dts = calc;
     *return_value = calc;
     break;
-  case 2: 
+  case 2:
     // P frames suck.
     // see if the difference between temporal references in the last
     // frame is the difference between pts of the last I and this P frame
     // if they are, we most likely haven't lost a frame
-    dcalc = (temp_ref - ptr->last_i_temp_ref); 
+    dcalc = (temp_ref - ptr->last_i_temp_ref);
     dcalc *= msec_per_frame;
     diff = pts_in_msec - ptr->last_i_pts;
     calc = (uint64_t)dcalc;
     diff -= calc;
     if (diff > TO_D64(10) || diff < TO_D64(-10)) {
       // out of range - we really can't guess
-      // we could probably do more work here - record the number of 
+      // we could probably do more work here - record the number of
       // consectutive b frames, etc, but what it really means is that
       // we need to wait until the next I frame to display sanely.
-      // We'll still decode, and may even display if B frames are 
+      // We'll still decode, and may even display if B frames are
       // present, but we'll jerk a bit on these frames.
       // It all comes down to me being lazy...
       printf("pts out of range - diff "", temps %u %u\n",
@@ -537,7 +537,7 @@ int mpeg3_find_dts_from_pts (mpeg3_pts_to_dts_t *ptr,
       *return_value = ptr->last_i_dts + calc;
     } else {
       // if the temp ref of the I frame was 0, there's no good calculation
-      // of how to get to the P frame time.  
+      // of how to get to the P frame time.
       // a less straight forward calculation - just increment from the
       // last dts - there's no real way to calculate this accurately
       *return_value = ptr->last_dts + (uint64_t)msec_per_frame;
@@ -571,7 +571,7 @@ uint8_t mpeg2_profile_to_mp4_track_type (uint8_t profile)
     default:
       return MP4_MPEG2_VIDEO_TYPE;
     }
-  } 
+  }
   if (profile == 0x82 || profile == 0x85) {
     return MP4_MPEG2_442_VIDEO_TYPE;
   }
@@ -603,15 +603,15 @@ static const char *profile_names[] = {
   "Mpeg-2 Simple@High",
   "Mpeg-2 Simple@High 1440",
   "Mpeg-2 Simple@Main",
-  "Mpeg-2 Simple@Low", 
+  "Mpeg-2 Simple@Low",
 };
 
-const char *mpeg2_type (uint8_t profile) 
+const char *mpeg2_type (uint8_t profile)
 {
   if (profile == 0) {
     return "Mpeg-2";
   }
-  
+
   if ((profile & 0x80) == 0) {
     uint8_t index;
     index = ((profile & 0x70) >> 4);
@@ -620,7 +620,7 @@ const char *mpeg2_type (uint8_t profile)
     }
     index--;
     index *= 5;
-    
+
     uint8_t level = profile & 0xf;
     if ((level & 1) != 0 ||
 	(level > 0xb)) {
@@ -631,22 +631,22 @@ const char *mpeg2_type (uint8_t profile)
     level -= 2;
     index += level;
     return profile_names[index];
-  } 
-  if (profile == 0x82) 
+  }
+  if (profile == 0x82)
     return "Mpeg-2 4:2:2@High";
   if (profile == 0x85) {
     return "Mpeg-2 4:2:2@Main";
   }
-  if (profile == 0x8a) 
+  if (profile == 0x8a)
     return "Mpeg-2 Multiview@High";
-  if (profile == 0x8b) 
+  if (profile == 0x8b)
     return "Mpeg-2 Multiview@High 1440";
-  if (profile == 0x8d) 
+  if (profile == 0x8d)
     return "Mpeg-2 Multiview@Main";
-  if (profile == 0x8e) 
+  if (profile == 0x8e)
     return "Mpeg-2 Multiview@Low";
 
   return "Mpeg-2 unknown escape profile";
 }
 
-    
+

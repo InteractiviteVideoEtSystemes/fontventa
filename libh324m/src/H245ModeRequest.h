@@ -4,7 +4,7 @@
 #include "H245Negotiator.h"
 
 class H245ModeRequest :
-	public H245Negotiator 
+	public H245Negotiator
 {
 public:
 	/** Events
@@ -17,7 +17,7 @@ public:
 
 	struct Event: public H245Connection::Event
 	{
-		Event(Type i, const H245_ArrayOf_ModeDescription*  c) 
+		Event(Type i, const H245_ArrayOf_ModeDescription*  c)
 		{
 			source = H245Connection::e_ModeRequest;
 			type = i;
@@ -32,7 +32,7 @@ public:
 	//Constructor
 	H245ModeRequest(H245Connection &con);
 	virtual ~H245ModeRequest();
-	
+
 	//Methods
 	BOOL TransferResponse(int accept, int causeOrResponse);
 
@@ -49,7 +49,7 @@ private:
 		e_Idle,
 		e_AwaitingResponse
 	};
-	
+
 	DWORD	inSequenceNumber;
 	DWORD	outSequenceNumber;
 	States	inState;

@@ -12,9 +12,9 @@ class RTPRedundantPayload
 {
 public:
 	RTPRedundantPayload(BYTE *data,DWORD size);
-	
-	void ParseRed( BYTE *data,DWORD size ); 
-	
+
+	void ParseRed( BYTE *data,DWORD size );
+
 	BYTE* GetPrimaryPayloadData() 		const { return primaryData;	}
 	DWORD GetPrimaryPayloadSize()		const { return primarySize;	}
 	BYTE  GetPrimaryType()			const { return primaryType;	}
@@ -22,7 +22,7 @@ public:
 	void  SetPrimaryCodec(BYTE codec)	      { primaryCodec = codec;	}
 
 	//RTPTimedPacket* CreatePrimaryPacket();
-	
+
 	BYTE  GetRedundantCount()		const { return headers.size();	}
 	BYTE* GetRedundantPayloadData(int i)	const { return i<headers.size()?redundantData+headers[i].ini:NULL;	}
 	DWORD GetRedundantPayloadSize(int i) 	const { return i<headers.size()?headers[i].size:0;			}
@@ -70,7 +70,7 @@ public:
     void Encode( MediaFrame * frame);
     void EncodeBOM();
     bool IsIdle() { return idle; }
-	
+
 	/**
 	 * Get redundent frame with packetizaltion info.
 	 * Do not free the frame as it is managed by the encoder itself
@@ -80,7 +80,7 @@ public:
 
 private:
     typedef std::deque<MediaFrame*> RedFrames;
-    
+
     /**
      * Last req number of received pacckets
      */
@@ -101,9 +101,9 @@ private:
      */
     bool        idle;
 	BYTE		ptype;
-	
+
 	MediaFrame * redFrame;
-	
+
 };
 
 

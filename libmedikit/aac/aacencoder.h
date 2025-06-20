@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   aacencoder.h
  * Author: Sergio
  *

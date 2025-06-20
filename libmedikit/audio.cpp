@@ -32,7 +32,7 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 		case AudioCodec::G722:
 			return new G722Encoder(properties);
 #endif
-	
+
 #if 0
 		case AudioCodec::GSM:
 			return new GSMEncoder(properties);
@@ -96,7 +96,7 @@ bool AudioFrame::Packetize(unsigned int mtu)
 {
 	unsigned int paksize = packetization;
 	if (paksize > mtu && mtu > 0) paksize = mtu;
-	
+
 	ClearRTPPacketizationInfo();
 	for (unsigned int i=0; i<GetLength(); i+= paksize )
 	{

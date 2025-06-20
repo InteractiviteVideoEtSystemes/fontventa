@@ -307,7 +307,7 @@ MP4TrackId Mp4vCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt,
     u_int32_t mp4FrameDuration = 0;
 
     if (VideoFrameRate) {
-      mp4FrameDuration = (u_int32_t)(((double)Mp4TimeScale) / VideoFrameRate);    
+      mp4FrameDuration = (u_int32_t)(((double)Mp4TimeScale) / VideoFrameRate);
     } else if (frameDuration) {
 	  VideoFrameRate = frameDuration;
 	  VideoFrameRate /= timeTicks;
@@ -489,7 +489,7 @@ MP4TrackId Mp4vCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt,
                     sampleLen2Write = prevSampleSize;
                 }
 
-		
+
             if (variableFrameRate == false) {
 	      double now_calc;
 	      now_calc = sampleId;
@@ -575,12 +575,12 @@ MP4TrackId Mp4vCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt,
       doRenderingOffset = true;
       break;
     }
-   
+
     if (doRenderingOffset && haveBframes) {
       // only generate ctts (with rendering offset for I, P frames) when
-      // we need one.  We saved all the frames types and timestamps above - 
+      // we need one.  We saved all the frames types and timestamps above -
       // we can't use MP4ReadSample, because the end frames might not have
-      // been written 
+      // been written
       refVopId = 1;
       refVopTime = 0;
       MP4SampleId maxSamples = MP4GetTrackNumberOfSamples(mp4File, trackId);
@@ -592,19 +592,19 @@ MP4TrackId Mp4vCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt,
             printf("sample %u %u renderingOffset "U64"\n",
 		   refVopId, fr->vopType, fr->frameTimestamp - refVopTime);
 #endif
-	  MP4SetSampleRenderingOffset(mp4File, trackId, refVopId, 
+	  MP4SetSampleRenderingOffset(mp4File, trackId, refVopId,
 				      fr->frameTimestamp - refVopTime);
 	  refVopId = ix;
 	  refVopTime = fr->frameTimestamp;
 	}
 	fr = fr->next;
       }
-      
+
 #ifdef DEBUG_MP4V_TS
       printf("sample %u %u renderingOffset "U64"\n",
 	     refVopId, fr->vopType, fr->frameTimestamp - refVopTime);
 #endif
-      MP4SetSampleRenderingOffset(mp4File, trackId, refVopId, 
+      MP4SetSampleRenderingOffset(mp4File, trackId, refVopId,
 				  fr->frameTimestamp - refVopTime);
     }
 

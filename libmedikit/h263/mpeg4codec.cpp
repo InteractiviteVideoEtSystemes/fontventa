@@ -24,7 +24,7 @@ Mpeg4Decoder::Mpeg4Decoder()
 	codec = NULL;
 	type = VideoCodec::MPEG4;
 	bufLen = 0;
-	
+
 	//Encotramos el codec
 	codec = avcodec_find_decoder(AV_CODEC_ID_MPEG4);
 
@@ -69,7 +69,7 @@ Mpeg4Decoder::~Mpeg4Decoder()
 }
 
 /***********************
-* DecodePacket 
+* DecodePacket
 *	Decodifica un packete
 ************************/
 int Mpeg4Decoder::DecodePacket(BYTE *in,DWORD len,int lost,int last)
@@ -86,10 +86,10 @@ int Mpeg4Decoder::DecodePacket(BYTE *in,DWORD len,int lost,int last)
 	}
         //Guardamos
 	memcpy(buffer+bufLen,in,len);
-	
+
 	//Aumentamos el tama�o
 	bufLen+=len;
-	
+
 	//Y si es el ultimo
 	if (last)
 	{
@@ -182,7 +182,7 @@ Mpeg4Encoder::Mpeg4Encoder(const Properties& properties)
 
 	//No estamos abiertos
 	opened = false;
- 
+
 	//Alocamos el conto y el picture
 	ctx = avcodec_alloc_context3(codec);
 	picture = av_frame_alloc();
@@ -211,7 +211,7 @@ int Mpeg4Encoder::SetSize(int width, int height)
 {
 	Log("-SetSize [%d,%d]\n",width,height);
 
-	// Set pixel format 
+	// Set pixel format
 	ctx->pix_fmt		= AV_PIX_FMT_YUV420P;
 	ctx->width 		= width;
 	ctx->height 		= height;
@@ -258,7 +258,7 @@ int Mpeg4Encoder::OpenCodec()
 	if (codec==NULL)
 		return Error("No codec\n");
 
-	// Check 
+	// Check
 	if (opened)
 		return Error("Already opened\n");
 
@@ -336,7 +336,7 @@ VideoFrame* Mpeg4Encoder::EncodeFrame(BYTE *in,DWORD len)
 	//Copy all
 	DWORD lenpkt = RTPPAYLOADSIZE;
 	bool mark;
-	
+
 	while(ini<pkt.size)
 	{
 		mark = false;

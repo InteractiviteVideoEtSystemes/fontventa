@@ -7,7 +7,7 @@
 
 #include <list>
 
-class H324CCSRLayer : 
+class H324CCSRLayer :
 	public H223ALReceiver,
 	public H223ALSender
 {
@@ -47,7 +47,7 @@ private:
 	int	isCmd;
 	WORD	counter;
 	int	isPDU;
-	
+
 };
 
 #endif

@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -122,13 +122,13 @@ void H223Demuxer::EndPDU(H223Flag &flag)
 			//Send closing flag
 			recv->SendClosingFlag();
 	}
-	
+
 	//If the flag is the complement and valid
 	if (flag.IsValid() && flag.complement)
 	{
 		//Log
 		log->SetDemuxInfo(-6,"dne");
-		
+
 		//if there is channel
 		if ((channel!=-1) && (al[channel]!=NULL))
 			//Send the closing pdu to the last channel
@@ -141,7 +141,7 @@ void H223Demuxer::EndPDU(H223Flag &flag)
 			//Send the closing pdu to the last channel
 			al[channel]->SendClosingFlag();
 	}
-		
+
 }
 
 int H223Demuxer::Demultiplex(BYTE *buffer,int length)
@@ -166,11 +166,11 @@ inline void H223Demuxer::Demultiplex(BYTE b)
 		case NONE:
 			//Append the byte to the flag
 			flag.Append(b);
-			
+
 			//If we have a full header
 			if (!flag.IsValid())
 				return;
-	
+
 			//Start the PDU
 			StartPDU(flag);
 
@@ -182,7 +182,7 @@ inline void H223Demuxer::Demultiplex(BYTE b)
 
 			//Change state
 			state = HEAD;
-			
+
 			break;
 		case HEAD:
 			//Append the byte to the header
@@ -191,7 +191,7 @@ inline void H223Demuxer::Demultiplex(BYTE b)
 			//If still don't we have a complete header
 			if (!header.IsComplete())
 				return;
-	
+
 			//Is the header correct? And it's not stuffing ?
 			if (!header.IsValid() || !header.mpl)
 			{
@@ -236,15 +236,15 @@ inline void H223Demuxer::Demultiplex(BYTE b)
 				//Clear flag
 				flag.Clear();
 
-				//Clear the header 
+				//Clear the header
 				header.Clear();
 
 				//Change state
 				state = HEAD;
-			} else 
+			} else
 				//No header found
 				state = NONE;
-			
+
 			break;
 	}
 }
@@ -254,7 +254,7 @@ void H223Demuxer::Send(BYTE b)
 {
 	//Log
 	log->SetDemuxInfo(-9," xx");
-	
+
 	//Get the next channel from the mux table
 	channel = mux->GetChannel(header.mc,counter++);
 
@@ -269,7 +269,7 @@ void H223Demuxer::Send(BYTE b)
 	//Get channel
 	ALReceiversMap::iterator it = al.find(channel);
 
-	//If not found 
+	//If not found
 	if (it==al.end())
 		return;
 

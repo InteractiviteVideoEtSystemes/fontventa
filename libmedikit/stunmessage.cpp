@@ -1,7 +1,7 @@
-/* 
+/*
  * File:   stunmessage.cpp
  * Author: Sergio
- * 
+ *
  * Created on 6 de noviembre de 2012, 15:55
  */
 
@@ -106,7 +106,7 @@ STUNMessage* STUNMessage::Parse(BYTE* data,DWORD size)
 			break;
 		//Add it
 		msg->AddAttribute((Attribute::Type)attrType,data+i+4,attrLen);
-		
+
 		//Next
 		i = pad32(i+4+attrLen);
 	}
@@ -196,7 +196,7 @@ DWORD STUNMessage::AuthenticatedFingerPrint(BYTE* data,DWORD size,const char* pw
 
 	//Set cookie
 	memcpy(data+4,MagicCookie,4);
-	
+
 	//Set trnasaction
 	memcpy(data+8,transId,12);
 
@@ -229,7 +229,7 @@ DWORD STUNMessage::AuthenticatedFingerPrint(BYTE* data,DWORD size,const char* pw
 	set2(data,i,Attribute::MessageIntegrity);
 	set2(data,i+2,len);
 
-	//INcrease sixe 
+	//INcrease sixe
 	i = pad32(i+4+len);
 
 	//REstore length
@@ -245,7 +245,7 @@ DWORD STUNMessage::AuthenticatedFingerPrint(BYTE* data,DWORD size,const char* pw
 
 	//INcrease sixe
 	i = pad32(i+8);
-	
+
 	//Return size
 	return i;
 }

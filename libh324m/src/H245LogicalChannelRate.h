@@ -4,7 +4,7 @@
 #include "H245Negotiator.h"
 
 class H245LogicalChannelRate :
-	public H245Negotiator 
+	public H245Negotiator
 {
 public:
 	/** Events
@@ -34,7 +34,7 @@ public:
 	//Constructor
 	H245LogicalChannelRate(H245Connection &con);
 	~H245LogicalChannelRate();
-	
+
 	//Methods
 	BOOL TransferRequest(int targetChannel, int bitRate);
 	BOOL TransferResponse( int accept, int logicalChannel, int bitRate, int cause);
@@ -52,7 +52,7 @@ private:
 		e_Idle,
 		e_AwaitingResponse
 	};
-	
+
 	DWORD	inSequenceNumber;
 	DWORD	outSequenceNumber;
 	States	inState;

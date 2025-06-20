@@ -3,33 +3,33 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 
 #include <stdlib.h>
 #include <mp4av_common.h>
 
 /*
- * ADTS Header: 
- *  MPEG-2 version 56 bits (byte aligned) 
+ * ADTS Header:
+ *  MPEG-2 version 56 bits (byte aligned)
  *  MPEG-4 version 56 bits (byte aligned) - note - changed for 0.99 version
  *
  * syncword						12 bits
@@ -53,7 +53,7 @@
  */
 
 u_int32_t AdtsSamplingRates[NUM_ADTS_SAMPLING_RATES] = {
-	96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050, 
+	96000, 88200, 64000, 48000, 44100, 32000, 24000, 22050,
 	16000, 12000, 11025, 8000, 7350, 0, 0, 0
 };
 
@@ -65,8 +65,8 @@ extern "C" u_int16_t MP4AV_AdtsGetFrameSize(u_int8_t* pHdr)
 	/* extract the necessary fields from the header */
 	uint16_t frameLength;
 
-	frameLength = (((u_int16_t)(pHdr[3] & 0x3)) << 11) 
-	  | (((u_int16_t)pHdr[4]) << 3) | (pHdr[5] >> 5); 
+	frameLength = (((u_int16_t)(pHdr[3] & 0x3)) << 11)
+	  | (((u_int16_t)pHdr[4]) << 3) | (pHdr[5] >> 5);
 
 	return frameLength;
 }
@@ -149,7 +149,7 @@ extern "C" bool MP4AV_AdtsMakeFrameFromMp4Sample(
 		lastMp4File = mp4File;
 		lastMp4TrackId = trackId;
 
-		u_int8_t audioType = MP4GetTrackEsdsObjectTypeId(mp4File, 
+		u_int8_t audioType = MP4GetTrackEsdsObjectTypeId(mp4File,
 								 trackId);
 
 		if (MP4_IS_MPEG2_AAC_AUDIO_TYPE(audioType)) {
@@ -182,22 +182,22 @@ extern "C" bool MP4AV_AdtsMakeFrameFromMp4Sample(
 		u_int32_t configLength;
 
 		MP4GetTrackESConfiguration(
-			mp4File, 
+			mp4File,
 			trackId,
 			&pConfig,
 			&configLength);
 
 		if (pConfig == NULL || configLength < 2) {
 		  uint64_t sound_version;
-		  MP4GetTrackIntegerProperty(mp4File, 
+		  MP4GetTrackIntegerProperty(mp4File,
 					     trackId,
 					     "mdia.minf.stbl.stsd.mp4a.soundVersion",
 					     &sound_version);
 		  if (sound_version == 1) {
 		    uint64_t temp;
-		    MP4GetTrackIntegerProperty(mp4File, 
-					       trackId, 
-					       "mdia.minf.stbl.stsd.mp4a.timeScale", 
+		    MP4GetTrackIntegerProperty(mp4File,
+					       trackId,
+					       "mdia.minf.stbl.stsd.mp4a.timeScale",
 					       &temp);
 		    samplingFrequency = temp;
 		    MP4GetTrackIntegerProperty(mp4File,

@@ -38,8 +38,8 @@ SRC = golay.c \
 	FileLogger.cpp \
 	Media.cpp \
 	H245LogicalChannelRate.cpp \
-	H245ModeRequest.cpp 
-	
+	H245ModeRequest.cpp
+
 
 OBJS1 = $(SRC:.cpp=.o)
 OBJS = $(OBJS1:.c=.o)

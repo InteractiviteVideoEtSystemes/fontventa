@@ -1,7 +1,7 @@
-/* 
+/*
  * File:   aacencoder.cpp
  * Author: Sergio
- * 
+ *
  * Created on 20 de junio de 2013, 10:46
  */
 extern "C"
@@ -113,7 +113,7 @@ int AACEncoder::Encode(SWORD *in,int inLen,BYTE* out,int outLen)
 {
 	if (!inLen)
 		return 0;
-	
+
 	if (ctx == NULL)
 		return Error("AAC: no context.\n");
 
@@ -127,4 +127,4 @@ int AACEncoder::Encode(SWORD *in,int inLen,BYTE* out,int outLen)
 
 	//Encode
 	return avcodec_encode_audio(ctx, out,outLen,(short *)samples);
-} 
+}

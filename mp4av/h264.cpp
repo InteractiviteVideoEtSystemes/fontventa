@@ -3,19 +3,19 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2004.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May wmay@cisco.com
  */
 
@@ -25,22 +25,22 @@
 //#define BOUND_VERBOSE 1
 
 static uint8_t exp_golomb_bits[256] = {
-8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 3, 
-3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 
-2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 
-2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 
-1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
-1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 
-0, 
+8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4, 3,
+3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2,
+2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1,
+1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+0,
 };
 
 uint32_t h264_ue (CBitstream *bs)
@@ -50,7 +50,7 @@ uint32_t h264_ue (CBitstream *bs)
   uint8_t coded;
   bool done = false;
   bits = 0;
-  // we want to read 8 bits at a time - if we don't have 8 bits, 
+  // we want to read 8 bits at a time - if we don't have 8 bits,
   // read what's left, and shift.  The exp_golomb_bits calc remains the
   // same.
   while (done == false) {
@@ -76,7 +76,7 @@ uint32_t h264_ue (CBitstream *bs)
   return bs->GetBits(bits + 1) - 1;
 }
 
-int32_t h264_se (CBitstream *bs) 
+int32_t h264_se (CBitstream *bs)
 {
   uint32_t ret;
   ret = h264_ue(bs);
@@ -84,7 +84,7 @@ int32_t h264_se (CBitstream *bs)
     ret >>= 1;
     int32_t temp = 0 - ret;
     return temp;
-  } 
+  }
   return (ret + 1) >> 1;
 }
 
@@ -111,10 +111,10 @@ static void h264_decode_annexb( uint8_t *dst, int *dstlen,
   *dstlen = dst - dst_sav;
 }
 
-extern "C" bool h264_is_start_code (const uint8_t *pBuf) 
+extern "C" bool h264_is_start_code (const uint8_t *pBuf)
 {
-  if (pBuf[0] == 0 && 
-      pBuf[1] == 0 && 
+  if (pBuf[0] == 0 &&
+      pBuf[1] == 0 &&
       ((pBuf[2] == 1) ||
        ((pBuf[2] == 0) && pBuf[3] == 1))) {
     return true;
@@ -122,15 +122,15 @@ extern "C" bool h264_is_start_code (const uint8_t *pBuf)
   return false;
 }
 
-extern "C" uint32_t h264_find_next_start_code (const uint8_t *pBuf, 
+extern "C" uint32_t h264_find_next_start_code (const uint8_t *pBuf,
 					       uint32_t bufLen)
 {
   uint32_t val, temp;
   uint32_t offset;
 
   offset = 0;
-  if (pBuf[0] == 0 && 
-      pBuf[1] == 0 && 
+  if (pBuf[0] == 0 &&
+      pBuf[1] == 0 &&
       ((pBuf[2] == 1) ||
        ((pBuf[2] == 0) && pBuf[3] == 1))) {
     pBuf += 3;
@@ -161,7 +161,7 @@ extern "C" uint8_t h264_nal_unit_type (const uint8_t *buffer)
 
 extern "C" int h264_nal_unit_type_is_slice (const uint8_t type)
 {
-  if (type >= H264_NAL_TYPE_NON_IDR_SLICE && 
+  if (type >= H264_NAL_TYPE_NON_IDR_SLICE &&
       type <= H264_NAL_TYPE_IDR_SLICE) {
     return true;
   }
@@ -171,7 +171,7 @@ extern "C" int h264_nal_unit_type_is_slice (const uint8_t type)
 /*
  * determine if the slice we decoded is a sync point
  */
-extern "C" bool h264_slice_is_idr (h264_decode_t *dec) 
+extern "C" bool h264_slice_is_idr (h264_decode_t *dec)
 {
   if (dec->nal_unit_type != H264_NAL_TYPE_IDR_SLICE)
     return false;
@@ -206,8 +206,8 @@ static void scaling_list (uint sizeOfScalingList, CBitstream *bs)
   }
 }
 
-int h264_read_seq_info (const uint8_t *buffer, 
-			uint32_t buflen, 
+int h264_read_seq_info (const uint8_t *buffer,
+			uint32_t buflen,
 			h264_decode_t *dec)
 {
   CBitstream bs;
@@ -265,7 +265,7 @@ int h264_read_seq_info (const uint8_t *buffer,
     uint32_t PicHeightInMapUnits = h264_ue(&bs) + 1;
 
     dec->frame_mbs_only_flag = bs.GetBits(1);
-    dec->pic_height = 
+    dec->pic_height =
       (2 - dec->frame_mbs_only_flag) * PicHeightInMapUnits * 16;
 #if 0
     if (!dec->frame_mbs_only_flag) {
@@ -291,9 +291,9 @@ int h264_read_seq_info (const uint8_t *buffer,
   }
   return 0;
 }
-extern "C" int h264_find_slice_type (const uint8_t *buffer, 
+extern "C" int h264_find_slice_type (const uint8_t *buffer,
 				     uint32_t buflen,
-				     uint8_t *slice_type, 
+				     uint8_t *slice_type,
 				     bool noheader)
 {
   uint32_t header;
@@ -313,8 +313,8 @@ extern "C" int h264_find_slice_type (const uint8_t *buffer,
   return 0;
 }
 
-int h264_read_slice_info (const uint8_t *buffer, 
-			  uint32_t buflen, 
+int h264_read_slice_info (const uint8_t *buffer,
+			  uint32_t buflen,
 			  h264_decode_t *dec)
 {
   uint32_t header;
@@ -379,7 +379,7 @@ static void h264_compute_poc( h264_decode_t *dec ) {
 
   /* FIXME FIXME it doesn't handle the case where there is a MMCO == 5
    * (MMCO 5 "emulates" an idr) */
-  
+
   /* picture type */
   if (dec->frame_mbs_only_flag || !dec->field_pic_flag)
     pic_type = H264_PICTURE_FRAME;
@@ -478,8 +478,8 @@ static void h264_compute_poc( h264_decode_t *dec ) {
 }
 
 
-extern "C" int h264_detect_boundary (const uint8_t *buffer, 
-				     uint32_t buflen, 
+extern "C" int h264_detect_boundary (const uint8_t *buffer,
+				     uint32_t buflen,
 				     h264_decode_t *decode)
 {
   uint8_t temp;
@@ -511,13 +511,13 @@ extern "C" int h264_detect_boundary (const uint8_t *buffer,
       // need more memory
       return -1;
     }
-    if (decode->nal_unit_type > H264_NAL_TYPE_IDR_SLICE || 
+    if (decode->nal_unit_type > H264_NAL_TYPE_IDR_SLICE ||
 	decode->nal_unit_type < H264_NAL_TYPE_NON_IDR_SLICE) {
       break;
     }
     if (decode->frame_num != new_decode.frame_num) {
 #ifdef BOUND_VERBOSE
-      printf("frame num values different %u %u\n", decode->frame_num, 
+      printf("frame num values different %u %u\n", decode->frame_num,
 	     new_decode.frame_num);
 #endif
       ret = 1;
@@ -570,7 +570,7 @@ extern "C" int h264_detect_boundary (const uint8_t *buffer,
 	  printf("delta pic order cnt [1]\n");
 #endif
 	  break;
-	  
+
 	}
       }
     }
@@ -580,7 +580,7 @@ extern "C" int h264_detect_boundary (const uint8_t *buffer,
 #ifdef BOUND_VERBOSE
 	printf("idr_pic id\n");
 #endif
-	
+
 	ret = 1;
 	break;
       }
@@ -594,7 +594,7 @@ extern "C" int h264_detect_boundary (const uint8_t *buffer,
   default:
     if (decode->nal_unit_type <= H264_NAL_TYPE_IDR_SLICE) ret = 1;
     else ret = 0;
-  } 
+  }
 
   /* save _prev values */
   if (ret)
@@ -614,7 +614,7 @@ extern "C" int h264_detect_boundary (const uint8_t *buffer,
   }
 
 
-  // other types (6, 7, 8, 
+  // other types (6, 7, 8,
 #ifdef BOUND_VERBOSE
   if (ret == 0) {
     printf("no change\n");
@@ -625,7 +625,7 @@ extern "C" int h264_detect_boundary (const uint8_t *buffer,
   return ret;
 }
 
-uint32_t h264_read_sei_value (const uint8_t *buffer, uint32_t *size) 
+uint32_t h264_read_sei_value (const uint8_t *buffer, uint32_t *size)
 {
   uint32_t ret = 0;
   *size = 1;
@@ -639,8 +639,8 @@ uint32_t h264_read_sei_value (const uint8_t *buffer, uint32_t *size)
 
 extern "C" const char *h264_get_slice_name (const uint8_t slice_type)
 {
-  if (H264_TYPE_IS_P(slice_type)) return "P";  
-  if (H264_TYPE_IS_B(slice_type)) return "B";  
+  if (H264_TYPE_IS_P(slice_type)) return "P";
+  if (H264_TYPE_IS_B(slice_type)) return "B";
   if (H264_TYPE_IS_I(slice_type)) return "I";
   if (H264_TYPE_IS_SI(slice_type)) return "SI";
   if (H264_TYPE_IS_SP(slice_type)) return "SP";
@@ -671,7 +671,7 @@ extern "C" bool h264_access_unit_is_sync (const uint8_t *pNal, uint32_t len)
   return false;
 }
 
-extern "C" char *h264_get_profile_level_string (const uint8_t profile, 
+extern "C" char *h264_get_profile_level_string (const uint8_t profile,
 						const uint8_t level)
 {
   char profileb[20], levelb[20];
@@ -691,7 +691,7 @@ extern "C" char *h264_get_profile_level_string (const uint8_t profile,
     strcpy(profileb, "High 4:4:4");
   } else {
     sprintf(profileb, "Unknown Profile %x", profile);
-  } 
+  }
   switch (level) {
   case 10: case 20: case 30: case 40: case 50:
     sprintf(levelb, "%u", level / 10);
@@ -707,7 +707,7 @@ extern "C" char *h264_get_profile_level_string (const uint8_t profile,
     sprintf(levelb, "unknown level %x", level);
     break;
   }
-  char *typebuffer = 
+  char *typebuffer =
     (char *)malloc(1 + strlen("H.264 @") + strlen(profileb) + strlen(levelb));
   sprintf(typebuffer, "H.264 %s@%s", profileb, levelb);
   return typebuffer;

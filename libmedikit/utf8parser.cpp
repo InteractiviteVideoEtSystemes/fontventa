@@ -55,7 +55,7 @@ DWORD UTF8Parser::Parse(const BYTE* buffer,DWORD size)
 	{
 		//Get char byte
 		BYTE c = buffer[i];
-		
+
 		if (c <= 0x7f)
 		{
 			//if it is not first byte
@@ -78,7 +78,7 @@ DWORD UTF8Parser::Parse(const BYTE* buffer,DWORD size)
 				bytes--;
 				//If no mor bytes left to append to wchar
 				if (bytes == 0)
-					//Append 
+					//Append
 					value.push_back(w);
 			} else {
 				//Error
@@ -105,7 +105,7 @@ DWORD UTF8Parser::Parse(const BYTE* buffer,DWORD size)
 	//Increase parsed data
 	len += copy;
 
-	//Return the number of consumed bytes	
+	//Return the number of consumed bytes
 	return copy;
 }
 
@@ -152,7 +152,7 @@ void UTF8Parser::SetWString(const std::wstring& str)
 			utf8size += 2;
 		else if (w <= 0xffff)
 			utf8size += 3;
-		else 
+		else
 			utf8size += 4;
 	}
 }
@@ -224,7 +224,7 @@ DWORD UTF8Parser::Serialize(std::string & str, bool append)
 {
      std::wstring::iterator it;
      if (!append) str.clear();
-     
+
      for ( it = value.begin(); it != value.end(); it++ )
      {
 	wchar_t w = *it;
@@ -232,7 +232,7 @@ DWORD UTF8Parser::Serialize(std::string & str, bool append)
 	if (w <= 0x7f)
 	{
 	    str.push_back( (char) w);
-	} 
+	}
 	else if (w <= 0x7ff)
 	{
 	    str.push_back( (char) ( 0xc0 | ((w >> 6)& 0x1f) ) );
@@ -242,19 +242,19 @@ DWORD UTF8Parser::Serialize(std::string & str, bool append)
 	{
 	    str.push_back( (char) ( 0xe0 | ((w >> 12)& 0x0f) ) );
 	    str.push_back( (char) ( 0x80 | ((w >> 6) & 0x3f) ) );
-	    str.push_back( (char) ( 0x80 | (w & 0x3f) ) );	    
+	    str.push_back( (char) ( 0x80 | (w & 0x3f) ) );
 	}
 	else if (w <= 0x10ffff)
 	{
 	    str.push_back( (char) ( 0xf0 | ((w >> 18)& 0x07) ) );
 	    str.push_back( (char) ( 0x80 | ((w >> 12) & 0x3f) ) );
-	    str.push_back( (char) ( 0x80 | ((w >> 6) & 0x3f) ) );  
-	    str.push_back( (char) (  0x80 | (w & 0x3f) ) );	    
+	    str.push_back( (char) ( 0x80 | ((w >> 6) & 0x3f) ) );
+	    str.push_back( (char) (  0x80 | (w & 0x3f) ) );
 	}
 	else
 	{
-	    str.push_back( (char) '.' );    
-	}         
+	    str.push_back( (char) '.' );
+	}
     }
 }
 

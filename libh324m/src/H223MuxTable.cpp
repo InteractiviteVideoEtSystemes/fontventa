@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -155,7 +155,7 @@ int H223MuxTable::GetChannel(int mc,int count)
 	//It's in the repeating part
 	if(entries[mc]->repeatLen>0)
 		return entries[mc]->repeat[(count-entries[mc]->fixedLen) % entries[mc]->repeatLen];
-	
+
 	return -1;
 }
 
@@ -199,7 +199,7 @@ H223MuxTable::H223MuxTable(const H245_MultiplexEntrySend & pdu)
 
 			//If it's an element
 			if (el.m_type.GetTag()==H245_MultiplexElement_type::e_logicalChannelNumber)
-			{	
+			{
 				//Get element
 				int chan = ((PASN_Integer &)((H245_MultiplexElement_type &)el.m_type));
 
@@ -207,7 +207,7 @@ H223MuxTable::H223MuxTable(const H245_MultiplexEntrySend & pdu)
 				if (el.m_repeatCount.GetTag()==H245_MultiplexElement_repeatCount::e_finite)
 				{
 					//Get count
-					int rc = ((PASN_Integer &)((H245_MultiplexElement_repeatCount &)el.m_repeatCount)).GetValue();	
+					int rc = ((PASN_Integer &)((H245_MultiplexElement_repeatCount &)el.m_repeatCount)).GetValue();
 					//Realloc fixed
 					entry->fixed = (BYTE*)realloc(entry->fixed,entry->fixedLen+rc);
 					//Copy channel
@@ -224,7 +224,7 @@ H223MuxTable::H223MuxTable(const H245_MultiplexEntrySend & pdu)
 					entry->repeatLen += 1;
 				}
 			} else {
-				//uffff... nested elements.. 
+				//uffff... nested elements..
 			}
 		}
 
@@ -255,15 +255,15 @@ void H223MuxTable::BuildPDU(H245_MultiplexEntrySend & pdu)
 			//Remove elements
 			des.m_elementList.RemoveAll();
 
-			//Switch into different cases for basic MultiplexEntryDescriptor	
+			//Switch into different cases for basic MultiplexEntryDescriptor
 			//Only repeat part. e.g. {{LN1,RC3},{LCN2,RC4},RC UCF}
 			if(entries[i]->fixedLen==0 && entries[i]->repeatLen>0)
 			{
 				//This is item0
 				H245_MultiplexElement repeat;
-				
+
 				list<MyKey> mc_;
-				
+
 				//Look how many logical channel we have in repeat part. If more then one,
 				//we have also subelementList
 				int repeatc;
@@ -271,7 +271,7 @@ void H223MuxTable::BuildPDU(H245_MultiplexEntrySend & pdu)
 				MyKey key(mc,mc);
 				for (int j=0;j<entries[i]->repeatLen;)
 				{
-					
+
 					repeatc=0;
 					mc=entries[i]->repeat[j] ;
 					repeatc++;
@@ -287,7 +287,7 @@ void H223MuxTable::BuildPDU(H245_MultiplexEntrySend & pdu)
 					mc_.push_back(key);
 					j+=repeatc;
 				}
-				
+
 				//We found more then one logical channel.
 				//For example {{LCN1,RC3},{LCN2,RC10},RC UCF}
 				//So we must indicate subelementList
@@ -334,7 +334,7 @@ void H223MuxTable::BuildPDU(H245_MultiplexEntrySend & pdu)
 				{
 					//get the only logical channel
 					key=mc_.back();
-					
+
 					//Set type
 					repeat.m_type.SetTag(H245_MultiplexElement_type::e_logicalChannelNumber);
 
@@ -345,7 +345,7 @@ void H223MuxTable::BuildPDU(H245_MultiplexEntrySend & pdu)
 					((PASN_Integer &)repeat.m_type.GetObject()) = key.lc;
 				}
 				mc_.clear();
-				
+
 				//Append repeat to Descriptor
 				des.m_elementList.Append((PASN_Object *)repeat.Clone());
 			}
@@ -379,7 +379,7 @@ void H223MuxTable::BuildPDU(H245_MultiplexEntrySend & pdu)
 					j+=repeatc;
 
 				}
-				
+
 				//Get all elements and append into des
 				while(mc_.size()>0)
 				{
@@ -393,21 +393,21 @@ void H223MuxTable::BuildPDU(H245_MultiplexEntrySend & pdu)
 					el.m_repeatCount.SetTag(H245_MultiplexElement_repeatCount::e_finite);
 					//Get element count
 					H245_MultiplexElement_repeatCount &rc = (H245_MultiplexElement_repeatCount &)el.m_repeatCount;
-					//Set rc	
+					//Set rc
 					((PASN_Integer &)rc.GetObject()) = key.rc;
 					//Set the channel
 					((PASN_Integer &)el.m_type.GetObject()) = key.lc;
 					//Append to des
 					des.m_elementList.Append((PASN_Object*)el.Clone());
 				}
-				mc_.clear(); 
+				mc_.clear();
 			}
-			else 
+			else
 			//We have both fixed and repeat. e.g. {LCN1,RC32},{{LCN1,RC3},{LCN2,RC10},RC UCF}
 			{
-	
+
 			}
-			
+
 			//Append descriptor to pdu
 			pdu.m_multiplexEntryDescriptors.Append((PASN_Object *)des.Clone());
 		}

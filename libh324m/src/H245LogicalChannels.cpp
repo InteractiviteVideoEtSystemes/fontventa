@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -46,7 +46,7 @@ int H245LogicalChannels::EstablishRequest(int channelNumber,H245Channel & channe
 	if (out.find(channelNumber)==out.end())
 		//Create channel & set state
 		out[channelNumber] = e_Released;
-	
+
 	//Check state
 	switch(out[channelNumber])
 	{
@@ -99,7 +99,7 @@ int H245LogicalChannels::ReleaseRequest(int channelNumber)
 	if (out.find(channelNumber)==out.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch(out[channelNumber])
 	{
@@ -146,7 +146,7 @@ BOOL H245LogicalChannels::HandleOpenAck(const H245_OpenLogicalChannelAck & pdu)
 	if (out.find(channelNumber)==out.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch (out[channelNumber])
 	{
@@ -165,7 +165,7 @@ BOOL H245LogicalChannels::HandleOpenAck(const H245_OpenLogicalChannelAck & pdu)
 			//Good
 			return TRUE;
 	}
-	
+
 	//Exit
 	return FALSE;
 }
@@ -181,12 +181,12 @@ BOOL H245LogicalChannels::HandleReject(const H245_OpenLogicalChannelReject & pdu
 	if (out.find(channelNumber)==out.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch (out[channelNumber])
 	{
 		case e_Released:
-			//Send error & continue 
+			//Send error & continue
 			return connection.OnEvent(Event(e_ErrorIndication,channelNumber));
 		case e_AwaitingEstablishment:
 			//Set state
@@ -194,7 +194,7 @@ BOOL H245LogicalChannels::HandleReject(const H245_OpenLogicalChannelReject & pdu
 			//Send event
 			return connection.OnEvent(Event(e_ReleaseIndication,channelNumber));
 		case e_Established:
-			//Send error & continue 
+			//Send error & continue
 			connection.OnEvent(Event(e_ErrorIndication,channelNumber));
 			//Set state
 			out[channelNumber] = e_Released;
@@ -206,7 +206,7 @@ BOOL H245LogicalChannels::HandleReject(const H245_OpenLogicalChannelReject & pdu
 			//Send event
 			return connection.OnEvent(Event(e_ReleaseConfirm,channelNumber));
 	}
-	
+
 	//Exit
 	return FALSE;
 }
@@ -222,7 +222,7 @@ BOOL H245LogicalChannels::HandleCloseAck(const H245_CloseLogicalChannelAck & pdu
 	if (out.find(channelNumber)==out.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch (out[channelNumber])
 	{
@@ -245,7 +245,7 @@ BOOL H245LogicalChannels::HandleCloseAck(const H245_CloseLogicalChannelAck & pdu
 			//Send event
 			return connection.OnEvent(Event(e_ReleaseConfirm,channelNumber));
 	}
-	
+
 	//Exit
 	return FALSE;
 }
@@ -269,7 +269,7 @@ int H245LogicalChannels::EstablishResponse(int channelNumber)
 
 	//Ack
 	reply.BuildOpenLogicalChannelAck(channelNumber);
-	
+
 	//Establish
 	in[channelNumber]=e_Established;
 
@@ -313,14 +313,14 @@ BOOL H245LogicalChannels::HandleOpen(H245_OpenLogicalChannel & pdu)
 	if (in.find(channelNumber)==in.end())
 		//Create channel & set state
 		in[channelNumber] = e_Released;
-	
+
 	//Check state
 	switch (in[channelNumber])
 	{
 		case e_Released:
 			//Set state
 			in[channelNumber] = e_AwaitingEstablishment;
-			//Send error & continue 
+			//Send error & continue
             return connection.OnEvent(Event(e_EstablishIndication,channelNumber,new H245Channel(pdu)));
 		case e_AwaitingEstablishment:
 			//Set event
@@ -337,9 +337,9 @@ BOOL H245LogicalChannels::HandleOpen(H245_OpenLogicalChannel & pdu)
 		case e_AwaitingRelease:
 			return FALSE;
 	}
-	
+
 	//Exit
-	return FALSE;	
+	return FALSE;
 }
 
 BOOL H245LogicalChannels::HandleClose(const H245_CloseLogicalChannel & pdu)
@@ -385,7 +385,7 @@ BOOL H245LogicalChannels::HandleClose(const H245_CloseLogicalChannel & pdu)
 		case e_AwaitingRelease:
 			return FALSE;
 	}
-	
+
 	//Exit
 	return FALSE;
 }
@@ -401,7 +401,7 @@ BOOL H245LogicalChannels::HandleOpenConfirm(const H245_OpenLogicalChannelConfirm
 	if (in.find(channelNumber)==in.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch (in[channelNumber])
 	{
@@ -411,7 +411,7 @@ BOOL H245LogicalChannels::HandleOpenConfirm(const H245_OpenLogicalChannelConfirm
 		case e_Released:
 			return FALSE;
 	}
-	
+
 	//Exit
 	return FALSE;
 }
@@ -429,7 +429,7 @@ BOOL H245LogicalChannels::HandleRequestClose(const H245_RequestChannelClose & pd
 	if (in.find(channelNumber)==in.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch (in[channelNumber])
 	{
@@ -438,7 +438,7 @@ BOOL H245LogicalChannels::HandleRequestClose(const H245_RequestChannelClose & pd
 		case e_AwaitingRelease:
 		case e_Released:
 	}
-	
+
 	//Exit
 	return FALSE;
 }
@@ -454,7 +454,7 @@ BOOL H245LogicalChannels::HandleRequestCloseAck(const H245_RequestChannelCloseAc
 	if (in.find(channelNumber)==in.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch (in[channelNumber])
 	{
@@ -463,7 +463,7 @@ BOOL H245LogicalChannels::HandleRequestCloseAck(const H245_RequestChannelCloseAc
 		case e_AwaitingRelease:
 		case e_Released:
 	}
-	
+
 	//Exit
 	return FALSE;
 }
@@ -479,7 +479,7 @@ BOOL H245LogicalChannels::HandleRequestCloseReject(const H245_RequestChannelClos
 	if (in.find(channelNumber)==in.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch (in[channelNumber])
 	{
@@ -488,7 +488,7 @@ BOOL H245LogicalChannels::HandleRequestCloseReject(const H245_RequestChannelClos
 		case e_AwaitingRelease:
 		case e_Released:
 	}
-	
+
 	//Exit
 	return FALSE;
 }
@@ -504,7 +504,7 @@ BOOL H245LogicalChannels::HandleRequestCloseRelease(const H245_RequestChannelClo
 	if (in.find(channelNumber)==in.end())
 		//Exit
 		return FALSE;
-	
+
 	//Check state
 	switch (in[channelNumber])
 	{
@@ -513,7 +513,7 @@ BOOL H245LogicalChannels::HandleRequestCloseRelease(const H245_RequestChannelClo
 		case e_AwaitingRelease:
 		case e_Released:
 	}
-	
+
 	//Exit
 	return FALSE;
 }

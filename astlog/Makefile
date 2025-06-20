@@ -1,6 +1,6 @@
 #
 # Asterisk -- A telephony toolkit for Linux.
-# 
+#
 # Makefile for astlog
 #
 
@@ -23,16 +23,16 @@ BIN = astlog
 
 PROC = $(shell uname -m)
 INSTALL = install
-CC = gcc 
+CC = gcc
 
-LIBS = 
-DEBUG := -g 
+LIBS =
+DEBUG := -g
 
 #
 # targets
 #
 
-all: $(BIN) 
+all: $(BIN)
 
 clean:
 	rm -f $(OBJS) $(BIN)

@@ -7,7 +7,7 @@
 class H245LogicalChannels : public H245Negotiator
 {
 public:
-		
+
 	/** Events
 	*/
 	enum Type {
@@ -20,7 +20,7 @@ public:
 
 	struct Event: public H245Connection::Event
 	{
-		Event(Type t,int n,H245Channel* c = NULL) 
+		Event(Type t,int n,H245Channel* c = NULL)
 		{
 			source = H245Connection::e_LogicalChannel;
 			type = t;

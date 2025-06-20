@@ -57,12 +57,12 @@
 /* ==========================================================================*/
 /* Macros                                                                    */
 /* ==========================================================================*/
-#ifndef true 
+#ifndef true
 #define true 1==1
 #endif
 
-#ifndef false 
-#define false 1==0 
+#ifndef false
+#define false 1==0
 #endif
 
 /* ==========================================================================*/
@@ -71,7 +71,7 @@
 #define DEFAULT_FILE "/var/log/asterisk/messages"
 #define EXIT_SUCESS 0
 #define EXIT_FAILED 1
-#define SIZE_BUFF   4096 
+#define SIZE_BUFF   4096
 
 #define  CLS()            printf("\33[2J")
 #define  STANDARD_VIDEO() printf("\033[0m")
@@ -154,7 +154,7 @@ void usage(char* ProgramName)
     printf("  -m : color line if string found \n");
     printf("  -n : Number of line already write \n");
     printf("\n%sDESCRIPTION%s\n",bold,std);
-    printf("The %s%s%s is a viewer for log with color. \n",bold,ProgramName,std);    
+    printf("The %s%s%s is a viewer for log with color. \n",bold,ProgramName,std);
     printf("\n%sSamples%s\n",bold,std);
     printf(" - To see traces ( mode tail ) from other file \n");
     printf(" astlog -i /tmp/log.log   \n");
@@ -180,10 +180,10 @@ int main(int argc, char **argv)
   int              Status = EXIT_SUCCESS ;
   int              option;
   int              nbLine = 0 ;
-    
+
   strncpy(fileIn,(const char*) DEFAULT_FILE , PATH_MAX );
   memset(mark,0,PATH_MAX);
-    
+
   while ( (option=getopt(argc, argv, "?hVi:n:m:")) != EOF)
   {
     switch ( (char) option )
@@ -192,16 +192,16 @@ int main(int argc, char **argv)
       case 'h':
         usage( basename( argv[0]) );
         break;
-                
+
       case 'V':
         printf( "\n%s\n\n", &IvesInfo[6] );
         exit( EXIT_SUCCESS );
         break;
-                
+
       case 'i':
         strncpy(fileIn,optarg,PATH_MAX);
         break;
-                
+
       case 'n':
         nbLine=atoi(optarg);
         break ;
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
   exit ( EXIT_SUCCESS );
 }
 
-int WaitLine( char* fileIn ,int nbLine) 
+int WaitLine( char* fileIn ,int nbLine)
 {
     int            fd   = 0 ;
     fd_set         ens ;
@@ -228,10 +228,10 @@ int WaitLine( char* fileIn ,int nbLine)
     char           buff[SIZE_BUFF];
     off_t          total = 0 ;
     off_t          rewind = nbLine * PATH_MAX ;
-    
+
     FD_ZERO( & ens ) ;
     att.tv_sec = 1 ;
-    
+
     fd =  open ( fileIn , O_RDONLY ) ;
     if ( fd == -1 )
     {
@@ -247,18 +247,18 @@ int WaitLine( char* fileIn ,int nbLine)
         fprintf (stderr , "seek failed  \n",fileIn , strerror(errno) );
         lseek ( fd , 0L , SEEK_SET );
     }
-    
+
     FD_SET( fd , & ens );
     while ( true )
     {
         if ( select ( 1 , &ens , NULL , NULL , & att ) != -1 )
         {
             memset(buff , 0 , SIZE_BUFF );
-            rd = read ( fd , buff , SIZE_BUFF ); 
-            while ( rd ) 
+            rd = read ( fd , buff , SIZE_BUFF );
+            while ( rd )
             {
                 count ++ ;
-                PrintLine( buff ) ; 
+                PrintLine( buff ) ;
                 memset(buff , 0 , SIZE_BUFF );
                 rd = read ( fd , buff , SIZE_BUFF );
             }
@@ -275,29 +275,29 @@ int PrintLine(char* buff )
     size_t   sz   =  0 ;
     // find first \n
     analyse = 0 ;
-    while ( analyse < rd ) 
+    while ( analyse < rd )
     {
-        // Debug 
-        // printf ( "b_begin= 0x%X, b_end = 0x%X total : %d \n", b_begin , b_end , count ); 
+        // Debug
+        // printf ( "b_begin= 0x%X, b_end = 0x%X total : %d \n", b_begin , b_end , count );
         b_end = strstr( b_begin , "\n" );
         if  ( b_end == NULL )
         {
             sz =  rd - analyse  ;
             // fprintf ( stderr , "EOL not found in %s\n",b_begin);
             if ( (size_t)(l_end - l_beg + sz ) < SIZE_BUFF )
-            { 
-                // sav begin 
+            {
+                // sav begin
                 memcpy( l_end , b_begin , sz ) ;
                 // fprintf ( stderr , "sav begin %s \n",line);
-                l_end += sz ; 
+                l_end += sz ;
             }
             else
-            { 
+            {
                 fprintf ( stderr , "Buff to small \n");
             }
         }
         else
-        { 
+        {
             sz =  b_end - b_begin +1 ;
             memcpy ( l_end , b_begin , sz );
             select_util () ;
@@ -305,16 +305,16 @@ int PrintLine(char* buff )
             l_end = &line[0] ;
         }
         b_begin += sz ;
-        analyse += sz ; 
+        analyse += sz ;
     }
     fflush(NULL) ;
 }
 
-int select_util() 
+int select_util()
 {
     if (  strcasestr ( line , "ERRO" ) != NULL )
       fprintf ( stdout , "%s%s%s" , COL_color[COL_RED], line , COL_color[COL_NORMAL]);
-    else if (  strcasestr ( line , "WARN " ) != NULL  ||   
+    else if (  strcasestr ( line , "WARN " ) != NULL  ||
                strcasestr ( line , "WARNING") != NULL )
       fprintf ( stdout , "%s%s%s%s" , COL_color[COL_REVERSE_VIDEO] ,COL_color[COL_MAGENTA], line , COL_color[COL_NORMAL]);
     else if (  strcasestr ( line , "NOTICE" ) != NULL )
@@ -323,7 +323,7 @@ int select_util()
       fprintf ( stdout , "%s%s%s" , COL_color[COL_BLUE], line , COL_color[COL_NORMAL]);
     else if (  strcasestr ( line , mark ) != NULL )
       fprintf ( stdout , "%s%s%s" , COL_color[COL_CYAN], line , COL_color[COL_NORMAL]);
-    else 
+    else
       fprintf ( stdout , "%s" , line );
 
 

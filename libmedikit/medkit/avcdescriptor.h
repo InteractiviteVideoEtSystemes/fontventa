@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   AVCDescriptor.h
  * Author: Sergio
  *
@@ -27,12 +27,12 @@ public:
 
 	BYTE GetNumOfPictureParameterSets()		const { return numOfPictureParameterSets;	}
 	BYTE GetNumOfSequenceParameterSets()		const { return numOfSequenceParameterSets;	}
-	
+
 	BYTE* GetPictureParameterSet(BYTE i)		const { return ppsData[i];	}
 	DWORD GetPictureParameterSetSize(BYTE i)	const { return ppsSizes[i];	}
 	BYTE* GetSequenceParameterSet(BYTE i)		const { return spsData[i];	}
 	DWORD GetSequenceParameterSetSize(BYTE i)	const { return spsSizes[i];	}
-	
+
 	BYTE GetAVCLevelIndication()		const { return AVCLevelIndication;		}
 	BYTE GetProfileCompatibility()		const { return profileCompatibility;		}
 	BYTE GetAVCProfileIndication()		const { return AVCProfileIndication;		}

@@ -12,7 +12,7 @@
 #include "H245ChannelsFactory.h"
 #include <list>
 
-class H324MControlChannel : 
+class H324MControlChannel :
 	public H324CCSRLayer,
 	public H245Connection
 {

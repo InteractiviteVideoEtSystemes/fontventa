@@ -3,25 +3,25 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 #include <errno.h>
 #include <mp4av_common.h>
@@ -35,7 +35,7 @@ static MP4AV_Mp3Header* pFrameHeaders = NULL;
 static u_int16_t* pAduOffsets = NULL;
 
 static bool GetFrameInfo(
-	MP4FileHandle mp4File, 
+	MP4FileHandle mp4File,
 	MP4TrackId mediaTrackId,
 	MP4AV_Mp3Header** ppFrameHeaders,
 	u_int16_t** ppAduOffsets)
@@ -44,13 +44,13 @@ static bool GetFrameInfo(
 	u_int32_t numSamples =
 		MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
 
-	*ppFrameHeaders = 
+	*ppFrameHeaders =
 		(MP4AV_Mp3Header*)calloc((numSamples + 2), sizeof(u_int32_t));
 	if (*ppFrameHeaders == NULL) {
 		return false;
 	}
 
-	*ppAduOffsets = 
+	*ppAduOffsets =
 		(u_int16_t*)calloc((numSamples + 2), sizeof(u_int16_t));
 	if (*ppAduOffsets == NULL) {
 		free(*ppFrameHeaders);
@@ -58,7 +58,7 @@ static bool GetFrameInfo(
 	}
 
 	// for each sample
-	for (MP4SampleId sampleId = 1; sampleId <= numSamples; sampleId++) { 
+	for (MP4SampleId sampleId = 1; sampleId <= numSamples; sampleId++) {
 		u_int8_t* pSample = NULL;
 		u_int32_t sampleSize = 0;
 
@@ -71,13 +71,13 @@ static bool GetFrameInfo(
 			&sampleSize);
 
 		// extract the MP3 frame header
-		MP4AV_Mp3Header mp3hdr = 
+		MP4AV_Mp3Header mp3hdr =
 			MP4AV_Mp3HeaderFromBytes(pSample);
 
 		// store what we need
 		(*ppFrameHeaders)[sampleId] = mp3hdr;
 
-		(*ppAduOffsets)[sampleId] = 
+		(*ppAduOffsets)[sampleId] =
 			MP4AV_Mp3GetAduOffset(pSample, sampleSize);
 
 		free(pSample);
@@ -88,13 +88,13 @@ static bool GetFrameInfo(
 
 static u_int16_t GetFrameHeaderSize(MP4SampleId sampleId)
 {
-	return 4 + MP4AV_Mp3GetCrcSize(pFrameHeaders[sampleId]) 
+	return 4 + MP4AV_Mp3GetCrcSize(pFrameHeaders[sampleId])
 		+ MP4AV_Mp3GetSideInfoSize(pFrameHeaders[sampleId]);
 }
 
 static u_int16_t GetFrameDataSize(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4SampleId sampleId)
 {
 	return MP4GetSampleSize(mp4File, mediaTrackId, sampleId)
@@ -102,8 +102,8 @@ static u_int16_t GetFrameDataSize(
 }
 
 u_int32_t MP4AV_Rfc3119GetAduSize(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4SampleId sampleId)
 {
 	u_int32_t sampleSize = MP4GetSampleSize(mp4File, mediaTrackId, sampleId);
@@ -112,7 +112,7 @@ u_int32_t MP4AV_Rfc3119GetAduSize(
 }
 
 static u_int16_t GetMaxAduSize(
-	MP4FileHandle mp4File, 
+	MP4FileHandle mp4File,
 	MP4TrackId mediaTrackId)
 {
 	u_int32_t numSamples =
@@ -120,7 +120,7 @@ static u_int16_t GetMaxAduSize(
 
 	u_int16_t maxAduSize = 0;
 
-	for (MP4SampleId sampleId = 1; sampleId <= numSamples; sampleId++) { 
+	for (MP4SampleId sampleId = 1; sampleId <= numSamples; sampleId++) {
 		u_int16_t aduSize =
 			MP4AV_Rfc3119GetAduSize(mp4File, mediaTrackId, sampleId);
 
@@ -133,17 +133,17 @@ static u_int16_t GetMaxAduSize(
 }
 
 static u_int16_t GetAduDataSize(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4SampleId sampleId)
 {
-	return MP4AV_Rfc3119GetAduSize(mp4File, mediaTrackId, sampleId) 
+	return MP4AV_Rfc3119GetAduSize(mp4File, mediaTrackId, sampleId)
 		- GetFrameHeaderSize(sampleId);
 }
 
 static void AddFrameHeader(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
 	MP4SampleId sampleId)
 {
@@ -156,13 +156,13 @@ static void AddFrameHeader(
 			((sampleId - 1) / samplesPerGroup) & 0x7;
 
 		u_int8_t interleaveHeader[4];
-		interleaveHeader[0] = 
+		interleaveHeader[0] =
 			interleaveIndex;
-		interleaveHeader[1] = 
+		interleaveHeader[1] =
 			(interleaveCycle << 5) | ((pFrameHeaders[sampleId] >> 16) & 0x1F);
-		interleaveHeader[2] = 
+		interleaveHeader[2] =
 			(pFrameHeaders[sampleId] >> 8) & 0xFF;
-		interleaveHeader[3] = 
+		interleaveHeader[3] =
 			pFrameHeaders[sampleId] & 0xFF;
 
 		MP4AddRtpImmediateData(mp4File, hintTrackId,
@@ -179,15 +179,15 @@ static void AddFrameHeader(
 }
 
 static void CollectAduDataBlocks(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
 	MP4SampleId sampleId,
 	u_int8_t* pNumBlocks,
 	u_int32_t** ppOffsets,
 	u_int32_t** ppSizes)
 {
-	// go back from sampleId until 
+	// go back from sampleId until
 	// accumulated data bytes can fill sample's ADU
 	MP4SampleId sid = sampleId;
 	u_int8_t numBlocks = 1;
@@ -205,12 +205,12 @@ static void CollectAduDataBlocks(
 			u_int32_t adjust =
 				prevDataBytes - pAduOffsets[sampleId];
 
-			(*ppOffsets)[numBlocks-1] += adjust; 
+			(*ppOffsets)[numBlocks-1] += adjust;
 			(*ppSizes)[numBlocks-1] -= adjust;
 
 			break;
 		}
-		
+
 		sid--;
 		numBlocks++;
 
@@ -220,18 +220,18 @@ static void CollectAduDataBlocks(
 
 		(*ppOffsets)[numBlocks-1] = GetFrameHeaderSize(sid);
 		(*ppSizes)[numBlocks-1] = GetFrameDataSize(mp4File, mediaTrackId, sid);
-		prevDataBytes += (*ppSizes)[numBlocks-1]; 
+		prevDataBytes += (*ppSizes)[numBlocks-1];
 	}
 
 	*pNumBlocks = numBlocks;
 }
 
 bool MP4AV_Rfc3119Concatenator(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	u_int8_t samplesThisHint, 
-	MP4SampleId* pSampleIds, 
+	u_int8_t samplesThisHint,
+	MP4SampleId* pSampleIds,
 	MP4Duration hintDuration,
 	u_int16_t maxPayloadSize)
 {
@@ -251,7 +251,7 @@ bool MP4AV_Rfc3119Concatenator(
 	for (u_int8_t i = 0; i < samplesThisHint; i++) {
 		MP4SampleId sampleId = pSampleIds[i];
 
-		u_int16_t aduSize = 
+		u_int16_t aduSize =
 			MP4AV_Rfc3119GetAduSize(mp4File, mediaTrackId, sampleId);
 
 		// add the per ADU payload header
@@ -273,7 +273,7 @@ bool MP4AV_Rfc3119Concatenator(
 
 		// collect the needed blocks of data
 		u_int16_t dataSize = 0;
-		u_int16_t aduDataSize = 
+		u_int16_t aduDataSize =
 			GetAduDataSize(mp4File, mediaTrackId, sampleId);
 
 		for (int8_t ix = numDataBlocks - 1;
@@ -301,11 +301,11 @@ bool MP4AV_Rfc3119Concatenator(
 }
 
 bool MP4AV_Rfc3119Fragmenter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	MP4SampleId sampleId, 
-	u_int32_t aduSize, 
+	MP4SampleId sampleId,
+	u_int32_t aduSize,
 	MP4Duration sampleDuration,
 	u_int16_t maxPayloadSize)
 {
@@ -315,7 +315,7 @@ bool MP4AV_Rfc3119Fragmenter(
 	// rfc 3119 payload header
 	u_int8_t payloadHeader[2];
 
-	u_int16_t payloadSize = 
+	u_int16_t payloadSize =
 		sizeof(payloadHeader) + GetFrameHeaderSize(sampleId);
 
 	// guard against ridiculous payload sizes
@@ -344,7 +344,7 @@ bool MP4AV_Rfc3119Fragmenter(
 		&numDataBlocks, &pDataOffsets, &pDataSizes);
 
 	u_int16_t dataSize = 0;
-	u_int16_t aduDataSize = 
+	u_int16_t aduDataSize =
 		GetAduDataSize(mp4File, mediaTrackId, sampleId);
 
 	// for each data block
@@ -402,8 +402,8 @@ bool MP4AV_Rfc3119Fragmenter(
 }
 
 extern "C" bool MP4AV_Rfc3119Hinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	bool interleave,
 	u_int16_t maxPayloadSize)
 {
@@ -423,7 +423,7 @@ extern "C" bool MP4AV_Rfc3119Hinter(
 		return false;
 	}
 
-	MP4Duration sampleDuration = 
+	MP4Duration sampleDuration =
 		MP4AV_GetAudioSampleDuration(mp4File, mediaTrackId);
 
 	if (sampleDuration == MP4_INVALID_DURATION) {
@@ -431,7 +431,7 @@ extern "C" bool MP4AV_Rfc3119Hinter(
 	}
 
 	// choose 500 ms max latency
-	MP4Duration maxLatency = 
+	MP4Duration maxLatency =
 		MP4GetTrackTimeScale(mp4File, mediaTrackId) / 2;
 	if (maxLatency == 0) {
 		return false;
@@ -448,27 +448,27 @@ extern "C" bool MP4AV_Rfc3119Hinter(
 
 	u_int8_t payloadNumber = MP4_SET_DYNAMIC_PAYLOAD;
 
-	MP4SetHintTrackRtpPayload(mp4File, hintTrackId, 
+	MP4SetHintTrackRtpPayload(mp4File, hintTrackId,
 		"mpa-robust", &payloadNumber, 0);
 
 	// load mp3 frame information into memory
 	rc = GetFrameInfo(
-		mp4File, 
-		mediaTrackId, 
-		&pFrameHeaders, 
+		mp4File,
+		mediaTrackId,
+		&pFrameHeaders,
 		&pAduOffsets);
 
 	if (!rc) {
 		MP4DeleteTrack(mp4File, hintTrackId);
 		return false;
 	}
- 
+
 	if (doInterleave) {
 		u_int32_t maxAduSize =
 			GetMaxAduSize(mp4File, mediaTrackId);
 
 		// compute how many maximum size samples would fit in a packet
-		samplesPerPacket = 
+		samplesPerPacket =
 			maxPayloadSize / (maxAduSize + 2);
 
 		// can't interleave if this number is 0 or 1
@@ -486,10 +486,10 @@ extern "C" bool MP4AV_Rfc3119Hinter(
 		samplesPerGroup = stride * samplesPerPacket;
 
 		rc = MP4AV_AudioInterleaveHinter(
-			mp4File, 
-			mediaTrackId, 
+			mp4File,
+			mediaTrackId,
 			hintTrackId,
-			sampleDuration, 
+			sampleDuration,
 			samplesPerGroup / samplesPerPacket,		// stride
 			samplesPerPacket,						// bundle
 			maxPayloadSize,
@@ -497,10 +497,10 @@ extern "C" bool MP4AV_Rfc3119Hinter(
 
 	} else {
 		rc = MP4AV_AudioConsecutiveHinter(
-			mp4File, 
-			mediaTrackId, 
+			mp4File,
+			mediaTrackId,
 			hintTrackId,
-			sampleDuration, 
+			sampleDuration,
 			0,										// perPacketHeaderSize
 			2,										// perSampleHeaderSize
 			maxLatency / sampleDuration,			// maxSamplesPerPacket

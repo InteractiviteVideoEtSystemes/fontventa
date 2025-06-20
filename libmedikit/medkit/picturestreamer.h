@@ -13,7 +13,7 @@ public:
 	/**
 	 * Create an encoder and configure it to stream the pricture
 	 **/
-	
+
 	int Load(const char *filename, unsigned int pwidth = 0, unsigned int pheight = 0)
 	{
 		if (Logo::Load(filename, pwidth, pheight))
@@ -22,13 +22,13 @@ public:
 		}
 		return 0;
 	}
-	
+
 	void PaintBlackRectangle(unsigned int pwidth, unsigned int pheight)
 	{
 		Logo::PaintBlackRectangle(pwidth, pheight);
 		HandleSizeChange();
 	}
-	
+
 	/**
 	 * Create an encoder and configure it to stream the pricture
 	 **/
@@ -37,17 +37,17 @@ public:
 	/**
 	 * Set Frame rate of the encoder
 	 */
-	 
+
 	bool SetFrameRate(int fps,int kbits,int intraPeriod);
-	
+
 	/**
 	 * Create an encoded videoframe
 	 **/
 	VideoFrame* Stream(bool askiframe = false);
-	
+
 private:
 	VideoEncoder * encoder;
-	
+
 	bool HandleSizeChange();
 };
 

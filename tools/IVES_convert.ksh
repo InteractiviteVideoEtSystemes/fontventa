@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
-# Unpublished Confidential Information of IVES Do not disclose.       
-# Copyright (c)  IVES All Rights Reserved.                    
+# Unpublished Confidential Information of IVES Do not disclose.
+# Copyright (c)  IVES All Rights Reserved.
 # ---------------------------------------------------------------------------
 #
 # COMPANY   IVES
@@ -11,20 +11,20 @@
 # file     $HeadURL$
 #
 # brief    Convert avi file to mp4 multitrack for asterisk
-#               
+#
 # version  $Revision$
 #
 # date     $Date$
-# 
-# remarks  
-# 
-#--------------------------------------------------------------------------- 
+#
+# remarks
+#
+#---------------------------------------------------------------------------
 # $Log$
 # =============================================================================
 #  -----1=0-------2=0-------3=0-------4=0-------5=0-------6=0-------7=0-------8
 
 # =============================================================================
-# Constant de convertion 
+# Constant de convertion
 # =============================================================================
 # video encoding bit rate
 V_BITRATE=45000
@@ -98,15 +98,15 @@ idxHintH264Track=0
 # calcul duree video
 duration=0
 nb_frame=0
-frame_rate=3 
-# extraction du texte 
+frame_rate=3
+# extraction du texte
 text=0
 #gestion du flv
 flvFile=0
 #gestion des fiechiers pour queue
 queueFile=0
 Html5File=0
-#gestion des mp4 h264 + amr 
+#gestion des mp4 h264 + amr
 Mp4H264MP3File=0
 H263Only=0
 WebMOnly=0
@@ -118,8 +118,8 @@ WebMOnly=0
 # Vert
 PrintOK()
 {
-    if [ $echo_on_stdout -eq 1 ] 
-        then 
+    if [ $echo_on_stdout -eq 1 ]
+        then
         printf "[\033[32m  OK  \033[0m]\n"
     fi
 }
@@ -127,8 +127,8 @@ PrintOK()
 # Rouge
 PrintFailed()
 {
-    if [ $echo_on_stdout -eq 1 ] 
-        then 
+    if [ $echo_on_stdout -eq 1 ]
+        then
         printf "[\033[31mFAILED\033[0m]\n"
         if [ $debug -ne 0 ]
             then
@@ -142,16 +142,16 @@ PrintFailed()
 # jaune
 PrintNone()
 {
-    if [ $echo_on_stdout -eq 1 ] 
-        then 
+    if [ $echo_on_stdout -eq 1 ]
+        then
         printf "[\033[33m NONE \033[0m]\n"
     fi
 }
 
 printLine()
 {
-    if [ $echo_on_stdout -eq 1 ] 
-        then 
+    if [ $echo_on_stdout -eq 1 ]
+        then
         RES_COL=60
         printf "$1"
         printf "\033[%sG" $RES_COL
@@ -160,14 +160,14 @@ printLine()
 
 mp4_info()
 {
-    if [ $echo_on_stdout -eq 1 ] 
-        then 
+    if [ $echo_on_stdout -eq 1 ]
+        then
         printf "========================= \033[32m File information \033[0m  =====================\n"
         cmd="${BIN_PATH}/mp4info $1 "
         $cmd
-        if [ "$rtpStat" != "" ] 
-            then 
-            printf "======================  RTP Stat  =================================\n"  
+        if [ "$rtpStat" != "" ]
+            then
+            printf "======================  RTP Stat  =================================\n"
             cat $1.stat
         fi
         printf "===================================================================\n"
@@ -176,8 +176,8 @@ mp4_info()
 
 start_line()
 {
-    if [ $echo_on_stdout -eq 1 ] 
-        then 
+    if [ $echo_on_stdout -eq 1 ]
+        then
         printf "Convert $inFile to $outFile\n"
     fi
 }
@@ -223,7 +223,7 @@ usage()
 MakeOutFilename()
 {
     if [ "$outFile" == "" ]
-        then 
+        then
         suffixe $inFile ;
         if [ $Mp4H264MP3File -eq 1  ]
             then outFile=`basename $inFile $mimetype`.3gp
@@ -237,7 +237,7 @@ MakeOutFilename()
         fi
     fi
     if [ "$inFile" ==  "$outFile" ]
-        then        
+        then
         printf "\033[31m Input file == Output file \033[0m\n"
         exit $EXIT_ERROR
     fi
@@ -250,7 +250,7 @@ MakeTempFilename()
     tmpAlawFile=$base".tmpAlaw.alaw"
     tmpPcmFile=$base".pcm.wav"
     tmpMp4File=$base".tmpMp4.mp4"
-    tmpMp4File_t1=$tmpMp4File".t1"    
+    tmpMp4File_t1=$tmpMp4File".t1"
     tmpH264File=$base".tmpH264.h264"
     tmpVideoFile=$base".tmpVideo.3gp"
     tmpStats2pnoip=$base".tmpStats2pnoip"
@@ -269,10 +269,10 @@ purge_log()
         printLine "Purge log file."
         rm -f $LOG_FILE  >> $LOG_FILE 2>&1
         ret=$?
-        if [ $ret -ne 0 ] 
-            then 
+        if [ $ret -ne 0 ]
+            then
             PrintFailed
-        else 
+        else
             PrintOK
         fi
     fi
@@ -282,7 +282,7 @@ clean_ctx()
 {
     printLine "Clean Ctx ."
     remove_file /tmp/x264_2pass.log
-    remove_file .avi.mp4 
+    remove_file .avi.mp4
     remove_file /tmp/ffmpeg2pass-0.log
     remove_file $tmpUlawFile
     remove_file $tmpAlawFile
@@ -308,13 +308,13 @@ clean_old_file()
 
 remove_file()
 {
-   file=$1 
-   if [ -f $file ] 
+   file=$1
+   if [ -f $file ]
        then
        rm -f $file >> $LOG_FILE 2>&1
        ret=$?
-       if [ $ret -ne 0 ] 
-           then 
+       if [ $ret -ne 0 ]
+           then
            PrintFailed
            exit $EXIT_ERROR
        fi
@@ -324,7 +324,7 @@ remove_file()
 # =============================================================================
 # Extraction informations
 # =============================================================================
-suffixe() 
+suffixe()
 {
     printLine "Suffixe : "
     nom=`basename "$1"` &&
@@ -340,16 +340,16 @@ whatFile()
 
     # mp4 ?
     grep "Input #0" $INFO_FILE | grep "mov,mp4,m4a,3gp" >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
         then mp4_info $1
-        else 
-        if [ $echo_on_stdout -eq 1 ] 
-            then 
+        else
+        if [ $echo_on_stdout -eq 1 ]
+            then
             printf "========================= \033[32m File information \033[0m  =====================\n"
             $cmd
             printf "===================================================================\n"
-        fi    
+        fi
     fi
 }
 
@@ -357,14 +357,14 @@ test_input_file()
 {
    file=$1
    if [ "$file" == "" ]
-       then 
+       then
        printf "\033[31m No input file  \033[0m\n"
        usage
        exit $EXIT_ERROR
    fi
 
-   if [ -f $file ] 
-     then echo Ok >/dev/null 
+   if [ -f $file ]
+     then echo Ok >/dev/null
    else
      printf "\033[31m Error file  $1 not found \033[0m\n"
      usage
@@ -380,12 +380,12 @@ WhatThisFile()
 
     # mp4 ?
     grep "Input #0" $INFO_FILE | grep "mov,mp4,m4a,3gp" >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
         then CheckMP4File $1 std_out_ok
         else CheckFfmpegFile $1
     fi
-    # Build base name 
+    # Build base name
     base="/tmp/"`basename $inFile .$mimeType`
     tmpWorkOrgFile=$base".workOrg."$mimeType
 
@@ -393,51 +393,51 @@ WhatThisFile()
 
 CheckFfmpegFile()
 {
-    # Extract info 
+    # Extract info
     std_out=$2
     cmd="${BIN_PATH}/${BIN_FFMPEG} -i $1 "
     $cmd > $INFO_FILE 2>&1
     cat  $INFO_FILE >>  $LOG_FILE
     # and check
     # Video ?
-    if [ "$std_out" != "" ] ; then printLine "Video in track " ; fi 
+    if [ "$std_out" != "" ] ; then printLine "Video in track " ; fi
     cmd="grep  Video: $INFO_FILE"
-    $cmd  >>  $LOG_FILE ; 
-    ret=$? 
+    $cmd  >>  $LOG_FILE ;
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveVideo=1
           if [ "$std_out" != "" ] ; then PrintOK ; fi
           if [ "$firstCheck" -eq "0" ] ; then orgHaveVideo=1 ; fi
-        else 
+        else
           haveVideo=0
           if [ "$std_out" != "" ] ; then PrintNone ; fi
     fi
     # Audio ?
-    if [ "$std_out" != "" ] ; then printLine "Audio in track " ; fi 
-    cmd="grep Audio $INFO_FILE" 
+    if [ "$std_out" != "" ] ; then printLine "Audio in track " ; fi
+    cmd="grep Audio $INFO_FILE"
     $cmd >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveAudio=1
           if [ "$std_out" != "" ] ; then PrintOK ; fi
-        else 
+        else
           haveAudio=0
-          if [ $haveVideo -eq 0 ] 
+          if [ $haveVideo -eq 0 ]
               then PrintFailed
               exit $EXIT_ERROR
           else
               if [ "$std_out" != "" ] ; then PrintNone ; fi
           fi
     fi
-    firstCheck=1 
+    firstCheck=1
 }
 
 
 CheckMP4File()
 {
-    # Extract info 
+    # Extract info
     std_out=$2
 
     cmd="${BIN_PATH}/mp4info  $1 "
@@ -446,29 +446,29 @@ CheckMP4File()
 
     # and check
     # Video ?
-    if [ "$std_out" != "" ] ; then printLine "Video in track " ; fi 
+    if [ "$std_out" != "" ] ; then printLine "Video in track " ; fi
     cmd="grep video $INFO_FILE"
     $cmd >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveVideo=1
           if [ "$std_out" != "" ] ; then PrintOK ; fi
           if [ "$firstCheck" -eq "0" ] ; then orgHaveVideo=1 ; fi
-        else 
+        else
           haveVideo=0
           if [ "$std_out" != "" ] ; then PrintNone ; fi
     fi
 
-    # H263 ? 
-    if [ "$std_out" != "" ] ; then printLine "Video track H263 " ; fi 
+    # H263 ?
+    if [ "$std_out" != "" ] ; then printLine "Video track H263 " ; fi
     grep video $INFO_FILE | grep H.263 >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveH263=1
 	  grep video $INFO_FILE | grep H.263 | awk '{print $1}' > $INFO_FILE.idxH263Track 2>&1
-          grep H263 $INFO_FILE | grep hint | awk '{print $1}' > $INFO_FILE.idxHintH263Track 2>&1           
+          grep H263 $INFO_FILE | grep hint | awk '{print $1}' > $INFO_FILE.idxHintH263Track 2>&1
 
 	  idxH263Track=`cat $INFO_FILE.idxH263Track`
           idxHintH263Track=`cat $INFO_FILE.idxHintH263Track`
@@ -476,45 +476,45 @@ CheckMP4File()
 
           echo "idxH263Track[$idxH263Track] idxHintH263Track[$idxHintH263Track]" >> $LOG_FILE
           if [ "$std_out" != "" ] ; then PrintOK ; fi
-        else 
+        else
           haveH263=0
           if [ "$std_out" != "" ] ; then PrintNone ; fi
     fi
 
-    # H264 ? 
+    # H264 ?
     #set -x
-    if [ "$std_out" != "" ] ; then printLine "Video track H264 " ; fi 
+    if [ "$std_out" != "" ] ; then printLine "Video track H264 " ; fi
     grep video $INFO_FILE | grep H264 >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveH264=1
           grep video $INFO_FILE | grep H264 | awk '{print $1}' > $INFO_FILE.idxH264Track 2>&1
           grep H264 $INFO_FILE | grep hint | awk '{print $1}' > $INFO_FILE.idxHintH264Track 2>&1
 
-          idxH264Track=`cat $INFO_FILE.idxH264Track` 
-          idxHintH264Track=`cat $INFO_FILE.idxHintH264Track` 
-          rm -f $INFO_FILE.idxH264Track $INFO_FILE.idxHintH264Track 
+          idxH264Track=`cat $INFO_FILE.idxH264Track`
+          idxHintH264Track=`cat $INFO_FILE.idxHintH264Track`
+          rm -f $INFO_FILE.idxH264Track $INFO_FILE.idxHintH264Track
 
           echo "idxH264Track[$idxH264Track] idxHintH264Track[$idxHintH264Track]" >> $LOG_FILE
           if [ "$std_out" != "" ] ; then PrintOK ; fi
-        else 
+        else
           haveH264=0
           if [ "$std_out" != "" ] ; then PrintNone ; fi
     fi
 
     # Audio ?
-    if [ "$std_out" != "" ] ; then printLine "Audio in track " ; fi 
-    cmd="grep audio $INFO_FILE" 
+    if [ "$std_out" != "" ] ; then printLine "Audio in track " ; fi
+    cmd="grep audio $INFO_FILE"
     $cmd >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveAudio=1
           if [ "$std_out" != "" ] ; then PrintOK ; fi
-        else 
+        else
           haveAudio=0
-          if [ $haveVideo -eq 0 ] 
+          if [ $haveVideo -eq 0 ]
               then PrintFailed
               exit $EXIT_ERROR
           else
@@ -522,71 +522,71 @@ CheckMP4File()
           fi
     fi
 
-    # Ulaw ? 
-    if [ "$std_out" != "" ] ; then printLine "Audio track Ulaw " ; fi 
-    cmd="grep -i uLaw $INFO_FILE" 
+    # Ulaw ?
+    if [ "$std_out" != "" ] ; then printLine "Audio track Ulaw " ; fi
+    cmd="grep -i uLaw $INFO_FILE"
     $cmd >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveUlaw=1
 	  grep ulaw $INFO_FILE | grep audio | awk '{print $1}' > $INFO_FILE.idxUlawTrack 2>&1
           grep PCMU $INFO_FILE | grep hint | awk '{print $1}' > $INFO_FILE.idxHintUlawTrack 2>&1
-         
+
 	  idxUlawTrack=`cat $INFO_FILE.idxUlawTrack`
-	  idxHintUlawTrack=`cat $INFO_FILE.idxHintUlawTrack` 
+	  idxHintUlawTrack=`cat $INFO_FILE.idxHintUlawTrack`
 	  rm -rf $INFO_FILE.idxUlawTrack $INFO_FILE.idxHintUlawTrack
 
           echo "idxUlawTrack[$idxUlawTrack] idxHintUlawTrack[$idxHintUlawTrack]" >> $LOG_FILE
           if [ "$std_out" != "" ] ; then PrintOK ; fi
-        else 
+        else
           haveUlaw=0
           if [ "$std_out" != "" ] ; then PrintNone ; fi
     fi
 
-    # Alaw ? 
-    if [ "$std_out" != "" ] ; then printLine "Audio track Alaw " ; fi 
-    cmd="grep -i aLaw $INFO_FILE" 
+    # Alaw ?
+    if [ "$std_out" != "" ] ; then printLine "Audio track Alaw " ; fi
+    cmd="grep -i aLaw $INFO_FILE"
     $cmd >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveAlaw=1
-          grep aLaw $INFO_FILE | grep audio | awk '{print $1}' > $INFO_FILE.idxAlawTrack 2>&1 
+          grep aLaw $INFO_FILE | grep audio | awk '{print $1}' > $INFO_FILE.idxAlawTrack 2>&1
 	  grep PCMA $INFO_FILE | grep hint | awk '{print $1}' > $INFO_FILE.idxHintAlawTrack 2>&1
-   
+
           idxAlawTrack=`cat $INFO_FILE.idxAlawTrack`
           idxHintAlawTrack=`cat $INFO_FILE.idxHintAlawTrack`
 	  rm -rf $INFO_FILE.idxAlawTrack $INFO_FILE.idxHintAlawTrack
-		
+
           echo "idxAlawTrack[$idxAlawTrack] idxHintAlawTrack[$idxHintAlawTrack]" >> $LOG_FILE
           if [ "$std_out" != "" ] ; then PrintOK ; fi
-        else 
+        else
           haveAlaw=0
           if [ "$std_out" != "" ] ; then PrintNone ; fi
     fi
 
-    # Amr ? 
-    if [ "$std_out" != "" ] ; then printLine "Audio track Amr " ; fi 
+    # Amr ?
+    if [ "$std_out" != "" ] ; then printLine "Audio track Amr " ; fi
     grep AMR $INFO_FILE | grep audio  >>  $LOG_FILE
-    ret=$? 
+    ret=$?
     if [ "$ret" -eq "0" ]
-        then 
+        then
           haveAmr=1
 	  grep AMR $INFO_FILE | grep audio | awk '{print $1}' > $INFO_FILE.idxAmrTrack 2>&1
           grep AMR $INFO_FILE | grep hint | awk '{print $1}' > $INFO_FILE.idxHintAmrTrack 2>&1
 
-          idxAmrTrack=`cat $INFO_FILE.idxAmrTrack` 
+          idxAmrTrack=`cat $INFO_FILE.idxAmrTrack`
 	  idxHintAmrTrack=`cat $INFO_FILE.idxHintAmrTrack`
 	  rm -rf $INFO_FILE.idxAmrTrack $INFO_FILE.idxHintAmrTrack
 
           echo "idxAmrTrack[$idxAmrTrack] idxHintAmrTrack[$idxHintAmrTrack]" >> $LOG_FILE
           if [ "$std_out" != "" ] ; then PrintOK ; fi
-        else 
+        else
           haveAmr=0
           if [ "$std_out" != "" ] ; then PrintNone ; fi
     fi
-    firstCheck=1 
+    firstCheck=1
 }
 
 ExtractRtpStatOnMp4()
@@ -599,9 +599,9 @@ ExtractRtpStatOnMp4()
     grep -n Album $INFO_FILE | awk -F":" '{print $3}' > $INFO_FILE.rtpStat 2>&1
     ret=$?
     rtpStat=`cat $INFO_FILE.rtpStat`
-    rm -rf $INFO_FILE.rtpStat 
-    if [ $ret -ne 0 ] 
-        then 
+    rm -rf $INFO_FILE.rtpStat
+    if [ $ret -ne 0 ]
+        then
         PrintNone
     else
         PrintOK
@@ -609,7 +609,7 @@ ExtractRtpStatOnMp4()
 }
 
 # =============================================================================
-# Gestion audio 
+# Gestion audio
 # =============================================================================
 
 create_pcm_track()
@@ -619,11 +619,11 @@ create_pcm_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
     fi
     build_duration
@@ -631,13 +631,13 @@ create_pcm_track()
 
 build_duration()
 {
-    if [ $duration -eq 0 ] 
-        then 
+    if [ $duration -eq 0 ]
+        then
 	${BIN_PATH}/${BIN_FFMPEG} -i $tmpPcmFile 2>&1 | egrep Duration | awk '{print $2}' | awk -F: '{print $3}' | awk -F. '{print $1}' > $INFO_FILE.duration 2>&1
 	duration=`cat $INFO_FILE.duration`
 	rm -f $INFO_FILE.duration
     fi
-    	echo "($duration+1)*$frame_rate" | bc > $INFO_FILE.nb_frame 2>&1   
+    	echo "($duration+1)*$frame_rate" | bc > $INFO_FILE.nb_frame 2>&1
 	nb_frame=`cat $INFO_FILE.nb_frame`
  	rm -f $INFO_FILE.nb_frame
 }
@@ -651,15 +651,15 @@ create_mulaw_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
     fi
 # pour didier il faut virer ce bout de code aprés ;-)
- 
+
 #   cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpPcmFile  -acodec pcm_s16le -ar 8000 -ac 1  $AlawFile"
 #    printLine "create alaw file : "
 #    echo $cmd >> $LOG_FILE
@@ -672,7 +672,7 @@ create_mulaw_track()
 #    else
 #        PrintOK
 #    fi
- 
+
 }
 
 add_mulaw_track()
@@ -683,16 +683,16 @@ add_mulaw_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
         # rm -f $tmpWorkInFile
         # mv $tmpWorkOutFile $tmpWorkInFile
         CheckMP4File $tmpWorkInFile
-    fi 
+    fi
 }
 
 hint_mulaw_track()
@@ -702,14 +702,14 @@ hint_mulaw_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
-    fi 
+        CheckMP4File $tmpWorkInFile
+    fi
 }
 
 create_alaw_track()
@@ -719,13 +719,13 @@ create_alaw_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-    fi 
+    fi
 }
 
 add_alaw_track()
@@ -735,14 +735,14 @@ add_alaw_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
-    fi 
+        CheckMP4File $tmpWorkInFile
+    fi
 }
 
 hint_alaw_track()
@@ -752,14 +752,14 @@ hint_alaw_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
-    fi 
+        CheckMP4File $tmpWorkInFile
+    fi
 }
 
 hint_amr_track()
@@ -769,37 +769,37 @@ hint_amr_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
-    fi 
+        CheckMP4File $tmpWorkInFile
+    fi
 }
 
 AddAudioTracks()
 {
-    if [ $haveUlaw -eq 0 ] 
-        then 
-        create_mulaw_track 
+    if [ $haveUlaw -eq 0 ]
+        then
+        create_mulaw_track
         add_mulaw_track
-        #hint_mulaw_track 
-    fi 
-    if [ $haveAlaw -eq 0 ] 
-        then 
-        create_alaw_track 
+        #hint_mulaw_track
+    fi
+    if [ $haveAlaw -eq 0 ]
+        then
+        create_alaw_track
         add_alaw_track
-        #hint_alaw_track 
-    fi         
-    if [ $idxHintUlawTrack -eq 0 ] 
+        #hint_alaw_track
+    fi
+    if [ $idxHintUlawTrack -eq 0 ]
         then hint_ulaw_track
     fi
-    if [ $idxHintAlawTrack -eq 0 ] 
+    if [ $idxHintAlawTrack -eq 0 ]
         then hint_alaw_track
     fi
-    if [ "$idxHintAmrTrack" == "" ] 
+    if [ "$idxHintAmrTrack" == "" ]
         then hint_amr_track
     fi
 }
@@ -814,11 +814,11 @@ create_flv_file()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 }
@@ -830,17 +830,17 @@ create_flv_file_from_org()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 }
 
 # =============================================================================
-# Gestion video mp4 good quality h264 and audio amr only 
+# Gestion video mp4 good quality h264 and audio amr only
 # =============================================================================
 create_Mp4H264MP3_file()
 {
@@ -849,11 +849,11 @@ create_Mp4H264MP3_file()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 }
@@ -865,17 +865,17 @@ create_Mp4H264MP3_file_from_org()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 }
 
 # =============================================================================
-# Gestion HTML5 
+# Gestion HTML5
 # =============================================================================
 create_html5_file()
 {
@@ -885,11 +885,11 @@ create_html5_file()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 }
@@ -902,16 +902,16 @@ create_html5_file_from_org()
     echo $cmd >> $LOG_FILE
     $cmd #>> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 }
 # =============================================================================
-# Gestion video 
+# Gestion video
 # =============================================================================
 
 AddVideoBackground()
@@ -926,16 +926,16 @@ AddVideoBackground()
         echo $cmd >> $LOG_FILE
         $cmd >> $LOG_FILE 2>&1
         ret=$?
-        if [ $ret -ne 0 ] 
-            then 
+        if [ $ret -ne 0 ]
+            then
             PrintFailed
             exit $EXIT_ERROR
-        else 
+        else
             PrintOK
             rm -f $tmpWorkInFile  >> $LOG_FILE 2>&1
             mv $tmpVideoFile $tmpWorkInFile
             inFile=$tmpWorkInFile
-            CheckMP4File $tmpWorkInFile 
+            CheckMP4File $tmpWorkInFile
         fi
     fi
 }
@@ -944,7 +944,7 @@ create_H263_track()
 {
     cd /tmp
     if [ $mode_fast -eq 0 ]
-        then 
+        then
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 \
          -vcodec h263 -b:v $V_BITRATE_H263 -bt $V_BR_TOLERANCE_H263 -vstats -vstats_file \
          $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
@@ -958,16 +958,16 @@ create_H263_track()
     $cmd >> $LOG_FILE 2>&1
     ret=$?
 
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
     fi
 
     if [ $mode_fast -eq 0 ]
-        then 
+        then
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263 -s $V_SIZE_H263 -r $V_FPS_H263 \
          -vcodec h263 -b:v  $V_BITRATE_H263 -bt $V_BR_TOLERANCE_H263 -vstats -vstats_file  \
          $tmpStats2pnoip -pass 2 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
@@ -980,11 +980,11 @@ create_H263_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintNone
         create_H263_on_pass_track
-    else 
+    else
         PrintOK
     fi
 
@@ -992,7 +992,7 @@ create_H263_track()
     rm -f $tmpWorkInFile  >> $LOG_FILE 2>&1
     mv $tmpVideoFile $tmpWorkInFile
     inFile=$tmpWorkInFile
-    CheckMP4File $tmpWorkInFile 
+    CheckMP4File $tmpWorkInFile
 
     cd - >/dev/null 2>&1
 }
@@ -1006,11 +1006,11 @@ create_H263_on_pass_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
     cd - >/dev/null 2>&1
@@ -1023,14 +1023,14 @@ hint_H263_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
-    fi 
+        CheckMP4File $tmpWorkInFile
+    fi
 }
 ############################## H263 GOOD QUALITY  #####################################################
 
@@ -1038,7 +1038,7 @@ create_H263_good_track()
 {
     cd /tmp
     if [ $mode_fast -eq 0 ]
-        then 
+        then
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263_GOOD -s $V_SIZE_H263_GOOD -r $V_FPS_H263_GOOD \
          -vcodec h263 -b:v $V_BITRATE_H263_GOOD -bt $V_BR_TOLERANCE_H263_GOOD -vstats -vstats_file \
          $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
@@ -1052,16 +1052,16 @@ create_H263_good_track()
     $cmd >> $LOG_FILE 2>&1
     ret=$?
 
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
     fi
 
     if [ $mode_fast -eq 0 ]
-        then 
+        then
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H263_GOOD -s $V_SIZE_H263_GOOD -r $V_FPS_H263_GOOD \
          -vcodec h263 -b:v  $V_BITRATE_H263_GOOD -bt $V_BR_TOLERANCE_H263_GOOD -vstats -vstats_file  \
          $tmpStats2pnoip -pass 2 -acodec amr_nb -ac 1 -ab 12200 -ar 8000 $tmpVideoFile "
@@ -1074,11 +1074,11 @@ create_H263_good_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintNone
         create_H263_good_on_pass_track
-    else 
+    else
         PrintOK
     fi
 
@@ -1086,7 +1086,7 @@ create_H263_good_track()
     rm -f $tmpWorkInFile  >> $LOG_FILE 2>&1
     mv $tmpVideoFile $tmpWorkInFile
     inFile=$tmpWorkInFile
-    CheckMP4File $tmpWorkInFile 
+    CheckMP4File $tmpWorkInFile
 
     cd - >/dev/null 2>&1
 }
@@ -1100,11 +1100,11 @@ create_H263_good_on_pass_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
     cd - >/dev/null 2>&1
@@ -1117,14 +1117,14 @@ hint_H263_good_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
-    fi 
+        CheckMP4File $tmpWorkInFile
+    fi
 }
 
 ############################## H264 #####################################################
@@ -1134,7 +1134,7 @@ create_H264_track()
     cd /tmp
 
     if [ $mode_fast -eq 0 ]
-        then 
+        then
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
          $tmpStats2pnoip  -pass 1 $tmpMp4File"
@@ -1148,16 +1148,16 @@ create_H264_track()
     $cmd >> $LOG_FILE 2>&1
     ret=$?
 
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 
     if [ $mode_fast -eq 0 ]
-        then 
+        then
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
           $tmpStats2pnoip -pass 2 $tmpMp4File"
@@ -1171,11 +1171,11 @@ create_H264_track()
     $cmd >> $LOG_FILE 2>&1
     ret=$?
 
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 
@@ -1192,11 +1192,11 @@ create_H264_track()
     $cmd >> $LOG_FILE 2>&1
     ret=$?
 
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 
@@ -1208,13 +1208,13 @@ create_H264_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
+        CheckMP4File $tmpWorkInFile
     fi
     rm -f $tmpH264File
     cd - >/dev/null 2>&1
@@ -1225,7 +1225,7 @@ create_H264_track_from_org()
     cd /tmp
 
     if [ $mode_fast -eq 0 ]
-        then 
+        then
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
          $tmpStats2pnoip  -pass 1 $tmpMp4File"
@@ -1239,16 +1239,16 @@ create_H264_track_from_org()
     $cmd >> $LOG_FILE 2>&1
     ret=$?
 
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 
     if [ $mode_fast -eq 0 ]
-        then 
+        then
         cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
           $tmpStats2pnoip -pass 2 $tmpMp4File"
@@ -1262,11 +1262,11 @@ create_H264_track_from_org()
     $cmd >> $LOG_FILE 2>&1
     ret=$?
 
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 
@@ -1283,11 +1283,11 @@ create_H264_track_from_org()
     $cmd >> $LOG_FILE 2>&1
     ret=$?
 
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
     fi
 
@@ -1299,13 +1299,13 @@ create_H264_track_from_org()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         PrintFailed
         exit
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
+        CheckMP4File $tmpWorkInFile
     fi
     rm -f $tmpH264File
     cd - >/dev/null 2>&1
@@ -1318,14 +1318,14 @@ hint_H264_track()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-        CheckMP4File $tmpWorkInFile 
-    fi 
+        CheckMP4File $tmpWorkInFile
+    fi
 }
 
 AddVideoTracks()
@@ -1335,30 +1335,30 @@ AddVideoTracks()
    fi
 
    if  [ $haveVideo -ne 0 ]
-   then 
-       # if [ $haveH263 -eq 0 ] 
-       # then 
+   then
+       # if [ $haveH263 -eq 0 ]
+       # then
        #    create_H263_good_track
        # fi
-       # for amr ..... 
+       # for amr .....
        #if [ $haveAmr -eq 0 ]
-       #    then 
-           #if [ $haveAudio -ne 0 ] 
-           #then 
+       #    then
+           #if [ $haveAudio -ne 0 ]
+           #then
            #    create_H263_good_track
            #fi
-       #fi 
-       if [ $haveH264 -eq 0 ] 
-           then 
+       #fi
+       if [ $haveH264 -eq 0 ]
+           then
            if [ $orgHaveVideo -eq 1 ]
                then create_H264_track_from_org
-               else create_H264_track 
+               else create_H264_track
            fi
-       fi 
-       if [ "$idxHintH264Track" == "" ] 
+       fi
+       if [ "$idxHintH264Track" == "" ]
            then hint_H264_track
        fi
-       #if [ "$idxHintH263Track" == "" ] 
+       #if [ "$idxHintH263Track" == "" ]
        #    then hint_H263_track
        #fi
    fi
@@ -1385,25 +1385,25 @@ ExtractTextFromMp4()
 }' > $outTxtName
 
         ret=$?
-        if [ $ret -ne 0 ] 
-                then 
+        if [ $ret -ne 0 ]
+                then
                 PrintFailed
                 exit $EXIT_ERROR
-        else 
+        else
 		cat $outTxtName
                 PrintOK
-        fi        
+        fi
     fi
 }
 
 HaveAllTrack()
 {
-    if [ $haveUlaw -eq 1 ] ; then 
-        if [ $haveAlaw -eq 1 ] ; then 
-            if [ $haveAmr -eq 1 ] ; then 
-                if [ $haveH263 -eq 1 ] ; then 
-                    if [ $haveH264 -eq 1 ] ; then 
-                        # rien a faire 
+    if [ $haveUlaw -eq 1 ] ; then
+        if [ $haveAlaw -eq 1 ] ; then
+            if [ $haveAmr -eq 1 ] ; then
+                if [ $haveH263 -eq 1 ] ; then
+                    if [ $haveH264 -eq 1 ] ; then
+                        # rien a faire
                         cp $inFile $outFile
                         mp4_info $outFile
                         exit $EXIT_SUCCESS
@@ -1419,8 +1419,8 @@ CopyTmp2out()
     cd $ORG_REP
     mv $tmpWorkInFile $outFile
     ret=$?
-    if [ $ret -ne 0 ] 
-        then 
+    if [ $ret -ne 0 ]
+        then
         exit $EXIT_ERROR
     fi
 }
@@ -1436,17 +1436,17 @@ MakeMp4()
 {
     HaveAllTrack
     CopyIn2tmp
-    if [ $haveAudio -ne 0 ] 
-         then create_pcm_track 
+    if [ $haveAudio -ne 0 ]
+         then create_pcm_track
     fi
     AddVideoTracks
-    if [ $haveAudio -ne 0 ] 
-         then AddAudioTracks 
+    if [ $haveAudio -ne 0 ]
+         then AddAudioTracks
     fi
 
-    ExtractRtpStatOnMp4  
-    if [ "$rtpStat" != "" ] 
-        then echo $rtpStat > $outFile.stat 
+    ExtractRtpStatOnMp4
+    if [ "$rtpStat" != "" ]
+        then echo $rtpStat > $outFile.stat
     fi
 
 
@@ -1457,8 +1457,8 @@ MakeMp4()
 MakeFlv()
 {
     CopyIn2tmp
-    if [ $haveAudio -ne 0 ] 
-         then create_pcm_track 
+    if [ $haveAudio -ne 0 ]
+         then create_pcm_track
     fi
     if  [ $haveVideo -eq 0 ]
         then AddVideoBackground
@@ -1466,16 +1466,16 @@ MakeFlv()
 
     if [ orgHaveVideo -eq 1 ]
         then create_flv_file_from_org
-        else create_flv_file 
+        else create_flv_file
     fi
-    whatFile $outFile    
+    whatFile $outFile
 }
 
 MakeMp4H264MP3()
 {
     CopyIn2tmp
-    if [ $haveAudio -ne 0 ] 
-         then create_pcm_track 
+    if [ $haveAudio -ne 0 ]
+         then create_pcm_track
     fi
     if  [ $haveVideo -eq 0 ]
         then AddVideoBackground
@@ -1483,20 +1483,20 @@ MakeMp4H264MP3()
 
     if [ orgHaveVideo -eq 1 ]
         then create_Mp4H264MP3_file_from_org
-        else create_Mp4H264MP3_file 
+        else create_Mp4H264MP3_file
     fi
-    whatFile $outFile    
+    whatFile $outFile
 }
 
 MakeH263Only()
 {
     CopyIn2tmp
     if [ h263_good -eq 0 ]
-      then create_H263_track 
+      then create_H263_track
       else create_H263_good_track
     fi
     cp $tmpWorkInFile $outFile
-    whatFile $outFile    
+    whatFile $outFile
 }
 
 MakeWebMOnly()
@@ -1506,14 +1506,14 @@ MakeWebMOnly()
          -bt $V_BR_TOLERANCE_H264 -acodec aac -ac 1 -ar 32000 -strict -2 $tmpVideoFile"
     $cmd > $INFO_FILE 2>&1
     cp $tmpWorkInFile $outFile
-    whatFile $outFile    
+    whatFile $outFile
 }
 
 MakeHtml5()
 {
     CopyIn2tmp
-    if [ $haveAudio -ne 0 ] 
-         then create_pcm_track 
+    if [ $haveAudio -ne 0 ]
+         then create_pcm_track
     fi
     if  [ $haveVideo -eq 0 ]
         then AddVideoBackground
@@ -1521,9 +1521,9 @@ MakeHtml5()
 
     if [ $orgHaveVideo -eq 1 ]
         then create_html5_file_from_org
-        else create_html5_file 
+        else create_html5_file
     fi
-    whatFile $outFile    
+    whatFile $outFile
 }
 
 MakeQueueFile()
@@ -1539,19 +1539,19 @@ MakeQueueFile()
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
     ret=$?
-    if [ $ret -ne 0 ] 
-    then 
+    if [ $ret -ne 0 ]
+    then
         PrintFailed
         exit $EXIT_ERROR
-    else 
+    else
         PrintOK
-    fi     
-    if [ $haveAudio -ne 0 ] 
-        then 
-        create_pcm_track 
+    fi
+    if [ $haveAudio -ne 0 ]
+        then
+        create_pcm_track
         wavname=`basename $inFile $mimetype`.wav
         cp $tmpPcmFile $wavname
-    fi 
+    fi
 }
 
 
@@ -1592,11 +1592,11 @@ Execute()
 
 
 # =============================================================================
-# main : parse args and exeute 
+# main : parse args and exeute
 # =============================================================================
 
-while [ "$1" ] 
-  do    
+while [ "$1" ]
+  do
   case "$1" in
       -g)
       h263_good=0
@@ -1624,7 +1624,7 @@ while [ "$1" ]
       ;;
       -r)
       shift
-      frame_rate=$1 
+      frame_rate=$1
       ;;
       -b)
       shift
@@ -1648,7 +1648,7 @@ while [ "$1" ]
       duration=$1
       ;;
       -T)
-      shift 
+      shift
       outTxtName=$1
       ;;
       -w)

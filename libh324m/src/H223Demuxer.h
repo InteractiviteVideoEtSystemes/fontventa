@@ -19,7 +19,7 @@ public:
 	//Constructors
 	H223Demuxer();
 	~H223Demuxer();
-	
+
 	int Open(H223MuxTable *table);
 	int SetChannel(int num,H223ALReceiver *receiver);
 	int ReleaseChannel(int num);
@@ -39,7 +39,7 @@ private:
 	H223Flag		flag;
 	H223Header		header;
 	ALReceiversMap		al;
-	
+
 	int state;
 	int counter;
 	int channel;

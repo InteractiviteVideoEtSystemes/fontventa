@@ -7,7 +7,7 @@
 #
 # i6net support@i6net.com
 #
-# This program is free software and may be modified and 
+# This program is free software and may be modified and
 # distributed under the terms of the GNU Public License.
 #
 
@@ -41,7 +41,7 @@ CC = gcc
 LIBH324M_DIR=../libh324m
 INCLUDE = -I$(LIBH324M_DIR)/include
 LIBS = -L$(LIBH324M_DIR) -lh324m
-DEBUG := -g 
+DEBUG := -g
 
 CFLAGS = -DAST_MODULE=\"app_h324m\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) $(INCLUDE) -D_REENTRANT -D_GNU_SOURCE -fPIC
 
@@ -49,7 +49,7 @@ CFLAGS = -DAST_MODULE=\"app_h324m\" -pipe -Wall -Wmissing-prototypes -Wmissing-d
 # targets
 #
 
-all: $(SHAREDOS) 
+all: $(SHAREDOS)
 
 clean:
 	rm -f *.so *.o $(OBJS)

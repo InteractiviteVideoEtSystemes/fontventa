@@ -1,7 +1,7 @@
 #!/bin/ksh
 # =============================================================================
-# Unpublished Confidential Information of IVES Do not disclose.       
-# Copyright (c)  IVES All Rights Reserved.                    
+# Unpublished Confidential Information of IVES Do not disclose.
+# Copyright (c)  IVES All Rights Reserved.
 # ---------------------------------------------------------------------------
 #
 # COMPANY   IVES
@@ -11,14 +11,14 @@
 # file     $HeadURL$
 #
 # brief    Convert media file for Hawk Waitscreen
-#               
+#
 # version  $Revision$
 #
 # date     $Date$
-# 
-# remarks  
-# 
-#--------------------------------------------------------------------------- 
+#
+# remarks
+#
+#---------------------------------------------------------------------------
 # $Log$
 # =============================================================================
 #  -----1=0-------2=0-------3=0-------4=0-------5=0-------6=0-------7=0-------8
@@ -47,8 +47,8 @@ TmpMediaName=waitscreen.tmp.mp4
 # Vert
 PrintOK()
 {
-    if [ echo_on_stdout -eq 1 ] 
-        then 
+    if [ echo_on_stdout -eq 1 ]
+        then
         printf "[\033[32m  OK  \033[0m]\n"
     fi
 }
@@ -56,8 +56,8 @@ PrintOK()
 # Rouge
 PrintFailed()
 {
-    if [ echo_on_stdout -eq 1 ] 
-        then 
+    if [ echo_on_stdout -eq 1 ]
+        then
         printf "[\033[31mFAILED\033[0m]\n"
     fi
 }
@@ -65,16 +65,16 @@ PrintFailed()
 # jaune
 PrintNone()
 {
-    if [ echo_on_stdout -eq 1 ] 
-        then 
+    if [ echo_on_stdout -eq 1 ]
+        then
         printf "[\033[33m NONE \033[0m]\n"
     fi
 }
 
 printLine()
 {
-    if [ echo_on_stdout -eq 1 ] 
-        then 
+    if [ echo_on_stdout -eq 1 ]
+        then
         RES_COL=60
         printf "$1"
         printf "\033[%sG" $RES_COL
@@ -91,20 +91,20 @@ usage()
     printf "\033[1mDESCRIPTION\033[0m\n"
     printf "\t\033[1m -i infilename \033[0m  Name of input file\n"
     printf "\t\033[1m -h | help \033[0m this usage \n"
-    printf "\t\033[1m menu if no options \033[0m\n" 
+    printf "\t\033[1m menu if no options \033[0m\n"
 }
 
 test_input_file()
 {
    file=$1
    if [ "$file" == "" ]
-       then 
+       then
        ret=$EXIT_ERROR
    fi
 
-   if [ -f $file ] 
-     then 
-       echo Ok >/dev/null 
+   if [ -f $file ]
+     then
+       echo Ok >/dev/null
        ret=$EXIT_SUCCESS
      else
        ret=$EXIT_ERROR
@@ -114,34 +114,34 @@ test_input_file()
 ConvertFile()
 {
     SaveCurrentWaitScreen
-    if [ $ret -eq 0 ] 
-        then 
+    if [ $ret -eq 0 ]
+        then
             printLine "Hawk wait screen conversion ... "
             outfile=$MediaRep$MediaName
             $BIN_PATH/IVES_convert.ksh -i $inFile -o $outfile -s -g
             ret=$?
-            if [ $ret -ne 0 ] 
-                then 
+            if [ $ret -ne 0 ]
+                then
                 PrintFailed
-            else 
+            else
                 PrintOK
             fi
         else
             PrintFailed
-    fi        
+    fi
 }
 
 SaveCurrentWaitScreen()
 {
-   if [ -f $MediaRep$MediaName ] 
-     then 
+   if [ -f $MediaRep$MediaName ]
+     then
        printLine "Save current wait screen ... "
        cp -f $MediaRep$MediaName $MediaRep$SaveMediaName
        ret=$?
-       if [ $ret -ne 0 ] 
-           then 
+       if [ $ret -ne 0 ]
+           then
            PrintFailed
-       else 
+       else
            PrintOK
        fi
    fi
@@ -152,21 +152,21 @@ RestorCurrentWaitScreen()
     printLine "Save current wait screen ... "
     cp -f $MediaRep$MediaName $MediaRep$TmpMediaName
     ret=$?
-    if [ $ret -ne 0 ] 
+    if [ $ret -ne 0 ]
         then PrintFailed
-    else 
+    else
         PrintOK
         printLine "Restor old wait screen ... "
         cp -f $MediaRep$SaveMediaName $MediaRep$MediaName
         ret=$?
-        if [ $ret -ne 0 ] 
+        if [ $ret -ne 0 ]
             then PrintFailed
-        else 
+        else
             mv $MediaRep$TmpMediaName $MediaRep$SaveMediaName
             ret=$?
-            if [ $ret -ne 0 ] 
+            if [ $ret -ne 0 ]
                 then PrintFailed
-            else 
+            else
                 PrintOK
             fi
         fi
@@ -198,12 +198,12 @@ menu()
           EnterFileName
           test_input_file $inFile
           if [ "$ret" -eq "$EXIT_ERROR" ]
-              then        
+              then
               printf "\033[31m Error file $inFile not found \033[0m\n"
               else
               ConvertFile
               if [ "$ret" -eq "$EXIT_ERROR" ]
-                  then        
+                  then
                   printf "\033[31m waitscreen update $1 failed \033[0m\n"
               fi
           fi
@@ -211,11 +211,11 @@ menu()
           2)
           RestorCurrentWaitScreen
           if [ "$ret" -eq "$EXIT_ERROR" ]
-              then        
+              then
               printf "\033[31m waitscreen rollback failed \033[0m\n"
           fi
           ;;
-          3) 
+          3)
           exit EXIT_SUCCESS
           ;;
           *)
@@ -229,13 +229,13 @@ menu()
 
 
 # =============================================================================
-# main : parse args and exeute 
+# main : parse args and exeute
 # =============================================================================
 if [ "$1" == "" ]
     then menu
 else
-    while [ "$1" ] 
-      do    
+    while [ "$1" ]
+      do
       case "$1" in
           -i)
           shift

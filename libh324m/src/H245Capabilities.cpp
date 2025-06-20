@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -25,7 +25,7 @@ const unsigned amrID[] = {0,0,8,245,1,1,1};
 
 H245Capabilities::H245Capabilities(const H245_TerminalCapabilitySet & pdu)
 {
-	
+
 }
 
 H245Capabilities::H245Capabilities()
@@ -104,7 +104,7 @@ H245Capabilities::H245Capabilities()
 
 	H245_UserInputCapability& input = (H245_UserInputCapability&)inputCap.m_capability;
 	input.SetTag(H245_UserInputCapability::e_iA5String);
-	
+
 
 }
 
@@ -145,7 +145,7 @@ void H245Capabilities::BuildPDU(H245_TerminalCapabilitySet & pdu)
 	h223.m_maximumAl3SDUSize = 1120;
 	h223.m_maximumDelayJitter = 0;
 
-	
+
 	//NSRP Support
 	h223.m_nsrpSupport = true;
 	h223.IncludeOptionalField(H245_H223Capability::e_nsrpSupport);
@@ -154,7 +154,7 @@ void H245Capabilities::BuildPDU(H245_TerminalCapabilitySet & pdu)
 	h223.m_maxMUXPDUSizeCapability = false;
 	h223.IncludeOptionalField(H245_H223Capability::e_maxMUXPDUSizeCapability);
 
-	
+
 	//Set annexes
 	h223.m_mobileOperationTransmitCapability.m_h223AnnexA = false;
 	h223.m_mobileOperationTransmitCapability.m_h223AnnexADoubleFlag = false;
@@ -181,7 +181,7 @@ void H245Capabilities::BuildPDU(H245_TerminalCapabilitySet & pdu)
 	des.m_simultaneousCapabilities.RemoveAll();
 	H245_AlternativeCapabilitySet set;
 	H245_CapabilityTableEntryNumber number;
-	
+
 	set.RemoveAll();
 	number.SetValue(1);
 	set.Append((PASN_Object *)number.Clone());

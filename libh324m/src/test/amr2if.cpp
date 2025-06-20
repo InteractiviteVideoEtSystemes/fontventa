@@ -8,7 +8,7 @@
 
 static short blockSize[16] = { 12, 13, 15, 17, 19, 20, 26, 31,  5, -1, -1, -1, -1, -1, -1, -1};
 
-int main(int argc, char** argv) 
+int main(int argc, char** argv)
 {
 	//Check params
 	if (argc<3)
@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 		TIFFReverseBits(&header,1);
 
 		//Get frame mode
-		unsigned char mode = (header >> 3) & 0x0F; 
+		unsigned char mode = (header >> 3) & 0x0F;
 
 		//Get frame size
 		short size = blockSize[mode];
@@ -77,15 +77,15 @@ int main(int argc, char** argv)
 
 		//Set first byte
 		buffer[0] = (buffer[0] << 4) | mode;
-			
+
 		//Save frame
-		write(fdOut,buffer,size);	
-	}	
-	
+		write(fdOut,buffer,size);
+	}
+
 	//close files
 	close(fdOut);
 	close(fdIn);
 
 	//Exit
 	return(0);
-} 
+}

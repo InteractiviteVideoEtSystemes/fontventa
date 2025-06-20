@@ -7,7 +7,7 @@
 #
 # i6net support@i6net.com
 #
-# This program is free software and may be modified and 
+# This program is free software and may be modified and
 # distributed under the terms of the GNU Public License.
 #
 
@@ -44,11 +44,11 @@ SHAREDOS = app_transcoder.so
 
 PROC = $(shell uname -m)
 INSTALL = install
-CC = gcc 
+CC = gcc
 
-INCLUDE = 
+INCLUDE =
 LIBS = -L$(libdir)  -Wl,-Bstatic -lswscale  -lavcodec -lavutil   -Wl,-Bdynamic
-DEBUG := -g 
+DEBUG := -g
 
 CFLAGS = -fPIC -fpic  -DAST_MODULE=\"app_transcoder\" -pipe -Wall $(DEBUG) -DVIDEOCAPS
 
@@ -56,13 +56,13 @@ CFLAGS = -fPIC -fpic  -DAST_MODULE=\"app_transcoder\" -pipe -Wall $(DEBUG) -DVID
 # targets
 #
 
-all: $(SHAREDOS) 
+all: $(SHAREDOS)
 
 clean:
 	rm -f *.so *.o $(OBJS)
 
 app_transcoder.so : $(OBJS)
-	$(CC)  -g -shared -Xlinker -x  -o $@ $(OBJS)  $(LIBS) -fPIC 
+	$(CC)  -g -shared -Xlinker -x  -o $@ $(OBJS)  $(LIBS) -fPIC
 
 
 install: all

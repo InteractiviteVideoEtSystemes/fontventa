@@ -14,7 +14,7 @@ private:
 	int		level;
 	BYTE	buffer[2];
 	int		length;
-	
+
 };
 
 #endif

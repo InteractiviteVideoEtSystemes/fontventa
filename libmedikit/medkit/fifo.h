@@ -19,22 +19,22 @@ public:
 		end=0;
 		len=0;
 	}
-	
+
 	int push(const T *in,int l)
 	{
 		//Comprobamos que quepa
 		if (size()<len+l)
 			return 0;
-	
+
 		//Calculamos lo que queda libre hasta el final
 		int free = size()-end;
-	
+
 		//Y si tenemos que copiar al principio
 		if (free>=l)
 		{
-			//Cabe todo 
+			//Cabe todo
 			memcpy(data+end,in,l*sizeof(T));
-	
+
 			//Movemos el endal
 			end+=l;
 
@@ -46,14 +46,14 @@ public:
 			//No cabe todo
 			memcpy(data+end,in,free*sizeof(T));
 			memcpy(data,in+free,(l-free)*sizeof(T));
-	
+
 			//Movemos el endal
 			end=l-free;
 		}
-	
+
 		//Incrementamos el tama�o
 		len+=l;
-	
+
 		return l;
 	}
 
@@ -66,22 +66,22 @@ public:
 	{
 		return pop(out,l,false);
 	}
-	
+
 	int pop(T *out,int l,bool remove)
 	{
 		//Comprobamos que quepa
 		if (len<l)
 			return 0;
-	
+
 		//Calculamos lo que queda hasta el end
 		unsigned int total = size()-ini;
-	
+
 		//Y si tenemos que copiar al principio
 		if (total>=l)
 		{
-			//Cabe todo 
+			//Cabe todo
 			memcpy(out,data+ini,l*sizeof(T));
-	
+
 			//Movemos el principio
 			if (remove)
 				ini+=l;
@@ -92,16 +92,16 @@ public:
 			//El resto esta al principio
 			memcpy(out,data+ini,total*sizeof(T));
 			memcpy(out+total,data,(l-total)*sizeof(T));
-	
+
 			//Movemos el principio
 			if (remove)
 				ini=l-total;
 		}
-	
+
 		//Decrementamos el tama�o
 		if (remove)
 			len-=l;
-	
+
 		return l;
 	}
 
@@ -110,10 +110,10 @@ public:
 		//Comprobamos que quepa
 		if (len<l)
 			return 0;
-	
+
 		//Calculamos lo que queda hasta el end
 		int total = size()-ini;
-	
+
 		//Y si tenemos que copiar al principio
 		if (total>=l)
 		{
@@ -123,10 +123,10 @@ public:
 			//Movemos el principio
 			ini=l-total;
 		}
-	
+
 		//Decrementamos el tama�o
 		len-=l;
-	
+
 		return l;
 	}
 	int size()
@@ -146,7 +146,7 @@ public:
 		//Y ponemos la longitud a cero
 		len = 0;
 	}
-	
+
 };
 
 #endif

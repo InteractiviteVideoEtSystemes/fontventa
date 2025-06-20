@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -22,7 +22,7 @@
 #include "H245MasterSlave.h"
 #include "log.h"
 
-H245MasterSlave::H245MasterSlave(H245Connection &con):H245Negotiator(con) 
+H245MasterSlave::H245MasterSlave(H245Connection &con):H245Negotiator(con)
 {
 	//Initialize seed
 	srand(time(NULL));
@@ -44,7 +44,7 @@ BOOL H245MasterSlave::Request()
 	if (state!=e_Idle)
 		//Restart
 		return TRUE;
-	
+
 	//Determination request
 	state = e_Outgoing;
 	retryCount = 1;
@@ -82,7 +82,7 @@ BOOL H245MasterSlave::HandleIncoming(const H245_MasterSlaveDetermination & pdu)
 				//Incoming state
 				state = e_Incoming;
 				//Build ACK
-				reply.BuildMasterSlaveDeterminationAck(newStatus==e_DeterminedMaster);				
+				reply.BuildMasterSlaveDeterminationAck(newStatus==e_DeterminedMaster);
 				//Send msg
 				connection.WriteControlPDU(reply);
 				//Send
@@ -93,7 +93,7 @@ BOOL H245MasterSlave::HandleIncoming(const H245_MasterSlaveDetermination & pdu)
 				reply.BuildMasterSlaveDeterminationReject(H245_MasterSlaveDeterminationReject_cause::e_identicalNumbers);
 				//Send msg
 				connection.WriteControlPDU(reply);
-				//Send 
+				//Send
 				return connection.OnEvent(Event(e_Indication,status));
 			}
 			break;
@@ -109,8 +109,8 @@ BOOL H245MasterSlave::HandleIncoming(const H245_MasterSlaveDetermination & pdu)
 				//Incoming state
 				state = e_Incoming;
 				//Build ACK
-				reply.BuildMasterSlaveDeterminationAck(newStatus==e_DeterminedMaster);				
-				//Send 
+				reply.BuildMasterSlaveDeterminationAck(newStatus==e_DeterminedMaster);
+				//Send
 				connection.WriteControlPDU(reply);
 				//Send event
 				return connection.OnEvent(Event(e_Indication,status));
@@ -119,7 +119,7 @@ BOOL H245MasterSlave::HandleIncoming(const H245_MasterSlaveDetermination & pdu)
 				//Check retries
 				if (retryCount>100)
 				{
-					//Reset 
+					//Reset
 					retryCount = 0;
 					//Idle
 					state = e_Idle;
@@ -135,13 +135,13 @@ BOOL H245MasterSlave::HandleIncoming(const H245_MasterSlaveDetermination & pdu)
 				reply.BuildMasterSlaveDetermination(terminalType, determinationNumber);
 				//Send msg
 				connection.WriteControlPDU(reply);
-				//Send 
+				//Send
 				return connection.OnEvent(Event(e_Indication,status));
 			}
-				
+
 			break;
 	}
-		
+
 	//Exit
 	return false;
 }
@@ -184,19 +184,19 @@ BOOL H245MasterSlave::HandleAck(const H245_MasterSlaveDeterminationAck & pdu)
 
 	//Exit
 	return TRUE;
-	
+
 }
 
 BOOL H245MasterSlave::HandleReject(const H245_MasterSlaveDeterminationReject & pdu)
 {
-	
+
 	Logger::Debug("H245 Received MasterSlaveDeterminationReject\n");
 
 	//Reply
 	H324ControlPDU reply;
 
 	//Depending on the state
-	switch (state) 
+	switch (state)
 	{
 		case e_Idle :
 			return TRUE;
@@ -204,7 +204,7 @@ BOOL H245MasterSlave::HandleReject(const H245_MasterSlaveDeterminationReject & p
 			//Check retries
 			if (retryCount>100)
 			{
-				//Reset 
+				//Reset
 				retryCount = 0;
 				//Idle
 				state = e_Idle;
@@ -242,7 +242,7 @@ BOOL H245MasterSlave::HandleRelease(const H245_MasterSlaveDeterminationRelease &
 	return connection.OnError(H245Connection::e_MasterSlaveDetermination,"Aborted");
 }
 
-H245MasterSlave::MasterSlaveStatus H245MasterSlave::getStatus() 
+H245MasterSlave::MasterSlaveStatus H245MasterSlave::getStatus()
 {
 	return status;
 }
@@ -256,7 +256,7 @@ H245MasterSlave::MasterSlaveStatus H245MasterSlave::DetermineStatus(DWORD type,D
 		DWORD moduloDiff = (number - determinationNumber)&0xffffff;
 
 		//Check
-		if (moduloDiff == 0 || moduloDiff == 0x800000) 
+		if (moduloDiff == 0 || moduloDiff == 0x800000)
 		{
 			//Indeterminate
 			return  e_Indeterminate;

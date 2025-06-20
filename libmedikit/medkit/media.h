@@ -36,8 +36,8 @@ public:
 		DWORD GetPrefixLen()	{ return prefixLen;	}
 		DWORD GetTotalLength()	{ return size+prefixLen;}
 		bool IsMark() { return mark; }
-		
-		
+
+
 	private:
 		DWORD	pos;
 		DWORD	size;
@@ -50,7 +50,7 @@ public:
 public:
 	enum Type {Audio=0,Video=1,Text=2,Application=3};
 	enum MediaRole {VIDEO_MAIN=0,VIDEO_SLIDES=1 };
-	
+
 	static const char * TypeToString(Type type)
 	{
 		switch(type)
@@ -79,7 +79,7 @@ public:
 		//Set buffer size
 		bufferSize = size;
 		//Allocate memory
-		
+
 		//NO length
 		length = 0;
 		if ( owns )
@@ -121,12 +121,12 @@ public:
 			rtpInfo.pop_back();
 		}
 	}
-	
+
 	void	AddRtpPacket(DWORD pos,DWORD size,const BYTE* prefix,DWORD prefixLen, bool mark)
 	{
 		rtpInfo.push_back(new RtpPacketization(pos,size,prefix,prefixLen, mark));
 	}
-	
+
 	Type	GetType() const		{ return type;	}
 	DWORD	GetTimeStamp()	const	{ return ts;	}
 	DWORD	SetTimestamp(DWORD ts)	{ this->ts = ts; }
@@ -194,7 +194,7 @@ public:
 	DWORD AppendMedia(const BYTE* data,DWORD size)
 	{
 		DWORD pos = length;
-		
+
 		if ( !ownsbuffer ) return 0;
 		//Check size
 		if (size+length>bufferSize)
@@ -209,7 +209,7 @@ public:
 	}
 
 	bool PrependWithFrame(MediaFrame * f);
-	
+
 	/*
 	 * Create packetization info by parsing media
 	 */

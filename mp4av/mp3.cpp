@@ -3,25 +3,25 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		dmackie@cisco.com
  */
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 
 #include <mp4av_common.h>
@@ -47,10 +47,10 @@ static u_int16_t Mp3SampleRates[4][3] = {
 };
 
 extern "C" bool MP4AV_Mp3GetNextFrame(
-	const u_int8_t* pSrc, 
+	const u_int8_t* pSrc,
 	u_int32_t srcLength,
-	const u_int8_t** ppFrame, 
-	u_int32_t* pFrameSize, 
+	const u_int8_t** ppFrame,
+	u_int32_t* pFrameSize,
 	bool allowLayer4,
 	bool donthack)
 {
@@ -69,7 +69,7 @@ extern "C" bool MP4AV_Mp3GetNextFrame(
 		if (state == 3) {
 			bytes[state] = b;
 			*ppFrame = pSrc + dropped;
-			u_int32_t header = (bytes[0] << 24) | (bytes[1] << 16) 
+			u_int32_t header = (bytes[0] << 24) | (bytes[1] << 16)
 				| (bytes[2] << 8) | bytes[3];
 			*pFrameSize = MP4AV_Mp3GetFrameSize(header);
 			return true;
@@ -77,9 +77,9 @@ extern "C" bool MP4AV_Mp3GetNextFrame(
 		if (state == 2) {
 			if ((b & 0xF0) == 0 || (b & 0xF0) == 0xF0 || (b & 0x0C) == 0x0C) {
 				if (bytes[1] == 0xFF) {
-					state = 1; 
+					state = 1;
 				} else {
-					state = 0; 
+					state = 0;
 				}
 			} else {
 				bytes[state] = b;
@@ -87,7 +87,7 @@ extern "C" bool MP4AV_Mp3GetNextFrame(
 			}
 		}
 		if (state == 1) {
-			if ((b & 0xE0) == 0xE0 && (b & 0x18) != 0x08 && 
+			if ((b & 0xE0) == 0xE0 && (b & 0x18) != 0x08 &&
 			  ((b & 0x06) != 0 || allowLayer4)) {
 				bytes[state] = b;
 				state = 2;
@@ -100,13 +100,13 @@ extern "C" bool MP4AV_Mp3GetNextFrame(
 				bytes[state] = b;
 				state = 1;
 			} else {
-				if (donthack == FALSE && 
-				    (dropped == 0 && 
-				  ((b & 0xE0) == 0xE0 && 
-				  (b & 0x18) != 0x08 && 
+				if (donthack == FALSE &&
+				    (dropped == 0 &&
+				  ((b & 0xE0) == 0xE0 &&
+				  (b & 0x18) != 0x08 &&
 			  	  ((b & 0x06) != 0 || allowLayer4)))) {
 					/*
-					 * HACK have seen files where previous frame 
+					 * HACK have seen files where previous frame
 					 * was marked as padded, but the byte was never added
 					 * which results in the next frame's leading 0XFF being
 					 * eaten. We attempt to repair that situation here.
@@ -115,7 +115,7 @@ extern "C" bool MP4AV_Mp3GetNextFrame(
 					bytes[1] = b;
 					state = 2;
 				} else {
-					/* else drop it */ 
+					/* else drop it */
 					dropped++;
 				}
 			}
@@ -147,13 +147,13 @@ extern "C" MP4AV_Mp3Header MP4AV_Mp3HeaderFromBytes(const u_int8_t* pBytes)
 extern "C" u_int8_t MP4AV_Mp3GetHdrVersion(MP4AV_Mp3Header hdr)
 {
 	/* extract the necessary field from the MP3 header */
-	return ((hdr >> 19) & 0x3); 
+	return ((hdr >> 19) & 0x3);
 }
 
 extern "C" u_int8_t MP4AV_Mp3GetHdrLayer(MP4AV_Mp3Header hdr)
 {
 	/* extract the necessary field from the MP3 header */
-	return ((hdr >> 17) & 0x3); 
+	return ((hdr >> 17) & 0x3);
 }
 
 extern "C" u_int8_t MP4AV_Mp3GetChannels(MP4AV_Mp3Header hdr)
@@ -252,7 +252,7 @@ extern "C" u_int16_t MP4AV_Mp3GetFrameSize(MP4AV_Mp3Header hdr)
 	}
 
 	/* compute frame size */
-	frameSize = (144 * 1000 * Mp3BitRates[bitRateIndex1][bitRateIndex2-1]) 
+	frameSize = (144 * 1000 * Mp3BitRates[bitRateIndex1][bitRateIndex2-1])
 		/ (Mp3SampleRates[version][sampleRateIndex] << !(version & 1));
 
 	if (isPadded) {
@@ -267,7 +267,7 @@ extern "C" u_int16_t MP4AV_Mp3GetFrameSize(MP4AV_Mp3Header hdr)
 	return frameSize;
 }
 
-extern "C" u_int16_t 
+extern "C" u_int16_t
 MP4AV_Mp3GetAduOffset(const u_int8_t* pFrame, u_int32_t frameSize)
 {
 	if (frameSize < 2) {
@@ -275,7 +275,7 @@ MP4AV_Mp3GetAduOffset(const u_int8_t* pFrame, u_int32_t frameSize)
 	}
 
 	u_int8_t version = (pFrame[1] >> 3) & 0x3;
-	u_int8_t layer = (pFrame[1] >> 1) & 0x3; 
+	u_int8_t layer = (pFrame[1] >> 1) & 0x3;
 	bool isProtected = !(pFrame[1] & 0x1);
 	u_int8_t crcSize = isProtected ? 2 : 0;
 
@@ -317,14 +317,14 @@ extern "C" u_int8_t MP4AV_Mp3GetSideInfoSize(MP4AV_Mp3Header hdr)
 		// MPEG-1
 		if (channels == 1) {
 			return 17;
-		} else { 
+		} else {
 			return 32;
 		}
 	} else {
 		// MPEG-2 or 2.5
 		if (channels == 1) {
 			return 9;
-		} else { 
+		} else {
 			return 17;
 		}
 	}

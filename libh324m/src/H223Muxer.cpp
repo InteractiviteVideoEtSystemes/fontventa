@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -133,7 +133,7 @@ int H223Muxer::GetBestMC(int max)
 				sdus[channel] = sdu;
 		}
 	}
-	
+
 	//Map and iterators
 	WORD len[256];
 	WORD sduLen[256];
@@ -144,7 +144,7 @@ int H223Muxer::GetBestMC(int max)
 	//For each sdu
 	for (itSDUS=sdus.begin();itSDUS!=sdus.end();itSDUS++)
 		sduLen[itSDUS->first] = itSDUS->second->Length();
-	
+
 	//For each table
 	for (int i=0;i<16;i++)
 	{
@@ -168,11 +168,11 @@ int H223Muxer::GetBestMC(int max)
 			if (!senders[c]->IsSegmentable() && (len[c] == sduLen[c]))
 				//Exit
 				break;
-			
+
 			//Increase counter
 			len[c]++;
 			j++;
-			
+
 			//If channel is segmentble and it has ended
 			if (senders[c]->IsSegmentable() && (len[c] == sduLen[c]))
 			{

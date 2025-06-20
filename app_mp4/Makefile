@@ -7,7 +7,7 @@
 #
 # i6net support@i6net.com
 #
-# This program is free software and may be modified and 
+# This program is free software and may be modified and
 # distributed under the terms of the GNU Public License.
 #
 
@@ -39,10 +39,10 @@ SHAREDOS = app_mp4.so
 
 PROC = $(shell uname -m)
 INSTALL = install
-CC = gcc  
+CC = gcc
 
 LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -lmp4v2 -Wl,-Bdynamic -lavcodec -lavformat -lswscale -lx264
-DEBUG := -g 
+DEBUG := -g
 
 CFLAGS = -I../libmedikit -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
 
@@ -50,7 +50,7 @@ CFLAGS = -I../libmedikit -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-p
 # targets
 #
 
-all: $(SHAREDOS) 
+all: $(SHAREDOS)
 
 clean:
 	rm -f *.so *.o $(OBJS)

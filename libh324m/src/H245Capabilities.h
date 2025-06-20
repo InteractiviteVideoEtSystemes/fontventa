@@ -20,7 +20,7 @@ public:
 	bool videoWithAL1;
 	bool videoWithAL2;
 	bool videoWithAL3;
-	
+
 public:
 	H245_CapabilityTableEntry h263Cap;
 	H245_CapabilityTableEntry amrCap;

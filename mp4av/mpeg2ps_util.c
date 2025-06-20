@@ -3,19 +3,19 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May (wmay@cisco.com)
  */
 /* mpeg2ps_util.h - mpeg2 program stream utilities */
@@ -81,7 +81,7 @@ static mpeg2ps_record_pes_t *create_record (off_t loc, uint64_t ts)
 }
 
 #define MPEG2PS_RECORD_TIME (TO_U64(5 * 90000))
-void mpeg2ps_record_pts (mpeg2ps_stream_t *sptr, off_t location, 
+void mpeg2ps_record_pts (mpeg2ps_stream_t *sptr, off_t location,
 			 mpeg2ps_ts_t *pTs)
 {
 
@@ -98,7 +98,7 @@ void mpeg2ps_record_pts (mpeg2ps_stream_t *sptr, off_t location,
   if (sptr->record_first == NULL) {
     sptr->record_first = sptr->record_last = create_record(location, ts);
     return;
-  } 
+  }
   if (ts > sptr->record_last->dts) {
     if (ts < MPEG2PS_RECORD_TIME + sptr->record_last->dts) return;
     sptr->record_last->next_rec = create_record(location, ts);
@@ -125,7 +125,7 @@ void mpeg2ps_record_pts (mpeg2ps_stream_t *sptr, off_t location,
   }
 }
 
-mpeg2ps_record_pes_t *search_for_ts (mpeg2ps_stream_t *sptr, 
+mpeg2ps_record_pes_t *search_for_ts (mpeg2ps_stream_t *sptr,
 				     uint64_t dts)
 {
   mpeg2ps_record_pes_t *p, *q;
@@ -150,11 +150,11 @@ mpeg2ps_record_pes_t *search_for_ts (mpeg2ps_stream_t *sptr,
 
   p_diff = dts - p->dts;
   q_diff = q->dts - dts;
-  
+
   if (p_diff < q_diff) return p;
   if (q_diff > 90000) return p;
 
   return q;
 }
-  
-  
+
+

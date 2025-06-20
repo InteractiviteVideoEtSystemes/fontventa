@@ -3,36 +3,36 @@
 #include "medkit/framescaler.h"
 
 struct VideoTranscoder
-{    
+{
     VideoTranscoder(void  * ctxdata, unsigned int width_out, unsigned int height_out,
-		    VideoCodec::Type outputcodec, 
+		    VideoCodec::Type outputcodec,
 		    unsigned int bitrate, unsigned int fps, unsigned gob_size);
-				 
+
     ~VideoTranscoder();
-    
+
     bool EncoderOpen();
     bool ComputeFps(time_t t)    { return false; }
 
     bool SetInputCodec(VideoCodec::Type codec);
-    
+
     bool ProcessFrame(VideoFrame * f, int lost, int last);
     int  HandleResize();
     void SetListener(MediaFrame::Listener * listener) { this->listener = listener; }
-    
+
     bool GetDecodedPicParams( VideoCodec::Type * codec, DWORD * width, DWORD * height);
-    
-    
+
+
     VideoDecoder *decoder;
     FrameScaler  *scaler;
     VideoEncoder *encoder;
 
-    unsigned int bitrate_out; 
+    unsigned int bitrate_out;
     unsigned int bitrate_in;
     unsigned int bitrate_in_tmp;
-    
+
     unsigned int numPixSrc;
     unsigned int numPixDst;
-    
+
     unsigned int gob_size;
     unsigned int width_out;
     unsigned int height_out;
@@ -42,18 +42,18 @@ struct VideoTranscoder
     unsigned int fps_in_tmp;
     unsigned int fps_out;
     unsigned int fps_out_max;
-    
+
     BYTE * decodedPic;
     DWORD  decodedPicSize;
-    
+
     MediaFrame::Listener * listener;
-    
+
     VideoTranscoderCb cb;
     void * ctxdata;
 };
 
 
-VideoTranscoder::VideoTranscoder(void  * ctxdata, unsigned int width_out, unsigned int height_out, VideoCodec::Type outputcodec, 
+VideoTranscoder::VideoTranscoder(void  * ctxdata, unsigned int width_out, unsigned int height_out, VideoCodec::Type outputcodec,
 				 unsigned int bitrate, unsigned int fps, unsigned gob_size)
 {
     this->ctxdata	= ctxdata;
@@ -62,21 +62,21 @@ VideoTranscoder::VideoTranscoder(void  * ctxdata, unsigned int width_out, unsign
     this->gob_size      = gob_size;
     this->width_out = width_out;
     this->height_out = height_out;
-    
+
     /* we will measure it */
     fps_in = 0;
     fps_in_tmp = 0;
-    
+
     fps_out = 15;
     fps_out_max = fps;
-    
+
     encoder = VideoCodecFactory::CreateEncoder(outputcodec);
     decoder = NULL;
     scaler = NULL;
     listener = NULL;
     decodedPic = NULL;
     decodedPicSize = 0;
-    
+
     numPixSrc = 0;
     numPixDst = width_out * height_out;
     resizeWidth = 0;
@@ -94,7 +94,7 @@ void av_log_asterisk_callback(void* ptr, int level, const char* fmt, va_list vl)
         AVClass* avc= ptr ? *(AVClass**)ptr : NULL;
         if (avc)
 	    ast_log(LOG_DEBUG,"[%s @ %p] %s",avc->item_name(ptr), avc, msg);
-        else 
+        else
 	    ast_log(LOG_DEBUG, msg);
     }
 }
@@ -130,13 +130,13 @@ bool VideoTranscoder::SetInputCodec(VideoCodec::Type codec)
     {
 	// If no change is needed, just return.
 	if ( decoder->type == codec ) return true;
-	
+
 	delete decoder;
 	decoder = NULL;
     }
-    
+
     decoder = VideoCodecFactory::CreateDecoder(codec);
-    
+
     return (decoder != NULL);
 }
 
@@ -146,30 +146,30 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
     time_t t = time(NULL);
     bool needAdjust = false;
     BYTE * srcY, * srcU, * srcV;
-    BYTE * dstY, * dstU, * dstV;    
-    
+    BYTE * dstY, * dstU, * dstV;
+
     if ( decoder == NULL || decoder->type != f->GetCodec() )
     {
 	SetInputCodec( f->GetCodec() );
     }
-        
+
     if ( decoder != NULL )
     {
 	int res = decoder->DecodePacket(f->GetData(), f->GetLength(), lost, last);
-	
+
 	if (res == 2) /* 2 means image complete */
 	{
 	    if ( ComputeFps( t ) )
 	    {
 		needAdjust = true;
 	    }
-	    
+
 	    switch ( HandleResize() )
 	    {
 	        case 0:
 		    delete f_out;
 		    return false; // drop frame
-		    
+
 		case 1:
 		    srcY = decoder->GetFrame();
 		    srcU = srcY + numPixSrc;
@@ -179,34 +179,34 @@ bool VideoTranscoder::ProcessFrame(VideoFrame * f, int lost, int last)
 		    dstV = dstU + numPixDst/4;
 		    scaler->Resize(srcY,srcU,srcV,dstY,dstU,dstV);
 		    break;
-		
+
 		case 2:
 		    dstY = decoder->GetFrame();
 		    decodedPicSize = numPixDst + numPixDst/4;
 		    break;
-		    
+
 		default:
 		    delete f_out;
 		    return false; // drop frame
-		
-	    
+
+
 	    }
 	    if ( needAdjust )
 		EncoderOpen();
-	    
+
 	    if ( encoder != NULL && ( listener != NULL || cb != NULL ))
 	    {
 		f_out = encoder->EncodeFrame( dstV, decodedPicSize );
 	    }
-	    
+
 	    if (listener)
 	    {
 		listener->onMediaFrame( *f_out );
 	    }
-	    
+
 	    if ( cb != NULL ) cb( ctxdata, f_out->GetCodec(), (const char *) f_out->GetData(),
 				  f_out->GetLength() );
-	    
+
 	    delete f_out;
 	}
     }
@@ -231,7 +231,7 @@ bool VideoTranscoder::GetDecodedPicParams( VideoCodec::Type * codec, DWORD * wid
 int VideoTranscoder::HandleResize()
 {
     if (decoder == NULL || encoder == NULL) return 0;
-    
+
     /* If already resizing that size */
     if (scaler != NULL && decoder->GetWidth() == resizeWidth && decoder->GetHeight() == resizeHeight)
 	return 1;
@@ -242,12 +242,12 @@ int VideoTranscoder::HandleResize()
     {
 	/* Nothing to do */
         return 2;
-    }    
+    }
     else
     {
 	/* Invalid picture or decoder context. Ignore */
 	if (decoder->GetWidth() == 0 || decoder->GetHeight() == 0) return 0;
-	
+
 	if ( scaler == NULL ) scaler = new FrameScaler();
 
 	if ( scaler->SetResize( decoder->GetWidth(), decoder->GetHeight(), decoder->GetWidth(),
@@ -255,15 +255,15 @@ int VideoTranscoder::HandleResize()
 	{
 	    resizeWidth = decoder->GetWidth();
 	    resizeHeight = decoder->GetHeight();
-	    
+
 	    if (decodedPic) free(decodedPic);
 	    decodedPicSize = resizeWidth*resizeHeight + (resizeWidth*resizeHeight) / 2;
 
 	    decodedPic = (BYTE *) malloc(decodedPicSize);
-	    
+
 	    return 1;
 	}
-    }	
+    }
     return 0;
 }
 
@@ -272,7 +272,7 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
     /* Check params */
     VideoCodec::Type output;
     struct VideoTranscoder *vtc;
-    
+
     if ( strncasecmp(format,"h263",4) == 0 )
     {
         output = VideoCodec::H263_1996;
@@ -305,32 +305,32 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
 	    width_out = 176;
 	    height_out = 144;
 	    picsize = 0;
-	} 
-	else if (strncasecmp(i,"cif",3)==0) 
+	}
+	else if (strncasecmp(i,"cif",3)==0)
 	{
 			/* Set cif */
 	    width_out = 352;
 	    height_out = 288;
 	    picsize = 1;
-	} 
-	else if (strncasecmp(i,"vga",3)==0) 
+	}
+	else if (strncasecmp(i,"vga",3)==0)
 	{
 	    /* Set VGA */
 	    width_out = 640;
 	    height_out = 480;
 	    picsize = 2;
 	}
-	else if (strncasecmp(i,"fps=",4)==0) 
+	else if (strncasecmp(i,"fps=",4)==0)
 	{
 	    /* Set fps */
 	    fps = atoi(i+4);
-	} 
+	}
 	else if (strncasecmp(i,"kb=",3)==0)
 	{
 	    /* Set bitrate */
 	    bitrate = atoi(i+3)*1024;
-	} 
-	else if (strncasecmp(i,"qmin=",5) == 0) 
+	}
+	else if (strncasecmp(i,"qmin=",5) == 0)
 	{
 		/* Set qMin */
 		qMin = atoi(i+5);
@@ -338,7 +338,7 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
 	else if (strncasecmp(i,"qmax=",5)==0) {
 			/* Set qMax */
 		qMax = atoi(i+5);
-	} 
+	}
 	else if (strncasecmp(i,"gs=",3)==0) {
 			/* Set gop size */
 		gob_size_out = atoi(i+3);
@@ -354,10 +354,10 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
     //                unsigned int bitrate, unsigned gob_size)
     vtc = new VideoTranscoder(channel, width_out, height_out, output, fps, bitrate, gob_size_out);
 
-    if ( vtc == NULL ) 
+    if ( vtc == NULL )
     {
     	ast_log(LOG_ERROR,"-Transcoder allocation failed\n" );
-         return NULL ; 
+         return NULL ;
     }
 
     /* If not opened correctly */
@@ -368,7 +368,7 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
 	/* Destroy it */
 	delete vtc;
 	/* Exit */
-	return NULL;	
+	return NULL;
     }
 
     /* Return encoder */
@@ -378,7 +378,7 @@ struct VideoTranscoder * VideoTranscoderCreate(struct ast_channel *channel,char 
 int VideoTranscoderGetDecodedPicParams( struct VideoTranscoder *vtc, int * codec, DWORD * width, DWORD *height )
 {
     VideoCodec::Type c2;
-    
+
     int ret = vtc->GetDecodedPicParams(&c2, width, height );
     if (ret)
     {

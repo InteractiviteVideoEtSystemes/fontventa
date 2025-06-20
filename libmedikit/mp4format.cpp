@@ -238,7 +238,7 @@ int mp4recorder::ProcessFrame( const MediaFrame *f, bool secondary )
                 }
 
                 int ret = mediatracks[MP4_AUDIO_TRACK]->ProcessFrame( f );
-                //Log("Audio: track duration %u, real duration %u.\n", mediatracks[MP4_AUDIO_TRACK]->GetRecordedDuration(), 
+                //Log("Audio: track duration %u, real duration %u.\n", mediatracks[MP4_AUDIO_TRACK]->GetRecordedDuration(),
                 //    getDifTime(&firstframets)/1000);
                 return ret;
             }
@@ -291,7 +291,7 @@ int mp4recorder::ProcessFrame( const MediaFrame *f, bool secondary )
                 {
                     if( addVideoPrologue )
                     {
-                        // We are still waiting for video				
+                        // We are still waiting for video
                         // Replace P-Frames with black frames
                         VideoFrame *f3 = pcstream->Stream( false );
                         if( f3 != NULL )
@@ -342,7 +342,7 @@ int mp4recorder::ProcessFrame( const MediaFrame *f, bool secondary )
                 }
                 */
 
-                //Log("Video: track duration %u, real duration %u.\n",tr->GetRecordedDuration(), 
+                //Log("Video: track duration %u, real duration %u.\n",tr->GetRecordedDuration(),
                 //    getDifTime(&firstframets)/1000);
                 int ret = tr->ProcessFrame( f2 );
                 return ret;
@@ -567,7 +567,7 @@ int mp4recorder::ProcessFrame( struct ast_frame *f, bool secondary )
                         default:
                         {
                             // TODO: Accumulate all ast_frame in a single VideoFrame and pass it to processing
-                            // 
+                            //
                             VideoFrame vf( vcodec, f->datalen, false );
                             if( strcasecmp( f->src, "RTP" ) == 0 )
                                 vf.SetTimestamp( f->ts );
@@ -1089,7 +1089,7 @@ MediaFrame *mp4player::GetNextFrame( int &errcode, unsigned long &waittime )
         }
 
         // Handle RTT rentransmission and regular BOM sending in idle phase
-        // TODO: 
+        // TODO:
         if( redenc && nextBOMorRepeat != MP4_INVALID_TIMESTAMP )
         {
             if( now >= nextBOMorRepeat && now < next[MP4_TEXT_TRACK] )

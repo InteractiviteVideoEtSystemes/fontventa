@@ -103,7 +103,7 @@ H223MuxSDU *jitterBuffer::GetSDU()
 
 	//Get sdu
 	H223MuxSDU *sdu = buffer->sdu;
-	
+
 	//Pop front list
 	struct env *tmp = buffer;
 
@@ -112,7 +112,7 @@ H223MuxSDU *jitterBuffer::GetSDU()
 
 	//Delete element
 	free(tmp);
- 
+
 	//Descrease size
 	size--;
 

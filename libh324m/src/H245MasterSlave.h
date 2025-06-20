@@ -4,7 +4,7 @@
 #include "H245Negotiator.h"
 
 class H245MasterSlave:
-	public H245Negotiator 
+	public H245Negotiator
 {
 public:
 	/**Endpoint types.
@@ -32,17 +32,17 @@ public:
 	};
 
 	enum MasterSlaveStatus {
-		e_Indeterminate, 
-		e_DeterminedMaster, 
+		e_Indeterminate,
+		e_DeterminedMaster,
 		e_DeterminedSlave,
 		e_NumStatuses
 	};
 
 	enum ConfirmationStatus {
-		e_Indication, 
+		e_Indication,
 		e_Confirm
 	};
-	
+
 	/** Events
 	*/
 	struct Event: public H245Connection::Event
@@ -67,12 +67,12 @@ public:
 	BOOL HandleAck(const H245_MasterSlaveDeterminationAck & pdu);
 	BOOL HandleReject(const H245_MasterSlaveDeterminationReject & pdu);
 	BOOL HandleRelease(const H245_MasterSlaveDeterminationRelease & pdu);
-	
+
 	MasterSlaveStatus getStatus();
 private:
 	enum States {
-		e_Idle, 
-		e_Outgoing, 
+		e_Idle,
+		e_Outgoing,
 		e_Incoming
 	};
 

@@ -10,11 +10,11 @@ public:
 	Logo & operator =(const Logo& l);
 	int Load(const char *filename, unsigned int width = 0, unsigned int height = 0);
 	void Clean();
-	
+
 	BYTE* GetFrame();
 	int GetWidth();
 	int GetHeight();
-	
+
 	unsigned int GetSize() { return (((width/32+1)*32)*((height/32+1)*32)*3)/2; }
 
 	void PaintBlackRectangle(unsigned int width, unsigned int height);

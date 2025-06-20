@@ -1,7 +1,7 @@
-/* 
+/*
  * File:   AVCDescriptor.cpp
  * Author: Sergio
- * 
+ *
  * Created on 21 de junio de 2011, 12:21
  */
 #include "medkit/log.h"
@@ -271,7 +271,7 @@ void AVCDescriptor::Dump() const
 			::Dump(spsData[i],spsSizes[i]);
 		}
 	}
-	
+
 	Debug(" numOfPictureParameterSets: %d\n",numOfPictureParameterSets);
 	//Dump them
 	for (int i=0;i<numOfPictureParameterSets;i++)

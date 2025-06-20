@@ -72,7 +72,7 @@ int H245Connection::OnControlPDU(H324ControlPDU &pdu)
 				H324ControlPDU reply;
   				reply.BuildFunctionNotUnderstood(pdu);
   				WriteControlPDU(reply);
-			}	
+			}
 			return 1;
 		case H245_MultimediaSystemControlMessage::e_response:
 			//Is a response
@@ -87,7 +87,7 @@ int H245Connection::OnControlPDU(H324ControlPDU &pdu)
 			Debug("Unknown PDU\n");
 			//?????
 			return 0;
-	} 
+	}
 
 	//Exit
 	return 1;
@@ -119,8 +119,8 @@ int H245Connection::OnH245Request(H245_RequestMessage& req)
 		case H245_RequestMessage::e_maintenanceLoopRequest:
 			return loop->HandleRequest(req);
 
-		//More... 
-		case H245_RequestMessage::e_nonStandard:		
+		//More...
+		case H245_RequestMessage::e_nonStandard:
 		case H245_RequestMessage::e_requestChannelClose:
 		case H245_RequestMessage::e_requestMultiplexEntry:
 		case H245_RequestMessage::e_requestMode:

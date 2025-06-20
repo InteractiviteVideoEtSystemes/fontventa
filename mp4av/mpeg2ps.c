@@ -3,19 +3,19 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2004.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May wmay@cisco.com
  */
 
@@ -53,7 +53,7 @@ static void file_close (FDTYPE fd)
 }
 
 static bool file_read_bytes (FDTYPE fd,
-			     uint8_t *buffer, 
+			     uint8_t *buffer,
 			     uint32_t len)
 {
   uint32_t readval = read(fd, buffer, len);
@@ -87,7 +87,7 @@ static uint64_t read_pts (uint8_t *pak)
 {
   uint64_t pts;
   uint16_t temp;
-  
+
   pts = ((pak[0] >> 1) & 0x7);
   pts <<= 15;
   temp = convert16(&pak[1]) >> 1;
@@ -135,7 +135,7 @@ static void mpeg2ps_stream_destroy (mpeg2ps_stream_t *sptr)
  * adv_past_pack_hdr - read the pack header, advance past it
  * we don't do anything with the data
  */
-static void adv_past_pack_hdr (FDTYPE fd, 
+static void adv_past_pack_hdr (FDTYPE fd,
 			       uint8_t *pak,
 			       uint32_t read_from_start)
 {
@@ -149,7 +149,7 @@ static void adv_past_pack_hdr (FDTYPE fd,
   } else {
     val = pak[4];
   }
-    
+
   // we've read 6 bytes
   if ((val & 0xc0) != 0x40) {
     // mpeg1
@@ -164,11 +164,11 @@ static void adv_past_pack_hdr (FDTYPE fd,
 
 /*
  * find_pack_start
- * look for the pack start code in the file - read 512 bytes at a time, 
+ * look for the pack start code in the file - read 512 bytes at a time,
  * searching for that code.
  * Note: we may also be okay looking for >= 00 00 01 bb
  */
-static bool find_pack_start (FDTYPE fd, 
+static bool find_pack_start (FDTYPE fd,
 			     uint8_t *saved,
 			     uint32_t len)
 {
@@ -180,8 +180,8 @@ static bool find_pack_start (FDTYPE fd,
   }
   while (1) {
     if (MP4AV_Mpeg3FindNextStart(buffer + buffer_on,
-				 sizeof(buffer) - buffer_on, 
-				 &new_offset, 
+				 sizeof(buffer) - buffer_on,
+				 &new_offset,
 				 &scode) >= 0) {
       buffer_on += new_offset;
       if (scode == MPEG2_PS_PACKSTART) {
@@ -216,17 +216,17 @@ static bool find_pack_start (FDTYPE fd,
 }
 
 /*
- * copy_bytes_to_pes_buffer - read pes_len bytes into the buffer, 
+ * copy_bytes_to_pes_buffer - read pes_len bytes into the buffer,
  * adjusting it if we need it
  */
-static void copy_bytes_to_pes_buffer (mpeg2ps_stream_t *sptr, 
+static void copy_bytes_to_pes_buffer (mpeg2ps_stream_t *sptr,
 			       uint16_t pes_len)
 {
   uint32_t to_move;
 
   if (sptr->pes_buffer_size + pes_len > sptr->pes_buffer_size_max) {
     // if no room in the buffer, we'll move it - otherwise, just fill
-    // note - we might want a better strategy about moving the buffer - 
+    // note - we might want a better strategy about moving the buffer -
     // right now, we might be moving a number of bytes if we have a large
     // followed by large frame.
     to_move = sptr->pes_buffer_size - sptr->pes_buffer_on;
@@ -237,7 +237,7 @@ static void copy_bytes_to_pes_buffer (mpeg2ps_stream_t *sptr,
     sptr->pes_buffer_on = 0;
     //printf("moving %d bytes\n", to_move);
     if (to_move + pes_len > sptr->pes_buffer_size_max) {
-      sptr->pes_buffer = (uint8_t *)realloc(sptr->pes_buffer, 
+      sptr->pes_buffer = (uint8_t *)realloc(sptr->pes_buffer,
 					    to_move + pes_len + 2048);
       sptr->pes_buffer_size_max = to_move + pes_len + 2048;
     }
@@ -257,7 +257,7 @@ static void copy_bytes_to_pes_buffer (mpeg2ps_stream_t *sptr,
  * 00 00 01 and the next byte > 0xbb.
  * We return the pes len to read, and the "next byte"
  */
-static bool read_to_next_pes_header (FDTYPE fd, 
+static bool read_to_next_pes_header (FDTYPE fd,
 				     uint8_t *stream_id,
 				     uint16_t *pes_len)
 {
@@ -309,7 +309,7 @@ static bool read_to_next_pes_header (FDTYPE fd,
  * this should read past the pes header for the audio and video streams
  * it will store the timestamps if it reads them
  */
-static bool read_pes_header_data (FDTYPE fd, 
+static bool read_pes_header_data (FDTYPE fd,
 				  uint16_t orig_pes_len,
 				  uint16_t *pes_left,
 				  bool *have_ts,
@@ -336,7 +336,7 @@ static bool read_pes_header_data (FDTYPE fd,
       return TRUE;
     }
   }
-  if ((*local & 0xc0) == 0x40) { 
+  if ((*local & 0xc0) == 0x40) {
     // buffer scale & size
     file_skip_bytes(fd, 1);
     if (file_read_bytes(fd, local, 1) == FALSE) {
@@ -388,21 +388,21 @@ static bool read_pes_header_data (FDTYPE fd,
       *have_ts = true;
       file_read_bytes(fd, local, 10);
       ts->pts = read_pts(local);
-      ts->dts = read_pts(local  + 5);    
+      ts->dts = read_pts(local  + 5);
       hdr_len -= 10;
     }
     file_skip_bytes(fd, hdr_len);
   } else if (*local != 0xf) {
     file_skip_bytes(fd, pes_len);
     pes_len = 0;
-  } 
+  }
   *pes_left = pes_len;
   return TRUE;
 }
 
-static bool search_for_next_pes_header (mpeg2ps_stream_t *sptr, 
+static bool search_for_next_pes_header (mpeg2ps_stream_t *sptr,
 					uint16_t *pes_len,
-					bool *have_ts, 
+					bool *have_ts,
 					off_t *found_loc)
 {
   uint8_t stream_id;
@@ -419,12 +419,12 @@ static bool search_for_next_pes_header (mpeg2ps_stream_t *sptr,
       file_skip_bytes(sptr->m_fd, *pes_len);
       continue;
     }
-    loc = file_location(sptr->m_fd) - 6; 
+    loc = file_location(sptr->m_fd) - 6;
     // advance past header, reading pts
-    if (read_pes_header_data(sptr->m_fd, 
-			     *pes_len, 
-			     pes_len, 
-			     have_ts, 
+    if (read_pes_header_data(sptr->m_fd,
+			     *pes_len,
+			     pes_len,
+			     have_ts,
 			     &sptr->next_pes_ts) == FALSE) {
       return FALSE;
     }
@@ -443,7 +443,7 @@ static bool search_for_next_pes_header (mpeg2ps_stream_t *sptr,
 	*pes_len -= 6;
 	file_read_bytes(sptr->m_fd, sptr->audio_private_stream_info, 6);
 #if 0
-	printf("reading %x %x %x %x\n", 
+	printf("reading %x %x %x %x\n",
 	       sptr->audio_private_stream_info[0],
 	       sptr->audio_private_stream_info[1],
 	       sptr->audio_private_stream_info[2],
@@ -465,7 +465,7 @@ static bool search_for_next_pes_header (mpeg2ps_stream_t *sptr,
 }
 
 /*
- * mpeg2ps_stream_read_next_pes_buffer - for the given stream, 
+ * mpeg2ps_stream_read_next_pes_buffer - for the given stream,
  * go forward in the file until the next PES for the stream is read.  Read
  * the header (pts, dts), and read the data into the pes_buffer pointer
  */
@@ -487,8 +487,8 @@ static bool mpeg2ps_stream_read_next_pes_buffer (mpeg2ps_stream_t *sptr)
 /***************************************************************************
  * Frame reading routine.  For each stream, the fd's should be different.
  * we will read from the pes stream, and save it in the stream's pes buffer.
- * This will give us raw data that we can search through for frame headers, 
- * and the like.  We shouldn't read more than we need - when we need to read, 
+ * This will give us raw data that we can search through for frame headers,
+ * and the like.  We shouldn't read more than we need - when we need to read,
  * we'll put the whole next pes buffer in the buffer
  *
  * Audio routines are of the format:
@@ -500,11 +500,11 @@ static bool mpeg2ps_stream_read_next_pes_buffer (mpeg2ps_stream_t *sptr)
  *   look for start header (GOP, SEQ, Picture)
  *   look for pict header
  *   look for next start (END, GOP, SEQ, Picture)
- *   
+ *
  ***************************************************************************/
 #define IS_MPEG_START(a) ((a) == 0xb3 || (a) == 0x00 || (a) == 0xb8)
 
-static bool 
+static bool
 mpeg2ps_stream_find_mpeg_video_frame (mpeg2ps_stream_t *sptr)
 {
   uint32_t offset, scode;
@@ -516,7 +516,7 @@ mpeg2ps_stream_find_mpeg_video_frame (mpeg2ps_stream_t *sptr)
    * if we do, we have the correct timestamp.  If not, we read the new
    * pes, so we'd want to use the timestamp we read.
    */
-  sptr->frame_ts = sptr->next_pes_ts; 
+  sptr->frame_ts = sptr->next_pes_ts;
   if (sptr->pes_buffer_size <= sptr->pes_buffer_on + 4) {
     if (sptr->pes_buffer_size != sptr->pes_buffer_on)
       started_new_pes = true;
@@ -524,7 +524,7 @@ mpeg2ps_stream_find_mpeg_video_frame (mpeg2ps_stream_t *sptr)
       return FALSE;
     }
   }
-  while (MP4AV_Mpeg3FindNextStart(sptr->pes_buffer + sptr->pes_buffer_on, 
+  while (MP4AV_Mpeg3FindNextStart(sptr->pes_buffer + sptr->pes_buffer_on,
 				  sptr->pes_buffer_size - sptr->pes_buffer_on,
 				  &offset,
 				  &scode) < 0 ||
@@ -560,8 +560,8 @@ mpeg2ps_stream_find_mpeg_video_frame (mpeg2ps_stream_t *sptr)
 
   start = 4 + sptr->pes_buffer_on;
   while (1) {
-    
-    if (MP4AV_Mpeg3FindNextStart(sptr->pes_buffer + start, 
+
+    if (MP4AV_Mpeg3FindNextStart(sptr->pes_buffer + start,
 				 sptr->pes_buffer_size - start,
 				 &offset,
 				 &scode) < 0) {
@@ -598,7 +598,7 @@ mpeg2ps_stream_find_mpeg_video_frame (mpeg2ps_stream_t *sptr)
   return FALSE;
 }
 
-static bool 
+static bool
 mpeg2ps_stream_find_h264_video_frame (mpeg2ps_stream_t *sptr)
 {
   uint32_t offset;
@@ -611,7 +611,7 @@ mpeg2ps_stream_find_h264_video_frame (mpeg2ps_stream_t *sptr)
    * if we do, we have the correct timestamp.  If not, we read the new
    * pes, so we'd want to use the timestamp we read.
    */
-  sptr->frame_ts = sptr->next_pes_ts; 
+  sptr->frame_ts = sptr->next_pes_ts;
   if (sptr->pes_buffer_size <= sptr->pes_buffer_on + 4) {
     if (sptr->pes_buffer_size != sptr->pes_buffer_on)
       started_new_pes = true;
@@ -622,7 +622,7 @@ mpeg2ps_stream_find_h264_video_frame (mpeg2ps_stream_t *sptr)
   if (h264_is_start_code(sptr->pes_buffer + sptr->pes_buffer_on) == false) {
     do {
       uint32_t offset = h264_find_next_start_code(sptr->pes_buffer +
-						  sptr->pes_buffer_on, 
+						  sptr->pes_buffer_on,
 						  sptr->pes_buffer_size -
 						  sptr->pes_buffer_on);
       if (offset == 0) {
@@ -657,8 +657,8 @@ mpeg2ps_stream_find_h264_video_frame (mpeg2ps_stream_t *sptr)
 
   start = 4 + sptr->pes_buffer_on;
   while (1) {
-    
-    if ((offset = h264_find_next_start_code(sptr->pes_buffer + start, 
+
+    if ((offset = h264_find_next_start_code(sptr->pes_buffer + start,
 					    sptr->pes_buffer_size - start))
 	== 0) {
       start = sptr->pes_buffer_size - 4;
@@ -694,8 +694,8 @@ mpeg2ps_stream_find_h264_video_frame (mpeg2ps_stream_t *sptr)
   return FALSE;
 }
 
-static bool 
-mpeg2ps_stream_figure_out_video_type (mpeg2ps_stream_t *sptr) 
+static bool
+mpeg2ps_stream_figure_out_video_type (mpeg2ps_stream_t *sptr)
 {
   bool started_new_pes = false;
 
@@ -704,7 +704,7 @@ mpeg2ps_stream_figure_out_video_type (mpeg2ps_stream_t *sptr)
    * if we do, we have the correct timestamp.  If not, we read the new
    * pes, so we'd want to use the timestamp we read.
    */
-  sptr->frame_ts = sptr->next_pes_ts; 
+  sptr->frame_ts = sptr->next_pes_ts;
   if (sptr->pes_buffer_size <= sptr->pes_buffer_on + 5) {
     if (sptr->pes_buffer_size != sptr->pes_buffer_on)
       started_new_pes = true;
@@ -714,12 +714,12 @@ mpeg2ps_stream_figure_out_video_type (mpeg2ps_stream_t *sptr)
   }
 
   if (h264_is_start_code(sptr->pes_buffer + sptr->pes_buffer_on) &&
-      h264_nal_unit_type(sptr->pes_buffer + sptr->pes_buffer_on) == 
+      h264_nal_unit_type(sptr->pes_buffer + sptr->pes_buffer_on) ==
       H264_NAL_TYPE_ACCESS_UNIT) {
     sptr->have_h264 = true;
     sptr->determined_type = true;
     return mpeg2ps_stream_find_h264_video_frame(sptr);
-  } 
+  }
   // figure it's mpeg2
   sptr->have_h264 = false;
   sptr->determined_type = true;
@@ -746,11 +746,11 @@ static bool mpeg2ps_stream_find_lpcm_frame (mpeg2ps_stream_t *sptr)
   sptr->frame_ts = sptr->next_pes_ts;
   sptr->next_pes_ts.have_dts = sptr->next_pes_ts.have_pts = false;
   if (sptr->lpcm_read_offset) {
-    // we need to read bytes - 4 bytes.  This should only occur when 
+    // we need to read bytes - 4 bytes.  This should only occur when
     // we seek.  Otherwise, we've already reall read the bytes when
     // we read the last pes
     uint32_t bytes_to_skip;
-    bytes_to_skip = 
+    bytes_to_skip =
       ntohs(*(uint16_t *)&sptr->audio_private_stream_info[LPCM_PES_OFFSET_MSB]);
     bytes_to_skip -= 4;
 
@@ -758,7 +758,7 @@ static bool mpeg2ps_stream_find_lpcm_frame (mpeg2ps_stream_t *sptr)
       if (mpeg2ps_stream_read_next_pes_buffer(sptr) == false) {
 	return FALSE;
       }
-    } 
+    }
     sptr->pes_buffer_on += bytes_to_skip;
     sptr->lpcm_read_offset = false;
   }
@@ -783,7 +783,7 @@ static bool mpeg2ps_stream_find_lpcm_frame (mpeg2ps_stream_t *sptr)
   }
   sptr->have_frame_loaded = true;
 #if 0
-  printf("lpcm size %u %u %u %u\n", sptr->pes_buffer_size - sptr->pes_buffer_on, 
+  printf("lpcm size %u %u %u %u\n", sptr->pes_buffer_size - sptr->pes_buffer_on,
 	 sptr->frame_len,
 	 sptr->frame_ts.have_dts, sptr->frame_ts.have_pts);
 #endif
@@ -805,10 +805,10 @@ static bool mpeg2ps_stream_find_ac3_frame (mpeg2ps_stream_t *sptr)
   }
   while (MP4AV_Ac3ParseHeader(sptr->pes_buffer + sptr->pes_buffer_on,
 			      sptr->pes_buffer_size - sptr->pes_buffer_on,
-			       &ret, 
+			       &ret,
 			      NULL,
 			      NULL,
-			      &sptr->frame_len, 
+			      &sptr->frame_len,
 			      NULL) <= 0) {
     // don't have frame
     if (sptr->pes_buffer_size > 6) {
@@ -836,9 +836,9 @@ static bool mpeg2ps_stream_find_ac3_frame (mpeg2ps_stream_t *sptr)
   }
   while (sptr->pes_buffer_size - sptr->pes_buffer_on < sptr->frame_len) {
 #if 0
-    printf("don't have enough - on %u size %u %u %u\n", sptr->pes_buffer_on, 
+    printf("don't have enough - on %u size %u %u %u\n", sptr->pes_buffer_on,
 	   sptr->pes_buffer_size,
-	   sptr->pes_buffer_size - sptr->pes_buffer_on, 
+	   sptr->pes_buffer_size - sptr->pes_buffer_on,
 	   sptr->frame_len);
 #endif
     if (mpeg2ps_stream_read_next_pes_buffer(sptr) == FALSE) {
@@ -865,9 +865,9 @@ static bool mpeg2ps_stream_find_mp3_frame (mpeg2ps_stream_t *sptr)
   }
   while (MP4AV_Mp3GetNextFrame(sptr->pes_buffer + sptr->pes_buffer_on,
 			       sptr->pes_buffer_size - sptr->pes_buffer_on,
-			       &ret, 
-			       &sptr->frame_len, 
-			       TRUE, 
+			       &ret,
+			       &sptr->frame_len,
+			       TRUE,
 			       TRUE) == FALSE) {
     // don't have frame
     if (sptr->pes_buffer_size > 3) {
@@ -897,9 +897,9 @@ static bool mpeg2ps_stream_find_mp3_frame (mpeg2ps_stream_t *sptr)
   }
   while (sptr->pes_buffer_size - sptr->pes_buffer_on < sptr->frame_len) {
 #if 0
-    printf("don't have enough - on %u size %u %u %u\n", sptr->pes_buffer_on, 
+    printf("don't have enough - on %u size %u %u %u\n", sptr->pes_buffer_on,
 	   sptr->pes_buffer_size,
-	   sptr->pes_buffer_size - sptr->pes_buffer_on, 
+	   sptr->pes_buffer_size - sptr->pes_buffer_on,
 	   sptr->frame_len);
 #endif
     if (mpeg2ps_stream_read_next_pes_buffer(sptr) == FALSE) {
@@ -915,7 +915,7 @@ static bool mpeg2ps_stream_find_mp3_frame (mpeg2ps_stream_t *sptr)
  * advance_pointers is false when we want to use the data
  */
 static bool mpeg2ps_stream_read_frame (mpeg2ps_stream_t *sptr,
-				       uint8_t **buffer, 
+				       uint8_t **buffer,
 				       uint32_t *buflen,
 				       bool advance_pointers)
 {
@@ -987,8 +987,8 @@ static bool mpeg2ps_stream_read_frame (mpeg2ps_stream_t *sptr,
 /*
  * get_info_from_frame - we have a frame, get the info from it.
  */
-static void get_info_from_frame (mpeg2ps_stream_t *sptr, 
-				 uint8_t *buffer, 
+static void get_info_from_frame (mpeg2ps_stream_t *sptr,
+				 uint8_t *buffer,
 				 uint32_t buflen)
 {
   if (sptr->is_video) {
@@ -1015,7 +1015,7 @@ static void get_info_from_frame (mpeg2ps_stream_t *sptr,
       } while (found_seq == false && buflen > 0);
       mpeg2ps_message(LOG_ERR, "need to info h264");
       sptr->ticks_per_frame = 90000 / 30;
-      
+
     } else {
       if (MP4AV_Mpeg3ParseSeqHdr(buffer, buflen,
 				 &sptr->have_mpeg2,
@@ -1030,7 +1030,7 @@ static void get_info_from_frame (mpeg2ps_stream_t *sptr,
 	sptr->m_stream_id = 0;
 	sptr->m_fd = FDNULL;
       }
-      
+
       sptr->ticks_per_frame = (uint64_t)(90000.0 / sptr->frame_rate);
       mpeg2ps_message(LOG_INFO,"stream %x - %u x %u, %g at %g "U64,
 		      sptr->m_stream_id, sptr->w, sptr->h, sptr->bit_rate,
@@ -1062,7 +1062,7 @@ static void get_info_from_frame (mpeg2ps_stream_t *sptr,
 			   &sptr->channels);
       sptr->samples_per_frame = 256 * 6;
     } else {
-      mpeg2ps_message(LOG_ERR, "unknown audio private stream id %x %x", 
+      mpeg2ps_message(LOG_ERR, "unknown audio private stream id %x %x",
 		      sptr->m_stream_id,
 		      sptr->m_substream_id);
       return;
@@ -1071,14 +1071,14 @@ static void get_info_from_frame (mpeg2ps_stream_t *sptr,
     mpeg2ps_message(LOG_ERR, "unknown stream id %x", sptr->m_stream_id);
     return;
   }
-    
-  mpeg2ps_message(LOG_INFO, "audio stream %x - freq %u chans %u bitrate %u spf %u", 
-		sptr->m_stream_id, sptr->freq, sptr->channels, sptr->bitrate, 
+
+  mpeg2ps_message(LOG_INFO, "audio stream %x - freq %u chans %u bitrate %u spf %u",
+		sptr->m_stream_id, sptr->freq, sptr->channels, sptr->bitrate,
 		sptr->samples_per_frame);
 }
 
 /*
- * clear_stream_buffer - called when we seek to clear out any data in 
+ * clear_stream_buffer - called when we seek to clear out any data in
  * the buffers
  */
 static void clear_stream_buffer (mpeg2ps_stream_t *sptr)
@@ -1124,11 +1124,11 @@ static uint64_t convert_ts (mpeg2ps_stream_t *sptr,
 
 /*
  * find_stream_from_id - given the stream, get the sptr.
- * only used in inital set up, really.  APIs use index into 
+ * only used in inital set up, really.  APIs use index into
  * video_streams and audio_streams arrays.
  */
-static mpeg2ps_stream_t *find_stream_from_id (mpeg2ps_t *ps, 
-					      uint8_t stream_id, 
+static mpeg2ps_stream_t *find_stream_from_id (mpeg2ps_t *ps,
+					      uint8_t stream_id,
 					      uint8_t substream)
 {
   uint8_t ix;
@@ -1160,7 +1160,7 @@ static bool add_stream (mpeg2ps_t *ps,
 			mpeg2ps_ts_t *ts)
 {
   mpeg2ps_stream_t *sptr;
-  
+
   sptr = find_stream_from_id(ps, stream_id, substream);
   if (sptr != NULL) return FALSE;
 
@@ -1180,8 +1180,8 @@ static bool add_stream (mpeg2ps_t *ps,
   if (sptr->is_video) {
     // can't be more than 16 - e0 to ef...
     ps->video_streams[ps->video_cnt] = sptr;
-    mpeg2ps_message(LOG_DEBUG, 
-		    "added video stream %x "X64" "U64, 
+    mpeg2ps_message(LOG_DEBUG,
+		    "added video stream %x "X64" "U64,
 		    stream_id, first_loc, sptr->start_dts);
     ps->video_cnt++;
   } else {
@@ -1189,8 +1189,8 @@ static bool add_stream (mpeg2ps_t *ps,
       mpeg2ps_stream_destroy(sptr);
       return FALSE;
     }
-    mpeg2ps_message(LOG_DEBUG, 
-		    "added audio stream %x %x "X64" "U64, 
+    mpeg2ps_message(LOG_DEBUG,
+		    "added audio stream %x %x "X64" "U64,
 		    stream_id, substream, first_loc, sptr->start_dts);
     ps->audio_streams[ps->audio_cnt] = sptr;
     ps->audio_cnt++;
@@ -1198,7 +1198,7 @@ static bool add_stream (mpeg2ps_t *ps,
   return TRUE;
 }
 
-static void check_fd_for_stream (mpeg2ps_t *ps, 
+static void check_fd_for_stream (mpeg2ps_t *ps,
 			  mpeg2ps_stream_t *sptr)
 {
   if (sptr->m_fd != FDNULL) return;
@@ -1217,7 +1217,7 @@ static void advance_frame (mpeg2ps_stream_t *sptr)
   sptr->pes_buffer_on += sptr->frame_len;
   sptr->have_frame_loaded = false;
   if (sptr->frame_ts.have_dts || sptr->frame_ts.have_pts) {
-    if (sptr->frame_ts.have_dts) 
+    if (sptr->frame_ts.have_dts)
       sptr->last_ts = sptr->frame_ts.dts;
     else
       sptr->last_ts = sptr->frame_ts.pts;
@@ -1248,8 +1248,8 @@ static void get_info_for_all_streams (mpeg2ps_t *ps)
       else sptr = ps->audio_streams[stream_ix];
 
       if (file_seek_to(ps->fd, sptr->first_pes_loc) != sptr->first_pes_loc) {
-	mpeg2ps_message(LOG_ERR, "stream %x error - can't seek to "X64" %s", 
-			sptr->m_stream_id, sptr->first_pes_loc, 
+	mpeg2ps_message(LOG_ERR, "stream %x error - can't seek to "X64" %s",
+			sptr->m_stream_id, sptr->first_pes_loc,
 			strerror(errno));
       }
       // we don't open a seperate file descriptor yet (only when they
@@ -1257,7 +1257,7 @@ static void get_info_for_all_streams (mpeg2ps_t *ps)
       sptr->m_fd = ps->fd; // for now
       clear_stream_buffer(sptr);
       if (mpeg2ps_stream_read_frame(sptr,
-				    &buffer, 
+				    &buffer,
 				    &buflen,
 				    false) == FALSE) {
 	mpeg2ps_message(LOG_CRIT, "Couldn't read frame of stream %x",
@@ -1274,21 +1274,21 @@ static void get_info_for_all_streams (mpeg2ps_t *ps)
 	bool have_frame;
 	do {
 	  advance_frame(sptr);
-	  have_frame = 
+	  have_frame =
 	    mpeg2ps_stream_read_frame(sptr, &buffer, &buflen, false);
 	  frames_from_beg++;
-	} while (have_frame && 
-		 sptr->frame_ts.have_dts == false && 
-		 sptr->frame_ts.have_pts == false && 
+	} while (have_frame &&
+		 sptr->frame_ts.have_dts == false &&
+		 sptr->frame_ts.have_pts == false &&
 		 frames_from_beg < 1000);
 	if (have_frame == false ||
 	    (sptr->frame_ts.have_dts == false &&
 	     sptr->frame_ts.have_pts == false)) {
-	  mpeg2ps_message(LOG_ERR, 
+	  mpeg2ps_message(LOG_ERR,
 			  "can't find initial pts of stream %x - have_frame %d cnt %u",
 			  sptr->m_stream_id, have_frame, frames_from_beg);
 	} else {
-	  sptr->start_dts = sptr->frame_ts.have_dts ? sptr->frame_ts.dts : 
+	  sptr->start_dts = sptr->frame_ts.have_dts ? sptr->frame_ts.dts :
 	    sptr->frame_ts.pts;
 	  if (sptr->is_video) {
 	    sptr->start_dts -= frames_from_beg * sptr->ticks_per_frame;
@@ -1334,15 +1334,15 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
    * the file size / 50
    */
   loc = 0;
-  while (read_to_next_pes_header(ps->fd, &stream_id, &pes_len) && 
+  while (read_to_next_pes_header(ps->fd, &stream_id, &pes_len) &&
 	 loc < check) {
     pes_left = pes_len;
     if (stream_id >= 0xbd && stream_id < 0xf0) {
       loc = file_location(ps->fd) - 6;
-      if (read_pes_header_data(ps->fd, 
-			       pes_len, 
-			       &pes_left, 
-			       &have_ts, 
+      if (read_pes_header_data(ps->fd,
+			       pes_len,
+			       &pes_left,
+			       &have_ts,
 			       &ts) == FALSE) {
 	return;
       }
@@ -1363,7 +1363,7 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
 	valid_stream = TRUE;
       }
 #if 0
-      mpeg2ps_message(LOG_DEBUG, 
+      mpeg2ps_message(LOG_DEBUG,
 		      "stream %x %x loc "X64" pts %d dts %d\n",
 		      stream_id, substream, loc, ts.have_pts, ts.have_dts);
 #endif
@@ -1379,9 +1379,9 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
 	  }
 	  if (ps->audio_cnt > 0 && ps->video_cnt > 0) {
 	    off_t diff;
-	    if (first_audio_loc > first_video_loc) 
+	    if (first_audio_loc > first_video_loc)
 	      diff = first_audio_loc - first_video_loc;
-	    else 
+	    else
 	      diff = first_video_loc - first_audio_loc;
 	    diff *= 2;
 	    diff += first_video_loc;
@@ -1398,7 +1398,7 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
     return;
   }
   /*
-   * Now, we go to close to the end, and try to find the last 
+   * Now, we go to close to the end, and try to find the last
    * dts that we can
    */
   //  printf("to end "X64"\n", end - orig_check);
@@ -1407,10 +1407,10 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
   while (read_to_next_pes_header(ps->fd, &stream_id, &pes_len)) {
     loc = file_location(ps->fd) - 6;
     if (stream_id == 0xbd || (stream_id >= 0xc0 && stream_id < 0xf0)) {
-      if (read_pes_header_data(ps->fd, 
-			       pes_len, 
-			       &pes_left, 
-			       &have_ts, 
+      if (read_pes_header_data(ps->fd,
+			       pes_len,
+			       &pes_left,
+			       &have_ts,
 			       &ts) == FALSE) {
 	return;
       }
@@ -1429,7 +1429,7 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
       }
       sptr = find_stream_from_id(ps, stream_id, substream);
       if (sptr == NULL) {
-	mpeg2ps_message(LOG_INFO, 
+	mpeg2ps_message(LOG_INFO,
 			"adding stream from end search %x %x",
 			stream_id, substream);
 	add_stream(ps, stream_id, substream, 0, NULL);
@@ -1486,7 +1486,7 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
       uint32_t frame_cnt_since_last;
 	  sptr = av_ix == 0 ? ps->video_streams[stream_ix] :
 	ps->audio_streams[stream_ix];
-      
+
       // pick up here - find the final time...
       if (sptr->end_dts_loc != 0) {
 	//printf("end loc "U64"\n", sptr->end_dts_loc);
@@ -1495,23 +1495,23 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
 	frame_cnt_since_last = 0;
 	clear_stream_buffer(sptr);
 	while (mpeg2ps_stream_read_frame(sptr,
-					 &buffer, 
+					 &buffer,
 					 &buflen,
 					 true)) {
-	  //printf("loc "U64"\n", file_location(sptr->m_fd)); 
+	  //printf("loc "U64"\n", file_location(sptr->m_fd));
 	  frame_cnt_since_last++;
 	}
 	sptr->m_fd = FDNULL;
 	clear_stream_buffer(sptr);
-	mpeg2ps_message(LOG_DEBUG, "stream %x last ts "U64" since last %u\n", 
-			sptr->m_stream_id, 
+	mpeg2ps_message(LOG_DEBUG, "stream %x last ts "U64" since last %u\n",
+			sptr->m_stream_id,
 			sptr->end_dts,
 			frame_cnt_since_last);
-	ps->max_time = MAX(ps->max_time, 
-			   convert_ts(sptr, 
+	ps->max_time = MAX(ps->max_time,
+			   convert_ts(sptr,
 				      TS_MSEC,
 				      sptr->end_dts,
-				      ps->first_dts, 
+				      ps->first_dts,
 				      frame_cnt_since_last));
       } else {
 	mpeg2ps_message(LOG_DEBUG, "stream %x no end dts", sptr->m_stream_id);
@@ -1527,7 +1527,7 @@ static void mpeg2ps_scan_file (mpeg2ps_t *ps)
 /*************************************************************************
  * API routines
  *************************************************************************/
-uint64_t mpeg2ps_get_max_time_msec (mpeg2ps_t *ps) 
+uint64_t mpeg2ps_get_max_time_msec (mpeg2ps_t *ps)
 {
   return ps->max_time;
 }
@@ -1560,7 +1560,7 @@ char *mpeg2ps_get_video_stream_name (mpeg2ps_t *ps, uint streamno)
   return strdup("Mpeg-1");
 }
 
-mpeg2ps_video_type_t mpeg2ps_get_video_stream_type (mpeg2ps_t *ps, 
+mpeg2ps_video_type_t mpeg2ps_get_video_stream_type (mpeg2ps_t *ps,
 						    uint streamno)
 {
   if (invalid_video_streamno(ps, streamno)) {
@@ -1568,7 +1568,7 @@ mpeg2ps_video_type_t mpeg2ps_get_video_stream_type (mpeg2ps_t *ps,
   }
   if (ps->video_streams[streamno]->have_h264) return MPEG_VIDEO_H264;
 
-  return ps->video_streams[streamno]->have_mpeg2 ? MPEG_VIDEO_MPEG2 : 
+  return ps->video_streams[streamno]->have_mpeg2 ? MPEG_VIDEO_MPEG2 :
     MPEG_VIDEO_MPEG1;
 }
 
@@ -1614,7 +1614,7 @@ uint8_t mpeg2ps_get_video_stream_mp4_type (mpeg2ps_t *ps, uint streamno)
   }
   if (ps->video_streams[streamno]->have_mpeg2) {
     return mpeg2_profile_to_mp4_track_type(ps->video_streams[streamno]->video_profile);
-  } 
+  }
   return MP4_MPEG1_VIDEO_TYPE;
 }
 
@@ -1630,7 +1630,7 @@ uint32_t mpeg2ps_get_audio_stream_count (mpeg2ps_t *ps)
   return ps->audio_cnt;
 }
 
-const char *mpeg2ps_get_audio_stream_name (mpeg2ps_t *ps, 
+const char *mpeg2ps_get_audio_stream_name (mpeg2ps_t *ps,
 					   uint streamno)
 {
   if (invalid_audio_streamno(ps, streamno)) {
@@ -1651,7 +1651,7 @@ const char *mpeg2ps_get_audio_stream_name (mpeg2ps_t *ps,
   return "LPCM";
 }
 
-mpeg2ps_audio_type_t mpeg2ps_get_audio_stream_type (mpeg2ps_t *ps, 
+mpeg2ps_audio_type_t mpeg2ps_get_audio_stream_type (mpeg2ps_t *ps,
 						    uint streamno)
 {
   if (invalid_audio_streamno(ps, streamno)) {
@@ -1707,11 +1707,11 @@ mpeg2ps_t *mpeg2ps_init (const char *filename)
     free(ps);
     return NULL;
   }
-  
+
 #if 0
   file_read_bytes(ps->fd, local, 4);
   hdr = convert32(local);
-  // this should accept all pes headers with 0xba or greater - so, 
+  // this should accept all pes headers with 0xba or greater - so,
   // we'll handle pack streams, or pes streams.
   if (((hdr & MPEG2_PS_START_MASK) != MPEG2_PS_START) ||
       (hdr < MPEG2_PS_PACKSTART)) {
@@ -1759,7 +1759,7 @@ void mpeg2ps_close (mpeg2ps_t *ps)
  * than 1 time, if needed, without changing any variables, such as
  * frames_since_last_ts, which gets updated in advance_frame
  */
-static uint64_t stream_convert_frame_ts_to_msec (mpeg2ps_stream_t *sptr, 
+static uint64_t stream_convert_frame_ts_to_msec (mpeg2ps_stream_t *sptr,
 						 mpeg2ps_ts_type_t ts_type,
 						 uint64_t base_dts,
 						 uint32_t *freq_ts)
@@ -1789,9 +1789,9 @@ static uint64_t stream_convert_frame_ts_to_msec (mpeg2ps_stream_t *sptr,
 
 /*
  * mpeg2ps_get_video_frame - gets the next frame
- */    
+ */
 bool mpeg2ps_get_video_frame(mpeg2ps_t *ps, uint streamno,
-			     uint8_t **buffer, 
+			     uint8_t **buffer,
 			     uint32_t *buflen,
 			     uint8_t *frame_type,
 			     mpeg2ps_ts_type_t ts_type,
@@ -1804,7 +1804,7 @@ bool mpeg2ps_get_video_frame(mpeg2ps_t *ps, uint streamno,
   check_fd_for_stream(ps, sptr);
 
   if (sptr->have_frame_loaded == false) {
-    // if we don't have the frame in the buffer (like after a seek), 
+    // if we don't have the frame in the buffer (like after a seek),
     // read the next frame
     if (mpeg2ps_stream_read_frame(sptr, buffer, buflen, false) == false) {
       return false;
@@ -1815,13 +1815,13 @@ bool mpeg2ps_get_video_frame(mpeg2ps_t *ps, uint streamno,
   }
   // determine frame type
   if (frame_type != NULL) {
-    *frame_type = MP4AV_Mpeg3PictHdrType(sptr->pes_buffer + 
+    *frame_type = MP4AV_Mpeg3PictHdrType(sptr->pes_buffer +
 					 sptr->pict_header_offset);
   }
 
   // and the timestamp
   if (timestamp != NULL) {
-    *timestamp = stream_convert_frame_ts_to_msec(sptr, ts_type, 
+    *timestamp = stream_convert_frame_ts_to_msec(sptr, ts_type,
 						 ps->first_dts, NULL);
   }
 
@@ -1832,9 +1832,9 @@ bool mpeg2ps_get_video_frame(mpeg2ps_t *ps, uint streamno,
 }
 
 
-// see above comments      
+// see above comments
 bool mpeg2ps_get_audio_frame(mpeg2ps_t *ps, uint streamno,
-			     uint8_t **buffer, 
+			     uint8_t **buffer,
 			     uint32_t *buflen,
 			     mpeg2ps_ts_type_t ts_type,
 			     uint32_t *freq_timestamp,
@@ -1848,15 +1848,15 @@ bool mpeg2ps_get_audio_frame(mpeg2ps_t *ps, uint streamno,
   check_fd_for_stream(ps, sptr);
 
   if (sptr->have_frame_loaded == false) {
-    if (mpeg2ps_stream_read_frame(sptr, buffer, buflen, false) == false) 
+    if (mpeg2ps_stream_read_frame(sptr, buffer, buflen, false) == false)
       return false;
   } else {
     *buffer = sptr->pes_buffer + sptr->pes_buffer_on;
     *buflen = sptr->frame_len;
   }
-  
+
   if (timestamp != NULL || freq_timestamp != NULL) {
-    ts = stream_convert_frame_ts_to_msec(sptr, 
+    ts = stream_convert_frame_ts_to_msec(sptr,
 					 ts_type,
 					 ps->first_dts,
 					 freq_timestamp);
@@ -1877,12 +1877,12 @@ bool mpeg2ps_get_audio_frame(mpeg2ps_t *ps, uint streamno,
  * we're looking for.  We have a start ts and location, an end ts and
  * location, and what we're looking for
  */
-static void mpeg2ps_binary_seek (mpeg2ps_t *ps, 
-				 mpeg2ps_stream_t *sptr, 
+static void mpeg2ps_binary_seek (mpeg2ps_t *ps,
+				 mpeg2ps_stream_t *sptr,
 				 uint64_t search_dts,
 				 uint64_t start_dts,
 				 off_t start_loc,
-				 uint64_t end_dts, 
+				 uint64_t end_dts,
 				 off_t end_loc)
 {
   uint64_t dts_perc;
@@ -1897,27 +1897,27 @@ static void mpeg2ps_binary_seek (mpeg2ps_t *ps,
     /*
      * It's not a binary search as much as using a percentage between
      * the start and end dts to start.  We subtract off a bit, so we
-     * approach from the beginning of the file - we're more likely to 
+     * approach from the beginning of the file - we're more likely to
      * hit a pts that way
      */
     dts_perc = (search_dts - start_dts) * 1000 / (end_dts - start_dts);
     dts_perc -= dts_perc % 10;
 
     loc = ((end_loc - start_loc) * dts_perc) / 1000;
-  
+
     if (loc == start_loc || loc == end_loc) return;
 
     clear_stream_buffer(sptr);
     file_seek_to(sptr->m_fd, start_loc + loc);
     mpeg2ps_message(LOG_DEBUG, "start dl "U64" "U64" end dl "U64" "U64" new "U64,
-		    start_dts, start_loc, 
-		    end_dts, end_loc, 
+		    start_dts, start_loc,
+		    end_dts, end_loc,
 		    loc);
     // we'll look for the next pes header for this stream that has a ts.
     do {
-      if (search_for_next_pes_header(sptr, 
-				     &pes_len, 
-				     &have_ts, 
+      if (search_for_next_pes_header(sptr,
+				     &pes_len,
+				     &have_ts,
 				     &found_loc) == false) {
 	return;
       }
@@ -1929,12 +1929,12 @@ static void mpeg2ps_binary_seek (mpeg2ps_t *ps,
     // record that spot...
     mpeg2ps_record_pts(sptr, found_loc, &sptr->next_pes_ts);
 
-    found_dts = sptr->next_pes_ts.have_dts ? 
+    found_dts = sptr->next_pes_ts.have_dts ?
       sptr->next_pes_ts.dts : sptr->next_pes_ts.pts;
     mpeg2ps_message(LOG_DEBUG, "found dts "U64" loc "U64,
 		    found_dts, loc);
     /*
-     * Now, if we're before the search ts, and within 5 seconds, 
+     * Now, if we're before the search ts, and within 5 seconds,
      * we'll say we're close enough
      */
     if (found_dts + (5 * 90000) > search_dts &&
@@ -1968,8 +1968,8 @@ static void mpeg2ps_binary_seek (mpeg2ps_t *ps,
  * First, find a close DTS (usually minus 5 seconds or closer), then
  * read frames until we get the frame after the timestamp.
  */
-static bool mpeg2ps_seek_frame (mpeg2ps_t *ps, 
-				mpeg2ps_stream_t *sptr, 
+static bool mpeg2ps_seek_frame (mpeg2ps_t *ps,
+				mpeg2ps_stream_t *sptr,
 				uint64_t search_msec_timestamp)
 {
   uint64_t dts;
@@ -1987,7 +1987,7 @@ static bool mpeg2ps_seek_frame (mpeg2ps_t *ps,
   }
   dts = search_msec_timestamp * 90; // 1000 timescale to 90000 timescale
   dts += ps->first_dts;
-  mpeg2ps_message(LOG_DEBUG, "%x seek msec "U64" dts "U64, 
+  mpeg2ps_message(LOG_DEBUG, "%x seek msec "U64" dts "U64,
 		  sptr->m_stream_id, search_msec_timestamp, dts);
   /*
    * see if the recorded data has anything close
@@ -2002,21 +2002,21 @@ static bool mpeg2ps_seek_frame (mpeg2ps_t *ps,
       file_seek_to(sptr->m_fd, rec->location);
       return true;
     }
-    // at this point, rec is > a distance.  If within 5 or so seconds, 
+    // at this point, rec is > a distance.  If within 5 or so seconds,
     // skip
     if (rec->dts > dts) {
-      mpeg2ps_message(LOG_ERR, "stream %x seek frame error dts "U64" rec "U64, 
+      mpeg2ps_message(LOG_ERR, "stream %x seek frame error dts "U64" rec "U64,
 		      sptr->m_stream_id, dts, rec->dts);
       return false;
     }
     if (rec->dts + (5 * 90000) < dts) {
       // more than 5 seconds away - skip and search
       if (rec->next_rec == NULL) {
-	mpeg2ps_binary_seek(ps, sptr, dts, 
+	mpeg2ps_binary_seek(ps, sptr, dts,
 			    rec->dts, rec->location,
 			    sptr->end_dts, sptr->end_dts_loc);
       } else {
-	mpeg2ps_binary_seek(ps, sptr, dts, 
+	mpeg2ps_binary_seek(ps, sptr, dts,
 			    rec->dts, rec->location,
 			    rec->next_rec->dts, rec->next_rec->location);
       }
@@ -2024,7 +2024,7 @@ static bool mpeg2ps_seek_frame (mpeg2ps_t *ps,
     // otherwise, frame by frame search...
   } else {
     // we weren't able to find anything from the recording
-    mpeg2ps_binary_seek(ps, sptr, dts, 
+    mpeg2ps_binary_seek(ps, sptr, dts,
 			sptr->start_dts, sptr->first_pes_loc,
 			sptr->end_dts, sptr->end_dts_loc);
   }
@@ -2033,10 +2033,10 @@ static bool mpeg2ps_seek_frame (mpeg2ps_t *ps,
    */
   clear_stream_buffer(sptr); // clear out any data, so we can read it
   do {
-    if (mpeg2ps_stream_read_frame(sptr, &buffer, &buflen, false) == false) 
+    if (mpeg2ps_stream_read_frame(sptr, &buffer, &buflen, false) == false)
       return false;
 
-    msec_ts = stream_convert_frame_ts_to_msec(sptr, TS_MSEC, 
+    msec_ts = stream_convert_frame_ts_to_msec(sptr, TS_MSEC,
 					      ps->first_dts, NULL);
     mpeg2ps_message(LOG_DEBUG, "%x read ts "U64, sptr->m_stream_id, msec_ts);
     if (msec_ts < search_msec_timestamp) {
@@ -2047,7 +2047,7 @@ static bool mpeg2ps_seek_frame (mpeg2ps_t *ps,
 
   return true;
 }
-		      
+
 /*
  * mpeg2ps_seek_video_frame - seek to the location that we're interested
  * in, then scroll up to the next I frame
@@ -2065,11 +2065,11 @@ bool mpeg2ps_seek_video_frame (mpeg2ps_t *ps, uint streamno,
   if (invalid_video_streamno(ps, streamno)) return false;
 
   sptr = ps->video_streams[streamno];
-  if (mpeg2ps_seek_frame(ps, 
+  if (mpeg2ps_seek_frame(ps,
 			 sptr,
 			 msec_timestamp)
 			  == false) return false;
-  
+
   if (sptr->have_frame_loaded == false) {
     mpeg2ps_message(LOG_CRIT, "no frame loaded after search");
     return false;
@@ -2078,10 +2078,10 @@ bool mpeg2ps_seek_video_frame (mpeg2ps_t *ps, uint streamno,
    * read forward until we find the next I frame
    */
   if (sptr->have_h264) {
-    
-    while (h264_access_unit_is_sync(sptr->pes_buffer + 
+
+    while (h264_access_unit_is_sync(sptr->pes_buffer +
 				    sptr->pict_header_offset,
-				    sptr->pes_buffer_size - 
+				    sptr->pes_buffer_size -
 				    sptr->pict_header_offset) == false) {
       advance_frame(sptr);
       if (mpeg2ps_stream_read_frame(sptr, &buffer, &buflen, false) == false)
@@ -2090,13 +2090,13 @@ bool mpeg2ps_seek_video_frame (mpeg2ps_t *ps, uint streamno,
       mpeg2ps_message(LOG_DEBUG, "read ts "U64, msec_ts);
     }
   } else {
-    frame_type = MP4AV_Mpeg3PictHdrType(sptr->pes_buffer + 
+    frame_type = MP4AV_Mpeg3PictHdrType(sptr->pes_buffer +
 					sptr->pict_header_offset);
     while (frame_type != 1) {
       advance_frame(sptr);
-      if (mpeg2ps_stream_read_frame(sptr, &buffer, &buflen, false) == false) 
+      if (mpeg2ps_stream_read_frame(sptr, &buffer, &buflen, false) == false)
 	return false;
-      frame_type = MP4AV_Mpeg3PictHdrType(sptr->pes_buffer + 
+      frame_type = MP4AV_Mpeg3PictHdrType(sptr->pes_buffer +
 					  sptr->pict_header_offset);
       msec_ts = stream_convert_frame_ts_to_msec(sptr, TS_MSEC, ps->first_dts, NULL);
       mpeg2ps_message(LOG_DEBUG, "read ts "U64" type %d", msec_ts, frame_type);
@@ -2114,13 +2114,13 @@ bool mpeg2ps_seek_audio_frame (mpeg2ps_t *ps,
 {
   //  off_t closest_pes;
   mpeg2ps_stream_t *sptr;
-  
+
   if (invalid_audio_streamno(ps, streamno)) return false;
-  
+
   sptr = ps->audio_streams[streamno];
   if (mpeg2ps_seek_frame(ps,
 			 sptr,
 			 msec_timestamp) == false) return false;
-  
+
   return true;
 }

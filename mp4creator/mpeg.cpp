@@ -3,27 +3,27 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2002.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Bill May  wmay@cisco.com
  *              Alix Marchandise-Franquet alix@cisco.com
  */
 #include "mp4creator.h"
 #include "mpeg2_ps.h"
 
-static MP4TrackId VideoCreate (MP4FileHandle mp4file, 
-			       mpeg2ps_t *file, 
+static MP4TrackId VideoCreate (MP4FileHandle mp4file,
+			       mpeg2ps_t *file,
 			       int vstream,
 			       bool doEncrypt)
 {
@@ -39,10 +39,10 @@ static MP4TrackId VideoCreate (MP4FileHandle mp4file,
 
 #ifdef _WIN32
   MP4Duration mp4FrameDuration;
-  mp4FrameDuration = 
+  mp4FrameDuration =
     (MP4Duration)((double)Mp4TimeScale / frame_rate);
 #else
-  MP4Duration mp4FrameDuration = 
+  MP4Duration mp4FrameDuration =
     (MP4Duration)(Mp4TimeScale / frame_rate);
 #endif
 
@@ -60,7 +60,7 @@ static MP4TrackId VideoCreate (MP4FileHandle mp4file,
       return MP4_INVALID_TRACK_ID;
     }
     if (ismacrypGetScheme(ismaCrypSId, &(icPp->scheme_type)) != ismacryp_rc_ok) {
-       fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n", 
+       fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n",
                ProgName, ismaCrypSId);
        ismacrypEndSession(ismaCrypSId);
        return MP4_INVALID_TRACK_ID;
@@ -96,20 +96,20 @@ static MP4TrackId VideoCreate (MP4FileHandle mp4file,
        ismacrypEndSession(ismaCrypSId);
        return MP4_INVALID_TRACK_ID;
     }
-    id = MP4AddEncVideoTrack(mp4file, 
-			     Mp4TimeScale, 
+    id = MP4AddEncVideoTrack(mp4file,
+			     Mp4TimeScale,
 			     mp4FrameDuration,
-			     w, 
+			     w,
 			     h,
                              icPp,
 			     video_type);
 #endif
   } else {
-    id = MP4AddVideoTrack(mp4file, 
-			  Mp4TimeScale, 
+    id = MP4AddVideoTrack(mp4file,
+			  Mp4TimeScale,
 			  mp4FrameDuration,
-			  w, 
-			  h, 
+			  w,
+			  h,
 			  video_type);
   }
 
@@ -130,17 +130,17 @@ static MP4TrackId VideoCreate (MP4FileHandle mp4file,
 #endif
   uint32_t refFrame = 1;
   uint8_t frame_type;
-  while (mpeg2ps_get_video_frame(file, 
+  while (mpeg2ps_get_video_frame(file,
 				 vstream,
-				 &buf, 
-				 &blen, 
+				 &buf,
+				 &blen,
 				 &frame_type,
 				 TS_90000,
 				 NULL)) {
     if (buf[blen - 4] == 0 &&
 	buf[blen - 3] == 0 &&
 	buf[blen - 2] == 1) blen -= 4;
-    
+
     // encrypt the sample if neeed
     if (doEncrypt) {
 #ifdef MP4V15
@@ -148,18 +148,18 @@ static MP4TrackId VideoCreate (MP4FileHandle mp4file,
       u_int32_t encSampleLen = 0;
       if (ismacrypEncryptSampleAddHeader(ismaCrypSId, blen, buf,
 				&encSampleLen, &encSampleData) != 0) {
-	fprintf(stderr,	
+	fprintf(stderr,
 		"%s: can't encrypt video sample and add header %u\n", ProgName, id);
       }
-      MP4WriteSample(mp4file, id, encSampleData, encSampleLen, 
-		     mp4FrameDuration, 0, 
+      MP4WriteSample(mp4file, id, encSampleData, encSampleLen,
+		     mp4FrameDuration, 0,
 		     frame_type == 1 ? true : false);
       if (encSampleData != NULL) {
 	free(encSampleData);
       }
 #endif
     } else {
-      MP4WriteSample(mp4file, id, buf, blen, mp4FrameDuration, 0, 
+      MP4WriteSample(mp4file, id, buf, blen, mp4FrameDuration, 0,
 		     frame_type == 1 ? true : false);
 #if 0
       printf("frame %d len %d duration "U64" ftype %d\n",
@@ -168,7 +168,7 @@ static MP4TrackId VideoCreate (MP4FileHandle mp4file,
     }
     if (frame_type != 3) {
       // I or P frame
-      MP4SetSampleRenderingOffset(mp4file, id, refFrame, 
+      MP4SetSampleRenderingOffset(mp4file, id, refFrame,
 				  (frames - refFrame) * mp4FrameDuration);
       refFrame = frames;
     }
@@ -182,7 +182,7 @@ static MP4TrackId VideoCreate (MP4FileHandle mp4file,
   // if encrypting, terminate the ismacryp session
   if (doEncrypt) {
     if (ismacrypEndSession(ismaCrypSId) != 0) {
-      fprintf(stderr, 
+      fprintf(stderr,
 	      "%s: could not end the ISMAcryp session\n",
 	      ProgName);
       return MP4_INVALID_TRACK_ID;
@@ -192,8 +192,8 @@ static MP4TrackId VideoCreate (MP4FileHandle mp4file,
   return id;
 }
 
-static MP4TrackId AudioCreate (MP4FileHandle mp4file, 
-			       mpeg2ps_t *file, 
+static MP4TrackId AudioCreate (MP4FileHandle mp4file,
+			       mpeg2ps_t *file,
 			       int astream,
 			       bool doEncrypt)
 {
@@ -216,33 +216,33 @@ static MP4TrackId AudioCreate (MP4FileHandle mp4file,
   type = mpeg2ps_get_audio_stream_type(file, astream);
 
   if (type != MPEG_AUDIO_MPEG) {
-    fprintf(stderr, "Unsupported audio format %d in audio stream %d\n", 
+    fprintf(stderr, "Unsupported audio format %d in audio stream %d\n",
 	    type, astream);
     return MP4_INVALID_TRACK_ID;
   }
 
   freq = mpeg2ps_get_audio_stream_sample_freq(file, astream);
 
-  if (mpeg2ps_get_audio_frame(file, 
+  if (mpeg2ps_get_audio_frame(file,
 			      astream,
-			      &buf, 
+			      &buf,
 			      &blen,
 			      TS_90000,
-			      NULL, 
+			      NULL,
 			      NULL) == false) {
     fprintf(stderr, "No audio tracks in audio stream %d\n", astream);
     return MP4_INVALID_TRACK_ID;
   }
-  
+
   hdr = MP4AV_Mp3HeaderFromBytes(buf);
   mpegVersion = MP4AV_Mp3GetHdrVersion(hdr);
   samples_per_frame = MP4AV_Mp3GetHdrSamplingWindow(hdr);
 
   u_int8_t audioType = MP4AV_Mp3ToMp4AudioType(mpegVersion);
-  
+
   if (audioType == MP4_INVALID_AUDIO_TYPE
       || samples_per_frame == 0) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: data in file doesn't appear to be valid audio\n",
 	    ProgName);
     return MP4_INVALID_TRACK_ID;
@@ -254,13 +254,13 @@ static MP4TrackId AudioCreate (MP4FileHandle mp4file,
 #ifdef MPEG4V15
     // initialize the ismacryp session
     if (ismacrypInitSession(&ismaCrypSId,KeyTypeAudio) != 0) {
-      fprintf(stderr, 
+      fprintf(stderr,
 	      "%s: could not initialize the ISMAcryp session\n",
 	      ProgName);
       return MP4_INVALID_TRACK_ID;
     }
     if (ismacrypGetScheme(ismaCrypSId, &(icPp->scheme_type)) != ismacryp_rc_ok) {
-       fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n", 
+       fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n",
                ProgName, ismaCrypSId);
        ismacrypEndSession(ismaCrypSId);
        return MP4_INVALID_TRACK_ID;
@@ -296,22 +296,22 @@ static MP4TrackId AudioCreate (MP4FileHandle mp4file,
        ismacrypEndSession(ismaCrypSId);
        return MP4_INVALID_TRACK_ID;
     }
-    id = MP4AddEncAudioTrack(mp4file, 
-			     90000, 
+    id = MP4AddEncAudioTrack(mp4file,
+			     90000,
 			     duration,
                              icPp,
 			     audioType);
 #endif
   } else {
-    id = MP4AddAudioTrack(mp4file, 
-			  90000, 
+    id = MP4AddAudioTrack(mp4file,
+			  90000,
 			  duration,
 			  audioType);
   }
-  
+
   if (id == MP4_INVALID_TRACK_ID) {
-    fprintf(stderr, 
-	    "%s: can't create audio track from stream %d\n", 
+    fprintf(stderr,
+	    "%s: can't create audio track from stream %d\n",
 	    ProgName, astream);
     return MP4_INVALID_TRACK_ID;
   }
@@ -328,7 +328,7 @@ static MP4TrackId AudioCreate (MP4FileHandle mp4file,
        u_int32_t encSampleLen = 0;
        if (ismacrypEncryptSampleAddHeader(ismaCrypSId, blen, buf,
 					  &encSampleLen, &encSampleData) != 0) {
-	 fprintf(stderr,	
+	 fprintf(stderr,
 		 "%s: can't encrypt audio sample and add header %u\n", ProgName, id);
        }
        // now write the sample
@@ -354,18 +354,18 @@ static MP4TrackId AudioCreate (MP4FileHandle mp4file,
 #if 0
     if ((frame_num % 100) == 0) printf("Audio frame %d\n", frame_num);
 #endif
-  }  while (mpeg2ps_get_audio_frame(file, 
-				    astream, 
-				    &buf, 
+  }  while (mpeg2ps_get_audio_frame(file,
+				    astream,
+				    &buf,
 				    &blen,
 				    TS_90000,
 				    NULL, NULL));
-  
+
   // if encrypting, terminate the ismacryp session
   if (doEncrypt) {
 #ifdef MP4V15
     if (ismacrypEndSession(ismaCrypSId) != 0) {
-      fprintf(stderr, 
+      fprintf(stderr,
 	      "%s: could not end the ISMAcryp session\n",
 	      ProgName);
       return MP4_INVALID_TRACK_ID;
@@ -388,9 +388,9 @@ MP4TrackId *MpegCreator (MP4FileHandle mp4file, const char *fname, bool doEncryp
   video_streams = mpeg2ps_get_video_stream_count(file);
   audio_streams = mpeg2ps_get_audio_stream_count(file);
 
-  pTrackId = 
+  pTrackId =
     (MP4TrackId *)malloc(sizeof(MP4TrackId) * (audio_streams + video_streams + 1));
- 
+
   for (ix = 0; ix < video_streams + audio_streams + 1; ix++) {
     pTrackId[ix] = MP4_INVALID_TRACK_ID;
   }

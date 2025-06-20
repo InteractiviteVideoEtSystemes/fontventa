@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -44,10 +44,10 @@ H245ModeRequest::~H245ModeRequest() {
 BOOL H245ModeRequest::HandleIncoming(const H245_RequestMode& pdu)
 {
 	Logger::Debug("H245 Received ModeRequest\n");
-	
+
 	//Check secuence number
-	if (pdu.m_sequenceNumber == inSequenceNumber) 
-		return TRUE;	
+	if (pdu.m_sequenceNumber == inSequenceNumber)
+		return TRUE;
 
 	//Get incoming sequence number
 	inSequenceNumber = pdu.m_sequenceNumber;
@@ -57,13 +57,13 @@ BOOL H245ModeRequest::HandleIncoming(const H245_RequestMode& pdu)
 
 	//Send indication
 	return connection.OnEvent(Event(e_TransferIndication,&pdu.m_requestedModes));
-	
+
 }
 
 BOOL H245ModeRequest::HandleAck(const H245_RequestModeAck & pdu)
 {
 	Logger::Debug("H245 Received H245_RequestModeAck\n");
-	
+
 	//Check sequence number
 	if (pdu.m_sequenceNumber != outSequenceNumber)
 		//Exit
@@ -83,7 +83,7 @@ BOOL H245ModeRequest::HandleAck(const H245_RequestModeAck & pdu)
 BOOL H245ModeRequest::HandleReject(const H245_RequestModeReject & pdu)
 {
 	Logger::Debug("H245 Received ModeRequestSetReject\n");
-	
+
 	//Check sequence number
 	if (pdu.m_sequenceNumber != outSequenceNumber)
 		//Exit
@@ -121,14 +121,14 @@ BOOL H245ModeRequest::TransferResponse( int accept, int causeOrResponse)
 	H324ControlPDU reply;
 
 	//Accept
-	if (accept) 
+	if (accept)
 		reply.BuildRequestModeAck(inSequenceNumber, causeOrResponse);
-	else 
+	else
 		reply.BuildRequestModeReject(inSequenceNumber, causeOrResponse);
-	
+
 	//State
 	inState = e_Idle;
-	
+
 	//Exit
 	return connection.WriteControlPDU(reply);
 }

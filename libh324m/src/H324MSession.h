@@ -5,7 +5,7 @@
 #include "H324MControlChannel.h"
 #include "log.h"
 
-class H324MSession 
+class H324MSession
 	: public H245ChannelsFactoryListener
 {
 public:
@@ -16,7 +16,7 @@ public:
 		e_Setup			= 1,
 		e_SetupMedia	= 2,
 		e_Stablished	= 3,
-		e_Hangup		= 4 
+		e_Hangup		= 4
 	};
 
 	H324MSession();
@@ -42,11 +42,11 @@ public:
 	//H245ChannelsFactoryListener
 	virtual int OnChannelStablished(int channel, MediaType type);
 	virtual int OnChannelReleased(int channel, MediaType type);
-	
+
 	//Mux & demux
 	int Read(BYTE *input,int length);
 	int Write(BYTE *input,int length);
-	
+
 private:
 	CallState			state;
 	H245ChannelsFactory channels;
@@ -54,7 +54,7 @@ private:
 	Logger *logger;
 	int	audio;
 	int	video;
-	
+
 };
 
 #endif

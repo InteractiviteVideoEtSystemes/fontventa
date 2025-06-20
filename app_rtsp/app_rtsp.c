@@ -17,7 +17,7 @@
 /*! \file
  *
  * \brief MP4 application -- save and play mp4 files
- * 
+ *
  * \ingroup applications
  */
 
@@ -40,7 +40,7 @@
 
 #ifndef AST_FORMAT_AMRNB
 #define AST_FORMAT_AMRNB	(1 << 13)
-#endif 
+#endif
 #ifndef AST_FORMAT_MPEG4
 #define AST_FORMAT_MPEG4        (1 << 22)
 #endif
@@ -56,7 +56,7 @@ static char *des_rtsp = "  rtsp(url):  Play url. \n";
 #define RTSP_PLAY 		4
 #define RTSP_RELEASED 		5
 
-static struct 
+static struct
 {
         int format;
         char* name;
@@ -85,7 +85,7 @@ static struct
 	{ AST_FORMAT_MPEG4, "MP4V-ES"},
 };
 
-typedef enum 
+typedef enum
 {
 	RTCP_SR   = 200,
 	RTCP_RR   = 201,
@@ -94,7 +94,7 @@ typedef enum
 	RTCP_APP  = 204
 } RtcpType;
 
-typedef enum 
+typedef enum
 {
 	RTCP_SDES_END    =  0,
 	RTCP_SDES_CNAME  =  1,
@@ -141,7 +141,7 @@ struct RtcpSdesItem
 struct Rtcp
 {
 	struct RtcpCommonHeader common;    /* common header */
-	union 
+	union
 	{
 		/* sender report (SR) */
 		struct
@@ -151,13 +151,13 @@ struct Rtcp
 			unsigned int ntp_frac;
 			unsigned int rtp_ts;      /* RTP timestamp */
 			unsigned int psent;       /* packets sent */
-			unsigned int osent;       /* octets sent */ 
+			unsigned int osent;       /* octets sent */
 			/* variable-length list */
 			struct RtcpReceptionReport rr[1];
 		} sr;
 
 		/* reception report (RR) */
-		struct 
+		struct
 		{
 			unsigned int ssrc;        /* source this generating this report */
 			/* variable-length list */
@@ -165,14 +165,14 @@ struct Rtcp
 		} rr;
 
 		/* BYE */
-		struct 
+		struct
 		{
 			unsigned int src[1];      /* list of sources */
 			/* can't express trailing text */
 		} bye;
 
 		/* source description (SDES) */
-		struct rtcp_sdes_t 
+		struct rtcp_sdes_t
 		{
 			unsigned int src;              /* first SSRC/CSRC */
 			struct RtcpSdesItem item[1]; /* list of SDES items */
@@ -232,7 +232,7 @@ static struct RtspPlayer* RtspPlayerCreate(void)
 	player->ip		= NULL;
 	player->port		= 0;
 	player->url		= NULL;
-	/* UDP */		
+	/* UDP */
 	player->fd		= 0;
 	player->audioRtp	= 0;
 	player->audioRtcp	= 0;
@@ -293,7 +293,7 @@ static void GetUdpPorts(int *a,int *b,int *p,int *q)
 		*a = *b;
 		*p = *q;
 		/* Create new socket */
-		*b = socket(PF_INET,SOCK_DGRAM,0); 
+		*b = socket(PF_INET,SOCK_DGRAM,0);
 		/* Get port */
 		sendAddr.sin_port = htons(0);
 		bind(*b,(struct sockaddr *)&sendAddr,sizeof(struct sockaddr_in));
@@ -377,7 +377,7 @@ static int RtspPlayerAddSession(struct RtspPlayer *player,char *session)
 
 	/* exit */
 	return player->numSessions;
-	
+
 
 }
 static void RtspPlayerClose(struct RtspPlayer *player)
@@ -631,7 +631,7 @@ static int RtspPlayerTeardown(struct RtspPlayer* player)
 struct SDPFormat
 {
 	int 	payload;
-	int	format;	
+	int	format;
 	char*	control;
 };
 
@@ -669,7 +669,7 @@ static struct SDPMedia* CreateMedia(char *buffer,int bufferLen)
 	media = (struct SDPMedia*) malloc(sizeof(struct SDPMedia));
 
 	/* Get number of formats */
-	media->num = num - 2; 
+	media->num = num - 2;
 
 	/* Allocate */
 	media->formats = (struct SDPFormat**) malloc(media->num);
@@ -700,7 +700,7 @@ static void DestroyMedia(struct SDPMedia* media)
 	for (i=0;i<media->num;i++)
 	{
 		/* Free control */
-		if (media->formats[i]->control) 
+		if (media->formats[i]->control)
 			free(media->formats[i]->control);
 		/* Free format*/
 		free(media->formats[i]);
@@ -731,7 +731,7 @@ static struct SDPContent* CreateSDP(char *buffer,int bufferLen)
 	/* Read each line */
 	while ( (j=strstr(i,"\n")) != NULL)
 	{
-		/* if it¡s not enougth data */
+		/* if itï¿½s not enougth data */
 		if (j-i<=1)
 			goto next;
 
@@ -744,7 +744,7 @@ static struct SDPContent* CreateSDP(char *buffer,int bufferLen)
 		ast_log(LOG_DEBUG,"-line [%s]\n",strndup(i,j-i));
 
 		/* Check header */
-		if (strncmp(i,"m=",2)==0) 
+		if (strncmp(i,"m=",2)==0)
 		{
 			/* media */
 			if (strncmp(i+2,"video",5)==0)
@@ -758,7 +758,7 @@ static struct SDPContent* CreateSDP(char *buffer,int bufferLen)
 				sdp->audio = CreateMedia(i,j-i);
 				/* set current media */
 				media = sdp->audio;
-			} else 
+			} else
 				/* no media */
 				media = NULL;
 			/* reset formats */
@@ -772,7 +772,7 @@ static struct SDPContent* CreateSDP(char *buffer,int bufferLen)
 				goto next;
 			/* get ini */
 			for (ini=i;ini<j;ini++)
-				/* if it¡s space */
+				/* if itï¿½s space */
 				if (*ini==' ')
 					break;
 			/* skip space*/
@@ -780,13 +780,13 @@ static struct SDPContent* CreateSDP(char *buffer,int bufferLen)
 				goto next;
 			/* get end */
 			for (end=ini;end<j;end++)
-				/* if it¡s space */
+				/* if itï¿½s space */
 				if (*end=='/')
 					break;
 			/* Check formats */
-			for (f = 0; f < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++f) 
+			for (f = 0; f < sizeof(mimeTypes)/sizeof(mimeTypes[0]); ++f)
 				/* If the string is in it */
-				if (strncasecmp(ini,mimeTypes[f].name,end-ini) == 0) 
+				if (strncasecmp(ini,mimeTypes[f].name,end-ini) == 0)
 				{
 					/* Set type */
 					media->formats[n]->format = mimeTypes[f].format;
@@ -797,7 +797,7 @@ static struct SDPContent* CreateSDP(char *buffer,int bufferLen)
 				}
 			/* Inc medias */
 			n++;
-			
+
 		} else if (strncmp(i,"a=control:",10)==0){
 			/* if not in media */
 			if (!media)
@@ -887,7 +887,7 @@ static int HasHeader(char *buffer,int bufferLen,char *header)
 
 static int GetHeaderValueInt(char *buffer,int bufferLen,char *header)
 {
-	int i;	 
+	int i;
 
 	/* Get start */
 	if (!(i=HasHeader(buffer,bufferLen,header)))
@@ -900,7 +900,7 @@ static int GetHeaderValueInt(char *buffer,int bufferLen,char *header)
 
 static long GetHeaderValueLong(char *buffer,int bufferLen,char *header)
 {
-	int i;	 
+	int i;
 
 	/* Get start */
 	if (!(i=HasHeader(buffer,bufferLen,header)))
@@ -913,7 +913,7 @@ static long GetHeaderValueLong(char *buffer,int bufferLen,char *header)
 
 static char* GetHeaderValue(char *buffer,int bufferLen,char *header)
 {
-	int i;	 
+	int i;
 	char *j;
 
 	/* Get start */
@@ -931,7 +931,7 @@ static char* GetHeaderValue(char *buffer,int bufferLen,char *header)
 
 static int CheckHeaderValue(char *buffer,int bufferLen,char *header,char*value)
 {
-	int i;	 
+	int i;
 
 	/* Get start */
 	if (!(i=HasHeader(buffer,bufferLen,header)))
@@ -962,7 +962,7 @@ static int RecvResponse(int fd,char *buffer,int *bufferLen,int bufferSize,int *e
 		}
 		/* exit*/
 		return 0;
-	} 
+	}
 	/* Increase buffer length */
 	*bufferLen += len;
 	/* Finalize as string */
@@ -1031,7 +1031,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
  char *params = NULL;
 	int bargein = -1;
 	char dtmf[2] = "";
-	
+
 	/* log */
 	ast_log(LOG_WARNING,">rtsp play\n");
 
@@ -1043,7 +1043,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 	{
 		/* Remove from file name */
 		*params = 0;
-		
+
 		/* Increase pointer */
 		params++;
 
@@ -1120,7 +1120,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 		if (!ast_tvzero(tv))
 		{
 			/* Get playback time */
-			elapsed = ast_tvdiff_ms(ast_tvnow(),tv); 
+			elapsed = ast_tvdiff_ms(ast_tvnow(),tv);
 			/* Check how much time have we been playing */
 			if (elapsed>=duration)
 			{
@@ -1146,12 +1146,12 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 			f = ast_read(chan);
 
 			/* If failed */
-			if (!f) 
+			if (!f)
 				/* exit */
 				break;
-			
+
 			/* If it's a control channel */
-			if (f->frametype == AST_FRAME_CONTROL) 
+			if (f->frametype == AST_FRAME_CONTROL)
 			{
 				/* Check for hangup */
 				if (f->subclass == AST_CONTROL_HANGUP)
@@ -1161,9 +1161,9 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 					/* exit */
 					player->end = 1;
 				}
-				
+
 			 /* If it's a dtmf */
-                        } else 
+                        } else
     if (f->frametype == AST_FRAME_DTMF) {
 				/* Get dtmf number */
 				dtmf[0] = f->subclass;
@@ -1201,7 +1201,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 			/* free frame */
 			ast_frfree(f);
 		} else if (outfd==player->fd) {
-			/* Depending on state */	
+			/* Depending on state */
 			switch (player->state)
 			{
 				case RTSP_DESCRIBE:
@@ -1219,7 +1219,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 							break;
 
 						/* Does it have content */
-						contentLength = GetHeaderValueInt(buffer,responseLen,"Content-Length");	
+						contentLength = GetHeaderValueInt(buffer,responseLen,"Content-Length");
 						/* Is it sdp */
 						if (!CheckHeaderValue(buffer,responseLen,"Content-Type","application/sdp"))
 						{
@@ -1233,9 +1233,9 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 						/* Move data to begining */
 						memcpy(buffer,buffer+responseLen,bufferLen);
 					}
-					
-					/* If there is not enough data */	
-					if (bufferLen<contentLength) 
+
+					/* If there is not enough data */
+					if (bufferLen<contentLength)
 						/* break */
 						break;
 
@@ -1302,7 +1302,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 						}
 
 					/* Set write format */
-					ast_set_write_format(chan, audioFormat | videoFormat);	
+					ast_set_write_format(chan, audioFormat | videoFormat);
 
 					/* if audio track */
 					if (audioControl)
@@ -1361,7 +1361,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 					if (videoControl)
 						/* Set up video */
 						RtspPlayerSetupVideo(player,videoControl);
-					else 
+					else
 						/* play */
 						RtspPlayerPlay(player);
 					break;
@@ -1422,8 +1422,8 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 						/* Check format */
 						if (j)
 							/* Get duration */
-							duration = atof(j+1)*1000;  
-						else 
+							duration = atof(j+1)*1000;
+						else
 							/* No end of stream */
 							duration = -1;
 						/* Free string */
@@ -1444,7 +1444,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 		} else if ((outfd==player->audioRtp) ||  (outfd==player->videoRtp) ) {
 			/* Set length */
 			rtpLen = 0;
-			
+
 			/* Clean frame */
 			memset(sendFrame,0,sizeof(struct ast_frame) + rtpSize);
 
@@ -1469,7 +1469,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 
 			/* Get timestamp */
 			unsigned int ts = ntohl(rtp->ts);
-			 
+
 			/* Set frame data */
 			sendFrame->data = rtpBuffer+ini;
 			sendFrame->datalen = rtpLen-ini;
@@ -1518,7 +1518,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 			/* Set length */
 			rtcpLen = 0;
 			i = 0;
-			
+
 			/* Read rtcp packet */
 			if (!RecvResponse(outfd,rtcpBuffer,&rtcpLen,rtcpSize,&player->end))
 				break;
@@ -1535,7 +1535,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 				{
 					/* End playback */
 					player->end = 1;
-					/* exit */	
+					/* exit */
 					break;
 				}
 			}
@@ -1545,7 +1545,7 @@ static int rtsp_play(struct ast_channel *chan,char *ip, int port, char *url)
 			ast_log(LOG_ERROR,"-timedout and not conected [%d]",outfd);
 			/* Exit f timedout and not conected*/
 			player->end = 1;
-		} 
+		}
 	}
 
 rstp_play_stop:
@@ -1579,7 +1579,7 @@ rtsp_play_end:
 	/* log */
 	ast_log(LOG_WARNING,"<rtsp_play");
 
-	/* Exit */	
+	/* Exit */
 	return res;
 }
 
@@ -1651,12 +1651,12 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 			f = ast_read(chan);
 
 			/* If failed */
-			if (!f) 
+			if (!f)
 				/* exit */
 				break;
-			
+
 			/* If it's a control channel */
-			if (f->frametype == AST_FRAME_CONTROL) 
+			if (f->frametype == AST_FRAME_CONTROL)
 				/* Check for hangup */
 				if (f->subclass == AST_CONTROL_HANGUP)
 					/* exit */
@@ -1664,7 +1664,7 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 			/* free frame */
 			ast_frfree(f);
 		} else if (outfd==rtsp) {
-			/* Depending on state */	
+			/* Depending on state */
 			switch (state)
 			{
 				case RTSP_TUNNEL_CONNECTING:
@@ -1673,7 +1673,7 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 						/* exit*/
 						break;
 					/* It has been opened and sent*/
-					state = RTSP_TUNNEL_NEGOTIATION;	
+					state = RTSP_TUNNEL_NEGOTIATION;
 					break;
 				case RTSP_TUNNEL_NEGOTIATION:
 					/* Read into buffer */
@@ -1681,7 +1681,7 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 						break;
 					/* Process */
 					while (1)
-					{	
+					{
 						/* If not reading content */
 						if (contentLength==0)
 						{
@@ -1690,7 +1690,7 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 								/*Exit*/
 								break;
 							/* Does it have content */
-							contentLength = GetHeaderValueInt(buffer,responseLen,"Content-Length");	
+							contentLength = GetHeaderValueInt(buffer,responseLen,"Content-Length");
 							/* Is it sdp */
 							if (CheckHeaderValue(buffer,responseLen,"Content-Type","application/sdp"))
 								/* SDP */
@@ -1706,8 +1706,8 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 							bufferLen -= responseLen;
 							/* Move data to begining */
 							memcpy(buffer,buffer+responseLen,bufferLen);
-			
-						/* If there is enough data */	
+
+						/* If there is enough data */
 						} else if (bufferLen>=contentLength) {
 							/* If it's the sdp */
 							if (isSDP)
@@ -1726,7 +1726,7 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 				case RTSP_TUNNEL_RTP:
 					break;
 			}
-		} else if (state==RTSP_TUNNEL_CONNECTING) 
+		} else if (state==RTSP_TUNNEL_CONNECTING)
 			/* Exit f timedout and not conected*/
 			end = 1;
 	}
@@ -1739,7 +1739,7 @@ static int rtsp_tunnel(struct ast_channel *chan,char *ip, int port, char *url)
 	/* Close socket */
 	close(rtsp);
 
-	/* Exit */	
+	/* Exit */
 	return 0;
 }
 
@@ -1751,8 +1751,8 @@ static int app_rtsp(struct ast_channel *chan, void *data)
 	char *url;
 	char *i;
 	int  port;
-	
-	
+
+
 
 	/* Get data */
 	uri = (char*)data;
@@ -1765,7 +1765,7 @@ static int app_rtsp(struct ast_channel *chan, void *data)
 	}
 
 	/* Increase url */
-	url = i + 3; 
+	url = i + 3;
 
 	/* Get server part */
 	if ((i=strstr(url,"/"))!=NULL)
@@ -1777,7 +1777,7 @@ static int app_rtsp(struct ast_channel *chan, void *data)
 	} else {
 		/* all is server */
 		ip = strdup(url);
-		/* Get root */	
+		/* Get root */
 		url = "/";
 	}
 
@@ -1815,7 +1815,7 @@ static int app_rtsp(struct ast_channel *chan, void *data)
 
 	} else
 		ast_log(LOG_ERROR,"RTSP ERROR: Unknown protocol in uri %s\n",uri);
-	
+
 	/* Unlock module*/
 	ast_module_user_remove(u);
 

@@ -40,7 +40,7 @@
  * bli@cpk.auc.dk
  *
  */
- 
+
 #define	SIGN_BIT	(0x80)		/* Sign bit for a A-law byte. */
 #define	QUANT_MASK	(0xf)		/* Quantization field mask. */
 #define	NSEGS		(8)		/* Number of A-law segments. */
@@ -65,7 +65,7 @@ unsigned char _u2a[128] = {			/* u- to A-law conversions */
 	64,	65,	66,	67,	68,	69,	70,	71,
 	72,	73,	74,	75,	76,	77,	78,	79,
 /* corrected:
-	81,	82,	83,	84,	85,	86,	87,	88, 
+	81,	82,	83,	84,	85,	86,	87,	88,
    should be: */
 	80,	82,	83,	84,	85,	86,	87,	88,
 	89,	90,	91,	92,	93,	94,	95,	96,

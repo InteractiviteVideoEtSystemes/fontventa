@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   h264.h
  * Author: Sergio
  *
@@ -37,8 +37,8 @@ public:
 			log2_max_pic_order_cnt_lsb_minus4 = ExpGolombDecoder::Decode(r);
 		else if( pic_order_cnt_type == 1 ) {
 			delta_pic_order_always_zero_flag = r.Get(1);
-			offset_for_non_ref_pic = ExpGolombDecoder::Decode(r); 
-			offset_for_top_to_bottom_field = ExpGolombDecoder::Decode(r); 
+			offset_for_non_ref_pic = ExpGolombDecoder::Decode(r);
+			offset_for_top_to_bottom_field = ExpGolombDecoder::Decode(r);
 			num_ref_frames_in_pic_order_cnt_cycle = ExpGolombDecoder::Decode(r);
 			for( int i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++ )
 				offset_for_ref_frame.assign(i,ExpGolombDecoder::Decode(r));
@@ -77,10 +77,10 @@ private:
 public:
 	DWORD GetWidth()	{ return (pic_width_in_mbs_minus1+1)*16; }
 	DWORD GetHeight()	{ return (pic_height_in_map_units_minus1+1)*16; }
-	
+
 	BYTE GetProfile()	{  return profile_idc; }
 	BYTE GetLevel()		{  return level_idc; }
-	
+
 	void Dump()
 	{
 		Debug("[H264SeqParameterSet \n");

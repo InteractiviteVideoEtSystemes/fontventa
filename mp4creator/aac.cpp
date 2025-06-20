@@ -3,27 +3,27 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000, 2001.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie			dmackie@cisco.com
  *		Alix Marchandise-Franquet	alix@cisco.com
  */
 
 
-/* 
+/*
  * Notes:
- *  - file formatted with tabstops == 4 spaces 
+ *  - file formatted with tabstops == 4 spaces
  */
 
 #include <stdlib.h>
@@ -39,10 +39,10 @@ static u_int16_t OLD_MP4AV_AdtsGetFrameSize(u_int8_t* pHdr)
 	u_int16_t frameLength;
 
 	if (isMpeg4) {
-		frameLength = (((u_int16_t)pHdr[4]) << 5) | (pHdr[5] >> 3); 
+		frameLength = (((u_int16_t)pHdr[4]) << 5) | (pHdr[5] >> 3);
 	} else { /* MPEG-2 */
-		frameLength = (((u_int16_t)(pHdr[3] & 0x3)) << 11) 
-			| (((u_int16_t)pHdr[4]) << 3) | (pHdr[5] >> 5); 
+		frameLength = (((u_int16_t)(pHdr[3] & 0x3)) << 11)
+			| (((u_int16_t)pHdr[4]) << 3) | (pHdr[5] >> 5);
 	}
 
 	return frameLength;
@@ -69,8 +69,8 @@ static u_int16_t OLD_MP4AV_AdtsGetHeaderByteSize(u_int8_t* pHdr)
 	return (OLD_MP4AV_AdtsGetHeaderBitSize(pHdr) + 7) / 8;
 }
 
-/* 
- * hdr must point to at least ADTS_HEADER_MAX_SIZE bytes of memory 
+/*
+ * hdr must point to at least ADTS_HEADER_MAX_SIZE bytes of memory
  */
 static bool LoadNextAdtsHeader(FILE* inFile, u_int8_t* hdr)
 {
@@ -122,7 +122,7 @@ static bool LoadNextAdtsHeader(FILE* inFile, u_int8_t* hdr)
 					hdr[state] = b;
 					state = 1;
 				} else {
-					 /* else drop it */ 
+					 /* else drop it */
 					dropped++;
 					//					printf("%02x ", b);
 				}
@@ -147,7 +147,7 @@ static bool LoadNextAacFrame(FILE* inFile, u_int8_t* pBuf, u_int32_t* pBufSize, 
 	if (!LoadNextAdtsHeader(inFile, hdrBuf)) {
 		return false;
 	}
-	
+
 	/* get frame size from header */
 	if (aacUseOldFile) {
 	  frameSize = OLD_MP4AV_AdtsGetFrameSize(hdrBuf);
@@ -161,7 +161,7 @@ static bool LoadNextAacFrame(FILE* inFile, u_int8_t* pBuf, u_int32_t* pBufSize, 
 	  hdrByteSize = MP4AV_AdtsGetHeaderByteSize(hdrBuf);
 	}
 
-	
+
 	/* adjust the frame size to what remains to be read */
 	frameSize -= hdrByteSize;
 
@@ -213,7 +213,7 @@ static bool GetFirstHeader(FILE* inFile)
 
 	/* remember where we are */
 	fgetpos(inFile, &curPos);
-	
+
 	/* go back to start of file */
 	rewind(inFile);
 
@@ -249,7 +249,7 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
        return MP4_INVALID_TRACK_ID;
     }
     if (ismacrypGetScheme(ismaCrypSId, &(icPp->scheme_type)) != ismacryp_rc_ok) {
-       fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n", 
+       fprintf(stderr, "%s: could not get ismacryp scheme type. sid %d\n",
                ProgName, ismaCrypSId);
        ismacrypEndSession(ismaCrypSId);
        return MP4_INVALID_TRACK_ID;
@@ -289,7 +289,7 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
   }
 #endif
   if (!GetFirstHeader(inFile)) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: data in file doesn't appear to be valid audio\n",
 	    ProgName);
     return MP4_INVALID_TRACK_ID;
@@ -326,7 +326,7 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
       audioType = MP4_MPEG2_AAC_SSR_AUDIO_TYPE;
       break;
     case 3:
-      fprintf(stderr,	
+      fprintf(stderr,
 	      "%s: data in file doesn't appear to be valid audio\n",
 	      ProgName);
       return MP4_INVALID_TRACK_ID;
@@ -341,16 +341,16 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
   // add the new audio track
   MP4TrackId trackId;
   if (doEncrypt) {
-    trackId = MP4AddEncAudioTrack(mp4File, samplesPerSecond, 1024, 
+    trackId = MP4AddEncAudioTrack(mp4File, samplesPerSecond, 1024,
                                      icPp,
                                      audioType);
-  } else {	
+  } else {
     trackId = MP4AddAudioTrack(mp4File,
                     	       samplesPerSecond, 1024, audioType);
   }
 
   if (trackId == MP4_INVALID_TRACK_ID) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't create audio track\n", ProgName);
     return MP4_INVALID_TRACK_ID;
   }
@@ -358,7 +358,7 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
   if (MP4GetNumberOfTracks(mp4File, MP4_AUDIO_TRACK_TYPE) == 1) {
     MP4SetAudioProfileLevel(mp4File, 0x0F);
   }
-	
+
   u_int8_t* pConfig = NULL;
   u_int32_t configLength = 0;
 
@@ -369,9 +369,9 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
 			    samplesPerSecond,
 			    channelConfig);
 
-  if (!MP4SetTrackESConfiguration(mp4File, trackId, 
+  if (!MP4SetTrackESConfiguration(mp4File, trackId,
 				  pConfig, configLength)) {
-    fprintf(stderr,	
+    fprintf(stderr,
 	    "%s: can't write audio configuration\n", ProgName);
     MP4DeleteTrack(mp4File, trackId);
     return MP4_INVALID_TRACK_ID;
@@ -389,11 +389,11 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
       u_int32_t encSampleLen = 0;
       if (ismacrypEncryptSampleAddHeader(ismaCrypSId, sampleSize, sampleBuffer,
 					 &encSampleLen, &encSampleData) != 0) {
-	fprintf(stderr,	
+	fprintf(stderr,
 		"%s: can't encrypt audio frame  and add header %u\n", ProgName, sampleId);
       }
       if (!MP4WriteSample(mp4File, trackId, encSampleData, encSampleLen)) {
-	fprintf(stderr,	
+	fprintf(stderr,
 		"%s: can't write audio frame %u\n", ProgName, sampleId);
 	MP4DeleteTrack(mp4File, trackId);
 	return MP4_INVALID_TRACK_ID;
@@ -402,10 +402,10 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
 	free(encSampleData);
       }
 #endif
-    } 
+    }
     else {
       if (!MP4WriteSample(mp4File, trackId, sampleBuffer, sampleSize)) {
-	fprintf(stderr,	
+	fprintf(stderr,
 		"%s: can't write audio frame %u\n", ProgName, sampleId);
 	MP4DeleteTrack(mp4File, trackId);
 	return MP4_INVALID_TRACK_ID;
@@ -419,12 +419,12 @@ MP4TrackId AacCreator(MP4FileHandle mp4File, FILE* inFile, bool doEncrypt)
   // terminate session if encrypting
   if (doEncrypt) {
     if (ismacrypEndSession(ismaCrypSId) != 0) {
-      fprintf(stderr, 
+      fprintf(stderr,
 	      "%s: could not end the ISMAcryp session\n",
 	      ProgName);
     }
   }
-#endif  
+#endif
   return trackId;
 }
 

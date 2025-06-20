@@ -61,7 +61,7 @@ uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32
     if ( option_debug > 4 )
       ast_log(LOG_DEBUG,"RFC2190 cut %d ebit (%d)\n", headers->ebits, bufferLen-len);
 	  in[bufferLen-len-1] &= 0xff << headers->ebits;
-	}	
+	}
 
 	/* Mix first and end byte */
 	if(headers->sbits!=0 && destLen>0)
@@ -70,15 +70,15 @@ uint32_t rfc2190_append(uint8_t *dest, uint32_t destLen, uint8_t *buffer, uint32
       ast_log(LOG_DEBUG,"RFC2190 mix %d sbit\n", headers->sbits);
 
 		/* Append to previous byte */
-    in[0] &= 0xff >> headers->sbits;		
+    in[0] &= 0xff >> headers->sbits;
 		dest[destLen-1] |= in[0];
 		/* Skip first */
 		in++;
 		len++;
-	}	
+	}
 
 	/* Copy the rest */
-	memcpy(dest+destLen,in,bufferLen-len);	
+	memcpy(dest+destLen,in,bufferLen-len);
 
   if ( option_debug > 4 )
     ast_log(LOG_DEBUG,"RFC2190 max write %d\n", destLen+bufferLen-len);
@@ -93,7 +93,7 @@ void SendVideoFrameH263(struct ast_channel *chan, uint8_t *data, uint32_t size, 
 	struct ast_frame *send = (struct ast_frame *) frameBuffer;
 	uint8_t *frameData = NULL;
  	unsigned char RFC2190_header[4] = {0} ;
-	
+
   if(data[0] == 0x00 && data[1] == 0x00 && (data[2] & 0xfc)==0x80){ /* PSC */
 		/* RFC 2190 -5.1 Mode A
 			0                   1                   2                   3
@@ -101,19 +101,19 @@ void SendVideoFrameH263(struct ast_channel *chan, uint8_t *data, uint32_t size, 
 			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 			|F|P|SBIT |EBIT | SRC |I|U|S|A|R      |DBQ| TRB |    TR         |
 			+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		
+
 		SRC : 3 bits
 		Source format, bit 6,7 and 8 in PTYPE defined by H.263 [4], specifies
 		the resolution of the current picture.
-		
+
 		I:  1 bit.
 		Picture coding type, bit 9 in PTYPE defined by H.263[4], "0" is
 		intra-coded, "1" is inter-coded.
 		*/
-		
+
 		// PDATA[4] ======> Bits 3-10 of PTYPE
 		uint8_t format, pict_type;
-		
+
 		// Source Format = 4,5,6
 		format = (data[4] & 0x3C)>>2;
 		// Picture Coding Type = 7
@@ -124,8 +124,8 @@ void SendVideoFrameH263(struct ast_channel *chan, uint8_t *data, uint32_t size, 
 
   uint32_t *p = (uint32_t *) data;
   int gob_num = (ntohl(*p) >> 10) & 0x1f;
-  char *dat = (char *)data;	
-  
+  char *dat = (char *)data;
+
   static uint32_t tr = 0; //Static to have it when needed for splitting into multiple
   static uint32_t sz = 0; //packets (a hack that works for one video connection
   //         only, must be stored elsewhere for more)
@@ -171,7 +171,7 @@ void SendVideoFrameH263(struct ast_channel *chan, uint8_t *data, uint32_t size, 
   /* Construct payload header.
      Set videosize and the temporal reference to that of the frame */
   ((uint32_t *)RFC2190_header)[0] = ntohl((sz << 21) | (tr & 0x000000ff));
-  
+
 	/* Set frame len*/
 	send->datalen = size+4;
 	/* Set header */

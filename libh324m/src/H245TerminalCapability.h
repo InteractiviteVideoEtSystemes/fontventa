@@ -5,7 +5,7 @@
 #include "H245Capabilities.h"
 
 class H245TerminalCapability:
-	public H245Negotiator 
+	public H245Negotiator
 {
 public:
 	/** Events
@@ -18,7 +18,7 @@ public:
 
 	struct Event: public H245Connection::Event
 	{
-		Event(Type i,H245Capabilities*  c) 
+		Event(Type i,H245Capabilities*  c)
 		{
 			source = H245Connection::e_CapabilityExchange;
 			type = i;
@@ -33,7 +33,7 @@ public:
 	//Constructor
 	H245TerminalCapability(H245Connection &con);
 	virtual ~H245TerminalCapability();
-	
+
 	//Methods
 	BOOL TransferRequest(H245Capabilities* capabilities);
 	BOOL TransferResponse(int accept);
@@ -51,7 +51,7 @@ private:
 		e_Idle,
 		e_AwaitingResponse
 	};
-	
+
 	BOOL	receivedCapabilites;
 	DWORD	inSequenceNumber;
 	DWORD	outSequenceNumber;

@@ -4,7 +4,7 @@
 #include "H245Negotiator.h"
 
 class H245RoundTripDelay:
-	public H245Negotiator 
+	public H245Negotiator
 {
 public:
 	/** Events

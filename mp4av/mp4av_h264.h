@@ -61,7 +61,7 @@ typedef struct h264_decode_t {
 
   uint8_t nal_ref_idc;
   uint8_t nal_unit_type;
-  
+
   uint8_t field_pic_flag;
   uint8_t bottom_field_flag;
   uint32_t frame_num;
@@ -99,26 +99,26 @@ extern "C" {
 
   bool h264_is_start_code(const uint8_t *pBuf);
 
-uint32_t h264_find_next_start_code(const uint8_t *pBuf, 
+uint32_t h264_find_next_start_code(const uint8_t *pBuf,
 				   uint32_t bufLen);
 
   uint8_t h264_nal_unit_type(const uint8_t *buffer);
 
   int h264_nal_unit_type_is_slice(const uint8_t nal_type);
-  int h264_find_slice_type(const uint8_t *buffer, 
-			   uint32_t buflen, 
-			   uint8_t *slice_type, 
+  int h264_find_slice_type(const uint8_t *buffer,
+			   uint32_t buflen,
+			   uint8_t *slice_type,
 			   bool noheader);
   uint8_t h264_nal_ref_idc(const uint8_t *buffer);
-  int h264_detect_boundary(const uint8_t *buffer, 
-			   uint32_t buflen, 
+  int h264_detect_boundary(const uint8_t *buffer,
+			   uint32_t buflen,
 			   h264_decode_t *decode);
 
-  int h264_read_slice_info(const uint8_t *buffer, 
-			   uint32_t buflen, 
+  int h264_read_slice_info(const uint8_t *buffer,
+			   uint32_t buflen,
 			   h264_decode_t *dec);
-  int h264_read_seq_info(const uint8_t *buffer, 
-			 uint32_t buflen, 
+  int h264_read_seq_info(const uint8_t *buffer,
+			 uint32_t buflen,
 			 h264_decode_t *dec);
   uint32_t h264_read_sei_value (const uint8_t *buffer, uint32_t *size);
 
@@ -129,7 +129,7 @@ uint32_t h264_find_next_start_code(const uint8_t *pBuf,
   bool h264_access_unit_is_sync(const uint8_t *pNal, uint32_t len);
 
   // note - must free string
-  char *h264_get_profile_level_string(const uint8_t profile, 
+  char *h264_get_profile_level_string(const uint8_t profile,
 				      const uint8_t level);
 #ifdef __cplusplus
  }

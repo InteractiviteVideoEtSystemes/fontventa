@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -58,39 +58,39 @@ int mp4asterisk(char *name)
 {
   int index;
   int namelen;
-	unsigned char type2; 
+	unsigned char type2;
 	MP4TrackId hintId;
 	MP4TrackId trackId;
-	const char *type = NULL;	
+	const char *type = NULL;
  	unsigned short numHintSamples;
  	unsigned short packetIndex;
-	
+
 	u_int32_t datalen;
 	u_int8_t databuffer[8000];
-  uint8_t* data;	
-  
+  uint8_t* data;
+
   int outfile;
 
 	char filename[8000];
-  	
-  strcpy(filename, name);  	
+
+  strcpy(filename, name);
 	namelen=strlen(name);
-		
-	if ((strcmp(name+namelen-3, "mp4")) 
-   && (strcmp(name+namelen-3, "3gp")) 
-   && (strcmp(name+namelen-3, "mov"))) 
+
+	if ((strcmp(name+namelen-3, "mp4"))
+   && (strcmp(name+namelen-3, "3gp"))
+   && (strcmp(name+namelen-3, "mov")))
 	{
 		printf("mp4asterisk\nusage: mp4asterisk file\n");
 		printf("invalide file format : %s\n", name+namelen-3);
 		return -1;
 	}
-  		
+
 	/* Open mp4*/
 	MP4FileHandle mp4 = MP4Read(name);
 
 	/* Disable Verbosity */
 	//MP4SetVerbosity(mp4, 0);
-	
+
 	index = 0;
 
 	/* Find first hint track */
@@ -103,33 +103,33 @@ int mp4asterisk(char *name)
 		int timeScale;
 
 		trackId = MP4GetHintTrackReferenceTrackId(mp4, hintId);
-		
+
     /* Get type */
-		type = MP4GetTrackType(mp4, trackId);		
-		
+		type = MP4GetTrackType(mp4, trackId);
+
 		if (strcmp(type, MP4_VIDEO_TRACK_TYPE) == 0)
-    { 
+    {
 
 		/* Get video type */
-		MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);		
+		MP4GetHintTrackRtpPayload(mp4, hintId, &name, NULL, NULL, NULL);
 
     if (name)
 		printf("Track name: %s\n", name);
 		else
 		printf("Track name: (null)\n");
-		
-		timeScale = MP4GetTrackTimeScale(mp4, hintId);	
+
+		timeScale = MP4GetTrackTimeScale(mp4, hintId);
 
 		printf("Track timescale: %d\n", timeScale);
 
     frameTotal = MP4GetTrackNumberOfSamples(mp4,hintId);
-    
+
 		printf("Number of samples: %d\n", frameTotal);
 
     if (name == NULL) // Vidiator
     //strcat(filename, ".h263");
     strcpy(filename+namelen-4, ".h263p");
-    else    
+    else
     if (!strcmp(name, "H263-2000"))
     //strcat(filename, ".h263");
     strcpy(filename+namelen-4, ".h263p");
@@ -159,29 +159,29 @@ int mp4asterisk(char *name)
       uint8_t **seqheader, **pictheader;
       uint32_t *pictheadersize, *seqheadersize;
       uint32_t ix;
-      
+
 			int samples;
 			int zero = 0;
-      unsigned int ts;			  
+      unsigned int ts;
 			unsigned short len;
-			int mark = 0x8000;      
+			int mark = 0x8000;
 
-      MP4GetTrackH264SeqPictHeaders(mp4, trackId, 
+      MP4GetTrackH264SeqPictHeaders(mp4, trackId,
 				&seqheader, &seqheadersize,
-				&pictheader, &pictheadersize);  
-        
+				&pictheader, &pictheadersize);
+
       for (ix = 0; seqheadersize[ix] != 0; ix++)
       {
         //dump_buffer_hex("SeqHeader", seqheader[ix], seqheadersize[ix]);
- 
+
         memcpy(databuffer, seqheader[ix], seqheadersize[ix]);
 				  datalen = seqheadersize[ix];
 
         ts = htonl(zero);
-        len = htons(datalen | mark);			   
-			   
+        len = htons(datalen | mark);
+
 		    dump_buffer_hex((unsigned char *)name, (unsigned char *)databuffer, datalen);
-			   
+
  		  	write(outfile, &ts, 4) ;
 	      write(outfile, &len, 2) ;
 	      write(outfile, databuffer, datalen) ;
@@ -192,7 +192,7 @@ int mp4asterisk(char *name)
 
         memcpy(databuffer, pictheader[ix], pictheadersize[ix]);
 				  datalen = pictheadersize[ix];
-	
+
 	      ts = htonl(zero);
         len = htons(datalen | mark);
 
@@ -201,23 +201,23 @@ int mp4asterisk(char *name)
  		  	write(outfile, &ts, 4) ;
 	      write(outfile, &len, 2) ;
 	      write(outfile, databuffer, datalen) ;
-      }           
+      }
     }
 
 		/* Iterate frames */
 		for (int i=1;i<frameTotal+1;i++)
 		//for (int i=1;i<10+1;i++)
 		{
-		
+
 		  if (!MP4ReadRtpHint(mp4, hintId, i, &numHintSamples)) {
 			  printf("MP4ReadRtpHint failed [%d,%d]\n", hintId, i);
 		  }
 
 		  //printf("Hint samples: %d\n", numHintSamples);
-		
+
 			/* Get duration of sample */
-		  unsigned int frameDuration = MP4GetSampleDuration(mp4, hintId, i);		
-		
+		  unsigned int frameDuration = MP4GetSampleDuration(mp4, hintId, i);
+
 			/* Get size of sample */
 			unsigned int frameSize = MP4GetSampleSize(mp4, hintId, i);
 
@@ -225,15 +225,15 @@ int mp4asterisk(char *name)
 			unsigned int frameTime = MP4GetSampleTime(mp4, hintId, i);
 
 			printf("%d\t%d\t%d\t%d\t%d\n",i,frameDuration, frameTime,frameSize,frameSize*8/10);
-			
+
 			for (int j=0;j<numHintSamples;j++)
 			{
 			  int samples = frameDuration * (90000 / timeScale);
 			  int zero = 0;
-       	unsigned int ts;			  
+       	unsigned int ts;
 			  unsigned short len;
 			  int mark;
-			  
+
 			  printf(" Packet index %d, samples %d\n",j, samples);
 
         data = databuffer;
@@ -242,7 +242,7 @@ int mp4asterisk(char *name)
 	       if (!MP4ReadRtpPacket(mp4, hintId, j,
         (u_int8_t **)&data,
 				(u_int32_t *)&datalen,
-				0, 0,	1)) 
+				0, 0,	1))
         {
 		      printf("Error reading packet [%d,%d]\n", hintId, trackId);
 		    }
@@ -250,34 +250,34 @@ int mp4asterisk(char *name)
 		    {
 		      //dump_buffer_hex((unsigned char *)name, (unsigned char *)databuffer, datalen);
         }
-	
-  		  //printf(" Data Header + data length : %d\n", datalen);  		  
+
+  		  //printf(" Data Header + data length : %d\n", datalen);
 
         if (j==(numHintSamples-1))
         mark = 0x8000;
         else
         mark = 0;
-  
+
         ts = htonl(samples);
         len = htons(datalen | mark);
-  		   
+
   		  //if (j==0)
  		  	write(outfile, &ts, 4) ;
-        //else					
- 		  	//write(outfile, &zero, 4) ; 	
+        //else
+ 		  	//write(outfile, &zero, 4) ;
 	      write(outfile, &len, 2) ;
 	      write(outfile, databuffer, datalen) ;
 
 		  }
-			
+
 		}
-		
-	  close(outfile);		
-		
+
+	  close(outfile);
+
 		}
-		
+
 		/* Get the next hint track */
-		hintId = MP4FindTrackId(mp4, index++, MP4_HINT_TRACK_TYPE, 0);		
+		hintId = MP4FindTrackId(mp4, index++, MP4_HINT_TRACK_TYPE, 0);
 	}
 
 	/* Close */
@@ -290,7 +290,7 @@ int mp4asterisk(char *name)
 
 #if defined (_LITTLE_ENDIAN) || defined (__LITTLE_ENDIAN)
 
-/* 
+/*
 	Macros to convert from Intel little endian data structures to this machine's
 	and vice versa.
  */
@@ -299,7 +299,7 @@ int mp4asterisk(char *name)
 #define L2H_LONG(from, to)   *((long *)(to)) = *((long *)(from))
 #define H2L_LONG(from, to)   *((long *)(to)) = *((long *)(from))
 
-/* 
+/*
 	Macros to convert from Sun big endian data structures to this machine's
 	and vice versa.
  */
@@ -355,23 +355,23 @@ int asteriskmp4(char *name)
 {
   int index;
   int namelen;
-	unsigned char type2; 
+	unsigned char type2;
 	MP4TrackId hintId;
 	MP4TrackId trackId;
-	const char *type = NULL;	
+	const char *type = NULL;
  	unsigned short numHintSamples;
  	unsigned short packetIndex;
-	
+
 	u_int32_t datalen;
 	u_int8_t databuffer[8000];
-  uint8_t* data;	
-  
+  uint8_t* data;
+
   int infile;
 
 	char filename[8000];
-  	
+
   int loop=1;
-  
+
   char str[4];
 	unsigned short packet_size;
 	unsigned long packet_delta;
@@ -380,40 +380,40 @@ int asteriskmp4(char *name)
   unsigned char h263_header[4];
 	unsigned char h263_data[2*1024];
 	unsigned long h263_packet = 0;
-	unsigned long h263_size;  
+	unsigned long h263_size;
 	unsigned long time = 0;
-  	
+
 	namelen=strlen(name);
-		
-	if ((strcmp(name+namelen-5, ".h263")) 
-   && (strcmp(name+namelen-5, "3gp")) 
-   && (strcmp(name+namelen-5, "mov"))) 
+
+	if ((strcmp(name+namelen-5, ".h263"))
+   && (strcmp(name+namelen-5, "3gp"))
+   && (strcmp(name+namelen-5, "mov")))
 	{
 		printf("mp4asterisk\nusage: mp4asterisk file\n");
 		printf("invalide file format : %s\n", name+namelen-3);
 		return -1;
 	}
 
-    
+
 	infile = open(name, O_RDONLY, 0);
 	if (infile < 0)
 	{
 		close(infile);
 		fprintf(stderr, "Failed to open asterisk input file %s\n", name) ;
-		return -1;				
-  }	
+		return -1;
+  }
 
   strcpy(filename, name);
   strcpy(filename+namelen-5, ".mp4");
-  		
+
 	/* Open mp4*/
 	MP4FileHandle mp4 = MP4Create(filename, 9);
 
 	/* Disable Verbosity */
 	//MP4SetVerbosity(mp4, 0);
-	
+
 	index = 0;
-		
+
 	while (loop)
 	{
 		/* read delta_t */
@@ -423,10 +423,10 @@ int asteriskmp4(char *name)
 			loop = 0;
 			break ;
 		}
-				
+
     B2H_LONG(str, &packet_delta);
- 		printf("Video frame delta #%ld:\n", packet_delta);		
- 			
+ 		printf("Video frame delta #%ld:\n", packet_delta);
+
  			if (image_delta == 0)
  			image_delta = packet_delta;
 
@@ -437,8 +437,8 @@ int asteriskmp4(char *name)
 			return -1;
 		}
 		B2H_SHORT(str, &packet_size);
- 		printf("Video frame length #%d:\n", packet_size);		
- 			
+ 		printf("Video frame length #%d:\n", packet_size);
+
 		if (packet_size & 0x8000) {
 			mark = 1;
 		}
@@ -446,7 +446,7 @@ int asteriskmp4(char *name)
 			mark = 0;
 		}
    	packet_size &= 0x7fff;
-	
+
     /* read h263 header */
 		if (read(infile, h263_header, 4) < 0)
 		{
@@ -468,22 +468,22 @@ int asteriskmp4(char *name)
 
 		if (mark)
     {
-   		printf("Video image delta #%ld:\n", image_delta);		
+   		printf("Video image delta #%ld:\n", image_delta);
 			time += image_delta;
 			//time += (image_delta * 1000)/90000;
 			image_delta = 0;
 			printf("Video_time = %ld\n", time);
 			printf("Video_time = %ld\n", (time)/90);
-											
+
 			//break;
 		}
-	}	
-	
+	}
+
 	close(infile);
 
 	/* Close */
 	MP4Close(mp4);
-	
+
 	return 0;
 }
 
@@ -494,50 +494,50 @@ int asteriskmp4(char *name)
 int main(int argc,char **argv)
 {
   int index;
-	char *name;  
+	char *name;
   int namelen;
-	unsigned char type2; 
+	unsigned char type2;
 	MP4TrackId hintId;
 	MP4TrackId trackId;
-	const char *type = NULL;	
+	const char *type = NULL;
  	unsigned short numHintSamples;
  	unsigned short packetIndex;
-	
+
 	u_int32_t datalen;
 	u_int8_t databuffer[8000];
-  uint8_t* data;	
-  
+  uint8_t* data;
+
   int outfile;
 
 	char filename[8000];
-  	
+
 	/* Check args */
 	if (argc<2)
 	{
 		printf("mp4asterisk\nusage: mp4asterisk file\n");
 		return -1;
 	}
-	
+
 	name=argv[1];
 	namelen=strlen(name);
-	
+
 	if (strlen(name) < namelen)
 	{
 		printf("mp4asterisk\nusage: mp4asterisk file\n");
 		return -1;
 	}
-	
-	if ((!strcmp(name+namelen-4, "h263")) || (!strcmp(name+namelen-4, "h264"))) 
+
+	if ((!strcmp(name+namelen-4, "h263")) || (!strcmp(name+namelen-4, "h264")))
 	{
 		return asteriskmp4(name);
 	}
 	else
-	if (!strcmp(name+namelen-3, "mov")) 
+	if (!strcmp(name+namelen-3, "mov"))
 	{
 		return mp4asterisk(name);
 	}
 	else
-	if ((!strcmp(name+namelen-3, "mp4")) || (!strcmp(name+namelen-3, "3gp"))) 
+	if ((!strcmp(name+namelen-3, "mp4")) || (!strcmp(name+namelen-3, "3gp")))
 	{
 		return mp4asterisk(name);
 	}
@@ -546,7 +546,7 @@ int main(int argc,char **argv)
 		printf("mp4asterisk\nusage: mp4asterisk file\n");
 		printf("invalide file format : %s\n", name+namelen-3);
 		return -1;
-	}  		
+	}
 
 	/* End */
 	return 0;

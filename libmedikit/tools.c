@@ -30,15 +30,15 @@ int blocksignals()
 * createPriorityThread
 *       Crea un nuevo hilo y le asigna la prioridad dada
 *************************************/
-int createPriorityThread(pthread_t *thread, void *(*function)(void *), void *arg, int priority) 
+int createPriorityThread(pthread_t *thread, void *(*function)(void *), void *arg, int priority)
 {
 	struct sched_param parametros;
 	parametros.sched_priority = priority;
-		
-	//Creamos el thread	
+
+	//Creamos el thread
 	if (pthread_create(thread,NULL,function,arg) != 0)
 		return 0;
-        
+
 	return 1;
 	/*
 	 * //Aumentamos la prioridad
@@ -51,7 +51,7 @@ int createPriorityThread(pthread_t *thread, void *(*function)(void *), void *arg
 
 
 /************************************
-* msleep	
+* msleep
 *	Duerme la cantidad de micro segundos usando un select
 *************************************/
 int msleep(long msec)
@@ -219,7 +219,7 @@ void yuv420p_to_yuv422(int width, int height, BYTE *pIn0, BYTE *pOut0)
 * reduce_yuv420p_to_rgb565
 *	Convierte a un buffer de yuv420p a rgb565 y lo reduce a la mitad si reduce=1
 *****************************/
-void reduce_yuv420p_to_rgb565(BYTE * image, BYTE *fb,int left,int top,int w, int h,int lineLength,int reduce) 
+void reduce_yuv420p_to_rgb565(BYTE * image, BYTE *fb,int left,int top,int w, int h,int lineLength,int reduce)
 {
 	const int numpix = w*h;
 	int i, j, yTL, yTR, yBL, yBR, u, v;
@@ -238,7 +238,7 @@ void reduce_yuv420p_to_rgb565(BYTE * image, BYTE *fb,int left,int top,int w, int
 	const int yScale  = 65536;
 	int r, g, b;
 
-	
+
 	for (j = 0; j <= h - 2; j += 2)
 	{
 		//Inicilizamos las dos lineas
@@ -257,7 +257,7 @@ void reduce_yuv420p_to_rgb565(BYTE * image, BYTE *fb,int left,int top,int w, int
 			g = guScale * u + gvScale * v;
 			r = buScale * u;
 			b = rvScale * v;
-			
+
 			yTL *= yScale; yTR *= yScale;
 			yBL *= yScale; yBR *= yScale;
 
@@ -423,13 +423,13 @@ void zoom_yuv420p_to_rgb(BYTE * image,BYTE *fb,int sizex,int sizey,int left,int 
 			memset(fb+left*bpp+(top+h-i-1)*lineLength,0,w*bpp);
 		}*/
 	}
-	
+
 	//Calculamos el inicio del framebuffer
 	pOut = fb+(left+iniX)*bpp+(top+iniY)*lineLength;
 
 	//Y empezampos por la primera linea
-	zj=0;	
-	
+	zj=0;
+
 	for (j = 0; j < sizey/2 ; j ++)
 	{
 		//Inicilizamos las dos lineas
@@ -448,7 +448,7 @@ void zoom_yuv420p_to_rgb(BYTE * image,BYTE *fb,int sizex,int sizey,int left,int 
 			g = guScale * u + gvScale * v;
 			r = buScale * u;
 			b = rvScale * v;
-			
+
 			yTL *= yScale; yTR *= yScale;
 			yBL *= yScale; yBR *= yScale;
 
@@ -483,13 +483,13 @@ void zoom_yuv420p_to_rgb(BYTE * image,BYTE *fb,int sizex,int sizey,int left,int 
 				//Pasamos al siguiente punto
 				zi++;
 			}
-		
+
 		//Hacemos el zoom para la primera linea
 		while ((((j*2)+1)*zoom>zj) && (zj<h))
 		{
 			//Y los compiamos
 			memcpy(pOut,zline,w*bpp);
-	
+
 			//Inc pout
 			pOut += lineLength;
 
@@ -511,13 +511,13 @@ void zoom_yuv420p_to_rgb(BYTE * image,BYTE *fb,int sizex,int sizey,int left,int 
 				//Pasamos al siguiente punto
 				zi++;
 			}
-		
+
 		//Hacemos el zoom para la segunda linea
 		while ((((j*2)+2)*zoom>zj) && (zj<h))
 		{
 			//Y los compiamos
 			memcpy(pOut,zline,w*bpp);
-			
+
 			//Inc pout
 			pOut += lineLength;
 
@@ -556,7 +556,7 @@ void UnborderYUV (BYTE *pic, int width, int height, int borderWidth, int borderH
 	{
 		//Copiamos al origen
 		memcpy(dest,orig,(width-borderWidth));
-		
+
 		//Movemos los punteros
 		orig += width;
 		dest += (width-borderWidth);
@@ -570,7 +570,7 @@ void UnborderYUV (BYTE *pic, int width, int height, int borderWidth, int borderH
 	{
 		//Copiamos al origen
 		memcpy(dest,orig,(width-borderWidth)/2);
-		
+
 		//Movemos los punteros
 		orig += width/2;
 		dest += (width-borderWidth)/2;
@@ -584,7 +584,7 @@ void UnborderYUV (BYTE *pic, int width, int height, int borderWidth, int borderH
 	{
 		//Copiamos al origen
 		memcpy(dest,orig,(width-borderWidth)/2);
-		
+
 		//Movemos los punteros
 		orig += width/2;
 		dest += (width-borderWidth)/2;
@@ -615,7 +615,7 @@ void yuv420p_to_bgr32(BYTE * image,BYTE *fb,int sizex,int sizey)
 	for (j = 0; j < sizey/2 ; j ++)
 	{
 		rgb2 = rgb1 + sizex*4;
-		
+
 		for (i = 0; i < sizex/2 ; i ++)
 		{
 			yTL = *pY;
@@ -628,7 +628,7 @@ void yuv420p_to_bgr32(BYTE * image,BYTE *fb,int sizex,int sizey)
 			g = guScale * u + gvScale * v;
 			r = buScale * u;
 			b = rvScale * v;
-			
+
 			yTL *= yScale; yTR *= yScale;
 			yBL *= yScale; yBR *= yScale;
 
@@ -655,7 +655,7 @@ void yuv420p_to_bgr32(BYTE * image,BYTE *fb,int sizex,int sizey)
 /***************************
 * clip_yuv420p_to_rgb565
 *	Convierte a un buffer de yuv420p a rgb565 y lo reduce a la mitad si reduce=1
-*****************************/ 
+*****************************/
 void clip_yuv420p_to_rgb565(BYTE* src, BYTE* dst,int srcX,int srcY,int srcW,int srcH,int srcSizeX,int srcSizeY,int left,int top,int lineLength,int reduce)
 {
 	const int numpix = srcSizeX*srcSizeY;
@@ -703,7 +703,7 @@ void clip_yuv420p_to_rgb565(BYTE* src, BYTE* dst,int srcX,int srcY,int srcW,int 
 			g = guScale * u + gvScale * v;
 			r = buScale * u;
 			b = rvScale * v;
-			
+
 			yTL *= yScale; yTR *= yScale;
 			yBL *= yScale; yBR *= yScale;
 
@@ -780,7 +780,7 @@ inline void ZoomLine5to6(BYTE *y,BYTE *pY,int width,int sizeX)
 		pY+=5;
 	}
 	for (j=j*6; j<sizeX; j++)
-		*(y++) = *(pY++); 
+		*(y++) = *(pY++);
 }
 inline void ZoomPixels5x6(BYTE *y,BYTE *pY,WORD sizeX,int num)
 {
@@ -794,7 +794,7 @@ inline void ZoomPixels5x6(BYTE *y,BYTE *pY,WORD sizeX,int num)
 	{
 		//Line 0
 		y[0]	= line0[0];
-		
+
 		//Line 1
 		y[sizeX]	= ((WORD)(   line0[0]              +  5*line1[0]))/6;
 
@@ -813,7 +813,7 @@ inline void ZoomPixels5x6(BYTE *y,BYTE *pY,WORD sizeX,int num)
 		//Line 0
 		y[0]	= line0[0];
 		y[1]	= ((WORD)(  line0[0] + 5*line0[1]))/6;
-		
+
 		//Line 1
 		y[sizeX]	= ((WORD)(   line0[0]              +  5*line1[0]))/6;
 		y[1+sizeX]	= ((WORD)(   line0[0] + 5*line0[1] +  5*line1[0] + 25*line1[1]))/36;
@@ -838,7 +838,7 @@ inline void ZoomPixels5x6(BYTE *y,BYTE *pY,WORD sizeX,int num)
 		y[0]	= line0[0];
 		y[1]	= ((WORD)(  line0[0] + 5*line0[1]))/6;
 		y[2]	= ((WORD)(  line0[1] + 2*line0[2]))/3;
-		
+
 		//Line 1
 		y[sizeX]	= ((WORD)(   line0[0]              +  5*line1[0]))/6;
 		y[1+sizeX]	= ((WORD)(   line0[0] + 5*line0[1] +  5*line1[0] + 25*line1[1]))/36;
@@ -869,7 +869,7 @@ inline void ZoomPixels5x6(BYTE *y,BYTE *pY,WORD sizeX,int num)
 		y[1]	= ((WORD)(  line0[0] + 5*line0[1]))/6;
 		y[2]	= ((WORD)(  line0[1] + 2*line0[2]))/3;
 		y[3]	= ((WORD)(2*line0[2] +   line0[3]))/3;
-		
+
 		//Line 1
 		y[sizeX]	= ((WORD)(   line0[0]              +  5*line1[0]))/6;
 		y[1+sizeX]	= ((WORD)(   line0[0] + 5*line0[1] +  5*line1[0] + 25*line1[1]))/36;
@@ -907,7 +907,7 @@ inline void ZoomPixels5x6(BYTE *y,BYTE *pY,WORD sizeX,int num)
 		y[2]	= ((WORD)(  line0[1] + 2*line0[2]))/3;
 		y[3]	= ((WORD)(2*line0[2] +   line0[3]))/3;
 		y[4]	= ((WORD)(5*line0[3] +   line0[4]))/6;
-		
+
 		//Line 1
 		y[sizeX]	= ((WORD)(   line0[0]              +  5*line1[0]))/6;
 		y[1+sizeX]	= ((WORD)(   line0[0] + 5*line0[1] +  5*line1[0] + 25*line1[1]))/36;
@@ -961,7 +961,7 @@ inline void ZoomBox5x6(BYTE *y,BYTE *pY,int sizeX)
 	*(y++)	= ((WORD)(5*line0[3] +   line0[4]))/6;
 	*(y++)	= pY[4];
 	y+=sizeX-6;
-	
+
 	//Line 1
 	*(y++)	= ((WORD)(   line0[0]              +  5*line1[0]))/6;
 	*(y++)	= ((WORD)(   line0[0] + 5*line0[1] +  5*line1[0] + 25*line1[1]))/36;
@@ -1027,7 +1027,7 @@ void UnborderAndZoom(BYTE *out,BYTE *in,int sizeX,int sizeY)
 
 	//PUnteros de entrada
 	BYTE *pY = (in	) 		+ (left + top*sizeX);
-	BYTE *pU = (in + numpixels) 	+ (left/2+top*sizeX/4); 
+	BYTE *pU = (in + numpixels) 	+ (left/2+top*sizeX/4);
 	BYTE *pV = (in + numpixels*5/4)	+ (left/2+top*sizeX/4);
 
 	//PUnteros de salida
@@ -1072,12 +1072,12 @@ static void shrink22(BYTE *dst, int dst_wrap, BYTE *src, int src_wrap, int width
 	int w;
 	BYTE *s1, *s2;
 	BYTE *d;
-	for(;height > 0; height--) 
+	for(;height > 0; height--)
 	{
 		s1 = src;
 		s2 = s1 + src_wrap;
 		d = dst;
-		for(w = width;w >= 4; w-=4) 
+		for(w = width;w >= 4; w-=4)
 		{
 			d[0] = (s1[0] + s1[1] + s2[0] + s2[1] + 2) >> 2;
 			d[1] = (s1[2] + s1[3] + s2[2] + s2[3] + 2) >> 2;
@@ -1087,7 +1087,7 @@ static void shrink22(BYTE *dst, int dst_wrap, BYTE *src, int src_wrap, int width
 			s2 += 8;
 			d += 4;
 		}
-		for(;w > 0; w--) 
+		for(;w > 0; w--)
 		{
 			d[0] = (s1[0] + s1[1] + s2[0] + s2[1] + 2) >> 2;
 			s1 += 2;

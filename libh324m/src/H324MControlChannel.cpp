@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -26,7 +26,7 @@
 
 const unsigned vID[] = {1,37,111,116,111,114,111,108,97,95,49,0}; //Motorola
 
-H324MControlChannel::H324MControlChannel(H245ChannelsFactory* channels) 
+H324MControlChannel::H324MControlChannel(H245ChannelsFactory* channels)
 {
 	//Save the logical channels factory
 	cf = channels;
@@ -38,7 +38,7 @@ H324MControlChannel::H324MControlChannel(H245ChannelsFactory* channels)
 	rt = new H245RoundTripDelay(*this);
 	//Create Multiplex table handler
 	mt = new H245MuxTable(*this);
-	//Create the logical channel negotiator 
+	//Create the logical channel negotiator
 	lc = new H245LogicalChannels(*this);
 	//Maintenance loop
 	loop = new H245MaintenanceLoop(*this);
@@ -287,7 +287,7 @@ int H324MControlChannel::OnControlPDU(H324ControlPDU &pdu)
 				H324ControlPDU reply;
   				reply.BuildFunctionNotUnderstood(pdu);
   				WriteControlPDU(reply);
-			}	
+			}
 			return 1;
 		case H245_MultimediaSystemControlMessage::e_response:
 			//Is a response
@@ -302,7 +302,7 @@ int H324MControlChannel::OnControlPDU(H324ControlPDU &pdu)
 			Logger::Debug("Unknown PDU\n");
 			//?????
 			return 0;
-	} 
+	}
 
 	//Exit
 	return 1;
@@ -336,8 +336,8 @@ int H324MControlChannel::OnH245Request(H245_RequestMessage& req)
 		case H245_RequestMessage::e_maintenanceLoopRequest:
 			return loop->HandleRequest(req);
 
-		//More... 
-		case H245_RequestMessage::e_nonStandard:		
+		//More...
+		case H245_RequestMessage::e_nonStandard:
 		case H245_RequestMessage::e_requestChannelClose:
 		case H245_RequestMessage::e_requestMultiplexEntry:
 		case H245_RequestMessage::e_requestMode:

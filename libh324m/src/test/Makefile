@@ -9,11 +9,11 @@ h223read: h223read.o ../libh324m.a
 h223dump: h223dump.o ../libh324m.a
 	g++ -o h223dump h223dump.o ../libh324m.a $(LDFLAGS)
 
-reverse: reverse.o 
-	g++ -o reverse reverse.o 
+reverse: reverse.o
+	g++ -o reverse reverse.o
 
-if2amr: if2amr.o 
-	g++ -o if2amr if2amr.o 
+if2amr: if2amr.o
+	g++ -o if2amr if2amr.o
 
 amr2if: amr2if.o
 	g++ -o amr2if amr2if.o

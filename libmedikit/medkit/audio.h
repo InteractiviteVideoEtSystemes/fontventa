@@ -37,7 +37,7 @@ public:
 		this->codec = codec;
 		//Set default rate
 		this->rate = rate;
-		
+
 		switch(codec)
 		{
 			case AudioCodec::PCMA:
@@ -58,7 +58,7 @@ public:
 		frame->SetDuration(duration);
 		//Set timestamp
 		frame->SetTimestamp(GetTimeStamp());
-		
+
 		frame->packetization = this->packetization;
 		//Return it
 		return (MediaFrame*)frame;
@@ -67,7 +67,7 @@ public:
 	AudioCodec::Type GetCodec() const			{ return codec;		}
 	void	SetCodec(AudioCodec::Type codec)	{ this->codec = codec;	}
 	DWORD	GetRate() const				{ return rate;		}
-	
+
 	virtual bool Packetize(unsigned int mtu);
 
 private:

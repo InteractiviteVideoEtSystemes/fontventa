@@ -1,4 +1,4 @@
-/* 
+/*
  * File:   version.h
  * Author: Sergio
  *

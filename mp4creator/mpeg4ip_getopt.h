@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#if !defined(HAVE_GETOPT) && !defined(HAVE_GETOPT_LONG) && !defined(HAVE_GETOPT_LONG_ONLY) 
+#if !defined(HAVE_GETOPT) && !defined(HAVE_GETOPT_LONG) && !defined(HAVE_GETOPT_LONG_ONLY)
 
 
 /* For communication from `getopt' to the caller.
@@ -119,7 +119,7 @@ extern int getopt (int ___argc, char *const *___argv, const char *__shortopts);
 
 #endif /* HAVE_GETOPT */
 
-#ifndef HAVE_GETOPT_LONG  
+#ifndef HAVE_GETOPT_LONG
 
 extern int getopt_long (int ___argc, char *const *___argv, const char *__shortopts,
 		        const struct option *__longopts, int *__longind);

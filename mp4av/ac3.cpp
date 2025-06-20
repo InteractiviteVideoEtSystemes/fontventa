@@ -1,6 +1,6 @@
 #include "mp4av.h"
 
-static uint32_t MP4AV_Ac3FindSyncCode (const uint8_t *buf, 
+static uint32_t MP4AV_Ac3FindSyncCode (const uint8_t *buf,
 				       uint32_t buflen)
 {
   uint32_t end = buflen - 6;
@@ -30,7 +30,7 @@ static const uint32_t frmsizecod1_to_framesize[] = {
   557, 696, 835, 975, 1114, 1253, 1393
 };
 static const uint32_t frmsizecod0_to_framesize[] = {
-  64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448, 
+  64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448,
   512, 640, 768, 896, 1024, 1152, 1280
 };
 
@@ -38,7 +38,7 @@ static const uint32_t acmod_to_chans[] = {
   2, 1, 2, 3, 3, 4, 4, 5
 };
 
-extern "C" int MP4AV_Ac3ParseHeader (const uint8_t *buf, 
+extern "C" int MP4AV_Ac3ParseHeader (const uint8_t *buf,
 			  uint32_t buflen,
 			  const uint8_t **ppFrame,
 			  uint32_t *pbitrate,
@@ -63,7 +63,7 @@ extern "C" int MP4AV_Ac3ParseHeader (const uint8_t *buf,
   acmod = (buf[6] >> 5) & 0x7;
 
 #if 0
-  printf("fscod %x frmsizecod %x bsid %x acmod %x\n", 
+  printf("fscod %x frmsizecod %x bsid %x acmod %x\n",
 	 fscod, frmsizecod, bsid, acmod);
 #endif
   if (bsid >= 12) return -1;

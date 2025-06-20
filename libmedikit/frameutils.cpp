@@ -12,49 +12,49 @@
 int AstFormatToCodecList(int format, AudioCodec::Type codecList[], unsigned int maxSize)
 {
     int i = 0;
-    
+
     if ( i < maxSize && (format & AST_FORMAT_ULAW) )
     {
-        codecList[i++] = AudioCodec::PCMU; 
+        codecList[i++] = AudioCodec::PCMU;
     }
-    
+
     if ( i < maxSize && (format & AST_FORMAT_ALAW) )
     {
-        codecList[i++] = AudioCodec::PCMA; 
+        codecList[i++] = AudioCodec::PCMA;
     }
-    
+
     if ( i < maxSize && (format & AST_FORMAT_AMRNB) )
     {
-        codecList[i++] = AudioCodec::AMR; 
+        codecList[i++] = AudioCodec::AMR;
     }
-    
+
 	    if ( i < maxSize && (format & AST_FORMAT_SLINEAR) )
     {
-        codecList[i++] = AudioCodec::SLIN; 
+        codecList[i++] = AudioCodec::SLIN;
     }
-	
+
     return i;
 }
 
 int AstFormatToCodecList(int format, VideoCodec::Type codecList[], unsigned int maxSize)
 {
     int i = 0;
-    
+
     if ( i < maxSize && (format & AST_FORMAT_H264) )
     {
-        codecList[i++] = VideoCodec::H264; 
+        codecList[i++] = VideoCodec::H264;
     }
-    
+
     if ( i < maxSize && (format & AST_FORMAT_H263_PLUS) )
     {
-        codecList[i++] = VideoCodec::H263_1998; 
+        codecList[i++] = VideoCodec::H263_1998;
     }
-    
+
     if ( i < maxSize && (format & AST_FORMAT_H263) )
     {
-        codecList[i++] = VideoCodec::H263_1996; 
+        codecList[i++] = VideoCodec::H263_1996;
     }
-    
+
     return i;
 }
 
@@ -78,7 +78,7 @@ int CodecToAstFormat( AudioCodec::Type ac, int & fmt )
 	    fmt |= AST_FORMAT_SLINEAR;
 	    break;
 
-		
+
 	default:
 	    return 0;
     }
@@ -118,11 +118,11 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 	AudioFrame * af;
 	VideoFrame * vf;
 	TextFrame  * tf;
-	
+
 	memset(&astf, 0, sizeof(astf));
 	astf.src = MP4PLAYSRC;
 	astf.subclass = 0;
-	
+
 	switch( mf->GetType() )
 	{
 		case MediaFrame::Audio:
@@ -135,7 +135,7 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 			}
 			astf.samples = af->GetDuration();
 			break;
-			
+
 		case MediaFrame::Video:
 			vf = (VideoFrame *) mf;
 			astf.frametype = AST_FRAME_VIDEO;
@@ -145,12 +145,12 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 				return false;
 			}
 			if (rtppak->IsMark() ) astf.subclass |= 0x1;
-			if ( first ) 
+			if ( first )
 				astf.samples = mf->GetDuration() * 90;
 			else
 				astf.samples = 0;
 			break;
-			
+
 		case MediaFrame::Text:
 			/* todo = passer un argument suppa */
 			tf = (TextFrame *) mf;
@@ -158,12 +158,12 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 		   	astf.subclass = AST_FORMAT_RED;
 			if (rtppak->IsMark() ) astf.subclass |= 0x1;
 			break;
-		
+
 		default:
 			Debug("Media %s is not supported by asterisk.\n", MediaFrame::TypeToString(mf->GetType()) );
 			return false;
 	}
-	
+
 	astf.flags = 0; /* nothing is malloc'ed */
 	if (rtppak == NULL)
 	{
@@ -180,7 +180,7 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 			return false;
 		}
 		if (rtppak->GetPrefixData() == NULL || rtppak->GetPrefixLen() == 0)
-		{			 
+		{
 			astf.data = mf->GetData() + rtppak->GetPos();
 			astf.datalen = rtppak->GetSize();
 		}
@@ -188,7 +188,7 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 		{
 			if ( rtppak->GetSize() + rtppak->GetPrefixLen() > len)
 				return false;
-			
+
 			BYTE * buff2 = (BYTE *) buffer;
 			memcpy(buff2, rtppak->GetPrefixData(), rtppak->GetPrefixLen());
 			buff2 += rtppak->GetPrefixLen();
@@ -196,11 +196,11 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 			astf.data = buffer;
 			astf.datalen = rtppak->GetSize() + rtppak->GetPrefixLen();
 		}
-	}		
+	}
 
-	// Copy frame timestamp 
+	// Copy frame timestamp
 	astf.ts = mf->GetTimeStamp();
 	//change the delivery time for avoiding WebRTC bug with timestamp to zero
 	astf.delivery = ast_tvnow();
-	return true;	
+	return true;
 }

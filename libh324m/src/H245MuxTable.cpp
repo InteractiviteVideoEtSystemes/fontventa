@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -78,14 +78,14 @@ BOOL H245MuxTable::HandleAck(const H245_MultiplexEntrySendAck  & pdu)
 		return TRUE;
 
 	//Check secuence number
-	if (pdu.m_sequenceNumber!=outSec) 
+	if (pdu.m_sequenceNumber!=outSec)
 		return TRUE;
 
 	//Reset timer
 
 	//Set state
 	outState = e_Idle;
-	
+
 	//List of accepted entries
 	H223MuxTableEntryList list;
 
@@ -93,7 +93,7 @@ BOOL H245MuxTable::HandleAck(const H245_MultiplexEntrySendAck  & pdu)
 	for (int i=0; i<pdu.m_multiplexTableEntryNumber.GetSize(); i++)
 		//Append to list
 		list.push_back(pdu.m_multiplexTableEntryNumber[i].GetValue());
-	
+
 	//Send event
 	return connection.OnEvent(Event(e_TransferConfirm,NULL,&list));
 }
@@ -108,14 +108,14 @@ BOOL H245MuxTable::HandleReject(const H245_MultiplexEntrySendReject & pdu)
 		return TRUE;
 
 	//Check secuence number
-	if (pdu.m_sequenceNumber!=outSec) 
+	if (pdu.m_sequenceNumber!=outSec)
 		return TRUE;
 
 	//Reset timer
 
 	//Set state
 	outState = e_Idle;
-	
+
 	//List of rejected entries
 	H223MuxTableEntryList list;
 
@@ -167,7 +167,7 @@ BOOL H245MuxTable::HandleRequest(const H245_MultiplexEntrySend & pdu)
 	}
 
 	return FALSE;
-	
+
 }
 
 BOOL H245MuxTable::TransferResponse(H223MuxTableEntryList &accept)
@@ -212,7 +212,7 @@ BOOL H245MuxTable::TransferReject(H223MuxTableEntryList &reject)
 
 	H324ControlPDU pdu;
 
-	//Build reject 
+	//Build reject
 	H245_MultiplexEntrySendReject &rej = pdu.BuildMultiplexEntrySendReject(inSec);
 
 	//Take out all
@@ -227,7 +227,7 @@ BOOL H245MuxTable::TransferReject(H223MuxTableEntryList &reject)
 		desc.m_multiplexTableEntryNumber.SetValue(*it);
 		//Set cause
 		desc.m_cause.SetTag(H245_MultiplexEntryRejectionDescriptions_cause::e_unspecifiedCause);
-		//Añadimos
+		//Aï¿½adimos
 		rej.m_rejectionDescriptions.Append((PASN_Object*)desc.Clone());
 	}
 

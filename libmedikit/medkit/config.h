@@ -122,7 +122,7 @@ public:
 		//Return value
 		return it->second;
 	}
-	
+
 	std::string GetProperty(const std::string key,const std::string defaultValue) const
 	{
 		//Find item
@@ -170,7 +170,7 @@ public:
 		//Return value
 		return atoi(it->second.c_str());
 	}
-	
+
 	int GetProperty(const std::string key,int defaultValue) const
 	{
 		//Find item

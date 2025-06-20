@@ -3,19 +3,19 @@
  * License Version 1.1 (the "License"); you may not use this file
  * except in compliance with the License. You may obtain a copy of
  * the License at http://www.mozilla.org/MPL/
- * 
+ *
  * Software distributed under the License is distributed on an "AS
  * IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
  * implied. See the License for the specific language governing
  * rights and limitations under the License.
- * 
+ *
  * The Original Code is MPEG4IP.
- * 
+ *
  * The Initial Developer of the Original Code is Cisco Systems Inc.
  * Portions created by Cisco Systems Inc. are
  * Copyright (C) Cisco Systems Inc. 2000-2004.  All Rights Reserved.
- * 
- * Contributor(s): 
+ *
+ * Contributor(s):
  *		Dave Mackie		  dmackie@cisco.com
  *		Mark Baugher		  mbaugher@cisco.com
  *              Alix Marchandise-Franquet alix@cisco.com
@@ -84,22 +84,22 @@ typedef struct ismaCrypSampleHdrDataInfo {
 
 // forward declarations.
 static bool MP4AV_RfcCryptoConcatenator(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	u_int8_t samplesThisHint, 
-	MP4SampleId* pSampleIds, 
+	u_int8_t samplesThisHint,
+	MP4SampleId* pSampleIds,
 	MP4Duration hintDuration,
 	u_int16_t maxPayloadSize,
 	mp4av_ismacrypParams *icPp,
 	bool isInterleaved);
 
 static bool MP4AV_RfcCryptoFragmenter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	MP4SampleId sampleId, 
-	u_int32_t sampleSize, 
+	MP4SampleId sampleId,
+	u_int32_t sampleSize,
 	MP4Duration sampleDuration,
 	u_int16_t maxPayloadSize,
 	mp4av_ismacrypParams *icPp);
@@ -107,7 +107,7 @@ static bool MP4AV_RfcCryptoFragmenter(
 /* start sdp code */
 
 // ismac_table will contain all the setting to create the SDP
-// initialize this table with settings from the ismacryp library 
+// initialize this table with settings from the ismacryp library
 static bool InitISMACrypConfigTable (ISMACrypConfigTable_t* ismac_table,
 	mp4av_ismacrypParams *icPp)
 {
@@ -119,7 +119,7 @@ static bool InitISMACrypConfigTable (ISMACrypConfigTable_t* ismac_table,
 	if(!ismac_table || ismac_table->salts[0] || ismac_table->keys[0])
 		return false;
 
-	if(!(ismac_table->salts[0]=(u_int8_t*)malloc(icPp->salt_len))) 
+	if(!(ismac_table->salts[0]=(u_int8_t*)malloc(icPp->salt_len)))
           return false;
 
 	if(!(ismac_table->keys[0]=(u_int8_t*)malloc(icPp->key_len))){
@@ -150,26 +150,26 @@ static bool InitISMACrypConfigTable (ISMACrypConfigTable_t* ismac_table,
 		ismac_table->settings[ISMACRYP_CRYPTO_SUITE]=0;
 	else return false;
 
-	return true; 
+	return true;
 }
 
 // Checks validity of the ismacryp SDP settings returned from the ismacryp library
 static bool MP4AV_RfcCryptoPolicyOk (ISMACrypConfigTable_t* ismac_table)
 {
-	if(ismac_table->settings[ISMACRYP_CRYPTO_SUITE] 
-		!= ISMACRYP_CRYPTO_SUITE_DEFAULT) 
+	if(ismac_table->settings[ISMACRYP_CRYPTO_SUITE]
+		!= ISMACRYP_CRYPTO_SUITE_DEFAULT)
 		return false;
-	if(ismac_table->settings[ISMACRYP_IV_LENGTH] >8)  
+	if(ismac_table->settings[ISMACRYP_IV_LENGTH] >8)
 		return false;
-	if(ismac_table->settings[ISMACRYP_IV_DELTA_LENGTH] > 2) 
+	if(ismac_table->settings[ISMACRYP_IV_DELTA_LENGTH] > 2)
 		return false;
 	if(ismac_table->settings[ISMACRYP_SELECTIVE_ENCRYPTION] > 1)
 		return false;
 	if(ismac_table->settings[ISMACRYP_KEY_INDICATOR_PER_AU] > 1)
 		return false;
-	if((ismac_table->settings[ISMACRYP_SALT_LENGTH] 
-			!= ISMACRYP_SALT_LENGTH_DEFAULT) 
-		|| (ismac_table->settings[ISMACRYP_KEY_LENGTH] 
+	if((ismac_table->settings[ISMACRYP_SALT_LENGTH]
+			!= ISMACRYP_SALT_LENGTH_DEFAULT)
+		|| (ismac_table->settings[ISMACRYP_KEY_LENGTH]
 			!= ISMACRYP_KEY_LENGTH_DEFAULT)) return false;
 	return true;
 }
@@ -190,7 +190,7 @@ static bool MP4AV_RfcCryptoConfigure(ISMACrypConfigTable_t* ismac_table,
 
         // first string is ISMACrypCryptoSuite
         totlen = strlen(ISMACRYP_SDP_CONFIG_STR_1) + 1; // add 1 for '\0'
-        if ( totlen < ISMACRYP_SDP_CONFIG_MAX_LEN - 1 ) 
+        if ( totlen < ISMACRYP_SDP_CONFIG_MAX_LEN - 1 )
 	  snprintf(*sISMACrypConfig, totlen, "%s", ISMACRYP_SDP_CONFIG_STR_1);
         else {
           free(*sISMACrypConfig);
@@ -199,9 +199,9 @@ static bool MP4AV_RfcCryptoConfigure(ISMACrypConfigTable_t* ismac_table,
 
         // second string is ISMACrypIVLength
         snprintf(temp, ISMACRYP_SDP_CONFIG_MAX_SUBSTR_LEN,
-                       ISMACRYP_SDP_CONFIG_STR_2, 
+                       ISMACRYP_SDP_CONFIG_STR_2,
                        ismac_table->settings[ISMACRYP_IV_LENGTH]);
-        lenstr1 = strlen(*sISMACrypConfig); 
+        lenstr1 = strlen(*sISMACrypConfig);
         lenstr2 = strlen(temp) + 1; // add 1 for '\0'
         totlen = lenstr1 + lenstr2;
         if ( totlen < ISMACRYP_SDP_CONFIG_MAX_LEN )
@@ -213,9 +213,9 @@ static bool MP4AV_RfcCryptoConfigure(ISMACrypConfigTable_t* ismac_table,
 
         // third string is ISMACrypIVDeltaLength
         snprintf(temp, ISMACRYP_SDP_CONFIG_MAX_SUBSTR_LEN,
-                       ISMACRYP_SDP_CONFIG_STR_3, 
+                       ISMACRYP_SDP_CONFIG_STR_3,
                        ismac_table->settings[ISMACRYP_IV_DELTA_LENGTH]);
-        lenstr1 = strlen(*sISMACrypConfig); 
+        lenstr1 = strlen(*sISMACrypConfig);
         lenstr2 = strlen(temp) + 1; // add 1 for '\0'
         totlen = lenstr1 + lenstr2;
         if ( totlen < ISMACRYP_SDP_CONFIG_MAX_LEN )
@@ -227,9 +227,9 @@ static bool MP4AV_RfcCryptoConfigure(ISMACrypConfigTable_t* ismac_table,
 
         // fourth string is ISMACrypSelectiveEncryption
         snprintf(temp, ISMACRYP_SDP_CONFIG_MAX_SUBSTR_LEN,
-                       ISMACRYP_SDP_CONFIG_STR_4, 
+                       ISMACRYP_SDP_CONFIG_STR_4,
                        ismac_table->settings[ISMACRYP_SELECTIVE_ENCRYPTION]);
-        lenstr1 = strlen(*sISMACrypConfig); 
+        lenstr1 = strlen(*sISMACrypConfig);
         lenstr2 = strlen(temp) + 1; // add 1 for '\0'
         totlen = lenstr1 + lenstr2;
         if ( totlen < ISMACRYP_SDP_CONFIG_MAX_LEN )
@@ -241,9 +241,9 @@ static bool MP4AV_RfcCryptoConfigure(ISMACrypConfigTable_t* ismac_table,
 
         // fifth string is ISMACrypKeyIndicatorLength
         snprintf(temp, ISMACRYP_SDP_CONFIG_MAX_SUBSTR_LEN,
-                       ISMACRYP_SDP_CONFIG_STR_5, 
+                       ISMACRYP_SDP_CONFIG_STR_5,
                        ismac_table->settings[ISMACRYP_KEY_INDICATOR_LENGTH]);
-        lenstr1 = strlen(*sISMACrypConfig); 
+        lenstr1 = strlen(*sISMACrypConfig);
         lenstr2 = strlen(temp) + 1; // add 1 for '\0'
         totlen = lenstr1 + lenstr2;
         if ( totlen < ISMACRYP_SDP_CONFIG_MAX_LEN )
@@ -255,9 +255,9 @@ static bool MP4AV_RfcCryptoConfigure(ISMACrypConfigTable_t* ismac_table,
 
         // sixth string is ISMACrypKeyIndicatorPerAU
         snprintf(temp, ISMACRYP_SDP_CONFIG_MAX_SUBSTR_LEN,
-                       ISMACRYP_SDP_CONFIG_STR_6, 
+                       ISMACRYP_SDP_CONFIG_STR_6,
                        ismac_table->settings[ISMACRYP_KEY_INDICATOR_PER_AU]);
-        lenstr1 = strlen(*sISMACrypConfig); 
+        lenstr1 = strlen(*sISMACrypConfig);
         lenstr2 = strlen(temp) + 1; // add 1 for '\0'
         totlen = lenstr1 + lenstr2;
         if ( totlen < ISMACRYP_SDP_CONFIG_MAX_LEN )
@@ -268,18 +268,18 @@ static bool MP4AV_RfcCryptoConfigure(ISMACrypConfigTable_t* ismac_table,
         }
 
 	// convert the concatenated, binary keys to Base 64
-	u_int8_t  keymat[ISMACRYP_KEY_LENGTH_DEFAULT+ISMACRYP_SALT_LENGTH_DEFAULT]; 
+	u_int8_t  keymat[ISMACRYP_KEY_LENGTH_DEFAULT+ISMACRYP_SALT_LENGTH_DEFAULT];
         memcpy(keymat,ismac_table->salts[0],ISMACRYP_SALT_LENGTH_DEFAULT);
         memcpy(&keymat[ISMACRYP_SALT_LENGTH_DEFAULT],ismac_table->keys[0],ISMACRYP_KEY_LENGTH_DEFAULT);
 
-	char* base64keymat = MP4BinaryToBase64((u_int8_t*)keymat, 
+	char* base64keymat = MP4BinaryToBase64((u_int8_t*)keymat,
                                      ISMACRYP_SALT_LENGTH_DEFAULT + ISMACRYP_KEY_LENGTH_DEFAULT);
 
         // seventh string is ISMACrypKey
         snprintf(temp, ISMACRYP_SDP_CONFIG_MAX_SUBSTR_LEN,
-                       ISMACRYP_SDP_CONFIG_STR_7, 
+                       ISMACRYP_SDP_CONFIG_STR_7,
                        base64keymat, ismac_table->lifetime);
-        lenstr1 = strlen(*sISMACrypConfig); 
+        lenstr1 = strlen(*sISMACrypConfig);
         lenstr2 = strlen(temp) + 1; // add 1 for '\0'
         totlen = lenstr1 + lenstr2;
         if ( totlen < ISMACRYP_SDP_CONFIG_MAX_LEN )
@@ -297,12 +297,12 @@ static bool MP4AV_RfcCryptoConfigure(ISMACrypConfigTable_t* ismac_table,
 
 // MP4AV_CryptoAudioConsecutiveHinter: figures out how to put the samples into packets
 // When a hint is defined (the sample ids of the hint are in pSampleIds)
-// call MP4AV_RfcCryptoConcatenator to create it 
+// call MP4AV_RfcCryptoConcatenator to create it
 // Note: This is a modified clone of MP4AV_AudioConsecutiveHinter in audio_hinters.cpp
-static bool MP4AV_CryptoAudioConsecutiveHinter(MP4FileHandle mp4File, 
-					       MP4TrackId mediaTrackId, 
+static bool MP4AV_CryptoAudioConsecutiveHinter(MP4FileHandle mp4File,
+					       MP4TrackId mediaTrackId,
 					       MP4TrackId hintTrackId,
-					       MP4Duration sampleDuration, 
+					       MP4Duration sampleDuration,
 					       u_int8_t perPacketHeaderSize,
 					       u_int8_t perSampleHeaderSize,
 					       u_int8_t maxSamplesPerPacket,
@@ -311,23 +311,23 @@ static bool MP4AV_CryptoAudioConsecutiveHinter(MP4FileHandle mp4File,
 					       mp4av_ismacrypParams *icPp)
 {
   bool rc;
-  u_int32_t numSamples = 
+  u_int32_t numSamples =
     MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
 
   u_int16_t bytesThisHint = perPacketHeaderSize;
   u_int16_t samplesThisHint = 0;
-  MP4SampleId* pSampleIds = 
+  MP4SampleId* pSampleIds =
     new MP4SampleId[maxSamplesPerPacket];
 
   for (MP4SampleId sampleId = 1; sampleId <= numSamples; sampleId++) {
 
-    u_int32_t sampleSize = 
+    u_int32_t sampleSize =
       (*pSizer)(mp4File, mediaTrackId, sampleId);
 
     // sample won't fit in this packet
     // or we've reached the limit on samples per packet
-    if ((int16_t)(sampleSize + perSampleHeaderSize) 
-	> maxPayloadSize - bytesThisHint 
+    if ((int16_t)(sampleSize + perSampleHeaderSize)
+	> maxPayloadSize - bytesThisHint
 	|| samplesThisHint == maxSamplesPerPacket) {
 
       if (samplesThisHint > 0) {
@@ -342,7 +342,7 @@ static bool MP4AV_CryptoAudioConsecutiveHinter(MP4FileHandle mp4File,
 	}
       }
 
-      // start a new hint 
+      // start a new hint
       samplesThisHint = 0;
       bytesThisHint = perPacketHeaderSize;
 
@@ -357,17 +357,17 @@ static bool MP4AV_CryptoAudioConsecutiveHinter(MP4FileHandle mp4File,
       bytesThisHint += (sampleSize + perSampleHeaderSize);
       pSampleIds[samplesThisHint++] = sampleId;
 
-    } else { 
+    } else {
       // jumbo frame, need to fragment it
-      rc = MP4AV_RfcCryptoFragmenter(mp4File, mediaTrackId, hintTrackId, sampleId, 
+      rc = MP4AV_RfcCryptoFragmenter(mp4File, mediaTrackId, hintTrackId, sampleId,
 			  sampleSize, sampleDuration, maxPayloadSize, icPp);
-	
+
       if (!rc) {
         delete [] pSampleIds;
 	return false;
       }
 
-      // start a new hint 
+      // start a new hint
       samplesThisHint = 0;
       bytesThisHint = perPacketHeaderSize;
     }
@@ -391,21 +391,21 @@ static bool MP4AV_CryptoAudioConsecutiveHinter(MP4FileHandle mp4File,
 
 // MP4AV_CryptoAudioInterleaveHinter: figures out how to put the samples into packets
 // When a hint is defined (the sample ids of the hint are in pSampleIds)
-// call MP4AV_RfcCryptoConcatenator to create it. The samples are interleaved. 
+// call MP4AV_RfcCryptoConcatenator to create it. The samples are interleaved.
 // Note: This is a modified clone of MP4AV_AudioInterleaveHinter in audio_hinters.cpp
-static bool MP4AV_CryptoAudioInterleaveHinter(MP4FileHandle mp4File, 
-					      MP4TrackId mediaTrackId, 
+static bool MP4AV_CryptoAudioInterleaveHinter(MP4FileHandle mp4File,
+					      MP4TrackId mediaTrackId,
 					      MP4TrackId hintTrackId,
-					      MP4Duration sampleDuration, 
-					      u_int8_t stride, 
+					      MP4Duration sampleDuration,
+					      u_int8_t stride,
 					      u_int8_t bundle,
 					      u_int16_t maxPayloadSize,
 					      mp4av_ismacrypParams *icPp)
 {
   bool rc;
-  u_int32_t numSamples = 
+  u_int32_t numSamples =
     MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
-  
+
   MP4SampleId* pSampleIds = new MP4SampleId[bundle];
 
   uint32_t sampleIds = 0;
@@ -413,7 +413,7 @@ static bool MP4AV_CryptoAudioInterleaveHinter(MP4FileHandle mp4File,
     for (u_int32_t j = 0; j < stride; j++) {
       u_int32_t k;
       for (k = 0; k < bundle; k++) {
-	
+
 	MP4SampleId sampleId = i + j + (k * stride);
 
 	// out of samples for this bundle
@@ -431,7 +431,7 @@ static bool MP4AV_CryptoAudioInterleaveHinter(MP4FileHandle mp4File,
       }
 
       // compute hint duration
-      // note this is used to control the RTP timestamps 
+      // note this is used to control the RTP timestamps
       // that are emitted for the packet,
       // it isn't the actual duration of the samples in the packet
       MP4Duration hintDuration;
@@ -450,11 +450,11 @@ static bool MP4AV_CryptoAudioInterleaveHinter(MP4FileHandle mp4File,
       }
 
       // write hint
-      rc = MP4AV_RfcCryptoConcatenator(mp4File, mediaTrackId, hintTrackId, k, 
-				       pSampleIds, hintDuration, maxPayloadSize, 
+      rc = MP4AV_RfcCryptoConcatenator(mp4File, mediaTrackId, hintTrackId, k,
+				       pSampleIds, hintDuration, maxPayloadSize,
 				       icPp, true);
       sampleIds = 0;
-      
+
       if (!rc) {
         delete [] pSampleIds;
 	return false;
@@ -463,29 +463,29 @@ static bool MP4AV_CryptoAudioInterleaveHinter(MP4FileHandle mp4File,
   }
 
   delete [] pSampleIds;
-  
+
   return true;
 }
 
 // returns the size of the ismacryp sample header:
 // selective encryption flag, IV, key indicator
 static u_int32_t MP4AV_GetIsmaCrypSampleHdrSize (
-					ismaCrypSampleHdrDataInfo_t iCrypSampleHdrInfo, 
-					u_int8_t IVlen, 
+					ismaCrypSampleHdrDataInfo_t iCrypSampleHdrInfo,
+					u_int8_t IVlen,
 				        u_int8_t KIlen)
 {
   // the ismaCryp sample header always has the IV and the KI
-  u_int32_t iCrypSampleHdrSize = (iCrypSampleHdrInfo.hasEncField ? 1: 0) 
+  u_int32_t iCrypSampleHdrSize = (iCrypSampleHdrInfo.hasEncField ? 1: 0)
     + IVlen  + KIlen;
   return iCrypSampleHdrSize;
 }
 
-// get the key indicator length, the IV length and the selective 
+// get the key indicator length, the IV length and the selective
 // encryption flag from the iSFM atom in the file
-static bool MP4AV_GetiSFMSettings(MP4FileHandle mp4File, 
+static bool MP4AV_GetiSFMSettings(MP4FileHandle mp4File,
 				  MP4TrackId mediaTrackId,
-				  u_int8_t *useSelectiveEnc, 
-				  u_int8_t *KIlen, 
+				  u_int8_t *useSelectiveEnc,
+				  u_int8_t *KIlen,
 				  u_int8_t *IVlen,
 				  bool isAudio)
 {
@@ -501,38 +501,38 @@ static bool MP4AV_GetiSFMSettings(MP4FileHandle mp4File,
   char  *path;
 
   path = (char *)malloc(pathlen);
-  
+
   // get selective encryption setting from the file (iSFM atom)
-  snprintf(path, 
+  snprintf(path,
            pathlen,
 	   "%s%s%s%s",
            part1,
 	   isAudio ? part2a : part2v,
            part3, part4se);
   uint64_t temp;
-  MP4GetTrackIntegerProperty(mp4File, mediaTrackId, 
+  MP4GetTrackIntegerProperty(mp4File, mediaTrackId,
 			     path, &temp);
   *useSelectiveEnc = temp;
- 
+
   // get the key indicator length from the file (iSFM atom)
-  snprintf(path, 
+  snprintf(path,
            pathlen,
 	   "%s%s%s%s",
            part1,
 	   isAudio ? part2a : part2v,
            part3, part4kil);
-  MP4GetTrackIntegerProperty(mp4File, mediaTrackId, 
+  MP4GetTrackIntegerProperty(mp4File, mediaTrackId,
 			     path, &temp);
   *KIlen = temp;
 
   // get the IV length from the file (iSFM atom)
-  snprintf(path, 
+  snprintf(path,
            pathlen,
 	   "%s%s%s%s",
            part1,
 	   isAudio ? part2a : part2v,
            part3, part4ivl);
-  MP4GetTrackIntegerProperty(mp4File, mediaTrackId, 
+  MP4GetTrackIntegerProperty(mp4File, mediaTrackId,
 			     path, &temp);
   *IVlen = temp;
 
@@ -541,12 +541,12 @@ static bool MP4AV_GetiSFMSettings(MP4FileHandle mp4File,
 }
 
 // gets the AU hdr length, and the AU sample header data information
-static bool MP4AV_ProcessIsmaCrypHdrs(MP4FileHandle mp4File, 
-				      MP4TrackId mediaTrackId, 
-				      u_int8_t samplesThisHint, 
+static bool MP4AV_ProcessIsmaCrypHdrs(MP4FileHandle mp4File,
+				      MP4TrackId mediaTrackId,
+				      u_int8_t samplesThisHint,
 				      MP4SampleId* pSampleIds,
-				      u_int8_t useSelectiveEnc, 
-				      u_int8_t KIlen, 
+				      u_int8_t useSelectiveEnc,
+				      u_int8_t KIlen,
 				      u_int8_t IVlen,
 				      u_int8_t *deltaIVLen,
 				      u_int16_t *iCrypAUHdrLen,
@@ -562,7 +562,7 @@ static bool MP4AV_ProcessIsmaCrypHdrs(MP4FileHandle mp4File,
 
   *iCrypAUHdrLen = 0;
   u_int32_t maxSampleSize = MP4GetTrackMaxSampleSize(mp4File, mediaTrackId);
-  u_int8_t * pSampleBuffer = (u_int8_t *) malloc ((maxSampleSize + IVlen 
+  u_int8_t * pSampleBuffer = (u_int8_t *) malloc ((maxSampleSize + IVlen
 						       + KIlen + 1)
 						      * sizeof(u_int8_t));
   if (pSampleBuffer == NULL)
@@ -571,7 +571,7 @@ static bool MP4AV_ProcessIsmaCrypHdrs(MP4FileHandle mp4File,
   for (i = 0; i < samplesThisHint; i++) {
     bool sampleIsEncrypted = false;
     if (useSelectiveEnc) {
-      // add the 8 bits to signal if sample is encrypted 
+      // add the 8 bits to signal if sample is encrypted
       // (always present for selencryption)
       *iCrypAUHdrLen += 8;
       (*iCrypSampleHdrData)[i].hasEncField = 1;
@@ -579,7 +579,7 @@ static bool MP4AV_ProcessIsmaCrypHdrs(MP4FileHandle mp4File,
       // need to figure out if sample is encrypted
       u_int32_t sampleSize = maxSampleSize;
 
-      bool rc = MP4ReadSample(mp4File, mediaTrackId, pSampleIds[i], 
+      bool rc = MP4ReadSample(mp4File, mediaTrackId, pSampleIds[i],
       		      &pSampleBuffer, &sampleSize);
       if (!rc) {
         free(pSampleBuffer);
@@ -601,20 +601,20 @@ static bool MP4AV_ProcessIsmaCrypHdrs(MP4FileHandle mp4File,
       (*iCrypSampleHdrData)[i].isEncrypted = 1;
       (*iCrypSampleHdrData)[i].hasEncField = 0;
     }
-    
+
     if (sampleIsEncrypted) {
       if ((IVlen > 0) && (numEncAUs == 0)) { // first AU of pkt
 	*iCrypAUHdrLen += 8 * IVlen;
 	(*iCrypSampleHdrData)[i].hasIVField = 1;
       } else if ((IVlen > 0) && (numEncAUs > 0) && (*deltaIVLen > 0)) {
-	// IsmaCrypDeltaIVLength is non-zero 
+	// IsmaCrypDeltaIVLength is non-zero
 	*iCrypAUHdrLen += 8 * (*deltaIVLen);
 	(*iCrypSampleHdrData)[i].hasIVField = 1; // is delta iv field
       } else {
 	(*iCrypSampleHdrData)[i].hasIVField = 0;
       }
 
-      // the hdr has the  key indicator if this is the first encrypted AU 
+      // the hdr has the  key indicator if this is the first encrypted AU
       // of the packet or if IsmaCrypKeyIndicatorPerAU is not zero
       if ((KIlen > 0) && (numEncAUs == 0 || kIPerAU)) {
 	*iCrypAUHdrLen += 8 * KIlen;
@@ -622,7 +622,7 @@ static bool MP4AV_ProcessIsmaCrypHdrs(MP4FileHandle mp4File,
       } else {
 	(*iCrypSampleHdrData)[i].hasKIField = 0;
       }
-      
+
       numEncAUs++;
      }
   }
@@ -632,11 +632,11 @@ static bool MP4AV_ProcessIsmaCrypHdrs(MP4FileHandle mp4File,
 
 // Note: this is based on MP4AV_RfcIsmaConcatenator
 static bool MP4AV_RfcCryptoConcatenator(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	u_int8_t samplesThisHint, 
-	MP4SampleId* pSampleIds, 
+	u_int8_t samplesThisHint,
+	MP4SampleId* pSampleIds,
 	MP4Duration hintDuration,
 	u_int16_t maxPayloadSize,
 	mp4av_ismacrypParams *icPp,
@@ -667,30 +667,30 @@ static bool MP4AV_RfcCryptoConcatenator(
 
   u_int16_t numHdrBits = samplesThisHint * auPayloadHdrSize * 8;
 
-  ismaCrypSampleHdrDataInfo_t *iCrypSampleHdrInfo = 
-    (ismaCrypSampleHdrDataInfo_t *) 
+  ismaCrypSampleHdrDataInfo_t *iCrypSampleHdrInfo =
+    (ismaCrypSampleHdrDataInfo_t *)
     malloc (samplesThisHint * sizeof(ismaCrypSampleHdrDataInfo_t));
   if (iCrypSampleHdrInfo == NULL)
     return false;
 
-  memset(iCrypSampleHdrInfo, 0, 
+  memset(iCrypSampleHdrInfo, 0,
 	 samplesThisHint * sizeof(ismaCrypSampleHdrDataInfo_t));
   u_int16_t ismaCrypAUHdrLen = 0;
   u_int8_t useSelectiveEnc = 0;
   u_int8_t KIlen = 0;
   u_int8_t IVlen = 0;
   u_int8_t deltaIVlen = 0;
-  if (MP4AV_GetiSFMSettings(mp4File, mediaTrackId, &useSelectiveEnc, 
+  if (MP4AV_GetiSFMSettings(mp4File, mediaTrackId, &useSelectiveEnc,
 			    &KIlen, &IVlen, true) == false) {
     return false;
   }
-      
 
-  bool rc = MP4AV_ProcessIsmaCrypHdrs(mp4File, mediaTrackId, 
-				      samplesThisHint, pSampleIds, 
+
+  bool rc = MP4AV_ProcessIsmaCrypHdrs(mp4File, mediaTrackId,
+				      samplesThisHint, pSampleIds,
 				      useSelectiveEnc, KIlen, IVlen,
 				      &deltaIVlen, &ismaCrypAUHdrLen,
-				      &iCrypSampleHdrInfo, 
+				      &iCrypSampleHdrInfo,
 				      icPp);
   if (rc == false) {
     return false;
@@ -710,7 +710,7 @@ static bool MP4AV_RfcCryptoConcatenator(
 
   /*
   u_int32_t maxSampleSize = MP4GetTrackMaxSampleSize(mp4File, mediaTrackId);
-  u_int8_t * pSampleBuffer = (u_int8_t *) malloc ((maxSampleSize 
+  u_int8_t * pSampleBuffer = (u_int8_t *) malloc ((maxSampleSize
 						     + IVlen + KIlen + 1)
 						    * sizeof(u_int8_t));
   if (pSampleBuffer == NULL)
@@ -724,12 +724,12 @@ static bool MP4AV_RfcCryptoConcatenator(
     // add the ismacryp AU header for the sample
     // first read the sample data into pSampleBuffer
     u_int32_t sampleSize = maxSampleSize;
-    u_int8_t * pSampleBuffer = (u_int8_t *) malloc ((maxSampleSize 
+    u_int8_t * pSampleBuffer = (u_int8_t *) malloc ((maxSampleSize
 						     + IVlen + KIlen + 1)
    						    * sizeof(u_int8_t));
     if (pSampleBuffer == NULL)
        return false;
-    bool rc = MP4ReadSample(mp4File, mediaTrackId, pSampleIds[i], 
+    bool rc = MP4ReadSample(mp4File, mediaTrackId, pSampleIds[i],
 			    &pSampleBuffer, &sampleSize);
     if (!rc) {
       return false;
@@ -742,9 +742,9 @@ static bool MP4AV_RfcCryptoConcatenator(
       // add the 8 bits to signal if the sample is encrypted
       // sample_is_encrypted bit + 7 reserved bits
       MP4AddRtpImmediateData(mp4File, hintTrackId,
-			     pCurPosSampleBuffer, 1);  
+			     pCurPosSampleBuffer, 1);
       pCurPosSampleBuffer += 1;
-    } 
+    }
 
     // add the IV/delta IV header field if needed
     if (iCrypSampleHdrInfo[i].hasIVField == 1) {
@@ -762,22 +762,22 @@ static bool MP4AV_RfcCryptoConcatenator(
 	// compute the delta IV
 	if (deltaIVlen == 1) {
 	  int8_t ivDelta = curIV - prevIV - prevSize;
-	  MP4AddRtpImmediateData(mp4File, hintTrackId,  
+	  MP4AddRtpImmediateData(mp4File, hintTrackId,
 			       (u_int8_t*)&ivDelta, ivdeltalen);
 	} else if (deltaIVlen == 2) {
 	  u_int16_t ivDelta = htons(curIV - prevIV - prevSize);
-	  MP4AddRtpImmediateData(mp4File, hintTrackId,  
+	  MP4AddRtpImmediateData(mp4File, hintTrackId,
 			       (u_int8_t*)&ivDelta, ivdeltalen);
-	} else if (deltaIVlen > 2) { 
+	} else if (deltaIVlen > 2) {
 	  // should not happen with current ismacryp spec
 	  return false;
 	}
-      } 
+      }
     }
-   
-    // there is always an IV field in the ismacryp sample header 
+
+    // there is always an IV field in the ismacryp sample header
     // if IVlen > 0 so move the data pointer
-    pCurPosSampleBuffer += IVlen; 
+    pCurPosSampleBuffer += IVlen;
 
     // add the key indicator field if needed
     if (iCrypSampleHdrInfo[i].hasKIField == 1) {
@@ -785,7 +785,7 @@ static bool MP4AV_RfcCryptoConcatenator(
       MP4AddRtpImmediateData(mp4File, hintTrackId,
 			     pCurPosSampleBuffer, KIlen);
     }
-    // there is always a key indicator field in the ismacryp sample header 
+    // there is always a key indicator field in the ismacryp sample header
     // if KIlen > 0 so move the data pointer
     pCurPosSampleBuffer += KIlen;
 
@@ -796,9 +796,9 @@ static bool MP4AV_RfcCryptoConcatenator(
     // remove size of ismaCryp sample header from the sample size
     u_int32_t ismaCrypSampleHdrSize = MP4AV_GetIsmaCrypSampleHdrSize (
 					iCrypSampleHdrInfo[i], IVlen, KIlen);
-    sampleSize = MP4GetSampleSize(mp4File, mediaTrackId, sampleId) 
+    sampleSize = MP4GetSampleSize(mp4File, mediaTrackId, sampleId)
       - ismaCrypSampleHdrSize;
-    
+
     if (auPayloadHdrSize == 1) {
       // AU payload header is 6 bits of size
       // follow by 2 bits of the difference between sampleId's - 1
@@ -812,12 +812,12 @@ static bool MP4AV_RfcCryptoConcatenator(
     }
 
     if (i > 0) {
-      payloadHeader[auPayloadHdrSize - 1] 
-	|= ((sampleId - pSampleIds[i-1]) - 1); 
+      payloadHeader[auPayloadHdrSize - 1]
+	|= ((sampleId - pSampleIds[i-1]) - 1);
     }
 
 #if 0
-    printf("sample %u size %u %02x %02x prev sample %d\n", 
+    printf("sample %u size %u %02x %02x prev sample %d\n",
             sampleId, sampleSize, payloadHeader[0],
             payloadHeader[1], pSampleIds[i-1]);
 #endif
@@ -838,12 +838,12 @@ static bool MP4AV_RfcCryptoConcatenator(
     u_int32_t iCrypSampleHdrSize = MP4AV_GetIsmaCrypSampleHdrSize
                                    (iCrypSampleHdrInfo[i], IVlen, KIlen);
     // remove it from the sample size to get the real size of the data
-    u_int32_t sampleSize = 
+    u_int32_t sampleSize =
       MP4GetSampleSize(mp4File, mediaTrackId, sampleId) - iCrypSampleHdrSize;
 
-    // use the offset parameter to point to the beginning of the data 
+    // use the offset parameter to point to the beginning of the data
     // and skip the ismacryp sample header
-    MP4AddRtpSampleData(mp4File, hintTrackId, sampleId, 
+    MP4AddRtpSampleData(mp4File, hintTrackId, sampleId,
 			iCrypSampleHdrSize, sampleSize);
   }
 
@@ -859,11 +859,11 @@ static bool MP4AV_RfcCryptoConcatenator(
 
 // Add the RTP packet with a sample fragment
 static bool MP4AV_RfcCryptoFragmenter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
 	MP4TrackId hintTrackId,
-	MP4SampleId sampleId, 
-	u_int32_t sampleSize, 
+	MP4SampleId sampleId,
+	u_int32_t sampleSize,
 	MP4Duration sampleDuration,
 	u_int16_t maxPayloadSize,
 	mp4av_ismacrypParams *icPp)
@@ -874,8 +874,8 @@ static bool MP4AV_RfcCryptoFragmenter(
 
   // ismacryp
   u_int16_t numHdrBits = 0;
-  ismaCrypSampleHdrDataInfo_t *iCrypSampleHdrInfo = 
-    (ismaCrypSampleHdrDataInfo_t *) 
+  ismaCrypSampleHdrDataInfo_t *iCrypSampleHdrInfo =
+    (ismaCrypSampleHdrDataInfo_t *)
     malloc (sizeof(ismaCrypSampleHdrDataInfo_t));
 
   if (iCrypSampleHdrInfo == NULL)
@@ -887,11 +887,11 @@ static bool MP4AV_RfcCryptoFragmenter(
   u_int8_t KIlen = 0;
   u_int8_t IVlen = 0;
   u_int8_t deltaIVlen = 0;
-  if (MP4AV_GetiSFMSettings(mp4File, mediaTrackId, &useSelectiveEnc, 
+  if (MP4AV_GetiSFMSettings(mp4File, mediaTrackId, &useSelectiveEnc,
 			    &KIlen, &IVlen, true) == false) {
     return false;
   }
-  bool rc = MP4AV_ProcessIsmaCrypHdrs(mp4File, mediaTrackId, 1, &sampleId, 
+  bool rc = MP4AV_ProcessIsmaCrypHdrs(mp4File, mediaTrackId, 1, &sampleId,
 				      useSelectiveEnc, KIlen, IVlen,
 				      &deltaIVlen, &ismaCrypAUHdrLen,
 				      &iCrypSampleHdrInfo,
@@ -908,28 +908,28 @@ static bool MP4AV_RfcCryptoFragmenter(
   payloadHeaderSize[0] = numHdrBits >> 8;
   payloadHeaderSize[1] = numHdrBits & 0xFF;
   MP4AddRtpImmediateData(mp4File, hintTrackId,
-			 (u_int8_t*)&payloadHeaderSize, 
+			 (u_int8_t*)&payloadHeaderSize,
 			 sizeof(payloadHeaderSize));
 
   // add ismacryp AU headers
   if (ismaCrypAUHdrLen > 0) {
     u_int32_t tmpSampleSize = sampleSize;
-    u_int8_t * pSampleBuffer = (u_int8_t *) malloc ((tmpSampleSize + IVlen 
+    u_int8_t * pSampleBuffer = (u_int8_t *) malloc ((tmpSampleSize + IVlen
 						     + KIlen + 1)
 						    * sizeof(u_int8_t));
     if (pSampleBuffer == NULL)
       return false;
 
     u_int8_t * pCurSampleBuf = pSampleBuffer;
-    bool rc2 = MP4ReadSample(mp4File, mediaTrackId, sampleId, 
+    bool rc2 = MP4ReadSample(mp4File, mediaTrackId, sampleId,
 			     &pSampleBuffer, &tmpSampleSize);
     if (rc2 == false) {
       return false;
     }
     if (iCrypSampleHdrInfo[0].hasEncField == 1) {
-      MP4AddRtpImmediateData(mp4File, hintTrackId, pCurSampleBuf, 1);  
+      MP4AddRtpImmediateData(mp4File, hintTrackId, pCurSampleBuf, 1);
       pCurSampleBuf += 1;
-    } 
+    }
     if (iCrypSampleHdrInfo[0].hasIVField == 1) {
       MP4AddRtpImmediateData(mp4File, hintTrackId, pCurSampleBuf, IVlen);
     }
@@ -939,7 +939,7 @@ static bool MP4AV_RfcCryptoFragmenter(
       MP4AddRtpImmediateData(mp4File, hintTrackId, pCurSampleBuf, KIlen);
     }
     pCurSampleBuf += KIlen;
-    
+
     if (pSampleBuffer != NULL) {
       free(pSampleBuffer);
     }
@@ -949,7 +949,7 @@ static bool MP4AV_RfcCryptoFragmenter(
   u_int32_t ismaCrypSampleHdrSize = MP4AV_GetIsmaCrypSampleHdrSize (
 					 iCrypSampleHdrInfo[0], IVlen, KIlen);
   sampleSize -= ismaCrypSampleHdrSize;
-  
+
   // add AAC AU header
   u_int8_t payloadHeader[2];
   payloadHeader[0] = sampleSize >> 5;
@@ -959,7 +959,7 @@ static bool MP4AV_RfcCryptoFragmenter(
 			 (u_int8_t*)&payloadHeader, sizeof(payloadHeader));
 
   // start after the ismaCrypSampleHdr
-  u_int16_t sampleOffset = ismaCrypSampleHdrSize; 
+  u_int16_t sampleOffset = ismaCrypSampleHdrSize;
   u_int16_t fragLength = maxPayloadSize - 4;
 
   do {
@@ -969,16 +969,16 @@ static bool MP4AV_RfcCryptoFragmenter(
     sampleOffset += fragLength;
 
     if (sampleSize - sampleOffset > maxPayloadSize) {
-      fragLength = maxPayloadSize; 
+      fragLength = maxPayloadSize;
       MP4AddRtpPacket(mp4File, hintTrackId, false);
     } else {
-      fragLength = sampleSize - sampleOffset; 
+      fragLength = sampleSize - sampleOffset;
       if (fragLength) {
 	MP4AddRtpPacket(mp4File, hintTrackId, true);
       }
     }
   } while (sampleOffset < sampleSize);
-  
+
   MP4WriteRtpHint(mp4File, hintTrackId, sampleDuration);
 
   return true;
@@ -986,8 +986,8 @@ static bool MP4AV_RfcCryptoFragmenter(
 
 // based on MP4AV_RfcIsmaHinter, with ismacryp SDP added
 extern "C" bool MP4AV_RfcCryptoAudioHinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
         mp4av_ismacrypParams *icPp,
 	bool interleave,
 	u_int16_t maxPayloadSize,
@@ -1023,13 +1023,13 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
 
   if (audioType == MP4_MPEG4_AUDIO_TYPE) {
     // check that track contains either MPEG-4 AAC or CELP
-    if (!MP4_IS_MPEG4_AAC_AUDIO_TYPE(mpeg4AudioType) 
+    if (!MP4_IS_MPEG4_AAC_AUDIO_TYPE(mpeg4AudioType)
 	&& mpeg4AudioType != MP4_MPEG4_CELP_AUDIO_TYPE) {
       return false;
     }
   }
 
-  MP4Duration sampleDuration = 
+  MP4Duration sampleDuration =
     MP4AV_GetAudioSampleDuration(mp4File, mediaTrackId);
 
   if (sampleDuration == MP4_INVALID_DURATION) {
@@ -1041,17 +1041,17 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
   u_int32_t configSize;
   uint8_t channels;
 
-  MP4GetTrackESConfiguration(mp4File, mediaTrackId, &pConfig, 
+  MP4GetTrackESConfiguration(mp4File, mediaTrackId, &pConfig,
 			     &configSize);
 
   if (!pConfig) {
     return false;
   }
-     
+
   channels = MP4AV_AacConfigGetChannels(pConfig);
 
   /* convert ES Config into ASCII form */
-  char* sConfig = 
+  char* sConfig =
     MP4BinaryToBase16(pConfig, configSize);
 
   free(pConfig);
@@ -1075,19 +1075,19 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
   if (channels != 1) {
     snprintf(buffer, sizeof(buffer), "%u", channels);
   }
-  MP4SetHintTrackRtpPayload(mp4File, hintTrackId, 
-			    (const char*)PayloadMIMEType, 
-			    &payloadNumber, 0, 
+  MP4SetHintTrackRtpPayload(mp4File, hintTrackId,
+			    (const char*)PayloadMIMEType,
+			    &payloadNumber, 0,
 			    channels != 1 ? buffer : NULL);
 
   // moved this interleave check to here.
   u_int32_t samplesPerPacket = 0;
-  if (interleave) {  
+  if (interleave) {
     u_int32_t maxSampleSize =
       MP4GetTrackMaxSampleSize(mp4File, mediaTrackId);
 
     // compute how many maximum size samples would fit in a packet
-    samplesPerPacket = 
+    samplesPerPacket =
       (maxPayloadSize - 2) / (maxSampleSize + 2);
 
     // can't interleave if this number is 0 or 1
@@ -1098,7 +1098,7 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
       // This needs to be done before the SDP is created. ...AWV
       icPp->delta_iv_len = 0;
     }
-   else 
+   else
       // set the delta IV length parameter to 2
       // per the ismacryp specification (setting to 1 is too small)
       icPp->delta_iv_len = 2;
@@ -1117,8 +1117,8 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
   if (!MP4AV_RfcCryptoPolicyOk(&ismac_table)) {
     free(sConfig);
     for(i = 0; i < ismac_table.settings[ISMACRYP_KEY_COUNT];i++) {
-      free(ismac_table.keys[i]);		
-      free(ismac_table.salts[i]);	
+      free(ismac_table.keys[i]);
+      free(ismac_table.salts[i]);
     }
     return false;
   }
@@ -1150,7 +1150,7 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
 	    "\015\012",
 	    payloadNumber,
 	    sConfig,
-	    sISMACrypConfig); 
+	    sISMACrypConfig);
 
     // 200 ms max latency for ISMA profile 1
     maxLatency = timeScale / 5;
@@ -1166,7 +1166,7 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
 	    "\015\012",
 	    payloadNumber,
 	    sConfig,
-	    sISMACrypConfig); 
+	    sISMACrypConfig);
 
     // 500 ms max latency for ISMA profile 1
     maxLatency = timeScale / 2;
@@ -1180,9 +1180,9 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
   free(sISMACrypConfig);		//mjb
   for(i = 0; i < ismac_table.settings[ISMACRYP_KEY_COUNT];i++) {
     free(ismac_table.keys[i]);
-    free(ismac_table.salts[i]);	
+    free(ismac_table.salts[i]);
   }
- 
+
   // this is where the interleave check was....AWV
 
   bool rc;
@@ -1203,10 +1203,10 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
 
 
     rc = MP4AV_CryptoAudioInterleaveHinter(
-				     mp4File, 
-				     mediaTrackId, 
+				     mp4File,
+				     mediaTrackId,
 				     hintTrackId,
-				     sampleDuration, 
+				     sampleDuration,
 				     stride, // stride
 				     samplesPerPacket,		    // bundle
 				     maxPayloadSize,
@@ -1214,10 +1214,10 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
 
   } else {
     rc = MP4AV_CryptoAudioConsecutiveHinter(
-				      mp4File, 
-				      mediaTrackId, 
+				      mp4File,
+				      mediaTrackId,
 				      hintTrackId,
-				      sampleDuration, 
+				      sampleDuration,
 				      2,				// perPacketHeaderSize
 				      2,				// perSampleHeaderSize
 				      maxLatency / sampleDuration,	// maxSamplesPerPacket
@@ -1236,15 +1236,15 @@ extern "C" bool MP4AV_RfcCryptoAudioHinter(
 
 // based on MP4AV_Rfc3016Hinter
 extern "C" bool MP4AV_RfcCryptoVideoHinter(
-	MP4FileHandle mp4File, 
-	MP4TrackId mediaTrackId, 
+	MP4FileHandle mp4File,
+	MP4TrackId mediaTrackId,
         mp4av_ismacrypParams *icPp,
 	u_int16_t maxPayloadSize,
 	const char* PayloadMIMEType)
 {
   u_int32_t numSamples = MP4GetTrackNumberOfSamples(mp4File, mediaTrackId);
   u_int32_t maxSampleSize = MP4GetTrackMaxSampleSize(mp4File, mediaTrackId);
-	
+
   if (numSamples == 0 || maxSampleSize == 0) {
     return false;
   }
@@ -1258,7 +1258,7 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
 
   u_int8_t payloadNumber = MP4_SET_DYNAMIC_PAYLOAD;
 
-  MP4SetHintTrackRtpPayload(mp4File, hintTrackId, 
+  MP4SetHintTrackRtpPayload(mp4File, hintTrackId,
 			    (const char*) PayloadMIMEType, &payloadNumber, 0);
 
   /* get the mpeg4 video configuration */
@@ -1279,8 +1279,8 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
     char* sISMACrypConfig = NULL;
     if (!MP4AV_RfcCryptoPolicyOk(&ismac_table)) {
       for(i = 0; i < ismac_table.settings[ISMACRYP_KEY_COUNT];i++){
-	free(ismac_table.keys[i]);		
-	free(ismac_table.salts[i]);	
+	free(ismac_table.keys[i]);
+	free(ismac_table.salts[i]);
       }
       return false;
     }
@@ -1289,12 +1289,12 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
       return false;
 
     // attempt to get a valid profile-level
-    static u_int8_t voshStartCode[4] = { 
-      0x00, 0x00, 0x01, MP4AV_MPEG4_VOSH_START 
+    static u_int8_t voshStartCode[4] = {
+      0x00, 0x00, 0x01, MP4AV_MPEG4_VOSH_START
     };
     if (configSize >= 5 && !memcmp(pConfig, voshStartCode, 4)) {
       systemsProfileLevel = pConfig[4];
-    } 
+    }
     if (systemsProfileLevel == 0xFE) {
       u_int8_t iodProfileLevel = MP4GetVideoProfileLevel(mp4File);
       if (iodProfileLevel > 0 && iodProfileLevel < 0xFE) {
@@ -1302,7 +1302,7 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
       } else {
 	systemsProfileLevel = 1;
       }
-    } 
+    }
 
     /* convert it into ASCII form */
     char* sConfig = MP4BinaryToBase16(pConfig, configSize);
@@ -1310,8 +1310,8 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
       MP4DeleteTrack(mp4File, hintTrackId);
       free(sISMACrypConfig);
       for(i = 0; i < ismac_table.settings[ISMACRYP_KEY_COUNT];i++) {
-	free(ismac_table.keys[i]);		
-	free(ismac_table.salts[i]);	
+	free(ismac_table.keys[i]);
+	free(ismac_table.salts[i]);
       }
       return false;
     }
@@ -1332,7 +1332,7 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
 	    payloadNumber,
 	    systemsProfileLevel,
 	    sConfig,
-	    sISMACrypConfig); 
+	    sISMACrypConfig);
 
     /* add this to the track's sdp */
     MP4AppendHintTrackSdp(mp4File, hintTrackId, sdpBuf);
@@ -1341,8 +1341,8 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
     free(sdpBuf);
     free(sISMACrypConfig);
     for(i = 0; i < ismac_table.settings[ISMACRYP_KEY_COUNT];i++) {
-      free(ismac_table.keys[i]);		
-      free(ismac_table.salts[i]);	
+      free(ismac_table.keys[i]);
+      free(ismac_table.salts[i]);
     }
   }
   u_int8_t* pSampleBuffer = (u_int8_t*)malloc(maxSampleSize);
@@ -1350,12 +1350,12 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
     MP4DeleteTrack(mp4File, hintTrackId);
     return false;
   }
-  
+
   u_int8_t useSelectiveEnc = 0;
   u_int8_t KIlen = 0;
   u_int8_t IVlen = 0;
   u_int8_t deltaIVlen = 0;
-  if (MP4AV_GetiSFMSettings(mp4File, mediaTrackId, &useSelectiveEnc, 
+  if (MP4AV_GetiSFMSettings(mp4File, mediaTrackId, &useSelectiveEnc,
 			    &KIlen, &IVlen, false) == false) {
     return false;
   }
@@ -1367,9 +1367,9 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
     MP4Duration renderingOffset;
     bool isSyncSample;
 
-    bool rc = MP4ReadSample(mp4File, mediaTrackId, sampleId, 
-			    &pSampleBuffer, &sampleSize, 
-			    &startTime, &duration, 
+    bool rc = MP4ReadSample(mp4File, mediaTrackId, sampleId,
+			    &pSampleBuffer, &sampleSize,
+			    &startTime, &duration,
 			    &renderingOffset, &isSyncSample);
 
     if (!rc) {
@@ -1377,7 +1377,7 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
       return false;
     }
 
-    bool isBFrame = 
+    bool isBFrame =
       (MP4AV_Mpeg4GetVopType(pSampleBuffer, sampleSize) == VOP_TYPE_B);
 
     MP4AddRtpVideoHint(mp4File, hintTrackId, isBFrame, renderingOffset);
@@ -1397,7 +1397,7 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
       bool isLastPacket = false;
       u_int32_t length;
 
-      // need to add ismacryp AU header length 
+      // need to add ismacryp AU header length
       if (remaining <= maxPayloadSize) {
 	length = remaining;
 	isLastPacket = true;
@@ -1406,22 +1406,22 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
       }
 
       MP4AddRtpPacket(mp4File, hintTrackId, isLastPacket);
-			
-      ismaCrypSampleHdrDataInfo_t *iCrypSampleHdrInfo = 
-	(ismaCrypSampleHdrDataInfo_t *) 
+
+      ismaCrypSampleHdrDataInfo_t *iCrypSampleHdrInfo =
+	(ismaCrypSampleHdrDataInfo_t *)
 	malloc (sizeof(ismaCrypSampleHdrDataInfo_t));
       if (iCrypSampleHdrInfo == NULL)
 	return false;
-      
+
       memset(iCrypSampleHdrInfo, 0, sizeof(ismaCrypSampleHdrDataInfo_t));
       u_int16_t ismaCrypAUHdrLen = 0;
-      bool rc = MP4AV_ProcessIsmaCrypHdrs(mp4File, mediaTrackId, 1, 
-					  &sampleId, useSelectiveEnc, 
-					  KIlen, IVlen, &deltaIVlen, 
+      bool rc = MP4AV_ProcessIsmaCrypHdrs(mp4File, mediaTrackId, 1,
+					  &sampleId, useSelectiveEnc,
+					  KIlen, IVlen, &deltaIVlen,
 					  &ismaCrypAUHdrLen,
-					  &iCrypSampleHdrInfo, 
+					  &iCrypSampleHdrInfo,
 					  icPp);
-      
+
       if (rc == false) {
 	// handle error
 	return false;
@@ -1439,9 +1439,9 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
 							* sizeof(u_int8_t));
 	if (pSampleBuffer == NULL)
 	  return false;
-	
+
 	u_int8_t * pCurSampleBuf = pSampleBuffer;
-	bool rc2 = MP4ReadSample(mp4File, mediaTrackId, sampleId, 
+	bool rc2 = MP4ReadSample(mp4File, mediaTrackId, sampleId,
 				 &pSampleBuffer, &tmpSampleSize);
 	if (rc2 == false) {
 	  // handle error
@@ -1449,9 +1449,9 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
 	}
 
 	if (iCrypSampleHdrInfo[0].hasEncField == 1) {
-	  MP4AddRtpImmediateData(mp4File, hintTrackId, pCurSampleBuf, 1);  
+	  MP4AddRtpImmediateData(mp4File, hintTrackId, pCurSampleBuf, 1);
 	  pCurSampleBuf += 1;
-	} 
+	}
 	if (iCrypSampleHdrInfo[0].hasIVField == 1) {
 	  MP4AddRtpImmediateData(mp4File, hintTrackId, pCurSampleBuf, IVlen);
 	}
@@ -1466,12 +1466,12 @@ extern "C" bool MP4AV_RfcCryptoVideoHinter(
 	}
 
 	// remove size of ismaCryp sample header from the sample size
-	u_int32_t ismaCrypSampleHdrSize = MP4AV_GetIsmaCrypSampleHdrSize (iCrypSampleHdrInfo[0], 
+	u_int32_t ismaCrypSampleHdrSize = MP4AV_GetIsmaCrypSampleHdrSize (iCrypSampleHdrInfo[0],
 									  IVlen, KIlen);
 	sampleSize -= ismaCrypSampleHdrSize;
       }
 
-      MP4AddRtpSampleData(mp4File, hintTrackId, sampleId, 
+      MP4AddRtpSampleData(mp4File, hintTrackId, sampleId,
 			  offset, length);
 
       offset += length;

@@ -39,4 +39,4 @@ private:
 	bool intraRefresh;
 };
 
-#endif 
+#endif

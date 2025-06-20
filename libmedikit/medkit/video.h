@@ -46,7 +46,7 @@ public:
 		//Return it
 		return (MediaFrame*)frame;
 	}
-	
+
 	VideoCodec::Type GetCodec()	{ return codec;			}
 	bool  IsIntra()			{ return isIntra;		}
 	DWORD GetWidth()		{ return width;			}
@@ -56,11 +56,11 @@ public:
 	void SetWidth(DWORD width)		{ this->width = width;		}
 	void SetHeight(DWORD height)		{ this->height = height;	}
 	void SetIntra(bool isIntra)		{ this->isIntra = isIntra;	}
-	
+
 	virtual bool Packetize(unsigned int mtu);
 
 	/**
-	 * Select how the NALU are to be parsed 
+	 * Select how the NALU are to be parsed
 	 * @param sz: how many bytes used to store NALU sizein the bitstream. 0 = use start code
 	 **/
 	void SetH264NalSizeLength(DWORD sz)
@@ -78,7 +78,7 @@ public:
 		else
 		{
 			useStartCode = false;
-			naluSizeLen = 4;			
+			naluSizeLen = 4;
 		}
 	}
 
@@ -90,18 +90,18 @@ private:
 
 	bool PacketizeH264(unsigned int mtu);
 	bool PacketizeH263(unsigned int mtu);
-	
+
 
 	// H.264 specific
 	bool useStartCode;
 	DWORD naluSizeLen;
-	
+
 	// If NALU size is stored in data (MP4 file)
 	DWORD ReadNaluSize(BYTE * data);
-	
+
 	//If butstream contains H.264 sync codes
 	DWORD DetectNaluBoundary(BYTE * p, DWORD sz);
-	
+
 	// Handle fragmentation
 	void PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz, bool last);
 };

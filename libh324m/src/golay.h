@@ -30,10 +30,10 @@
  */
 #ifndef __GOLAY_H__
 #define __GOLAY_H__
-#define guint32 unsigned int 
-#define guint   unsigned short 
-#define gint    short 
-#define gint32  int 
+#define guint32 unsigned int
+#define guint   unsigned short
+#define gint    short
+#define gint32  int
 #define guint8  unsigned int
 
 /* encodes a 12-bit word to a 24-bit codeword

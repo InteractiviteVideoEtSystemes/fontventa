@@ -4,17 +4,17 @@
  *
  * sergio.garcia@fontventa.com
  * http://sip.fontventa.com
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
  * of the License, or (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -42,7 +42,7 @@ int H245ChannelsFactory::Init(H223ALSender* controlSender,H223ALReceiver* contro
 
 	//Set local table with control channel
 	localTable.SetEntry(0,"","0");
-	
+
 	//Set remote table with control channel
 	remoteTable.SetEntry(0,"","0");
 
@@ -199,10 +199,10 @@ int H245ChannelsFactory::SetRemoteCapabilities(H245Capabilities* remoteCapabilit
 	{
 		//Get channel
 		//H324MMediaChannel *chan = it->second;
-		
+
 		//Here we should set an H245Channel to a H324MChannel
 	}
-	
+
 	return 1;
 }
 
@@ -221,7 +221,7 @@ int H245ChannelsFactory::OnEstablishIndication(int number, H245Channel *channel)
 	{
 		if (it->second->type == channel->GetType() )
 		{
-			//We found it 
+			//We found it
 			local = it->first;
 			//Exit
 			break;
@@ -257,7 +257,7 @@ int H245ChannelsFactory::OnEstablishConfirm(int number)
 {
 	Logger::Debug("-OnEstablishConfirm [%d]\n",number);
 
-	//Search channel 
+	//Search channel
 	ChannelMap::iterator it = channels.find(number);
 
 	//If not found
@@ -302,13 +302,13 @@ Frame* H245ChannelsFactory::GetFrame()
 	{
 		//Get channel
 		H324MMediaChannel *channel = it->second;
-		
+
 		//If have remote channel
 		if (channel->remoteChannel>0)
 		{
 			//Frame
 			Frame* frame = channel->GetFrame();
-			
+
 			//If not null
 			if (frame)
 				//Return frame
@@ -326,7 +326,7 @@ int H245ChannelsFactory::SendFrame(Frame* frame)
 	{
 		//Get channel
 		H324MMediaChannel *channel = it->second;
-		
+
 		//If have local channel && same type
 		if ((channel->type== frame->type) && (channel->localChannel>0))
 			//Send frame
