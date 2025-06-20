@@ -2116,9 +2116,6 @@ static int app_transcode(struct ast_channel *chan, void *data)
     /* Init avcodec */
     avcodec_init();
 
-    /* Register all codecs */
-    avcodec_register_all();
-
     return ast_register_application(name_transcode, app_transcode, syn_transcode, des_transcode);
   }
 

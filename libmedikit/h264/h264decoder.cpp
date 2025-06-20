@@ -25,9 +25,6 @@ H264Decoder::H264Decoder()
 	ctx = NULL;
 	picture = NULL;
 
-	//Registramos todo
-	avcodec_register_all();
-
 	//Encotramos el codec
 	codec = avcodec_find_decoder(AV_CODEC_ID_H264);
 
