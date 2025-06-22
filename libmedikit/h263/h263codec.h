@@ -22,7 +22,7 @@ public:
 private:
 	int OpenCodec();
 
-	AVCodec 	*codec;
+	const AVCodec 	*codec;
 	AVCodecContext	*ctx;
 	AVFrame		*picture;
 	int		bitrate;
@@ -45,7 +45,7 @@ public:
 	virtual BYTE* GetFrame()	{ return (BYTE *)frame;		};
 	virtual bool  IsKeyFrame()	{ return picture->key_frame;	};
 private:
-	AVCodec 	*codec;
+	const AVCodec 	*codec;
 	AVCodecContext	*ctx;
 	AVFrame		*picture;
 	BYTE*		buffer;
@@ -82,7 +82,7 @@ private:
 	int OpenCodec();
 
 private:
-	AVCodec 	*codec;
+	const AVCodec 	*codec;
 	AVCodecContext	*ctx;
 	AVFrame		*picture;
 	int		bitrate;
@@ -107,7 +107,7 @@ public:
 	virtual BYTE* GetFrame()	{ return (BYTE *)frame;		};
 	virtual bool  IsKeyFrame()	{ return picture->key_frame;	};
 private:
-	AVCodec 	*codec;
+	const AVCodec 	*codec;
 	AVCodecContext	*ctx;
 	AVFrame		*picture;
 	BYTE*		buffer;
