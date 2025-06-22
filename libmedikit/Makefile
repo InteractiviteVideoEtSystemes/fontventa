@@ -87,7 +87,7 @@ VPATH += %.c $(G711DIR)
 LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lx264  -lbz2 -lssl -lcrypto -lpthread
 
 #For abyss
-OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g
+OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g -Wno-narrowing
 #OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS
 CFLAGS  += $(INCLUDE) $(OPTS)
 #CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x
