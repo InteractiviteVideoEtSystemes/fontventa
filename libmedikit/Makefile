@@ -16,7 +16,7 @@ LOG             = yes
 DEBUG           = yes
 
 
-INCLUDE=-I.
+INCLUDE=-I. -I/usr/include/ffmpeg
 INCLUDE+= -I$(CUSTOM_ASTPATH)
 
 #DEBUG
