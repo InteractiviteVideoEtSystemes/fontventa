@@ -173,10 +173,9 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 	//Check if we are opened
 	if (!opened)
 		return NULL;
-	AVPacket pkt;
-	av_init_packet(&pkt);
-	pkt.data = frame->GetData();
-	pkt.size = frame->GetMaxMediaLength();
+	AVPacket* pkt = av_packet_alloc();
+	pkt->data = frame->GetData();
+	pkt->size = frame->GetMaxMediaLength();
 
 	int numPixels = ctx->width*ctx->height;
 
@@ -199,14 +198,14 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 		return (VideoFrame*) Error("%d\n",ret);
 
 	//Set length
-	frame->SetLength(pkt.size);
+	frame->SetLength(pkt->size);
 
 	//Set width and height
 	frame->SetWidth(ctx->width);
 	frame->SetHeight(ctx->height);
 
 	//Is intra
-	frame->SetIntra( (pkt.flags & AV_PKT_FLAG_KEY) != 0 );
+	frame->SetIntra( (pkt->flags & AV_PKT_FLAG_KEY) != 0 );
 
 	//Unset fpu
 	picture->key_frame = 0;
@@ -228,17 +227,17 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 	DWORD lenpkt;
 	bool mark ;
 
-	while(ini<pkt.size)
+	while(ini<pkt->size)
 	{
 		mark = false;
 		//The mtu
 		lenpkt = RTPPAYLOADSIZE-2;
 		//Check length
-		if (lenpkt+ini >= pkt.size)
+		if (lenpkt+ini >= pkt->size)
 		{
 			mark = true;
 			//Fix it
-			lenpkt=pkt.size-ini;
+			lenpkt=pkt->size-ini;
 		}
 
 		//Add rtp packet
@@ -255,6 +254,8 @@ VideoFrame* H263Encoder::EncodeFrame(BYTE *in,DWORD len)
 		//Increase pointer
 		ini += lenpkt;
 	}
+
+	av_packet_free($pkt);
 
 	return frame;
 }
