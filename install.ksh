@@ -63,7 +63,7 @@ function create_rpm
     mkdir -p rpmbuild/RPMS/i686
     mkdir -p rpmbuild/RPMS/i586
     mkdir -p rpmbuild/RPMS/x86_64
-    #Recuperation de la description du package 
+    #Recuperation de la description du package
     cd ./rpmbuild/SPECS/
     cp ../../${PROJET}.spec ${PROJET}.spec
     cd ../SOURCES
@@ -104,9 +104,9 @@ case $1 in
   		create_rpm $2;;
 
 	"prereq")
-		sudo yum -y install ffmpeg-devel mpeg4ip-devel asteriskv-devel SDL-devel x264-devel ;;
+		sudo yum -y install ffmpeg-devel mp4v2-devel asteriskv-devel SDL-devel x264-devel ;;
   	*)
-  		echo "usage: install.ksh [options]" 
+  		echo "usage: install.ksh [options]"
   		echo "options :"
   		echo "  rpm     Generation d'un package rpm"
   		echo "  prereq  Install des prerequis"

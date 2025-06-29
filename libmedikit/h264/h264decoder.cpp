@@ -13,42 +13,9 @@
 * H264Decoder
 *	Consturctor
 ************************/
-H264Decoder::H264Decoder()
+H264Decoder::H264Decoder():
+	FfVideoDecoder(AV_CODEC_ID_H264, VideoCodec::H264)
 {
-	type = VideoCodec::H264;
-
-	//Guardamos los valores por defecto
-	codec = NULL;
-	buffer = 0;
-	bufLen = 0;
-	bufSize = 0;
-	ctx = NULL;
-	picture = NULL;
-
-	//Encotramos el codec
-	codec = avcodec_find_decoder(AV_CODEC_ID_H264);
-
-	//Comprobamos
-	if(codec==NULL)
-	{
-		Error("No decoder found\n");
-		return;
-	}
-
-	//Alocamos el contxto y el picture
-	ctx = avcodec_alloc_context3(codec);
-	ctx->flags != CODEC_FLAG_EMU_EDGE;
-	picture = av_frame_alloc();
-
-	//Alocamos el buffer
-	bufSize = 1024*756*3/2;
-	buffer = (BYTE *)malloc(bufSize);
-	frame = NULL;
-	frameSize = 0;
-	src = 0;
-
-	//Lo abrimos
-	avcodec_open2(ctx, codec, NULL);
 }
 
 /***********************
@@ -57,24 +24,15 @@ H264Decoder::H264Decoder()
 ************************/
 H264Decoder::~H264Decoder()
 {
-	if (buffer)
-		free(buffer);
-	if (frame)
-		free(frame);
-	if (ctx)
-	{
-		avcodec_close(ctx);
-		free(ctx);
-	}
-	if (picture)
-		free(picture);
-
 }
 /* 3 zero bytes syncword */
 static const uint8_t sync_bytes[] = { 0, 0, 0, 1 };
 
+/* TODO:
+	- Delete unused method/function...
+*/
 
-
+#if 0
 DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, DWORD bufferLen, BYTE **nals, DWORD nalSize, DWORD *num)
 {
 	BYTE nal_unit_type;
@@ -301,12 +259,13 @@ DWORD h264_append(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, DWORD
 	DWORD num = 0;
 	return h264_append_nals(dest,destLen,destSize,buffer,bufferLen,NULL,0,&num);
 }
+#endif
 
 /***********************
 * DecodePacket
 *	Decodifica un packete
 ************************/
-int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
+/*int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 {
 	int ret = 1;
 
@@ -335,9 +294,9 @@ int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 	}
 	//Return
 	return ret;
-}
+}*/
 
-int H264Decoder::Decode(BYTE *buffer,DWORD size)
+/*int H264Decoder::Decode(BYTE *buffer,DWORD size)
 {
 	//Decodificamos
 	int got_picture=0;
@@ -386,5 +345,5 @@ int H264Decoder::Decode(BYTE *buffer,DWORD size)
 		return 2;
 	}
 	return 1;
-}
+}*/
 

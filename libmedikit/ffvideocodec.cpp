@@ -102,7 +102,7 @@ int FfVideoEncoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 ************************/
 int FfVideoEncoder::OpenCodec()
 {
-	Log("-OpenCodec H263 [%dbps,%dfps]\n",bitrate,fps);
+	Log("-OpenCodec %s [%dbps,%dfps]\n", VideoCodec::GetNameFor(type), bitrate, fps);
 
 	// Check
 	if (codec==NULL)
@@ -322,7 +322,7 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 	parser_ctx = av_parser_init(ctx->codec_id);
 
 	if (!parser_ctx) {
-        Error("Unable to open FFmpeg decoder (parser). Codec ID = %s", VideoCodec::GetNameFor(codec_id));
+        Error("Unable to open FFmpeg decoder (parser). Codec ID = %s", VideoCodec::GetNameFor(type));
     }
 	picture = av_frame_alloc();
 
@@ -372,7 +372,7 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
         );
 
 		if (bytes_parsed < 0) {
-            Error("Error from H263 parser. Error = %d\n", bytes_parsed);
+            Error("Error from %s parser. Error = %d\n", VideoCodec::GetNameFor(type), bytes_parsed);
             goto error;
         }
 
@@ -384,7 +384,7 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 
 			if (ret < 0) {
 				// TODO: use av_err2str()
-                Error("H263 decoding error (send packet). Error = %d\n", ret);
+                Error("%s decoding error (send packet). Error = %d\n", VideoCodec::GetNameFor(type), ret);
                 goto error;
             }
 
@@ -393,7 +393,7 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
                     goto error;
                 } else if (ret < 0) {
-                    Error("H263 decoding error (receive frame). Error = %d\n", ret);
+                    Error("%s decoding error (receive frame). Error = %d\n", VideoCodec::GetNameFor(type), ret);
                 	goto error;
                 }
 
@@ -422,13 +422,13 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 
 				//Copaamos  el Cy
 				for(int i=0;i<ctx->height;i++)
-					memcpy(&frame[i*w],(void*) picture->data[0][i*picture->linesize[0]],w);
+					memcpy(&frame[i*w],(void*) &picture->data[0][i*picture->linesize[0]],w);
 
 				//Y el Cr y Cb
 				for(int i=0;i<ctx->height/2;i++)
 				{
-					memcpy(&frame[i*w/2+u],(void*) picture->data[1][i*picture->linesize[1]],w/2);
-					memcpy(&frame[i*w/2+v],(void*) picture->data[2][i*picture->linesize[2]],w/2);
+					memcpy(&frame[i*w/2+u],(void*) &picture->data[1][i*picture->linesize[1]],w/2);
+					memcpy(&frame[i*w/2+v],(void*) &picture->data[2][i*picture->linesize[2]],w/2);
 				}
             }
 		}

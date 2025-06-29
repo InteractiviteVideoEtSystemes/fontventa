@@ -129,7 +129,7 @@ public:
 
 	Type	GetType() const		{ return type;	}
 	DWORD	GetTimeStamp()	const	{ return ts;	}
-	DWORD	SetTimestamp(DWORD ts)	{ this->ts = ts; }
+	DWORD	SetTimestamp(DWORD ts)	{ this->ts = ts; return ts; }
 
 	bool	HasRtpPacketizationInfo() const		{ return !rtpInfo.empty();	}
 	RtpPacketizationInfo& GetRtpPacketizationInfo()	{ return rtpInfo;		}
@@ -152,11 +152,18 @@ public:
 		if ( ownsbuffer )
 		{
 		    buffer = (BYTE*) realloc(buffer,bufferSize);
+			if (buffer == NULL) {
+				return false;
+			}
 		    if (length > bufferSize) length = bufferSize;
 		}
 		else
 		{
 			BYTE * nbuffer = (BYTE*) malloc(bufferSize);
+			if (nbuffer == NULL) {
+				return false;
+			}
+
 			ownsbuffer = true;
 			if (length <= bufferSize && buffer != NULL)
 			{
@@ -168,6 +175,8 @@ public:
 			}
 			buffer = nbuffer;
 		}
+
+		return true;
 	}
 
 	bool SetMedia(const BYTE* data,DWORD size)

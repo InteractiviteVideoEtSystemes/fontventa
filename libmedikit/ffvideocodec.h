@@ -30,6 +30,7 @@ private:
 	int		opened;
 	int		intraPeriod;
 	VideoFrame	*frame;
+	VideoCodec::Type type;
 };
 
 class FfVideoDecoder : public VideoDecoder
@@ -53,6 +54,7 @@ private:
 	BYTE*		frame;
 	DWORD		frameSize;
 	BYTE		src;
+	VideoCodec::Type type;
 };
 
 #endif

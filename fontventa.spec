@@ -1,51 +1,29 @@
-Name:      fontventa
-Version:   1.6.17
-#Ne pas enlever le .ives a la fin de la release !
-#Cela est utilise par les scripts de recherche de package.
-Release:   1.ives%{?dist}
-Summary:   [IVeS] librairies partag�es pour asterisk de Fontventa.
-Vendor:   IVeS
-Group:     Applications/Internet
-License: GPL
-URL:       http://www.ives.fr
-BuildArchitectures: x86_64 i686 i386 i586
-BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires:  ivespkg,  asteriskv , bc, mpeg4ip >= 2.0.0, ffmpeg >= 3.3.0   
-BuildRequires: asteriskv-devel, SDL-devel, gcc-c++   
+Name:           fontventa
+Version:        1.6.17
+Release:        1.ives%{?dist}
+Summary:        Fontventa shared libraries for Asterisk
+License:        GPL
+URL:            http://sip.fontventa.com/
+BuildRequires:  asteriskv-devel
+BuildRequires:  SDL-devel
+BuildRequires:  gcc-c++
+BuildRequires:  ffmpeg-devel
+BuildRequires:  x264-devel
+BuildRequires:  mp4v2-devel
+Requires:       asteriskv
+Requires:       bc
+Requires:       mp4v2
+Requires:       ffmpeg
 
 %description
-Un ensemble de librairies partag�es pour asterisk de Fontventa.
-  
-%clean
-echo "############################# Clean"
-cd $RPM_SOURCE_DIR/%name
-make clean
-cd ..
-rm -f %name
-echo Clean du repertoire $RPM_BUILD_ROOT
-[ "$RPM_BUILD_ROOT" != "/" ] && rm -rf "$RPM_BUILD_ROOT"
-
-%prep
-cd $RPM_SOURCE_DIR/%name
-#Repertoire d'installation des librairies
-if [ "`uname -m`" == "x86_64" ]
-then
-        DESTDIR_LIB=/usr/lib64
-else
-        DESTDIR_LIB=/usr/lib
-fi
-echo "SYS_LIB=$DESTDIR_LIB" >Makeinclude
-make clean
+Fontventa shared libraries for Asterisk.
+Add h324m support.
 
 %build
-echo "Build"
-cd $RPM_SOURCE_DIR/%name
-make
+%{make_build}
 
 %install
-echo "############################# Install"
-cd $RPM_SOURCE_DIR/%name
-make DESTDIR=$RPM_BUILD_ROOT install
+%{make_install} DESTDIR=$RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root,-)
@@ -86,7 +64,7 @@ make DESTDIR=$RPM_BUILD_ROOT install
 - corrected regression on audio/video sync
 - version 1.6.5
 
-* Tue Mar 26 2019 Emmanuel BUU 
+* Tue Mar 26 2019 Emmanuel BUU
 - backported improvment of IVES_convert script from branch 0.5
 - version 1.6.4
 

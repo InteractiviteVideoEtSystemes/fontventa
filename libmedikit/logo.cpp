@@ -57,7 +57,7 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 	AVFrame *logoRGB = NULL;
 	AVFrame* logo = NULL;
 	SwsContext *sws = NULL;
-	AVPacket packet;
+	AVPacket *packet;
 	int res = 0;
 	int gotLogo = 0;
 	int numpixels = 0;
@@ -123,6 +123,23 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 		//Free resources
 		goto end;
 	}
+
+
+	/*
+
+    // 6. Décoder le paquet pour obtenir la frame initiale
+    ret = avcodec_send_packet(codec_ctx, packet);
+    if (ret < 0) {
+        fprintf(stderr, "Erreur lors de l'envoi du paquet au décodeur\n");
+        goto cleanup;
+    }
+    ret = avcodec_receive_frame(codec_ctx, decoded_frame);
+    if (ret < 0) {
+        fprintf(stderr, "Erreur lors de la réception de la frame du décodeur\n");
+        goto cleanup;
+    }
+	*/
+
 
 	//Decode logo
 	if (avcodec_decode_video2(ctx, logoRGB, &gotLogo, &packet)<0)
@@ -236,6 +253,8 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 
 	//Everything was ok
 	res = 1;
+
+	// TODO: Libérer le avpaquet
 
 end:
 	if (logo)

@@ -12,7 +12,6 @@ bool VideoFrame::Packetize(unsigned int mtu)
 	switch(codec)
 	{
 		case VideoCodec::H263_1998:
-		case VideoCodec::H263_1996:
 			return PacketizeH263(mtu);
 
 		case VideoCodec::H264:
@@ -33,8 +32,6 @@ VideoDecoder* VideoCodecFactory::CreateDecoder(VideoCodec::Type codec)
 	{
 		case VideoCodec::H263_1998:
 			return new H263Decoder();
-		case VideoCodec::H263_1996:
-			return new H263Decoder1996();
 		case VideoCodec::MPEG4:
 			return new Mpeg4Decoder();
 		case VideoCodec::H264:
@@ -64,8 +61,6 @@ VideoEncoder* VideoCodecFactory::CreateEncoder(VideoCodec::Type codec,const Prop
 	{
 		case VideoCodec::H263_1998:
 			return new H263Encoder(properties);
-		case VideoCodec::H263_1996:
-			return new H263Encoder1996(properties);
 		case VideoCodec::MPEG4:
 			return new Mpeg4Encoder(properties);
 		case VideoCodec::H264:

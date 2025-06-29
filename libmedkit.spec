@@ -10,12 +10,12 @@ License: GPL
 URL:       http://www.ives.fr
 BuildArchitectures: x86_64
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
-Requires:  ivespkg 
+Requires:  ivespkg
 BuildRequires: ffmpeg-devel >= 1.3, gcc-c++, asteriskv-devel, x264-devel, mpeg4ip-devel
 
 %description
 Un ensemble de librairies partag�es pour asterisk de Fontventa.
-  
+
 %clean
 echo "############################# Clean"
 cd $RPM_SOURCE_DIR/%name
