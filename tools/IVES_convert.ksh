@@ -109,6 +109,7 @@ Html5File=0
 #gestion des mp4 h264 + amr 
 Mp4H264MP3File=0
 H263Only=0
+WebMOnly=0
 
 # =============================================================================
 # Affichage
@@ -187,32 +188,33 @@ usage()
     printf "\033[1mNAME\033[0m\n"
     printf "\t $0 convert media file to mp4 multitrack ,queue and playback formats for asterisk\n"
     printf "\033[1mSYNOPSIS\033[0m\n"
-    printf "\t $0 -i infilename <-o outfilename> <-b background> <-v> <-d> <-s> <-f> <-t time> <-F> <-M> <-g> <-w> \n"
+    printf "\t $0 -i infilename <-o outfilename> <-b background> <-v> <-d> <-s> <-f> <-t time> <-F> <-M> <-g> <-w>\n"
     printf "\t $0 COMMANDS\n"
     printf "\033[1mDESCRIPTION\033[0m\n"
     printf "\t\033[1m -i infilename \033[0m  Name of input file\n"
     printf "\t\033[1m -o outfilename \033[0m Optional, name of output file\n"
-    printf "\t\033[1m -b background \033[0m  Optional, name of image  \n"
-    printf "\t   (for media file with no video stream ) \n"
-    printf "\t\033[1m -v \033[0m create log file IVES_convert.log  \n"
-    printf "\t\033[1m -d \033[0m debug mode , temporary files are not deleted  \n"
-    printf "\t\033[1m -s \033[0m silence mode , no output on stdout, only error  \n"
-    printf "\t\033[1m -5 \033[0m MP4 HTML5 compliant in VGA  \n"
-    printf "\t\033[1m -r \033[0m frame rate for background image   \n"
-    printf "\t\033[1m -f \033[0m fast mode ( ratio 1:2 )  \n"
-    printf "\t\033[1m -w \033[0m file informations   \n"
-    printf "\t\033[1m -F \033[0m Out file are flv \n"
-    printf "\t\033[1m -M \033[0m MP4 file light in good quality H264/amr only   \n"
-    printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats \n"
-    printf "\t\033[1m -t \033[0m time of background duration   \n"
-    printf "\t\033[1m -T textfile \033[0m extract text on mp4    \n"
+    printf "\t\033[1m -b background \033[0m  Optional, name of image\n"
+    printf "\t   (for media file with no video stream )\n"
+    printf "\t\033[1m -v \033[0m create log file IVES_convert.log\n"
+    printf "\t\033[1m -d \033[0m debug mode , temporary files are not deleted\n"
+    printf "\t\033[1m -s \033[0m silence mode , no output on stdout, only error\n"
+    printf "\t\033[1m -5 \033[0m MP4 HTML5 compliant in VGA\n"
+    printf "\t\033[1m -r \033[0m frame rate for background image\n"
+    printf "\t\033[1m -f \033[0m fast mode ( ratio 1:2 )\n"
+    printf "\t\033[1m -w \033[0m file informations\n"
+    printf "\t\033[1m -F \033[0m Out file are flv\n"
+    printf "\t\033[1m -M \033[0m MP4 file light in good quality H264/amr only\n"
+    printf "\t\033[1m -q \033[0m Convert input file for asterisk queue and playback formats\n"
+    printf "\t\033[1m -t \033[0m time of background duration\n"
+    printf "\t\033[1m -T textfile \033[0m extract text on mp4\n"
+    printf "\t\033[1m -webm \033[0m only convert WebM file\n"
     printf "\t   if you dont use this , duration of background are\n"
-    printf "\t   build with audio track duration \n"
-    printf "\t\033[1m COMMANDS \033[0m \n"
-    printf "\t\033[1m   -c | clean \033[0m remove temporary files \n"
-    printf "\t   (temporary convertions , logs , and output file) \n"
-    printf "\t\033[1m   -h | help \033[0m this usage \n"
-    printf "\t\033[1m Version :  $Revision$  \033[0m \n"
+    printf "\t   build with audio track duration\n"
+    printf "\t\033[1m COMMANDS \033[0m\n"
+    printf "\t\033[1m   -c | clean \033[0m remove temporary files\n"
+    printf "\t   (temporary convertions , logs , and output file)\n"
+    printf "\t\033[1m   -h | help \033[0m this usage\n"
+    printf "\t\033[1m Version :  $Revision$  \033[0m\n"
 }
 
 # =============================================================================
@@ -1497,6 +1499,16 @@ MakeH263Only()
     whatFile $outFile    
 }
 
+MakeWebMOnly()
+{
+    CopyIn2tmp
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
+         -bt $V_BR_TOLERANCE_H264 -acodec aac -ac 1 -ar 32000 -strict -2 $tmpVideoFile"
+    $cmd > $INFO_FILE 2>&1
+    cp $tmpWorkInFile $outFile
+    whatFile $outFile    
+}
+
 MakeHtml5()
 {
     CopyIn2tmp
@@ -1555,17 +1567,20 @@ Execute()
     clean_ctx
     clean_old_file
     purge_log
-    if [ $Mp4H264MP3File -eq 1  ]
+    if [ $Mp4H264MP3File -eq 1 ]
         then MakeMp4H264MP3
-        else if [ $flvFile -eq 1  ]
+        else if [ $flvFile -eq 1 ]
              then MakeFlv
-             else if [ $queueFile -eq 1  ]
+             else if [ $queueFile -eq 1 ]
                   then MakeQueueFile
-                  else if [ $Html5File -eq 1  ]
+                  else if [ $Html5File -eq 1 ]
                        then MakeHtml5
-                       else if [ $H263Only -eq 1 ]
-                            then MakeH263Only
-                            else MakeMp4
+                       else if [ $WebMOnly -eq 1 ]
+                            then MakeWebMOnly
+                            else if [ $H263Only -eq 1 ]
+                                then MakeH263Only
+                                else MakeMp4
+                            fi
                        fi
                   fi
              fi
@@ -1588,6 +1603,9 @@ while [ "$1" ]
       ;;
       -h263)
       H263Only=1
+      ;;
+      -webm)
+      WebMOnly=1
       ;;
       -i)
       shift
