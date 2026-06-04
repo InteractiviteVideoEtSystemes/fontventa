@@ -434,7 +434,6 @@ CheckFfmpegFile()
     firstCheck=1 
 }
 
-
 CheckMP4File()
 {
     # Extract info 
@@ -591,7 +590,6 @@ CheckMP4File()
 
 ExtractRtpStatOnMp4()
 {
-
     cmd="${BIN_PATH}/mp4info $orgFile "
     $cmd > $INFO_FILE 2>&1
     cat $INFO_FILE >> $LOG_FILE
@@ -642,8 +640,6 @@ build_duration()
  	rm -f $INFO_FILE.nb_frame
 }
 
-
-
 create_mulaw_track()
 {
     cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpPcmFile -acodec pcm_mulaw -ar 8000 -ac 1 -f mulaw $tmpUlawFile"
@@ -658,21 +654,6 @@ create_mulaw_track()
     else 
         PrintOK
     fi
-# pour didier il faut virer ce bout de code aprés ;-)
- 
-#   cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpPcmFile -acodec pcm_s16le -ar 8000 -ac 1 $AlawFile"
-#    printLine "create alaw file : "
-#    echo $cmd >> $LOG_FILE
-#    $cmd >> $LOG_FILE 2>&1
-#    ret=$?
-#    if [ $ret -ne 0 ]
-#    then
-#        PrintFailed
-#        exit $EXIT_ERROR
-#    else
-#        PrintOK
-#    fi
- 
 }
 
 add_mulaw_track()
@@ -1355,13 +1336,6 @@ hint_H264_track()
 
 AddVideoTracks()
 {
-   # JPB
-   #create_H264_track
-   #haveVideo=1
-   #haveH264=0
-   #idxHintH264Track=1
-   #orgHaveVideo=1
-
    if  [ $haveVideo -eq 0 ]
         then AddVideoBackground
    fi
@@ -1399,7 +1373,7 @@ AddVideoTracks()
 # =============================================================================
 # gestion du texte
 # =============================================================================
-ExtveH264ractTextFromMp4()
+ExtractTextFromMp4()
 {
     if [ "$outTxtName" != "" ]
     then
@@ -1586,8 +1560,6 @@ MakeQueueFile()
     fi 
 }
 
-
-
 Execute()
 {
     test_input_file $inFile
@@ -1620,8 +1592,6 @@ Execute()
         fi
     if [ $debug -eq 0 ] ; then clean_ctx ; fi
 }
-
-
 
 # =============================================================================
 # main : parse args and exeute 
