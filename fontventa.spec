@@ -2,7 +2,7 @@ Name:      fontventa
 Version:   1.6.18
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
-Release:   1.ives%{?dist}
+Release:   2.ives%{?dist}
 Summary:   [IVeS] librairies partag�es pour asterisk de Fontventa.
 Vendor:   IVeS
 Group:     Applications/Internet
