@@ -86,7 +86,7 @@ AACOBJ=aacencoder.o
 
 OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o media.o
 OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) ffvideocodec.o ffaudiocodec.o
-OBJS+=mp4track.o logo.o  picturestreamer.o
+OBJS+=mp4track.o logo.o  picturestreamer.o mp4recorder.o mp4player.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
 ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
@@ -127,7 +127,9 @@ framebuffer.o: framebuffer.cpp
 libmedkit.a: $(OBJS)
 	ar r $@ $(OBJS)
 
-mp4format.o: astmedkit/mp4format.h medkit/media.h
+mp4recorder.o: medkit/mp4recorder.h medkit/media.h
+mp4player.o: medkit/mp4player.h medkit/media.h
+mp4format.o: astmedkit/mp4format.h medkit/mp4recorder.h medkit/mp4player.h medkit/media.h
 
 clean:
 	rm -f $(OBJS) libmedkit.a
