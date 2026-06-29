@@ -1,47 +1,83 @@
-#ifndef _FFVIDEOCODEC_H_
-#define _FFVIDEOCODEC_H_
+#ifndef _FFAUDIOCODEC_H_
+#define _FFAUDIOCODEC_H_
 extern "C" {
-#include <libavcodec/avcodec.h>
+#include <libavcodec/avcodec.h>	// AVCodec, AVCodecContext, AVFrame, AVPacket, enum AVCodecID
 }
 
 #include "medkit/codecs.h"
 #include "medkit/audio.h"
+#include "medkit/fifo.h"
 #include <list>
 
+// libswresample n'est nécessaire que dans le .cpp : pointeur opaque ici.
+struct SwrContext;
+
+/**
+ * Encodeur audio générique adossé à ffmpeg (libavcodec + libswresample).
+ *
+ * Cycle de vie attendu :
+ *   1. construction (recherche du codec, allocation du contexte, mono) ;
+ *   2. la classe dérivée règle bitrate / options propres au codec ;
+ *   3. TrySetRate() fixe le format d'échantillon et la fréquence, et crée
+ *      au besoin le rééchantillonneur S16 -> format natif du codec ;
+ *   4. Open() ouvre effectivement le codec (frame_size connu après coup).
+ */
 class FfAudioEncoder : public AudioEncoder
 {
 public:
-	FfAudiiEncoder(const Properties& properties, enum AVCodecID av_codec, enum AudioCodec::Type codec_id);
-	virtual ~FfAudioDecoder();
-	virtual int Encode(SWORD *in,int inLen,BYTE* out,int outLen);
+	FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id);
+	virtual ~FfAudioEncoder();
+
+	virtual int   Encode(SWORD *in, int inLen, BYTE* out, int outLen);
 	virtual DWORD TrySetRate(DWORD rate);
-	virtual DWORD GetRate()			{ return ctx->sample_rate?ctx->sample_rate:0;	}
-	virtual DWORD GetClockRate()	{ return GetRate();				}
+	virtual DWORD GetRate();
+	virtual DWORD GetClockRate()	{ return GetRate(); }
 
-private:
-	int OpenCodec();
+protected:
+	// Ouvre le codec une fois la configuration faite par la classe dérivée.
+	bool Open();
 
-	AVAudioResampleContext *avr;
-	BYTE *samples;
-	int samplesSize;
-	int samplesNum;
-	AudioCodec::Type type;
+	bool IsSigned16FmtSupported() const;
+	bool IsRateNativelySupported(DWORD rate) const;
+
+	// Fréquence de repli si la fréquence demandée n'est pas supportée.
+	// À régler par la classe dérivée avant TrySetRate().
+	DWORD defaultSampleRate;
+
+	const AVCodec	*codec;
+	AVCodecContext	*ctx;
+	SwrContext	*swr;	// nullptr si pas de rééchantillonnage nécessaire
+	AVFrame		*frame;	// trame d'entrée réutilisée
+	AVPacket	*pkt;	// paquet de sortie réutilisé
+	bool		 opened;
 };
 
+/**
+ * Décodeur audio générique adossé à ffmpeg.
+ *
+ * Décode les paquets compressés et restitue du PCM signé 16 bits mono à la
+ * fréquence native du flux. Si le décodeur produit un autre format
+ * (planar/float, stéréo...), un rééchantillonneur libswresample convertit vers
+ * S16 mono. Les échantillons décodés sont accumulés dans une fifo et restitués
+ * par tranches de numFrameSamples (comportement aligné sur les autres codecs).
+ */
 class FfAudioDecoder : public AudioDecoder
 {
 public:
-	FfAudioDecoder(enum AVCodecID av_codec, enum AudioCodec::Type codec_id);
+	FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id);
 	virtual ~FfAudioDecoder();
-	virtual int Decode(BYTE *in,int inLen,SWORD* out,int outLen);
+	virtual int   Decode(BYTE *in, int inLen, SWORD* out, int outLen);
 	virtual DWORD TrySetRate(DWORD rate);
-	virtual DWORD GetRate()					{ return GetRate();	}
+	virtual DWORD GetRate();
 
 private:
-	const AVCodec 	*codec;
+	const AVCodec	*codec;
 	AVCodecContext	*ctx;
-	fifo<SWORD,1024>  samples;
-	AudioCodec::Type type;
+	SwrContext	*swr;	// nullptr tant que la sortie est déjà S16 mono
+	AVFrame		*frame;	// trame décodée réutilisée
+	AVPacket	*pkt;	// paquet d'entrée réutilisé
+	bool		 opened;
+	fifo<SWORD,8192>  samples;
 };
 
 #endif

@@ -22,7 +22,10 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 
 	// Check codec
 	if(!codec)
-		Error("No codec found\n");
+		Error("Encoder [%s] not supported in ffmpeg\n", avcodec_get_name(av_codec));
+
+	if (codec->type != AVMEDIA_TYPE_VIDEO)
+		Error("FFMpeg encoder [%s] is not a video encoder", codec->name);
 
 	//No estamos abiertos
 	opened = false;
@@ -43,12 +46,10 @@ FfVideoEncoder::~FfVideoEncoder()
 
 	if (ctx)
 	{
-		avcodec_close(ctx);
-		free(ctx);
+		avcodec_free_context(&ctx);
 	}
 
-	if (picture)
-		free(picture);
+	if (picture) av_frame_free(&picture);
 }
 
 /***********************
@@ -146,7 +147,7 @@ int FfVideoEncoder::OpenCodec()
 
 	// Open codec
 	if (avcodec_open2(ctx, codec, NULL)<0)
-		return Error("Unable to open H263 codec\n");
+		return Error("ffmpeg is unable to open %s encoder\n", codec->name);
 
 	// We are opened
 	opened=true;

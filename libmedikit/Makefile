@@ -14,9 +14,15 @@ endif
 
 LOG             = yes
 DEBUG           = yes
+# ASTERISK=yes : compile les objets couplés à Asterisk (transcoder, mp4format,
+# framebuffer, frameutils, astlog), qui exigent les en-têtes <asterisk/...>
+# (CUSTOM_ASTPATH). Mettre ASTERISK=no pour bâtir libmedkit.a sans Asterisk.
+ASTERISK        = yes
 
 
 INCLUDE=-I. -I/usr/include/ffmpeg
+# En-têtes des dépendances statiques (mp4v2, srtp...) bâties par install.ksh.
+INCLUDE+= -I../../../staticdeps/include
 INCLUDE+= -I$(CUSTOM_ASTPATH)
 
 #DEBUG
@@ -75,16 +81,25 @@ G722DIR=g722
 G722OBJ=g722codec.o
 
 
-OBJS=audio.o video.o transcoder.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o media.o
-OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) ffvideocodec.o
-OBJS+=mp4track.o mp4format.o framebuffer.o frameutils.o astlog.o logo.o  picturestreamer.o
+OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o media.o
+OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) ffvideocodec.o ffaudiocodec.o
+OBJS+=mp4track.o logo.o  picturestreamer.o
+
+# Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
+ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
+ifeq ($(ASTERISK),yes)
+OBJS+= $(ASTOBJ)
+endif
 
 VPATH =  %.cpp $(H263DIR)
 VPATH += %.cpp $(H264DIR)
 VPATH += %.cpp $(G711DIR)
 VPATH += %.c $(G711DIR)
-# VPATH += %.cpp $(G722DIR)
-LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lx264  -lbz2 -lssl -lcrypto -lpthread
+VPATH += %.cpp $(G722DIR)
+LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lx264  -lbz2 -lssl -lcrypto -lpthread
+
+#Codecs activés
+OPTS	+= -DG722_SUPPORT
 
 #For abyss
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g -Wno-narrowing
