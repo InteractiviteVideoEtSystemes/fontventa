@@ -10,7 +10,7 @@ extern "C" {
 
 FfAudioEncoder::FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id) :
 	defaultSampleRate(8000), codec(nullptr), ctx(nullptr), swr(nullptr),
-	frame(nullptr), pkt(nullptr), opened(false)
+	frame(nullptr), pkt(nullptr), opened(false), allocatedSamples(0)
 {
 	// Membres hérités d'AudioEncoder
 	type = codec_id;
@@ -160,23 +160,38 @@ bool FfAudioEncoder::Open()
 		return false;
 	}
 
-	frame->format      = ctx->sample_fmt;
-	frame->sample_rate = ctx->sample_rate;
-	av_channel_layout_copy(&frame->ch_layout, &ctx->ch_layout);
-
-	if (numFrameSamples > 0)
-	{
-		frame->nb_samples = numFrameSamples;
-		if (av_frame_get_buffer(frame, 0) < 0)
-		{
-			Error("[%s] could not allocate frame buffer\n", codec->name);
-			return false;
-		}
-	}
+	// Le tampon de la trame d'entrée est alloué paresseusement par EnsureFrame()
+	// au premier Encode() : ainsi les codecs à frame_size variable (frame_size==0)
+	// sont gérés comme ceux à trame fixe.
 
 	opened = true;
 	Log("[%s] encoder open: frame size %d, %d Hz, fmt %s\n",
 		codec->name, numFrameSamples, ctx->sample_rate, av_get_sample_fmt_name(ctx->sample_fmt));
+	return true;
+}
+
+bool FfAudioEncoder::EnsureFrame(int nb)
+{
+	// (Ré)alloue le tampon de la trame d'entrée pour au moins `nb` échantillons
+	// dans le format/layout du codec. Réutilisé tant qu'il est assez grand.
+	if (!frame->data[0] || allocatedSamples < nb || frame->format != ctx->sample_fmt)
+	{
+		av_frame_unref(frame);
+		frame->format      = ctx->sample_fmt;
+		frame->sample_rate = ctx->sample_rate;
+		av_channel_layout_copy(&frame->ch_layout, &ctx->ch_layout);
+		frame->nb_samples  = nb;
+		if (av_frame_get_buffer(frame, 0) < 0)
+		{
+			allocatedSamples = 0;
+			return false;
+		}
+		allocatedSamples = nb;
+	}
+
+	// Restaure la pleine capacité allouée (un appel précédent a pu réduire
+	// nb_samples au nombre réellement produit).
+	frame->nb_samples = allocatedSamples;
 	return true;
 }
 
@@ -188,13 +203,22 @@ int FfAudioEncoder::Encode(SWORD *in, int inLen, BYTE* out, int outLen)
 	if (inLen <= 0)
 		return 0;
 
+	if (numFrameSamples > 0 && inLen != numFrameSamples)
+		return Error("[%s] sample count %d != frame size %d\n",
+			codec->name, inLen, numFrameSamples);
+
+	// Tampon d'entrée au format du codec, dimensionné pour inLen échantillons.
+	// (Resampler à fréquence identique — cas S16->FLTP de l'AAC : produced==inLen.)
+	if (!EnsureFrame(inLen))
+		return Error("[%s] could not allocate frame buffer\n", codec->name);
+
 	if (av_frame_make_writable(frame) < 0)
 		return Error("[%s] frame not writable\n", codec->name);
 
 	// Remplissage de la trame d'entrée.
 	if (swr)
 	{
-		// Rééchantillonnage S16/rate-entrée -> sample_fmt/sample_rate du codec.
+		// Conversion de format (S16 -> format natif du codec).
 		const uint8_t* src[1] = { (const uint8_t*)in };
 		int produced = swr_convert(swr, frame->data, frame->nb_samples, src, inLen);
 		if (produced < 0)
@@ -203,9 +227,6 @@ int FfAudioEncoder::Encode(SWORD *in, int inLen, BYTE* out, int outLen)
 	}
 	else
 	{
-		if (numFrameSamples > 0 && inLen != numFrameSamples)
-			return Error("[%s] sample count %d != frame size %d\n",
-				codec->name, inLen, numFrameSamples);
 		// S16 mono direct.
 		memcpy(frame->data[0], in, (size_t)inLen * sizeof(SWORD));
 		frame->nb_samples = inLen;

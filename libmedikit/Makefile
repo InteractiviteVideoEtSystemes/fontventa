@@ -80,9 +80,12 @@ H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 G722DIR=g722
 G722OBJ=g722codec.o
 
+AACDIR=aac
+AACOBJ=aacencoder.o
+
 
 OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o media.o
-OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) ffvideocodec.o ffaudiocodec.o
+OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) ffvideocodec.o ffaudiocodec.o
 OBJS+=mp4track.o logo.o  picturestreamer.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
@@ -96,10 +99,8 @@ VPATH += %.cpp $(H264DIR)
 VPATH += %.cpp $(G711DIR)
 VPATH += %.c $(G711DIR)
 VPATH += %.cpp $(G722DIR)
+VPATH += %.cpp $(AACDIR)
 LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lx264  -lbz2 -lssl -lcrypto -lpthread
-
-#Codecs activés
-OPTS	+= -DG722_SUPPORT
 
 #For abyss
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g -Wno-narrowing

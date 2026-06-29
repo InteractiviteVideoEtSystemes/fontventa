@@ -40,6 +40,9 @@ protected:
 	bool IsSigned16FmtSupported() const;
 	bool IsRateNativelySupported(DWORD rate) const;
 
+	// (Ré)alloue le tampon de la trame d'entrée pour `nb` échantillons.
+	bool EnsureFrame(int nb);
+
 	// Fréquence de repli si la fréquence demandée n'est pas supportée.
 	// À régler par la classe dérivée avant TrySetRate().
 	DWORD defaultSampleRate;
@@ -50,6 +53,7 @@ protected:
 	AVFrame		*frame;	// trame d'entrée réutilisée
 	AVPacket	*pkt;	// paquet de sortie réutilisé
 	bool		 opened;
+	int		 allocatedSamples;	// capacité du tampon de `frame`
 };
 
 /**

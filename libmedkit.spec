@@ -1,5 +1,5 @@
 Name:      libmedkit
-Version:   1.6.17
+Version:   2.0.0
 #Ne pas enlever le .ives a la fin de la release !
 #Cela est utilise par les scripts de recherche de package.
 Release:   1.ives%{?dist}

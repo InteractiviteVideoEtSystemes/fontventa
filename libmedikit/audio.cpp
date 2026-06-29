@@ -1,10 +1,9 @@
 #include "medkit/log.h"
 #include "medkit/audio.h"
 #include "g711/g711codec.h"
-
-#ifdef G722_SUPPORT
 #include "g722/g722codec.h"
-#endif
+#include "aac/aacencoder.h"
+
 
 
 AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec)
@@ -27,13 +26,14 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 			return new PCMAEncoder(properties);
 		case AudioCodec::PCMU:
 			return new PCMUEncoder(properties);
-#ifdef G722_SUPPORT
 
 		case AudioCodec::G722:
 			return new G722Encoder(properties);
-#endif
 
-#if 0
+		case AudioCodec::AAC:
+			return new AACEncoder(properties);
+
+#if 0	// codecs pas encore portés vers ffmpeg 5
 		case AudioCodec::GSM:
 			return new GSMEncoder(properties);
 		case AudioCodec::SPEEX16:
@@ -42,15 +42,13 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 			return new NellyEncoder(properties);
 		case AudioCodec::NELLY11:
 			return new NellyEncoder11Khz(properties);
+#endif
+
 #ifdef OPUS_SUPPORT
 		case AudioCodec::OPUS:
 			return new OpusEncoder(properties);
 #endif
-#ifdef AAC_SUPPORT
-		case AudioCodec::AAC:
-			return new AACEncoder(properties);
-#endif
-#endif
+
 		default:
 			Error("Codec not found [%d]\n",codec);
 	}
@@ -65,30 +63,28 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 	//Creamos uno dependiendo del tipo
 	switch(codec)
 	{
-#ifdef G722_SUPPORT
+
 		case AudioCodec::G722:
 			return new G722Decoder();
-#endif
-#if 0
-		case AudioCodec::GSM:
-			return new GSMDecoder();
 		case AudioCodec::PCMA:
 			return new PCMADecoder();
 		case AudioCodec::PCMU:
 			return new PCMUDecoder();
+#if 0
+		case AudioCodec::GSM:
+			return new GSMDecoder();
 		case AudioCodec::SPEEX16:
 			return new SpeexDecoder();
 		case AudioCodec::NELLY8:
 			return NULL;
 		case AudioCodec::NELLY11:
 			return new NellyDecoder11Khz();
+#endif
 #ifdef OPUS_SUPPORT
 		case AudioCodec::OPUS:
 			return new OpusDecoder();
 #endif
-		case AudioCodec::G722:
-			return new G722Decoder();
-#endif
+
 		default:
 			Error("Codec not found [%d]\n",codec);
 	}
