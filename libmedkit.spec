@@ -45,6 +45,13 @@ make DESTDIR=$RPM_BUILD_ROOT install
 /opt/ives/include/medkit/
 
 %changelog
+* Mon Jun 29 2026 Emmanuel BUU <emmanuel.buu@ives.fr>
+- big port to Alma Linux 9 with major architectural changes.
+- introduction of ffmpeg encoder / decoder classes
+- use of ffmpeg for packetization.
+- removed dependencies to mp4v2 and use of libavformat instead.
+- version 2.0.0
+
 * Thu May 05 2021 Emmanuel BUU <emmanuel.buu@ives.fr>
 - corrected handling of CFLF in text recording
 - corrected handling of large redundent text packets
