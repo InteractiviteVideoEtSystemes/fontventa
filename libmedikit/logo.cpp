@@ -53,18 +53,15 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 {
 	AVFormatContext *fctx = NULL;
 	AVCodecContext *ctx = NULL;
-	AVCodec *codec = NULL;
+	const AVCodec *codec = NULL;
+	AVCodecParameters *par = NULL;
 	AVFrame *logoRGB = NULL;
 	AVFrame* logo = NULL;
 	SwsContext *sws = NULL;
-	AVPacket *packet;
+	AVPacket *packet = NULL;
 	int res = 0;
-	int gotLogo = 0;
 	int numpixels = 0;
 	int size = 0;
-
-	//Init ffmpeg in case it wasn't
-	av_register_all();
 
 	//Create context from file
 	if(avformat_open_input(&fctx, fileName, NULL, NULL)<0)
@@ -79,20 +76,30 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 		goto end;
 	}
 
-	//Get codec from file fromat
-	if (!(ctx = fctx->streams[0]->codec))
+	//Get stream parameters (AVStream::codec a été supprimé en ffmpeg >= 5)
+	par = fctx->streams[0]->codecpar;
+
+	//Get decoder for format
+	if (!(codec = avcodec_find_decoder(par->codec_id)))
 	{
 		//Set errror
-		res = Error("Context codec not valid\n");
+		res = Error("Couldn't find codec for the logo image file...\n");
 		//Free resources
 		goto end;
 	}
 
-	//Get decoder for format
-	if (!(codec = avcodec_find_decoder(ctx->codec_id)))
+	//Allocate a decoding context and fill it from the stream parameters
+	if (!(ctx = avcodec_alloc_context3(codec)))
 	{
 		//Set errror
-		res = Error("Couldn't find codec for the logo image file...\n");
+		res = Error("Couldn't alloc codec context\n");
+		//Free resources
+		goto end;
+	}
+	if (avcodec_parameters_to_context(ctx, par)<0)
+	{
+		//Set errror
+		res = Error("Couldn't copy codec parameters to context\n");
 		//Free resources
 		goto end;
 	}
@@ -106,8 +113,17 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 		goto end;
 	}
 
+	//Alloc packet
+	if (!(packet = av_packet_alloc()))
+	{
+		//Set errror
+		res = Error("Couldn't alloc packet\n");
+		//Free resources
+		goto end;
+	}
+
 	//Read logo frame
-	if (av_read_frame(fctx, &packet)<0)
+	if (av_read_frame(fctx, packet)<0)
 	{
 		//Set errror
 		res = Error("Couldn't read frame from the image file...\n");
@@ -125,36 +141,19 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 	}
 
 
-	/*
-
-    // 6. Décoder le paquet pour obtenir la frame initiale
-    ret = avcodec_send_packet(codec_ctx, packet);
-    if (ret < 0) {
-        fprintf(stderr, "Erreur lors de l'envoi du paquet au décodeur\n");
-        goto cleanup;
-    }
-    ret = avcodec_receive_frame(codec_ctx, decoded_frame);
-    if (ret < 0) {
-        fprintf(stderr, "Erreur lors de la réception de la frame du décodeur\n");
-        goto cleanup;
-    }
-	*/
-
-
-	//Decode logo
-	if (avcodec_decode_video2(ctx, logoRGB, &gotLogo, &packet)<0)
+	//Decode logo: envoie le paquet puis récupère la frame décodée
+	if (avcodec_send_packet(ctx, packet)<0)
 	{
 		//Set errror
-		res = Error("Couldn't decode logo\n");
+		res = Error("Couldn't send packet to decoder\n");
 		//Free resources
 		goto end;
 	}
 
-	//If it we don't have a logo
-	if (!gotLogo)
+	if (avcodec_receive_frame(ctx, logoRGB)<0)
 	{
 		//Set errror
-		res = Error("No logo on file\n");
+		res = Error("Couldn't decode logo\n");
 		//Free resources
 		goto end;
 	}
@@ -254,17 +253,18 @@ int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)
 	//Everything was ok
 	res = 1;
 
-	// TODO: Libérer le avpaquet
-
 end:
+	if (packet)
+		av_packet_free(&packet);
+
 	if (logo)
-		av_free(logo);
+		av_frame_free(&logo);
 
 	if (logoRGB)
-		av_free(logoRGB);
+		av_frame_free(&logoRGB);
 
 	if (ctx)
-		avcodec_close(ctx);
+		avcodec_free_context(&ctx);
 
 	if (sws)
 		sws_freeContext(sws);
