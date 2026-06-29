@@ -11,6 +11,9 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 {
 	// Set default values
 	frame	= NULL;
+	ctx	= NULL;
+	picture	= NULL;
+	opened	= false;
 	type    = codec_id;
 	format  = 0;
 
@@ -22,13 +25,16 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 
 	// Check codec
 	if(!codec)
+	{
 		Error("Encoder [%s] not supported in ffmpeg\n", avcodec_get_name(av_codec));
+		return;
+	}
 
 	if (codec->type != AVMEDIA_TYPE_VIDEO)
-		Error("FFMpeg encoder [%s] is not a video encoder", codec->name);
-
-	//No estamos abiertos
-	opened = false;
+	{
+		Error("FFMpeg encoder [%s] is not a video encoder\n", codec->name);
+		return;
+	}
 
 	//Alocamos el conto y el picture
 	ctx = avcodec_alloc_context3(codec);
@@ -41,15 +47,14 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 ************************/
 FfVideoEncoder::~FfVideoEncoder()
 {
-	if (frame);
-		delete(frame);
+	if (frame)
+		delete frame;
 
 	if (ctx)
-	{
 		avcodec_free_context(&ctx);
-	}
 
-	if (picture) av_frame_free(&picture);
+	if (picture)
+		av_frame_free(&picture);
 }
 
 /***********************
@@ -64,6 +69,12 @@ int FfVideoEncoder::SetSize(int width, int height)
 	ctx->pix_fmt		= AV_PIX_FMT_YUV420P;
 	ctx->width 		= width;
 	ctx->height 		= height;
+
+	// L'API avcodec_send_frame() exige que l'AVFrame porte lui-même son
+	// format et ses dimensions (l'ancienne API les déduisait du contexte).
+	picture->format		= AV_PIX_FMT_YUV420P;
+	picture->width		= width;
+	picture->height		= height;
 
 	// Set picture data
 	picture->linesize[0] = width;
@@ -168,8 +179,6 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 		return NULL;
 
 	AVPacket* pkt = av_packet_alloc();
-	pkt->data = frame->GetData();
-	pkt->size = frame->GetMaxMediaLength();
 
 	int numPixels = ctx->width*ctx->height;
 
@@ -221,6 +230,12 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 				frame->ClearRTPPacketizationInfo();
 			}
 
+			// Recopie la trame binaire encodée dans le tampon de la VideoFrame.
+			// Avec l'API send/receive, ffmpeg écrit dans SON propre tampon
+			// (pkt->data) ; la packetisation RTP ci-dessous référence des
+			// offsets dans le tampon de la frame, qu'il faut donc remplir.
+			frame->SetMedia(pkt->data, pkt->size);
+
 			//Copy all
 			DWORD lenpkt;
 			bool mark ;
@@ -255,29 +270,29 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 
 			size += pkt->size;
 		}
-		else {
-			switch(ret) {
-				case AVERROR(EAGAIN):
-					av_packet_free(&pkt);
-					return NULL;
-
-				case AVERROR_EOF:
-					av_packet_free(&pkt);
-					return frame;
-
-				default:
-					//Exit
-					av_packet_free(&pkt);
-					Error("%d\n",ret);
-					return NULL;
-			}
+		else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+		{
+			// Plus de paquet disponible pour cette trame : fin normale du drain.
+			// (NE PAS retourner NULL ici : la trame déjà packetisée serait perdue.)
+			break;
+		}
+		else
+		{
+			Error("Encoding error (receive_packet): %d\n", ret);
+			av_packet_free(&pkt);
+			return NULL;
 		}
 		av_packet_unref(pkt);
 	} while(ret >= 0);
 
+	av_packet_free(&pkt);
+
+	// Aucune donnée produite (trame éventuellement bufferisée par l'encodeur).
+	if (size == 0)
+		return NULL;
+
 	//Set length
 	frame->SetLength(size);
-	av_packet_free(&pkt);
 	return frame;
 }
 
@@ -351,9 +366,10 @@ FfVideoDecoder::~FfVideoDecoder()
 	free(buffer);
 	if (frame!=NULL)
 		free(frame);
-	avcodec_close(ctx);
+	if (parser_ctx)
+		av_parser_close(parser_ctx);
 	av_frame_free(&picture);
-	avcodec_free_context(&ctx);
+	avcodec_free_context(&ctx);	// ferme aussi le codec
 }
 
 int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
@@ -365,20 +381,28 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 	int ret;
 
 	while (remaining_size > 0) {
-		int bytes_parsed = av_parser_parse2(
-            parser_ctx, ctx,
-            &pkt->data, &pkt->size,
-            current_ptr, remaining_size,
-            AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0
-        );
+		if (parser_ctx) {
+			int bytes_parsed = av_parser_parse2(
+	            parser_ctx, ctx,
+	            &pkt->data, &pkt->size,
+	            current_ptr, remaining_size,
+	            AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0
+	        );
 
-		if (bytes_parsed < 0) {
-            Error("Error from %s parser. Error = %d\n", VideoCodec::GetNameFor(type), bytes_parsed);
-            goto error;
-        }
+			if (bytes_parsed < 0) {
+	            Error("Error from %s parser. Error = %d\n", VideoCodec::GetNameFor(type), bytes_parsed);
+	            goto error;
+	        }
 
-		current_ptr += bytes_parsed;
-        remaining_size -= bytes_parsed;
+			current_ptr += bytes_parsed;
+	        remaining_size -= bytes_parsed;
+		} else {
+			// Pas de parser pour ce codec (ex. H263+) : l'entrée est déjà une
+			// trame complète, on la pousse telle quelle.
+			pkt->data = current_ptr;
+			pkt->size = remaining_size;
+			remaining_size = 0;
+		}
 
 		if (pkt->size > 0) {
 			ret = avcodec_send_packet(ctx, pkt);
@@ -391,8 +415,10 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 
 			while (ret >= 0) {
                 ret = avcodec_receive_frame(ctx, picture);
+                // EAGAIN : besoin de plus de données ; EOF : flux terminé.
+                // Ce sont des fins de drain normales, pas des erreurs.
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-                    goto error;
+                    break;
                 } else if (ret < 0) {
                     Error("%s decoding error (receive frame). Error = %d\n", VideoCodec::GetNameFor(type), ret);
                 	goto error;

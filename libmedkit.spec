@@ -11,7 +11,7 @@ URL:       http://www.ives.fr
 BuildArchitectures: x86_64
 BuildRoot:  %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires:  ivespkg
-BuildRequires: ffmpeg-devel >= 1.3, gcc-c++, asteriskv-devel, x264-devel, mpeg4ip-devel
+BuildRequires: ffmpeg-devel >= 5.0, gcc-c++, asteriskv-devel, x264-devel, mpeg4ip-devel
 
 %description
 Un ensemble de librairies partag�es pour asterisk de Fontventa.
