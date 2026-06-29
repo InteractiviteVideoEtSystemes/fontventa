@@ -104,11 +104,11 @@ case $1 in
   		create_rpm $2;;
 
 	"prereq")
-		sudo yum -y install ffmpeg-devel mpeg4ip-devel asteriskv-devel SDL-devel ;;
+		sudo yum -y install ffmpeg-devel mpeg4ip-devel asteriskv-devel SDL-devel x264-devel ;;
   	*)
   		echo "usage: install.ksh [options]" 
   		echo "options :"
-  		echo "  rpm		Generation d'un package rpm"
-  		echo "  prepreq		Install des prerequis"
-  		echo "  clean		Nettoie tous les fichiers ";;
+  		echo "  rpm     Generation d'un package rpm"
+  		echo "  prereq  Install des prerequis"
+  		echo "  clean   Nettoie tous les fichiers ";;
 esac

@@ -84,7 +84,7 @@ case $1 in
   		echo "Nettoyage des liens et du package crees par la cible dev"
   		clean ;;
 	"prereq")
-                sudo yum -y install ffmpeg-devel mpeg4ip-devel asteriskv-devel SDL-devel ;;
+                sudo yum -y install ffmpeg-devel mpeg4ip-devel asteriskv-devel SDL-devel x264-devel ;;
 
   	"rpm")
   		echo "Creation du rpm"
@@ -92,7 +92,7 @@ case $1 in
   	*)
   		echo "usage: install_lib.ksh [options]" 
   		echo "options :"
-  		echo "  rpm		Generation d'un package rpm"
-  		echo "  prepreq		Installation des prerequis"
-  		echo "  clean		Nettoie tous les fichiers cree par le present script, liens, tar.gz et rpm";;
+  		echo "  rpm 	Generation d'un package rpm"
+  		echo "  prereq	Installation des prerequis"
+  		echo "  clean	Nettoie tous les fichiers cree par le present script, liens, tar.gz et rpm";;
 esac
