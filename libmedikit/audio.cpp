@@ -65,6 +65,10 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 	//Creamos uno dependiendo del tipo
 	switch(codec)
 	{
+#ifdef G722_SUPPORT
+		case AudioCodec::G722:
+			return new G722Decoder();
+#endif
 #if 0
 		case AudioCodec::GSM:
 			return new GSMDecoder();

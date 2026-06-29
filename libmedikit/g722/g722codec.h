@@ -1,42 +1,31 @@
 #ifndef G722_H
 #define	G722_H
-extern "C" {
-#include <libavcodec/avcodec.h>
-}
 
-#include <medkit/config.h>
-#include <medkit/fifo.h>
-#include <medkit/codecs.h>
-#include <medkit/audio.h>
+#include "../ffaudiocodec.h"
 
-class G722Encoder : public AudioEncoder
+/**
+ * Encodeur G.722 : ADPCM 16 kHz mono, adossé à la base générique ffmpeg.
+ */
+class G722Encoder : public FfAudioEncoder
 {
 public:
 	G722Encoder(const Properties &properties);
-	virtual ~G722Encoder();
-	virtual int Encode(SWORD *in,int inLen,BYTE* out,int outLen);
-	virtual DWORD TrySetRate(DWORD rate)	{ return 16000;	}
-	virtual DWORD GetRate()			{ return 16000;	}
-	// See RFC 3551 clause 4.5.2. Report G.722 clock to be 8 kHz (altough it is 16 kHz)
-	virtual DWORD GetClockRate()		{ return 8000;	}
-private:
-	AVCodec 	*codec;
-	AVCodecContext	*ctx;
+
+	// G.722 : audio échantillonné à 16 kHz mais horloge RTP annoncée à 8 kHz
+	// (RFC 3551 §4.5.2).
+	virtual DWORD GetClockRate()	{ return 8000; }
 };
 
-class G722Decoder : public AudioDecoder
+/**
+ * Décodeur G.722.
+ */
+class G722Decoder : public FfAudioDecoder
 {
 public:
 	G722Decoder();
-	virtual ~G722Decoder();
-	virtual int Decode(BYTE *in,int inLen,SWORD* out,int outLen);
-	virtual DWORD TrySetRate(DWORD rate)	{ return 16000;	}
-	virtual DWORD GetRate()			{ return 16000;	}
-private:
-	AVCodec 	*codec;
-	AVCodecContext	*ctx;
-	fifo<SWORD,1024>  samples;
+
+	// Restitution fixée à 16 kHz (fréquence native du flux G.722).
+	virtual DWORD GetRate()		{ return 16000; }
 };
 
 #endif	/* G722_H */
-
