@@ -201,10 +201,7 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 		return NULL;
 	}
 
-	//Skip first two
-	DWORD ini = 2;
 	DWORD size = 0;
-	BYTE prefix[2];
 
 	do {
 		ret = avcodec_receive_packet(ctx, pkt);
@@ -222,52 +219,17 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 				picture->key_frame = 0;
 				picture->pict_type = AV_PICTURE_TYPE_NONE;
 
-				//Set header for first
-				prefix[0] = 0x04;
-				prefix[1] = 0x00;
-
 				//Clean all previous packets
 				frame->ClearRTPPacketizationInfo();
+
+				firstPacket = false;
 			}
 
 			// Recopie la trame binaire encodée dans le tampon de la VideoFrame.
 			// Avec l'API send/receive, ffmpeg écrit dans SON propre tampon
-			// (pkt->data) ; la packetisation RTP ci-dessous référence des
+			// (pkt->data) ; la packetisation RTP (PacketizeFrame) référence des
 			// offsets dans le tampon de la frame, qu'il faut donc remplir.
 			frame->SetMedia(pkt->data, pkt->size);
-
-			//Copy all
-			DWORD lenpkt;
-			bool mark ;
-
-			while(ini<pkt->size)
-			{
-				mark = false;
-				//The mtu
-				lenpkt = RTPPAYLOADSIZE-2;
-				//Check length
-				if (lenpkt+ini >= pkt->size)
-				{
-					mark = true;
-					//Fix it
-					lenpkt=pkt->size-ini;
-				}
-
-				//Add rtp packet
-				frame->AddRtpPacket(ini,lenpkt,prefix,2, mark );
-
-				//If it is first
-				if (ini==2)
-				{
-					//Set header for the nexts
-					prefix[0] = 0x00;
-					prefix[1] = 0x00;
-				}
-
-				//Increase pointer
-				ini += lenpkt;
-			}
-
 			size += pkt->size;
 		}
 		else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
@@ -293,7 +255,46 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 
 	//Set length
 	frame->SetLength(size);
+
+	// Packetisation RTP propre au codec (virtuelle).
+	PacketizeFrame();
+
 	return frame;
+}
+
+/***********************
+* PacketizeFrame (défaut)
+*	Schéma historique H263/MPEG4 : saute le start code (2 octets) et fragmente
+*	avec un préfixe de payload RFC 2429. Redéfini par les codecs à packetisation
+*	RTP spécifique (cf. VP8Encoder::PacketizeFrame).
+************************/
+void FfVideoEncoder::PacketizeFrame()
+{
+	DWORD len = frame->GetLength();
+	DWORD ini = 2;		// saute le start code 2 octets
+	BYTE prefix[2] = { 0x04, 0x00 };
+
+	while (ini < len)
+	{
+		bool mark = false;
+		DWORD lenpkt = RTPPAYLOADSIZE-2;
+		if (lenpkt+ini >= len)
+		{
+			mark = true;
+			lenpkt = len-ini;
+		}
+
+		frame->AddRtpPacket(ini, lenpkt, prefix, 2, mark);
+
+		// Paquets suivants : préfixe sans le bit P.
+		if (ini == 2)
+		{
+			prefix[0] = 0x00;
+			prefix[1] = 0x00;
+		}
+
+		ini += lenpkt;
+	}
 }
 
 /***********************

@@ -5,6 +5,7 @@
 #include "h264/h264encoder.h"
 #include "h264/h264decoder.h"
 #include "vp8/vp8decoder.h"
+#include "vp8/vp8encoder.h"
 
 
 bool VideoFrame::Packetize(unsigned int mtu)
@@ -69,6 +70,9 @@ VideoEncoder* VideoCodecFactory::CreateEncoder(VideoCodec::Type codec,const Prop
 			return new Mpeg4Encoder(properties);
 		case VideoCodec::H264:
 			return new H264Encoder(properties);
+		case VideoCodec::VP8:
+			// Encodeur VP8 via le wrapper libvpx de ffmpeg.
+			return new VP8Encoder(properties);
 		default:
 			Error("Video Encoder not found\n");
 	}

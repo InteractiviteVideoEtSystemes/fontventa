@@ -65,9 +65,10 @@ endif
 H264DIR=h264
 H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 
-# VP8 : seul le décodeur (natif ffmpeg) ; pas d'encodeur VP8 natif dans ffmpeg.
+# VP8 : décodeur natif ffmpeg + encodeur via le wrapper libvpx de ffmpeg
+# (ffmpeg n'a pas d'encodeur VP8 natif, mais expose le wrapper libvpx).
 VP8DIR=vp8
-VP8OBJ=vp8decoder.o
+VP8OBJ=vp8decoder.o vp8encoder.o
 
 #GSMDIR=gsm
 #GSMOBJ=gsmcodec.o

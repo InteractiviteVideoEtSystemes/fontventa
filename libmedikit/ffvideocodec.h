@@ -18,8 +18,13 @@ public:
 	virtual int SetSize(int width, int height);
 	virtual int SetFrameRate(int fps, int kbits, int intraPeriod);
 
-private:
+protected:
 	int OpenCodec();
+
+	// Construit l'info de packetisation RTP de `frame` (déjà rempli). Défaut :
+	// schéma H263 (saut du start code 2 octets + préfixe RFC 2429). Les codecs
+	// à packetisation RTP propre (VP8...) la redéfinissent dans leur sous-classe.
+	virtual void PacketizeFrame();
 
 	const AVCodec 	*codec;
 	AVCodecContext	*ctx;
