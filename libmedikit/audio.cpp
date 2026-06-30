@@ -2,11 +2,13 @@
 #include "medkit/audio.h"
 #include "g711/g711codec.h"
 #include "g722/g722codec.h"
+#include "g722/g7221codec.h"
 #include "aac/aacencoder.h"
 #include "amr/amrcodec.h"
 #include "nelly/nellycodec.h"
 #include "gsm/gsmcodec.h"
 #include "opus/opuscodec.h"
+#include "speex/speexcodec.h"
 
 
 
@@ -51,8 +53,14 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 		case AudioCodec::GSM:
 			return new GSMEncoder(properties);
 
+		case AudioCodec::SPEEX16:
+			return new SpeexEncoder(properties);
+
 		case AudioCodec::OPUS:
 			return new OPUSEncoder(properties);
+
+		case AudioCodec::G7221:
+			return new G7221Encoder(properties);
 
 		default:
 			Error("Codec not found [%d]\n",codec);
@@ -87,8 +95,14 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 		case AudioCodec::GSM:
 			return new GSMDecoder();
 
+		case AudioCodec::SPEEX16:
+			return new SpeexDecoder();
+
 		case AudioCodec::OPUS:
 			return new OPUSDecoder();
+
+		case AudioCodec::G7221:
+			return new G7221Decoder();
 
 		default:
 			Error("Codec not found [%d]\n",codec);
@@ -110,4 +124,5 @@ bool AudioFrame::Packetize(unsigned int mtu)
 		if (rtplen > paksize ) rtplen = paksize;
 		AddRtpPacket(i, rtplen, 0, NULL, false);
 	}
+	return true;
 }

@@ -1,12 +1,12 @@
 #ifndef G7221_H
 #define	G7221_H
 extern "C" {
-#include <libavcodec/avcodec.h>
+#include <g722_1.h>
 }
-#include "config.h"
-#include "fifo.h"
-#include "codecs.h"
-#include "audio.h"
+#include "medkit/config.h"
+#include "medkit/fifo.h"
+#include "medkit/codecs.h"
+#include "medkit/audio.h"
 
 class G7221Encoder : public AudioEncoder
 {
@@ -30,7 +30,7 @@ public:
 	G7221Decoder();
 	virtual ~G7221Decoder();
 	virtual int Decode(BYTE *in,int inLen,SWORD* out,int outLen);
-	virtual DWORD TrySetRate(DWORD rate)	{ return rate;  }
+	virtual DWORD TrySetRate(DWORD rate);
 	virtual DWORD GetRate()			{ return rate;	}
 private:
 	g722_1_decode_state_t state;
@@ -41,4 +41,3 @@ private:
 };
 
 #endif	/* G7221_H */
-

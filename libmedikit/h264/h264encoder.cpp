@@ -6,6 +6,9 @@
 #include "h264encoder.h"
 
 
+#define X264_REOPEN 1
+#define ABR_VBV_ENCODING 0
+#define CRF_VBV_ENCODING 1
 //////////////////////////////////////////////////////////////////////////
 //Encoder
 // 	Codificador H264
@@ -47,7 +50,7 @@ H264Encoder::H264Encoder(const Properties& properties)
 
 	h264ProfileLevelId = properties.GetProperty("h264.profile-level-id",std::string("42801F"));
 	intraRefresh = (bool) properties.GetProperty("h264.intra_refresh",0);
-
+	qPel =  properties.GetProperty("h264.qpel",3);
 	//Reste values
 	enc = NULL;
 }
@@ -72,17 +75,76 @@ H264Encoder::~H264Encoder()
 * SetSize
 *	Inicializa el tama�o de la imagen a codificar
 ***********************/
+
+
+
 int H264Encoder::SetSize(int width, int height)
 {
-	Log("-SetSize [%d,%d]\n",width,height);//Save values
-	this->width = width;
-	this->height = height;
+	Log("H264Encoder: SetSize [%d,%d]\n",width,height);
 
-	//calculate number of pixels in  input image
-	numPixels = width*height;
+        if (width <= 0 || height <= 0 || (width%2) == 1 )
+                return Error("H264Encoder: invalid size %d x %d\n", width, height);
 
-	// Open codec
-	return OpenCodec();
+
+        if (opened)
+        {
+            Log("-H264Encoder: reconfig size\n");
+
+#ifdef X264_REOPEN
+            /* Here we close and reopen the encoder to apply the new size */
+
+            if (enc != NULL)
+            {
+                    x264_encoder_close(enc);
+                    enc =NULL;
+            }
+            opened=false;
+            this->width = width;
+            this->height = height;
+            numPixels = width*height;
+            return OpenCodec();
+#else
+          /*
+           *  x264_encoder_reconfig does not seem to work with size.
+           * it prodices a log such as:
+           *
+           * "x264 Input picture width (352) is greater than stride (250)"
+           */
+          // Set encoding context size
+
+
+            params.i_width 	= width;
+            params.i_height	= height;
+            int ret = x264_encoder_reconfig(enc,&params);
+            if ( ret == 0 )
+            {
+                // Update size parameters
+                this->width = width;
+                this->height = height;
+                numPixels = width*height;
+
+                // Reset picture structures
+                memset(&pic,0,sizeof(x264_picture_t));
+                memset(&pic_out,0,sizeof(x264_picture_t));
+
+                //Set picture type
+                pic.i_type = X264_TYPE_AUTO;
+                return 1;
+            }
+            else
+            {
+                return Error("264Encoder: Failed to resize. X264 errcode=%d.\n", ret);
+            }
+#endif
+	}
+        else
+        {
+            this->width = width;
+            this->height = height;
+            numPixels = width*height;
+
+            return OpenCodec();
+        }
 }
 
 /************************
@@ -116,9 +178,20 @@ int H264Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 		params.i_keyint_max         = intraPeriod ;
 		params.i_frame_reference    = 1;
 		params.rc.i_rc_method	    = X264_RC_ABR;
-		params.rc.i_bitrate         = bitrate;
-		params.rc.i_vbv_max_bitrate = 1.4*bitrate;
-		params.rc.i_vbv_buffer_size = 1.4*bitrate/fps;
+#if ABR_VBV_ENCODING
+		params.rc.i_bitrate         = 0.6*bitrate;
+		params.rc.i_vbv_max_bitrate = params.rc.i_bitrate;
+		params.rc.i_vbv_buffer_size = params.rc.i_vbv_max_bitrate;
+#elif CRF_VBV_ENCODING
+		params.rc.i_rc_method	    = X264_RC_CRF;
+		params.rc.i_vbv_max_bitrate = 0.6*bitrate;
+		params.rc.i_vbv_buffer_size = params.rc.i_vbv_max_bitrate;
+		params.rc.f_rf_constant 	= 23;
+#else
+		params.rc.i_bitrate         = 0.8*bitrate;
+		params.rc.i_vbv_max_bitrate = 1.1*bitrate;
+		params.rc.i_vbv_buffer_size = 1.1*bitrate/fps;
+#endif
 		params.rc.f_vbv_buffer_init = 0;
 		params.rc.f_rate_tolerance  = 0.2;
 		params.i_fps_num	    	= fps;
@@ -167,9 +240,22 @@ int H264Encoder::OpenCodec()
 	params.i_keyint_max         = intraPeriod;
 	params.i_frame_reference    = 1;
 	params.rc.i_rc_method	    = X264_RC_ABR;
-	params.rc.i_bitrate         = bitrate;
-	params.rc.i_vbv_max_bitrate = 1.4*bitrate;
-	params.rc.i_vbv_buffer_size = (1.4*bitrate)/fps;
+#if ABR_VBV_ENCODING
+	params.rc.i_bitrate         = 0.6*bitrate;
+	params.rc.i_vbv_max_bitrate = params.rc.i_bitrate;
+	params.rc.i_vbv_buffer_size = params.rc.i_vbv_max_bitrate;
+	Log("-H264Encoder: Use ABR VBV encoding b=%d, mb=%d, vbv=%d\n", (int)params.rc.i_bitrate, (int)params.rc.i_vbv_max_bitrate, (int)params.rc.i_vbv_buffer_size);
+#elif CRF_VBV_ENCODING
+	params.rc.i_rc_method	    = X264_RC_CRF;
+	params.rc.i_vbv_max_bitrate = 0.6*bitrate;
+	params.rc.i_vbv_buffer_size = params.rc.i_vbv_max_bitrate;
+	params.rc.f_rf_constant 	= 23;
+	Log("-H264Encoder: Use CRF VBV encoding crf=%d, mb=%d, vbv=%d\n", (int)params.rc.f_rf_constant, (int)params.rc.i_vbv_max_bitrate, (int)params.rc.i_vbv_buffer_size);
+#else
+	params.rc.i_bitrate         = 0.8*bitrate;
+	params.rc.i_vbv_max_bitrate = 1.1*bitrate;
+	params.rc.i_vbv_buffer_size = (1.1*bitrate)/fps;
+#endif
 	params.rc.f_vbv_buffer_init = 0;
 	params.rc.f_rate_tolerance  = 0.2;
 	params.rc.b_stat_write      = 0;
@@ -186,8 +272,8 @@ int H264Encoder::OpenCodec()
 	params.b_intra_refresh	    = (intraRefresh) ? 1 : 0;
 	params.vui.i_chroma_loc	    = 0;
 	params.i_scenecut_threshold = 0;
-	params.analyse.i_subpel_refine = 6; //Subpixel motion estimation and mode decision :3 qpel (medim:6, ultrafast:1)
-
+	params.analyse.i_subpel_refine = qPel; //Subpixel motion estimation and mode decision :3 qpel (medim:6, ultrafast:1)
+	Log("h264 qPel is %d.\n", qPel );
 	Log("h264: progressive intra refresh is %s.\n", (intraRefresh)?"enabled" : "disabled" );
 	//Get profile and level
 	int profile = strtol(h264ProfileLevelId.substr(0,2).c_str(),NULL,16);
@@ -243,7 +329,6 @@ int H264Encoder::OpenCodec()
 			//Baseline
 			Log("h264: encoding with profile baseline and level %d.\n", level);
 			x264_param_apply_profile(&params,"baseline");
-			break;
 	}
 
 	// Open encoder
@@ -283,7 +368,7 @@ VideoFrame* H264Encoder::EncodeFrame(BYTE *buffer,DWORD bufferSize)
 	//Comprobamos el tama�o
 	if (numPixels*3/2 != bufferSize)
 	{
-		Error("-EncodeFrame length error [%d,%d]\n",numPixels*3/2,bufferSize);
+		Error("-H264 EncodeFrame length error [%d,%d]\n",numPixels*5/4,bufferSize);
 		return NULL;
 	}
 
@@ -355,8 +440,8 @@ VideoFrame* H264Encoder::EncodeFrame(BYTE *buffer,DWORD bufferSize)
 			//Modify profile level ID to match offered one
 			set3(nalData,1,profileLevel);
 		}
-		//Add rtp packet
-		frame->AddRtpPacket(pos,nalSize,NULL,0, i+1 >= numNals);
+		//Add rtp packet (mark bit on last NAL)
+		frame->AddRtpPacket(pos,nalSize,NULL,0,i+1 >= numNals);
 	}
 
 	//Set first nal
@@ -376,4 +461,3 @@ int H264Encoder::FastPictureUpdate()
 
 	return 1;
 }
-

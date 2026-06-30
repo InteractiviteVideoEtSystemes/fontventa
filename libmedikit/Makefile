@@ -73,8 +73,8 @@ VP8OBJ=vp8decoder.o vp8encoder.o
 GSMDIR=gsm
 GSMOBJ=gsmcodec.o
 
-#SPEEXDIR=speex
-#SPEEXOBJ=speexcodec.o
+SPEEXDIR=speex
+SPEEXOBJ=speexcodec.o
 
 #NELLYDIR=nelly
 #NELLYOBJ=NellyCodec.o
@@ -83,7 +83,7 @@ OPUSDIR=opus
 OPUSOBJ=opuscodec.o
 
 G722DIR=g722
-G722OBJ=g722codec.o
+G722OBJ=g722codec.o g7221codec.o
 
 AACDIR=aac
 AACOBJ=aacencoder.o
@@ -95,7 +95,7 @@ NELLYDIR=nelly
 NELLYOBJ=nellycodec.o
 
 OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o media.o
-OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(VP8OBJ) ffvideocodec.o ffaudiocodec.o
+OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(SPEEXOBJ) $(VP8OBJ) ffvideocodec.o ffaudiocodec.o
 OBJS+=mp4track.o logo.o  picturestreamer.o mp4recorder.o mp4player.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
@@ -113,6 +113,7 @@ VPATH += %.cpp $(AACDIR)
 VPATH += %.cpp $(AMRDIR)
 VPATH += %.cpp $(NELLYDIR)
 VPATH += %.cpp $(GSMDIR)
+VPATH += %.cpp $(SPEEXDIR)
 VPATH += %.cpp $(OPUSDIR)
 VPATH += %.cpp $(VP8DIR)
 LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lx264  -lbz2 -lssl -lcrypto -lpthread

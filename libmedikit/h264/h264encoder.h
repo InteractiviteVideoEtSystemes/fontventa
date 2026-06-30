@@ -37,6 +37,7 @@ private:
 	int pts;
 	std::string h264ProfileLevelId;
 	bool intraRefresh;
+	int qPel;
 };
 
 #endif
