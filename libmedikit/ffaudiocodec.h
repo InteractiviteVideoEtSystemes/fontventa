@@ -47,6 +47,10 @@ protected:
 	// À régler par la classe dérivée avant TrySetRate().
 	DWORD defaultSampleRate;
 
+	// Taux d'entrée tel que passé à TrySetRate() (taux pipeline du MCU).
+	// Peut différer de ctx->sample_rate si une conversion de fréquence est active.
+	DWORD inputRate;
+
 	const AVCodec	*codec;
 	AVCodecContext	*ctx;
 	SwrContext	*swr;	// nullptr si pas de rééchantillonnage nécessaire

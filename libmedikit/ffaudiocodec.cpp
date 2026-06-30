@@ -9,7 +9,7 @@ extern "C" {
 #include <string.h>
 
 FfAudioEncoder::FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id) :
-	defaultSampleRate(8000), codec(nullptr), ctx(nullptr), swr(nullptr),
+	defaultSampleRate(8000), inputRate(0), codec(nullptr), ctx(nullptr), swr(nullptr),
 	frame(nullptr), pkt(nullptr), opened(false), allocatedSamples(0)
 {
 	// Membres hérités d'AudioEncoder
@@ -91,6 +91,9 @@ DWORD FfAudioEncoder::TrySetRate(DWORD rate)
 		Error("[%s] codec not initialised\n", codec ? codec->name : "?");
 		return defaultSampleRate;
 	}
+
+	// Mémorise le taux d'entrée (taux pipeline du MCU) avant tout ajustement.
+	inputRate = rate;
 
 	const bool s16ok  = IsSigned16FmtSupported();
 	const bool rateok = IsRateNativelySupported(rate);
@@ -203,57 +206,119 @@ int FfAudioEncoder::Encode(SWORD *in, int inLen, BYTE* out, int outLen)
 	if (inLen <= 0)
 		return 0;
 
-	if (numFrameSamples > 0 && inLen != numFrameSamples)
-		return Error("[%s] sample count %d != frame size %d\n",
-			codec->name, inLen, numFrameSamples);
+	// Taille de trame en samples de sortie (taux codec).
+	// Pour les codecs à taille variable (frame_size==0), on estime à partir du
+	// ratio de fréquence ; sans conversion de fréquence, c'est simplement inLen.
+	int frameSz = (numFrameSamples > 0) ? numFrameSamples
+		: (swr && inputRate ? (int)((long long)inLen * ctx->sample_rate / inputRate) + 1 : inLen);
 
-	// Tampon d'entrée au format du codec, dimensionné pour inLen échantillons.
-	// (Resampler à fréquence identique — cas S16->FLTP de l'AAC : produced==inLen.)
-	if (!EnsureFrame(inLen))
+	// Alloue le tampon de trame pour frameSz samples de sortie (format codec).
+	if (!EnsureFrame(frameSz))
 		return Error("[%s] could not allocate frame buffer\n", codec->name);
 
-	if (av_frame_make_writable(frame) < 0)
-		return Error("[%s] frame not writable\n", codec->name);
+	int total = 0;
 
-	// Remplissage de la trame d'entrée.
 	if (swr)
 	{
-		// Conversion de format (S16 -> format natif du codec).
-		const uint8_t* src[1] = { (const uint8_t*)in };
-		int produced = swr_convert(swr, frame->data, frame->nb_samples, src, inLen);
-		if (produced < 0)
-			return Error("[%s] resampling failed\n", codec->name);
-		frame->nb_samples = produced;
+		// Chemin avec rééchantillonnage (format et/ou fréquence).
+		//
+		// swr_convert accumule en interne les samples non encore émis.
+		// Cela assure l'alignement sur la taille de trame du codec sans FIFO
+		// externe : si inLen échantillons d'entrée ne suffisent pas à remplir
+		// une trame complète, swr les bufferise et renvoie < frameSz ; on sort
+		// alors sans encoder (return 0). À l'appel suivant, le buffer interne
+		// est drainé en priorité avant de consommer la nouvelle entrée.
+		const uint8_t *src[1] = { (const uint8_t*)in };
+		bool input_fed = false;
+
+		while (true)
+		{
+			if (av_frame_make_writable(frame) < 0)
+				return Error("[%s] frame not writable\n", codec->name);
+
+			int produced;
+			if (!input_fed)
+			{
+				// 1ère passe : on fournit les samples d'entrée ; swr remplit
+				// frame->data avec au plus frameSz samples de sortie.
+				produced = swr_convert(swr, frame->data, frameSz, src, inLen);
+				input_fed = true;
+			}
+			else
+			{
+				// Passes suivantes (drain) : on vérifie qu'il reste assez
+				// de samples bufferisés pour une trame complète.
+				if (swr_get_delay(swr, ctx->sample_rate) < (int64_t)frameSz)
+					break;
+				produced = swr_convert(swr, frame->data, frameSz, nullptr, 0);
+			}
+
+			if (produced <= 0)
+				break;
+
+			// Trame incomplète → le codec attend frame_size samples fixes.
+			// On rend la main ; swr a bufferisé les samples.
+			if (numFrameSamples > 0 && produced < numFrameSamples)
+				break;
+
+			frame->nb_samples = produced;
+
+			int ret = avcodec_send_frame(ctx, frame);
+			if (ret < 0)
+				return Error("[%s] avcodec_send_frame: %d\n", codec->name, ret);
+
+			while ((ret = avcodec_receive_packet(ctx, pkt)) >= 0)
+			{
+				if (total + pkt->size <= outLen)
+				{
+					memcpy(out + total, pkt->data, pkt->size);
+					total += pkt->size;
+				}
+				else
+				{
+					Error("[%s] output buffer too small\n", codec->name);
+				}
+				av_packet_unref(pkt);
+			}
+
+			if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
+				return Error("[%s] avcodec_receive_packet: %d\n", codec->name, ret);
+		}
 	}
 	else
 	{
-		// S16 mono direct.
+		// S16 mono direct, sans rééchantillonnage.
+		if (numFrameSamples > 0 && inLen != numFrameSamples)
+			return Error("[%s] sample count %d != frame size %d\n",
+				codec->name, inLen, numFrameSamples);
+
+		if (av_frame_make_writable(frame) < 0)
+			return Error("[%s] frame not writable\n", codec->name);
+
 		memcpy(frame->data[0], in, (size_t)inLen * sizeof(SWORD));
 		frame->nb_samples = inLen;
-	}
 
-	int ret = avcodec_send_frame(ctx, frame);
-	if (ret < 0)
-		return Error("[%s] avcodec_send_frame: %d\n", codec->name, ret);
+		int ret = avcodec_send_frame(ctx, frame);
+		if (ret < 0)
+			return Error("[%s] avcodec_send_frame: %d\n", codec->name, ret);
 
-	int total = 0;
-	while ((ret = avcodec_receive_packet(ctx, pkt)) >= 0)
-	{
-		if (total + pkt->size <= outLen)
+		while ((ret = avcodec_receive_packet(ctx, pkt)) >= 0)
 		{
-			memcpy(out + total, pkt->data, pkt->size);
-			total += pkt->size;
+			if (total + pkt->size <= outLen)
+			{
+				memcpy(out + total, pkt->data, pkt->size);
+				total += pkt->size;
+			}
+			else
+			{
+				Error("[%s] output buffer too small\n", codec->name);
+			}
+			av_packet_unref(pkt);
 		}
-		else
-		{
-			Error("[%s] output buffer too small (need %d, have %d)\n",
-				codec->name, total + pkt->size, outLen);
-		}
-		av_packet_unref(pkt);
-	}
 
-	if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-		return Error("[%s] avcodec_receive_packet: %d\n", codec->name, ret);
+		if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
+			return Error("[%s] avcodec_receive_packet: %d\n", codec->name, ret);
+	}
 
 	return total;
 }

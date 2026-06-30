@@ -4,6 +4,7 @@
 #include "g722/g722codec.h"
 #include "aac/aacencoder.h"
 #include "amr/amrcodec.h"
+#include "nelly/nellycodec.h"
 
 
 
@@ -40,15 +41,16 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 		case AudioCodec::AMRWB:
 			return new AMRWBEncoder(properties);
 
+		case AudioCodec::NELLY8:
+			return new NellyEncoder(properties);
+		case AudioCodec::NELLY11:
+			return new NellyEncoder11Khz(properties);
+
 #if 0	// codecs pas encore portés vers ffmpeg 5
 		case AudioCodec::GSM:
 			return new GSMEncoder(properties);
 		case AudioCodec::SPEEX16:
 			return new SpeexEncoder(properties);
-		case AudioCodec::NELLY8:
-			return new NellyEncoder(properties);
-		case AudioCodec::NELLY11:
-			return new NellyEncoder11Khz(properties);
 #endif
 
 #ifdef OPUS_SUPPORT
@@ -81,15 +83,16 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 			return new PCMADecoder();
 		case AudioCodec::PCMU:
 			return new PCMUDecoder();
+		case AudioCodec::NELLY8:
+			return new NellyDecoder();
+		case AudioCodec::NELLY11:
+			return new NellyDecoder11Khz();
+
 #if 0
 		case AudioCodec::GSM:
 			return new GSMDecoder();
 		case AudioCodec::SPEEX16:
 			return new SpeexDecoder();
-		case AudioCodec::NELLY8:
-			return NULL;
-		case AudioCodec::NELLY11:
-			return new NellyDecoder11Khz();
 #endif
 #ifdef OPUS_SUPPORT
 		case AudioCodec::OPUS:
