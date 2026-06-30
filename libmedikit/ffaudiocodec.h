@@ -25,7 +25,11 @@ struct SwrContext;
 class FfAudioEncoder : public AudioEncoder
 {
 public:
-	FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id);
+	// codec_name : si non nul, tente avcodec_find_encoder_by_name(codec_name) en
+	// premier (pour choisir le codec natif plutôt qu'un wrapper), avec repli sur
+	// avcodec_find_encoder(av_codec). Laisser à nullptr pour le comportement par défaut.
+	FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id,
+	               const char* codec_name = nullptr);
 	virtual ~FfAudioEncoder();
 
 	virtual int   Encode(SWORD *in, int inLen, BYTE* out, int outLen);

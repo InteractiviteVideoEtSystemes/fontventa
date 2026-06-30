@@ -5,6 +5,8 @@
 #include "aac/aacencoder.h"
 #include "amr/amrcodec.h"
 #include "nelly/nellycodec.h"
+#include "gsm/gsmcodec.h"
+#include "opus/opuscodec.h"
 
 
 
@@ -46,17 +48,11 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 		case AudioCodec::NELLY11:
 			return new NellyEncoder11Khz(properties);
 
-#if 0	// codecs pas encore portés vers ffmpeg 5
 		case AudioCodec::GSM:
 			return new GSMEncoder(properties);
-		case AudioCodec::SPEEX16:
-			return new SpeexEncoder(properties);
-#endif
 
-#ifdef OPUS_SUPPORT
 		case AudioCodec::OPUS:
-			return new OpusEncoder(properties);
-#endif
+			return new OPUSEncoder(properties);
 
 		default:
 			Error("Codec not found [%d]\n",codec);
@@ -88,16 +84,11 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 		case AudioCodec::NELLY11:
 			return new NellyDecoder11Khz();
 
-#if 0
 		case AudioCodec::GSM:
 			return new GSMDecoder();
-		case AudioCodec::SPEEX16:
-			return new SpeexDecoder();
-#endif
-#ifdef OPUS_SUPPORT
+
 		case AudioCodec::OPUS:
-			return new OpusDecoder();
-#endif
+			return new OPUSDecoder();
 
 		default:
 			Error("Codec not found [%d]\n",codec);
