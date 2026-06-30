@@ -4,6 +4,7 @@
 #include "h263/mpeg4codec.h"
 #include "h264/h264encoder.h"
 #include "h264/h264decoder.h"
+#include "vp8/vp8decoder.h"
 
 
 bool VideoFrame::Packetize(unsigned int mtu)
@@ -36,6 +37,9 @@ VideoDecoder* VideoCodecFactory::CreateDecoder(VideoCodec::Type codec)
 			return new Mpeg4Decoder();
 		case VideoCodec::H264:
 			return new H264Decoder();
+		case VideoCodec::VP8:
+			// Décodeur VP8 natif ffmpeg (pas libvpx) avec sa dépaquetisation propre.
+			return new VP8Decoder();
 		default:
 			Error("Video decoder not found [%d]\n",codec);
 	}

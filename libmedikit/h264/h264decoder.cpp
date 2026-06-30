@@ -32,6 +32,150 @@ static const uint8_t sync_bytes[] = { 0, 0, 0, 1 };
 	- Delete unused method/function...
 */
 
+/***********************
+* h264_append_nals
+*	Dépaquetise un payload RTP H.264 (RFC 6184 : single NAL, STAP-A, FU-A) et
+*	l'écrit en flux Annex-B (préfixé start-code) dans dest+destLen. Retourne le
+*	nombre d'octets ajoutés. Porté depuis mcu/src/h264/h264decoder.cpp.
+************************/
+static DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, DWORD bufferLen)
+{
+	BYTE nal_unit_type;
+	unsigned int nalu_size;
+
+	DWORD payload_len = bufferLen;
+	BYTE *payload = buffer;
+	BYTE *outdata = dest+destLen;
+	DWORD outsize = 0;
+
+	if (!bufferLen)
+		return 0;
+
+	/* +---------------+
+	 * |F|NRI|  Type   |
+	 * +---------------+ */
+	nal_unit_type = payload[0] & 0x1f;
+
+	switch (nal_unit_type)
+	{
+		case 0:
+		case 30:
+		case 31:
+			return 0;	/* undefined */
+		case 25:
+			return 0;	/* STAP-B : non supporté */
+		case 24:
+		{
+			/* STAP-A : single-time aggregation packet (5.7.1) */
+			payload++;
+			payload_len--;
+
+			while (payload_len > 2)
+			{
+				nalu_size = (payload[0] << 8) | payload[1];
+				payload += 2;
+				payload_len -= 2;
+
+				if (nalu_size > payload_len)
+					nalu_size = payload_len;
+
+				outsize += nalu_size + sizeof (sync_bytes);
+				if (outsize + destLen > destSize)
+					return Error("Frame to small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
+
+				memcpy (outdata, sync_bytes, sizeof (sync_bytes));
+				outdata += sizeof (sync_bytes);
+				memcpy (outdata, payload, nalu_size);
+				outdata += nalu_size;
+
+				payload += nalu_size;
+				payload_len -= nalu_size;
+			}
+			return outsize;
+		}
+		case 26:
+		case 27:
+			return 0;	/* MTAP16/MTAP24 : non supporté */
+		case 28:
+		case 29:
+		{
+			/* FU-A / FU-B : Fragmentation unit (5.8) */
+			BYTE S = (payload[1] & 0x80) == 0x80;
+
+			if (S)
+			{
+				BYTE nal_header = (payload[0] & 0xe0) | (payload[1] & 0x1f);
+				payload += 1;
+				payload_len -= 1;
+
+				nalu_size = payload_len;
+				outsize = nalu_size + sizeof (sync_bytes);
+				if (outsize + destLen > destSize)
+					return Error("Frame too small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
+
+				memcpy (outdata, sync_bytes, sizeof (sync_bytes));
+				outdata += sizeof (sync_bytes);
+				memcpy (outdata, payload, nalu_size);
+				outdata[0] = nal_header;
+				outdata += nalu_size;
+				return outsize;
+			}
+			else
+			{
+				payload += 2;
+				payload_len -= 2;
+
+				outsize = payload_len;
+				if (outsize + destLen > destSize)
+					return Error("Frame too small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
+				memcpy (outdata, payload, outsize);
+				return outsize;
+			}
+		}
+		default:
+		{
+			/* 1-23 : Single NAL unit packet (5.6) */
+			nalu_size = payload_len;
+			outsize = nalu_size + sizeof (sync_bytes);
+			if (outsize + destLen > destSize)
+				return Error("Frame too small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
+			memcpy (outdata, sync_bytes, sizeof (sync_bytes));
+			outdata += sizeof (sync_bytes);
+			memcpy (outdata, payload, nalu_size);
+			outdata += nalu_size;
+			return outsize;
+		}
+	}
+	return 0;
+}
+
+/***********************
+* H264Decoder::DecodePacket
+*	Reconstruit le flux Annex-B (start codes) depuis les NAL RTP, puis décode
+*	la trame complète sur 'last'.
+************************/
+int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
+{
+	int ret = 1;
+
+	if (bufLen+inLen+AV_INPUT_BUFFER_PADDING_SIZE > bufSize)
+	{
+		Log("-H264 DecodePacket buffer size error, reseting\n");
+		bufLen = 0;
+		return 0;
+	}
+
+	bufLen += h264_append_nals(buffer,bufLen,bufSize-AV_INPUT_BUFFER_PADDING_SIZE,in,inLen);
+
+	if (last)
+	{
+		memset(buffer+bufLen,0,AV_INPUT_BUFFER_PADDING_SIZE);
+		ret = Decode(buffer,bufLen);
+		bufLen = 0;
+	}
+	return ret;
+}
+
 #if 0
 DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, DWORD bufferLen, BYTE **nals, DWORD nalSize, DWORD *num)
 {

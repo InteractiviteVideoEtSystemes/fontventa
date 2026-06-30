@@ -17,6 +17,9 @@ class H263Decoder : public FfVideoDecoder
 public:
 	H263Decoder();
 	virtual ~H263Decoder();
+
+	// Dépaquetisation RTP H.263+ (RFC 2429 : retrait de l'en-tête de payload).
+	virtual int DecodePacket(BYTE *in,DWORD len,int lost,int last);
 };
 
 #endif

@@ -65,8 +65,9 @@ endif
 H264DIR=h264
 H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 
-#VP8DIR=vp8
-#VP8OBJ=vp8encoder.o vp8decoder.o
+# VP8 : seul le décodeur (natif ffmpeg) ; pas d'encodeur VP8 natif dans ffmpeg.
+VP8DIR=vp8
+VP8OBJ=vp8decoder.o
 
 #GSMDIR=gsm
 #GSMOBJ=gsmcodec.o
@@ -88,7 +89,7 @@ AMROBJ=amrcodec.o
 
 
 OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o textencoder.o log.o media.o
-OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) ffvideocodec.o ffaudiocodec.o
+OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(VP8OBJ) ffvideocodec.o ffaudiocodec.o
 OBJS+=mp4track.o logo.o  picturestreamer.o mp4recorder.o mp4player.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
@@ -104,6 +105,7 @@ VPATH += %.c $(G711DIR)
 VPATH += %.cpp $(G722DIR)
 VPATH += %.cpp $(AACDIR)
 VPATH += %.cpp $(AMRDIR)
+VPATH += %.cpp $(VP8DIR)
 LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lx264  -lbz2 -lssl -lcrypto -lpthread
 
 #For abyss
