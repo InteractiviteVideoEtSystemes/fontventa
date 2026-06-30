@@ -50,7 +50,9 @@ afin de :
   conçu au §4.3 est volontairement un composant medkit autonome, pour être
   **réutilisé** par cette logique côté mediaserver.
 - Les outils `tools/mp4*.cpp`, `mp4creator/`, `app_mp4/app_mp4.c` ouvrent
-  eux-mêmes le fichier (voir §3).
+  eux-mêmes le fichier (voir §3). On doit supprimer la création des pistes de hint.
+- Le script IVES_convert.ksh qui ne doit plus hinter les vidéos converties.
+
 
 ---
 
@@ -410,6 +412,8 @@ But : figer le comportement **avant** migration pour mesurer la non-régression.
      `MediaFrame` synthétiques dans `mp4recorder`). Recommandé : reproductible
      et committable comme *fixture*.
    - Stocker sous `libmedikit/test/fixtures/sample_avt.mp4`.
+   - utiliser en second fichier de test https://github.com/InteractiviteVideoEtSystemes/fontventa/blob/main/PUB_Guerlain_-_La_petite_robe_noire.mp4
+   - le stocker sous `libmedikit/test/fixtures/guerlin_av.mp4`.
 2. **Harnais de test** `libmedikit/test/test_mp4_roundtrip.cpp` (compilable
    `ASTERISK=no`) qui, avec l'impl **actuelle** :
    - **lit** la fixture, **énumère** les pistes (type, codec, nb échantillons,
@@ -421,15 +425,16 @@ But : figer le comportement **avant** migration pour mesurer la non-régression.
      vers `out_actuel.mp4` ; reparcourt et reproduit le rapport.
    - Affirmations : nb pistes, codecs, ordre/timing cohérents (tolérance sur les
      durées recalculées documentée).
-3. `reference.txt` devient l'**oracle** de non-régression.
+   - fait la même chose avec `libmedikit/test/fixtures/guerlin_av.mp4` dans `reference2.txt`
+3. `reference.txt` et `reference2.txt` devienent l'**oracle** de non-régression.
 
-> Livrable Phase 1 : fixture + `test_mp4_roundtrip` + `reference.txt` tournant
+> Livrable Phase 1 : fixture + `test_mp4_roundtrip` + `reference.txt` + `reference2.txt` tournant
 > contre mp4v2. Aucune modification du code de prod.
 
 ### Phase 2 — Conception détaillée (ce document, à compléter et faire relire)
 
 - Trancher les **points de revue** restants (§6).
-- **Revue manuelle E. Buu** avant d'écrire la moindre ligne de prod.
+- **Revue manuelle E. Buu** avant d'écrire la moindre ligne de prod : fait.
 
 ### Phase 3 — Implémentation et vérification de non-régression
 
