@@ -24,6 +24,8 @@
 #define FOURCIF 12	// 704  x 576
 #define FOURSIF 13	// 704  x 480
 #define XGA     14	// 1024 x 768
+#define WGA     15	// 800  x 480
+#define DCIF    16	// 528  x 384
 #define w144P   17	// 256  x 144
 
 
@@ -41,6 +43,8 @@
 #define SIZE2MUL(x)	((x)&0xFFFFFFFE)
 #define SIZE4MUL(x)	((x)&0xFFFFFFFC)
 #define MAXKBITS 	300
+#define ALIGNEDTO32        __attribute__ ((aligned (32)))
+#define ZEROALIGNEDTO32    __attribute__ ((aligned (32))) = {0}
 
 inline DWORD GetWidth(DWORD size)
 {
@@ -64,6 +68,8 @@ inline DWORD GetWidth(DWORD size)
 		case FOURCIF:	return 704;
 		case FOURSIF:	return 704;
 		case XGA:	return 1024;
+		case WGA:	return 800;
+		case DCIF:	return 528;
 		case w144P:	return 256;
 	}
 	//Nothing
@@ -92,6 +98,8 @@ inline DWORD GetHeight(DWORD size)
 		case FOURCIF:	return 576;
 		case FOURSIF:	return 480;
 		case XGA:	return 768;
+		case WGA:	return 480;
+		case DCIF:	return 384;
 		case w144P:	return 144;
 	}
 	//Nothing

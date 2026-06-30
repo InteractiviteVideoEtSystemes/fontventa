@@ -68,6 +68,50 @@ public:
 		}
 	}
 
+	static const char * RoleToString(MediaRole role)
+	{
+		switch(role)
+		{
+			case VIDEO_MAIN:
+				return "Main";
+			case VIDEO_SLIDES:
+				return "Slides";
+			default:
+				return "Unknown";
+		}
+	}
+
+	// Handle WS, TCP, RTMP and other connection full
+	// media protocols. It assumes here that media connections
+	// are not multiplexed accross sessions
+	enum MediaProtocol
+	{
+	    RTP = 0,
+	    RTMP = 1,
+		WS = 2,
+	    TCP = 3 , // Used for MSRP, BFCP and other TCP based media
+		UDP=4
+	};
+
+	static const char * ProtocolToString(MediaProtocol prot)
+	{
+		switch(prot)
+		{
+			case RTP:
+				return "rtp";
+			case RTMP:
+				return "rtmp";
+			case WS:
+				return "ws";
+			case TCP:
+				return "tcp";
+			case UDP:
+				return "udp";
+			default:
+				return "http";
+		}
+	}
+
 	MediaFrame(Type type,DWORD size, bool owns = true)
 	{
 		//Set media type
@@ -237,6 +281,21 @@ protected:
 	DWORD	duration;
 	DWORD	clockRate;
 	bool	ownsbuffer;
+};
+
+struct MediaStatistics
+{
+	bool		isSending;
+	bool		isReceiving;
+	DWORD		lostRecvPackets;
+	DWORD		numRecvPackets;
+	DWORD		numSendPackets;
+	DWORD		totalRecvBytes;
+	DWORD		totalSendBytes;
+        int             sendingCodec;
+        int             receivingCodec;
+        DWORD           bwOut;
+        DWORD           bwIn;
 };
 
 #endif	/* MEDIA_H */
