@@ -3,6 +3,7 @@
 #include "g711/g711codec.h"
 #include "g722/g722codec.h"
 #include "aac/aacencoder.h"
+#include "amr/amrcodec.h"
 
 
 
@@ -32,6 +33,12 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 
 		case AudioCodec::AAC:
 			return new AACEncoder(properties);
+
+		case AudioCodec::AMR:
+			return new AMRNBEncoder(properties);
+
+		case AudioCodec::AMRWB:
+			return new AMRWBEncoder(properties);
 
 #if 0	// codecs pas encore portés vers ffmpeg 5
 		case AudioCodec::GSM:
@@ -66,6 +73,10 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 
 		case AudioCodec::G722:
 			return new G722Decoder();
+		case AudioCodec::AMR:
+			return new AMRNBDecoder();
+		case AudioCodec::AMRWB:
+			return new AMRWBDecoder();
 		case AudioCodec::PCMA:
 			return new PCMADecoder();
 		case AudioCodec::PCMU:
