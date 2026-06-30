@@ -39,6 +39,7 @@ public:
 	FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id);
 	virtual ~FfVideoDecoder();
 	virtual int Decode(BYTE *in,DWORD len);
+	virtual int DecodePacket(BYTE *in,DWORD len,int lost,int last);
 	virtual int GetWidth()		{ return ctx->width;		};
 	virtual int GetHeight()		{ return ctx->height;		};
 	virtual BYTE* GetFrame()	{ return (BYTE *)frame;		};

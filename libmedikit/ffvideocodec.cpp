@@ -468,3 +468,233 @@ error:
 	if (pkt) av_packet_free(&pkt);
 	return 0;
 }
+
+/* 3 zero bytes syncword (start code Annex-B) */
+static const uint8_t sync_bytes[] = { 0, 0, 0, 1 };
+
+/***********************
+* h264_append_nals
+*	Dépaquetise un payload RTP H.264 (RFC 6184 : single NAL, STAP-A, FU-A)
+*	et l'écrit en flux Annex-B (préfixé start-code) dans dest+destLen.
+*	Porté depuis mcu/src/h264/h264decoder.cpp.
+************************/
+static DWORD h264_append_nals(BYTE *dest, DWORD destLen, DWORD destSize, BYTE *buffer, DWORD bufferLen)
+{
+	BYTE nal_unit_type;
+	unsigned int nalu_size;
+
+	DWORD payload_len = bufferLen;
+	BYTE *payload = buffer;
+	BYTE *outdata = dest+destLen;
+	DWORD outsize = 0;
+
+	//Check
+	if (!bufferLen)
+		return 0;
+
+	/* +---------------+
+	 * |0|1|2|3|4|5|6|7|
+	 * +-+-+-+-+-+-+-+-+
+	 * |F|NRI|  Type   |
+	 * +---------------+
+	 */
+	nal_unit_type = payload[0] & 0x1f;
+
+	switch (nal_unit_type)
+	{
+		case 0:
+		case 30:
+		case 31:
+			/* undefined */
+			return 0;
+		case 25:
+			/* STAP-B : non supporté */
+			return 0;
+		case 24:
+		{
+			/* STAP-A : single-time aggregation packet (5.7.1) */
+			/* Skip STAP-A NAL HDR */
+			payload++;
+			payload_len--;
+
+			while (payload_len > 2)
+			{
+				/* Get NALU size */
+				nalu_size = (payload[0] << 8) | payload[1];
+
+				/* strip NALU size */
+				payload += 2;
+				payload_len -= 2;
+
+				if (nalu_size > payload_len)
+					nalu_size = payload_len;
+
+				outsize += nalu_size + sizeof (sync_bytes);
+
+				if (outsize + destLen > destSize)
+					return Error("Frame to small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
+
+				memcpy (outdata, sync_bytes, sizeof (sync_bytes));
+				outdata += sizeof (sync_bytes);
+
+				memcpy (outdata, payload, nalu_size);
+				outdata += nalu_size;
+
+				payload += nalu_size;
+				payload_len -= nalu_size;
+			}
+
+			return outsize;
+		}
+		case 26:
+		case 27:
+			/* MTAP16/MTAP24 : non supporté */
+			return 0;
+		case 28:
+		case 29:
+		{
+			/* FU-A / FU-B : Fragmentation unit (5.8) */
+			BYTE S;
+
+			/* +---------------+
+			 * |0|1|2|3|4|5|6|7|
+			 * +-+-+-+-+-+-+-+-+
+			 * |S|E|R| Type	   |
+			 * +---------------+
+			 */
+			S = (payload[1] & 0x80) == 0x80;
+
+			if (S)
+			{
+				/* NAL unit starts here : reconstruit l'en-tête NAL */
+				BYTE nal_header = (payload[0] & 0xe0) | (payload[1] & 0x1f);
+
+				/* strip type header, keep FU header (réutilisé pour l'en-tête NAL) */
+				payload += 1;
+				payload_len -= 1;
+
+				nalu_size = payload_len;
+				outsize = nalu_size + sizeof (sync_bytes);
+
+				if (outsize + destLen > destSize)
+					return Error("Frame too small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
+
+				memcpy (outdata, sync_bytes, sizeof (sync_bytes));
+				outdata += sizeof (sync_bytes);
+
+				memcpy (outdata, payload, nalu_size);
+				outdata[0] = nal_header;
+				outdata += nalu_size;
+				return outsize;
+			}
+			else
+			{
+				/* strip off FU indicator and FU header bytes */
+				payload += 2;
+				payload_len -= 2;
+
+				outsize = payload_len;
+				if (outsize + destLen > destSize)
+					return Error("Frame too small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
+				memcpy (outdata, payload, outsize);
+				return outsize;
+			}
+		}
+		default:
+		{
+			/* 1-23 : Single NAL unit packet (5.6) */
+			nalu_size = payload_len;
+			outsize = nalu_size + sizeof (sync_bytes);
+			if (outsize + destLen > destSize)
+				return Error("Frame too small to add NAL [%d,%d,%d]\n",outsize,destLen,destSize);
+			memcpy (outdata, sync_bytes, sizeof (sync_bytes));
+			outdata += sizeof (sync_bytes);
+
+			memcpy (outdata, payload, nalu_size);
+			outdata += nalu_size;
+
+			return outsize;
+		}
+	}
+
+	return 0;
+}
+
+/***********************
+* DecodePacket
+*	Dépaquetise un payload RTP (dispatch selon le codec) en l'accumulant dans
+*	le tampon membre, puis décode la trame complète sur 'last'.
+************************/
+int FfVideoDecoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
+{
+	int ret = 1;
+
+	// Vérifie la place disponible (+ padding ffmpeg + 2 octets H.263)
+	if (bufLen+inLen+AV_INPUT_BUFFER_PADDING_SIZE+2 > bufSize)
+	{
+		Log("-DecodePacket buffer size error, reseting\n");
+		bufLen = 0;
+		return 0;
+	}
+
+	switch (type)
+	{
+		case VideoCodec::H264:
+			// Reconstruit le flux Annex-B (start-codes) depuis les NAL RTP.
+			bufLen += h264_append_nals(buffer,bufLen,bufSize-AV_INPUT_BUFFER_PADDING_SIZE,in,inLen);
+			break;
+
+		case VideoCodec::H263_1998:
+			// En-tête de payload RFC 2429 (H.263+) à retirer.
+			if (inLen)
+			{
+				/*    0                   1
+				      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+				     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+				     |   RR    |P|V|   PLEN    |PEBIT|
+				     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
+				BYTE p    = in[0] & 0x04;
+				BYTE v    = in[0] & 0x02;
+				BYTE plen = ((in[0] & 0x1) << 5) | (in[1] >> 3);
+
+				/* Skip header + extra picture header */
+				BYTE* i  = in+2+plen;
+				DWORD len = inLen-2-plen;
+
+				/* Octet VRC supplémentaire */
+				if (v)
+				{
+					i++;
+					len--;
+				}
+
+				/* Bit P : premier paquet de trame -> préfixer 2 octets 0 (start code) */
+				if (p)
+				{
+					buffer[bufLen]   = 0;
+					buffer[bufLen+1] = 0;
+					bufLen += 2;
+				}
+
+				memcpy(buffer+bufLen,i,len);
+				bufLen += len;
+			}
+			break;
+
+		default:
+			// MPEG4, VP6, FLV1, SORENSON... : payload déjà exploitable tel quel.
+			memcpy(buffer+bufLen,in,inLen);
+			bufLen += inLen;
+			break;
+	}
+
+	// Dernier paquet de la trame : on décode.
+	if (last)
+	{
+		memset(buffer+bufLen,0,AV_INPUT_BUFFER_PADDING_SIZE);
+		ret = Decode(buffer,bufLen);
+		bufLen = 0;
+	}
+
+	return ret;
+}
