@@ -4,7 +4,7 @@
 #include "medkit/audio.h"
 #include "medkit/video.h"
 #include "medkit/text.h"
-#include "medkit/textencoder.h"
+#include "medkit/text2subtitle.h"
 
 
 class Mp4Basetrack
@@ -183,7 +183,7 @@ private:
 
 #define MAX_SUBTITLE_DURATION 7000
 
-class Mp4TextTrack : public Mp4Basetrack, TextEncoder::Listener
+class Mp4TextTrack : public Mp4Basetrack, Text2Subtitle::Listener
 {
 public:
     Mp4TextTrack(MP4FileHandle mp4, int textfile, unsigned long delay) : Mp4Basetrack(mp4, delay)
@@ -222,7 +222,7 @@ public:
     }
 
 private:
-    TextEncoder encoder;
+    Text2Subtitle encoder;
     //MP4TrackId rawtexttrack;
     int textfile;
     SubtitleToRtt * conv1;

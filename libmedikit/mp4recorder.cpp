@@ -4,7 +4,7 @@
 #include "medkit/picturestreamer.h"
 #include "medkit/red.h"
 #include "medkit/log.h"
-#include "medkit/textencoder.h"
+#include "medkit/text2subtitle.h"
 #include "medkit/avcdescriptor.h"
 #include "h264/h264depacketizer.h"
 

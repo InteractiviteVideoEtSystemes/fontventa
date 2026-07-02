@@ -31,31 +31,9 @@ int Error(const char *msg, ...);
 }
 #endif
 
-static inline char PC(uint8_t b)
-{
-        if (b>32&&b<128)
-                return b;
-        else
-                return '.';
-}
-
-
-static inline uint32_t BitPrint(char* out,uint8_t val,uint8_t n)
-{
-        int i, j=0;
-
-        for (i=0;i<(8-n);i++)
-                out[j++] = 'x';
-        for (i=(8-n);i<8;i++)
-                if ((val>>(7-i)) & 1)
-                        out[j++] = '1';
-                else
-                        out[j++] = '0';
-        out[j++] = ' ';
-        out[j] = 0;
-
-        return j;
-}
+// PC() et BitPrint() sont desormais definis dans medkit/tools.h (inclus ci-dessus)
+// pour rester la source unique partagee avec le mcu (dont log.h les attend depuis
+// tools.h). BitDump/Dump ci-dessous les utilisent via cet include.
 
 static inline void BitDump(uint32_t val,uint8_t n)
 {

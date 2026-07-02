@@ -1,9 +1,12 @@
-#ifndef TEXTENCODER_H_
-#define	TEXTENCODER_H_
+#ifndef TEXT2SUBTITLE_H_
+#define	TEXT2SUBTITLE_H_
 
 #include "text.h"
 #include <list>
-class TextEncoder
+// Renommee TextEncoder -> Text2Subtitle pour lever la collision de nom avec la
+// classe TextEncoder du mcu (encodeur temps reel threade), qui est une classe
+// totalement differente. Ici il s'agit d'un accumulateur de sous-titres.
+class Text2Subtitle
 {
 public:
 	class Listener
@@ -13,8 +16,8 @@ public:
 		virtual void onLineRemoved(std::string & prevline) = 0;
 	};
 public:
-	TextEncoder();
-	~TextEncoder();
+	Text2Subtitle();
+	~Text2Subtitle();
 
 	int Accumulate(const std::wstring & text);
 	void GetCurrentLine(std::string & hist);
@@ -55,5 +58,5 @@ private:
 };
 
 
-#endif	/* TEXTENCODER_H */
+#endif	/* TEXT2SUBTITLE_H_ */
 

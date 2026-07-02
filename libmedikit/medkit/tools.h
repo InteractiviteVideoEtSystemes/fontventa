@@ -10,6 +10,62 @@
 #include <limits.h>
 #include <pthread.h>
 
+// --- Symboles remontes depuis mcu/include/tools.h lors de la consolidation ---
+// tools.h du mcu est desormais un shim vers ce fichier ; les helpers ci-dessous
+// (absents cote libmedkit) y sont donc regroupes pour rester la source unique.
+
+#ifndef NULL
+#define NULL ((void *)0)
+#endif  /* NULL */
+
+#ifndef TRUE
+#define TRUE    1
+#endif  /* TRUE */
+
+#ifndef FALSE
+#define FALSE    0
+#endif  /* FALSE */
+
+// Horodatage en millisecondes (getTime() cote libmedkit est en microsecondes).
+inline QWORD getTimeMS()
+{
+	struct timeval now;
+	gettimeofday(&now,0);
+	return (((QWORD)now.tv_sec)*1000+now.tv_usec/1000);
+}
+
+// Remet une pthread_t a zero (utilise par websocketconnection / rtpsession).
+inline void setZeroThread(pthread_t *pthread)
+{
+	memset((BYTE*)pthread,0,sizeof(pthread_t));
+}
+
+// Rendu ASCII imprimable d'un octet et impression binaire (utilises par log.h).
+inline char PC(BYTE b)
+{
+	if (b>32&&b<128)
+		return b;
+	else
+		return '.';
+}
+
+inline DWORD BitPrint(char* out,BYTE val,BYTE n)
+{
+	int j=0;
+
+	for (int i=0;i<(8-n);i++)
+		out[j++] = 'x';
+	for (int i=(8-n);i<8;i++)
+		if ((val>>(7-i)) & 1)
+			out[j++] = '1';
+		else
+			out[j++] = '0';
+	out[j++] = ' ';
+	out[j] = 0;
+
+	return j;
+}
+
 /*************************************
 * blocksignals
 *       Bloquea todas las sygnals para esa thread

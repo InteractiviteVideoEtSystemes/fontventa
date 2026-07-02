@@ -8,30 +8,30 @@
 #include <signal.h>
 #include <set>
 #include <list>
-#include <medkit/textencoder.h>
+#include <medkit/text2subtitle.h>
 #include <medkit/log.h>
 #include <medkit/tools.h>
 #include <medkit/text.h>
 
 
 /**********************************
-* TextEncoder
+* Text2Subtitle
 *	Constructor
 ***********************************/
-TextEncoder::TextEncoder()
+Text2Subtitle::Text2Subtitle()
 {
     listener = NULL;
 }
 
 /*******************************
-* ~TextEncoder
+* ~Text2Subtitle
 *	Destructor.
 ********************************/
-TextEncoder::~TextEncoder()
+Text2Subtitle::~Text2Subtitle()
 {
 }
 
-void TextEncoder::SendLineToHistory()
+void Text2Subtitle::SendLineToHistory()
 {
     //push the line
     scroll.push_back( line );
@@ -47,7 +47,7 @@ void TextEncoder::SendLineToHistory()
     line.clear();
 }
 
-void TextEncoder::PopLineFromHistory()
+void Text2Subtitle::PopLineFromHistory()
 {
     if( scroll.size() > 0 )
     {
@@ -66,7 +66,7 @@ void TextEncoder::PopLineFromHistory()
 * Encode
 *	Capturamos el text y lo mandamos
 *******************************************/
-int TextEncoder::Accumulate( const std::wstring &text )
+int Text2Subtitle::Accumulate( const std::wstring &text )
 {
     //If it has content
     if( !text.empty() )
@@ -171,7 +171,7 @@ int TextEncoder::Accumulate( const std::wstring &text )
     return 0;
 }
 
-void TextEncoder::GetSubtitle( std::wstring &sub )
+void Text2Subtitle::GetSubtitle( std::wstring &sub )
 {
     //Append lines in scroll
     for( std::list<std::wstring>::iterator it = scroll.begin(); it != scroll.end(); it++ )
@@ -189,7 +189,7 @@ void TextEncoder::GetSubtitle( std::wstring &sub )
 	Log("Subtitle has %d lines. Content: '%ls'.\n", scroll.size(), sub.c_str() );
 }
 
-void TextEncoder::GetSubtitle( std::string &sub )
+void Text2Subtitle::GetSubtitle( std::string &sub )
 {
     std::wstring subw;
     GetSubtitle( subw );
@@ -197,7 +197,7 @@ void TextEncoder::GetSubtitle( std::string &sub )
     p.Serialize( sub );
 }
 
-void TextEncoder::GetFirstHistoryLine( std::string &hist )
+void Text2Subtitle::GetFirstHistoryLine( std::string &hist )
 {
     if( scroll.size() > 0 )
     {
@@ -214,7 +214,7 @@ void TextEncoder::GetFirstHistoryLine( std::string &hist )
     }
 }
 
-void TextEncoder::GetCurrentLine( std::string &curline )
+void Text2Subtitle::GetCurrentLine( std::string &curline )
 {
     if( line.size() > 0 )
     {
@@ -227,7 +227,7 @@ void TextEncoder::GetCurrentLine( std::string &curline )
     }
 }
 
-void TextEncoder::GetFullText( std::string &text )
+void Text2Subtitle::GetFullText( std::string &text )
 {
     //Append lines in scroll
     text.clear();
