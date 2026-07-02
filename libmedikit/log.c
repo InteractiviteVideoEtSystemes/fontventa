@@ -93,7 +93,7 @@ static int LogToFile(const char *msg, va_list ap)
 static int DebugToFile(const char *msg, va_list ap)
 {
 	vprintf(msg, ap);
-	return ;
+	return 1;
 }
 
 static int ErrorToFile(const char *msg, va_list ap)

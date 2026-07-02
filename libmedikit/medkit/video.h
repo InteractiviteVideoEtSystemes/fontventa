@@ -106,6 +106,48 @@ private:
 	void PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz, bool last);
 };
 
+class VideoInput
+{
+public:
+        VideoInput() { sizeChanged = false; }
+
+	virtual int   StartVideoCapture(int width,int height,int fps)=0;
+	virtual BYTE* GrabFrame(DWORD timeout)=0;
+	virtual void  CancelGrabFrame()=0;
+	virtual DWORD GetBufferSize()=0;
+	virtual int   StopVideoCapture() = 0;
+        virtual DWORD GetNativeWidth() { return 0; }
+        virtual DWORD GetNativeHeight() { return 0; }
+
+        bool HasNativeSizeChanged()
+        {
+            if (sizeChanged)
+            {
+                sizeChanged = false;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+protected:
+    bool sizeChanged;
+};
+
+class VideoOutput
+{
+protected:
+	bool keepAspect;
+
+public:
+	void    KeepAspectRatio(bool keep) { keepAspect = keep; }
+	bool	IsAspectRatioKept() { return keepAspect; }
+	virtual int NextFrame(BYTE *pic)=0;
+	virtual int SetVideoSize(int width,int height)=0;
+};
+
 
 
 class VideoEncoder

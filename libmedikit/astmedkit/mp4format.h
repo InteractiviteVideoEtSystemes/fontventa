@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 
 #include <medkit/mp4recorder.h>
-#include <medkit/mp4player.h>
+#include <medkit/mp4reader.h>
 
 /**
  * Convert an asterisk format into a medkit codec type.

@@ -256,6 +256,7 @@ DWORD UTF8Parser::Serialize(std::string & str, bool append)
 	    str.push_back( (char) '.' );
 	}
     }
+    return (DWORD)str.length();
 }
 
 DWORD UTF8Parser::Truncate(DWORD size)

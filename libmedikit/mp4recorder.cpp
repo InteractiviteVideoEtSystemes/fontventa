@@ -381,6 +381,7 @@ int mp4recorder::ProcessFrame( const MediaFrame *f, bool secondary )
         default:
             break;
     }
+    return 0;
 }
 
 void  mp4recorder::SetInitialDelay( unsigned long delay )

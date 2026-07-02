@@ -374,7 +374,7 @@ void Mp4RecorderEnableVideoPrologue( struct mp4rec *r, bool yesno )
 
 struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, MP4FileHandle mp4, bool transcodeVideo, int renderText )
 {
-    mp4player *p = new mp4player( chan, mp4 );
+    mp4reader *p = new mp4reader( chan, mp4 );
 
     if( p )
     {
@@ -466,7 +466,7 @@ struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, MP4FileHandle mp4, bo
 
 int Mp4PlayerPlayNextFrame( struct ast_channel *chan, struct mp4play *p )
 {
-    mp4player *p2 = (mp4player *)p;
+    mp4reader *p2 = (mp4reader *)p;
     unsigned long wait = 0;
     int ret = -1;
 
@@ -536,6 +536,6 @@ int Mp4PlayerPlayNextFrame( struct ast_channel *chan, struct mp4play *p )
 
 void Mp4PlayerDestroy( struct mp4play *p )
 {
-    mp4player *p2 = (mp4player *)p;
+    mp4reader *p2 = (mp4reader *)p;
     if( p2 ) delete p2;
 }

@@ -122,7 +122,7 @@ bool AudioFrame::Packetize(unsigned int mtu)
 		unsigned int rtplen = GetLength() - i;
 
 		if (rtplen > paksize ) rtplen = paksize;
-		AddRtpPacket(i, rtplen, 0, NULL, false);
+		AddRtpPacket(i, rtplen, NULL, 0, false);
 	}
 	return true;
 }

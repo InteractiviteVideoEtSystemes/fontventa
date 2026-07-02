@@ -47,6 +47,7 @@ Logo & Logo::operator =(const Logo& l)
 
 	memcpy(frame,l.frame, size);
 
+	return *this;
 }
 
 int Logo::Load(const char* fileName, unsigned int pwidth, unsigned int pheight)

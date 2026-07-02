@@ -173,7 +173,7 @@ public:
 		cache = cache << n;
 		//Update cached bytes
 		cached -= n;
-
+		return cached;
 	}
 
 	inline DWORD GetCached(DWORD n)

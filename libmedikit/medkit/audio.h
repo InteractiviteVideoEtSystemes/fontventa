@@ -76,6 +76,27 @@ private:
 	unsigned int packetization;
 };
 
+class AudioInput
+{
+public:
+	virtual DWORD GetNativeRate()=0;
+	virtual DWORD GetRecordingRate()=0;
+	virtual int RecBuffer(SWORD *buffer,DWORD size)=0;
+	virtual void  CancelRecBuffer()=0;
+	virtual int StartRecording(DWORD samplerate)=0;
+	virtual int StopRecording()=0;
+};
+
+class AudioOutput
+{
+public:
+	virtual DWORD GetNativeRate()=0;
+	virtual DWORD GetPlayingRate()=0;
+	virtual int PlayBuffer(SWORD *buffer,DWORD size,DWORD frameTime)=0;
+	virtual int StartPlaying(DWORD samplerate)=0;
+	virtual int StopPlaying()=0;
+};
+
 class AudioCodecFactory
 {
 public:

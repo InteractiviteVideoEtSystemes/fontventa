@@ -36,7 +36,10 @@ public:
     void SetInitialDelay(unsigned long delay) { initialDelay = delay; }
     void IncreateInitialDelay(unsigned long delay) { initialDelay = initialDelay + delay; }
     bool IsEmpty() { return (sampleId == 0 && frame == NULL); }
-	void Reset() { sampleId = 1; }
+	void Reset() { sampleId = 1; numHintSamples = 0; }
+    QWORD Seek(QWORD timeMs);
+    QWORD SeekNearestSyncFrame(QWORD timeMs);
+    QWORD SearchNearestSyncFrame(QWORD timeMs);
 
     virtual const MediaFrame * ReadFrame();
     QWORD GetNextFrameTime();

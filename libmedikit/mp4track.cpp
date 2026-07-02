@@ -302,6 +302,67 @@ const MediaFrame *Mp4Basetrack::ReadFrameWithoutHint()
     return frame;
 }
 
+QWORD Mp4Basetrack::Seek( QWORD timeMs )
+{
+    MP4TrackId seekTrack = (hinttrack != MP4_INVALID_TRACK_ID) ? hinttrack : mediatrack;
+    MP4Duration when = (MP4Duration)timeMs * timeScale / 1000;
+    MP4SampleId id = MP4GetSampleIdFromTime( mp4, seekTrack, when, false );
+    if( id == MP4_INVALID_SAMPLE_ID )
+        return MP4_INVALID_TIMESTAMP;
+    sampleId = id;
+    numHintSamples = 0;
+    QWORD ts = MP4GetSampleTime( mp4, seekTrack, sampleId );
+    if( ts == MP4_INVALID_TIMESTAMP )
+        return MP4_INVALID_TIMESTAMP;
+    return MP4ConvertFromTrackTimestamp( mp4, seekTrack, ts, 1000 );
+}
+
+QWORD Mp4Basetrack::SeekNearestSyncFrame( QWORD timeMs )
+{
+    MP4TrackId seekTrack = (hinttrack != MP4_INVALID_TRACK_ID) ? hinttrack : mediatrack;
+    MP4Duration when = (MP4Duration)timeMs * timeScale / 1000;
+    MP4SampleId id = MP4GetSampleIdFromTime( mp4, seekTrack, when, false );
+    if( id == MP4_INVALID_SAMPLE_ID )
+        return MP4_INVALID_TIMESTAMP;
+    while( id > 1 )
+    {
+        if( MP4GetSampleSync( mp4, seekTrack, id ) > 0 )
+        {
+            sampleId = id;
+            numHintSamples = 0;
+            QWORD ts = MP4GetSampleTime( mp4, seekTrack, sampleId );
+            if( ts == MP4_INVALID_TIMESTAMP )
+                return MP4_INVALID_TIMESTAMP;
+            return MP4ConvertFromTrackTimestamp( mp4, seekTrack, ts, 1000 );
+        }
+        id--;
+    }
+    sampleId = 1;
+    numHintSamples = 0;
+    return MP4_INVALID_TIMESTAMP;
+}
+
+QWORD Mp4Basetrack::SearchNearestSyncFrame( QWORD timeMs )
+{
+    MP4TrackId seekTrack = (hinttrack != MP4_INVALID_TRACK_ID) ? hinttrack : mediatrack;
+    MP4Duration when = (MP4Duration)timeMs * timeScale / 1000;
+    MP4SampleId id = MP4GetSampleIdFromTime( mp4, seekTrack, when, false );
+    if( id == MP4_INVALID_SAMPLE_ID )
+        return MP4_INVALID_TIMESTAMP;
+    while( id > 1 )
+    {
+        if( MP4GetSampleSync( mp4, seekTrack, id ) > 0 )
+        {
+            QWORD ts = MP4GetSampleTime( mp4, seekTrack, id );
+            if( ts == MP4_INVALID_TIMESTAMP )
+                return MP4_INVALID_TIMESTAMP;
+            return MP4ConvertFromTrackTimestamp( mp4, seekTrack, ts, 1000 );
+        }
+        id--;
+    }
+    return MP4_INVALID_TIMESTAMP;
+}
+
 int Mp4AudioTrack::Create( const char *trackName, int codec, DWORD samplerate )
 {
     // Create audio track
@@ -535,6 +596,7 @@ int Mp4VideoTrack::Create( const char *trackName, int codec, DWORD bitrate )
 
     Log( "-mp4recorder: created video track [%s] id:%d, hinttrack id:%d using codec %s.\n",
         this->trackName.c_str(), mediatrack, hinttrack, VideoCodec::GetNameFor( (VideoCodec::Type)codec ) );
+    return 1;
 }
 
 
@@ -810,6 +872,7 @@ int Mp4TextTrack::Create( const char *trackName, int codec, DWORD bitrate )
     mediatrack = MP4AddSubtitleTrack( mp4, 1000, 384, 60 );
     if( IsOpen() && trackName != NULL ) MP4SetTrackName( mp4, mediatrack, trackName );
     if( IsOpen() ) Log( "-mp4recorder: created text track %d.\n", mediatrack );
+    return 1;
 }
 
 int Mp4TextTrack::ProcessFrame( const MediaFrame *f )
