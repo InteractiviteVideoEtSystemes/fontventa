@@ -5,7 +5,7 @@
 
 #ifdef __cplusplus
 
-#include <medkit/mp4recorder.h>
+#include <medkit/mp4writer.h>
 #include <medkit/mp4reader.h>
 
 /**
@@ -21,11 +21,11 @@ bool AstFormatToCodec( int format, VideoCodec::Type &codec );
  * Asterisk-independent mp4recorder. All the actual MP4 writing is delegated to
  * the base class.
  */
-class AstMp4Recorder : public mp4recorder
+class AstMp4Recorder : public mp4writer
 {
 public:
     AstMp4Recorder( void * ctxdata, MP4FileHandle mp4, bool waitVideo )
-        : mp4recorder( ctxdata, mp4, waitVideo ) {}
+        : mp4writer( ctxdata, mp4, waitVideo ) {}
 
     /**
      * Process ONE asterisk frame and record it into the MP4 file
@@ -44,7 +44,7 @@ public:
     int ProcessFrame( struct ast_frame * f, bool secondary = false );
 
     /* Make the base (MediaFrame) overload visible through this class too */
-    using mp4recorder::ProcessFrame;
+    using mp4writer::ProcessFrame;
 };
 
 #endif /* __cplusplus */

@@ -1,5 +1,5 @@
-#ifndef _MP4RECORDER_H_
-#define _MP4RECORDER_H_
+#ifndef _MP4WRITER_H_
+#define _MP4WRITER_H_
 
 #include <mp4v2/mp4v2.h>
 
@@ -20,16 +20,16 @@ struct VideoTranscoder;
 #define MP4_TEXT_TRACK  	3
 
 /**
- *  Class that records a media stream into an MP4 file.
+ *  Class that writes a media stream into an MP4 file.
  *  This class is independent of Asterisk : it only deals with medkit MediaFrame
  *  objects. The Asterisk binding (recording ast_frame) lives in astmedkit/mp4format.h
  *  (class AstMp4Recorder).
  */
-class mp4recorder
+class mp4writer
 {
 public:
-    mp4recorder(void * ctxdata, MP4FileHandle mp4, bool waitVideo);
-    virtual ~mp4recorder();
+    mp4writer(void * ctxdata, MP4FileHandle mp4, bool waitVideo);
+    virtual ~mp4writer();
 
     /**
      * Create an audio track
@@ -141,4 +141,4 @@ protected:
 
 #endif /* __cplusplus */
 
-#endif /* _MP4RECORDER_H_ */
+#endif /* _MP4WRITER_H_ */

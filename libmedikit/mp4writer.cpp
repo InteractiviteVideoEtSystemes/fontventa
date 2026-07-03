@@ -1,5 +1,5 @@
 #include "medkit/astcpp.h"
-#include "medkit/mp4recorder.h"
+#include "medkit/mp4writer.h"
 #include "mp4track.h"
 #include "medkit/picturestreamer.h"
 #include "medkit/red.h"
@@ -8,7 +8,7 @@
 #include "medkit/avcdescriptor.h"
 #include "h264/h264depacketizer.h"
 
-mp4recorder::mp4recorder( void *ctxdata, MP4FileHandle mp4, bool waitVideo )
+mp4writer::mp4writer( void *ctxdata, MP4FileHandle mp4, bool waitVideo )
 {
     this->ctxdata = ctxdata;
     this->mp4 = mp4;
@@ -54,7 +54,7 @@ const char *idxToMedia( int i )
     }
 }
 
-mp4recorder::~mp4recorder()
+mp4writer::~mp4writer()
 {
     const MP4Tags *tags = MP4TagsAlloc();
 
@@ -90,7 +90,7 @@ mp4recorder::~mp4recorder()
     if( pcstream ) delete pcstream;
 }
 
-void mp4recorder::DumpInfo()
+void mp4writer::DumpInfo()
 {
     const char *media;
     for( int i = 0; i < MP4_TEXT_TRACK + 1; i++ )
@@ -106,7 +106,7 @@ void mp4recorder::DumpInfo()
 }
 
 
-int mp4recorder::AddTrack( AudioCodec::Type codec, DWORD samplerate, const char *trackName )
+int mp4writer::AddTrack( AudioCodec::Type codec, DWORD samplerate, const char *trackName )
 {
     if( mediatracks[MP4_AUDIO_TRACK] == NULL )
     {
@@ -124,7 +124,7 @@ int mp4recorder::AddTrack( AudioCodec::Type codec, DWORD samplerate, const char 
     return 0;
 }
 
-int mp4recorder::AddTrack( VideoCodec::Type codec, DWORD width, DWORD height, DWORD bitrate, const char *trackName, bool secondary )
+int mp4writer::AddTrack( VideoCodec::Type codec, DWORD width, DWORD height, DWORD bitrate, const char *trackName, bool secondary )
 {
     int trackidx = secondary ? MP4_VIDEODOC_TRACK : MP4_VIDEO_TRACK;
 
@@ -146,7 +146,7 @@ int mp4recorder::AddTrack( VideoCodec::Type codec, DWORD width, DWORD height, DW
     return 0;
 }
 
-int mp4recorder::AddTrack( TextCodec::Type codec, const char *trackName, int textfile )
+int mp4writer::AddTrack( TextCodec::Type codec, const char *trackName, int textfile )
 {
     if( mediatracks[MP4_TEXT_TRACK] == NULL )
     {
@@ -173,7 +173,7 @@ int mp4recorder::AddTrack( TextCodec::Type codec, const char *trackName, int tex
     return 0;
 }
 
-int mp4recorder::IsVideoStarted()
+int mp4writer::IsVideoStarted()
 {
     Mp4VideoTrack *vt = (Mp4VideoTrack *)mediatracks[MP4_VIDEO_TRACK];
     if( vt != NULL )
@@ -186,7 +186,7 @@ int mp4recorder::IsVideoStarted()
     return -1;
 }
 
-int mp4recorder::ProcessFrame( const MediaFrame *f, bool secondary )
+int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
 {
     int trackidx;
 
@@ -384,7 +384,7 @@ int mp4recorder::ProcessFrame( const MediaFrame *f, bool secondary )
     return 0;
 }
 
-void  mp4recorder::SetInitialDelay( unsigned long delay )
+void  mp4writer::SetInitialDelay( unsigned long delay )
 {
     initialDelay = delay;
 
@@ -395,7 +395,7 @@ void  mp4recorder::SetInitialDelay( unsigned long delay )
 
 }
 
-void mp4recorder::Flush()
+void mp4writer::Flush()
 {
     if( mediatracks[MP4_VIDEO_TRACK] )
     {
@@ -408,7 +408,7 @@ void mp4recorder::Flush()
 
 void Mp4RecoderVideoCb( void *ctxdata, int outputcodec, const char *output, size_t outputlen )
 {
-    mp4recorder *r2 = (mp4recorder *)ctxdata;
+    mp4writer *r2 = (mp4writer *)ctxdata;
     VideoFrame vf( (VideoCodec::Type)outputcodec, 2000, false );
 
     if( r2 )
