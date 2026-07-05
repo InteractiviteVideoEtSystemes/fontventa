@@ -7,6 +7,7 @@
 class AudioEncoder
 {
 public:
+	virtual ~AudioEncoder() {}
 	virtual int   Encode(SWORD *in,int inLen,BYTE* out,int outLen)=0;
 	virtual DWORD TrySetRate(DWORD rate)=0;
 	virtual DWORD GetRate()=0;
@@ -20,6 +21,7 @@ public:
 class AudioDecoder
 {
 public:
+	virtual ~AudioDecoder() {}
 	virtual int   Decode(BYTE *in,int inLen,SWORD* out,int outLen)=0;
 	virtual DWORD TrySetRate(DWORD rate)=0;
 	virtual DWORD GetRate()=0;
