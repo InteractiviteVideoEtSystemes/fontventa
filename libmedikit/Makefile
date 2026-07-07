@@ -96,7 +96,7 @@ NELLYOBJ=nellycodec.o
 
 OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o text2subtitle.o log.o media.o
 OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(SPEEXOBJ) $(VP8OBJ) ffvideocodec.o ffaudiocodec.o
-OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o mp4reader.o
+OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o mp4reader.o ffmp4reader.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
 ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
@@ -145,6 +145,7 @@ libmedkit.a: $(OBJS)
 
 mp4writer.o: medkit/mp4writer.h medkit/media.h
 mp4reader.o: medkit/mp4reader.h medkit/media.h
+ffmp4reader.o: medkit/ffmp4reader.h medkit/media.h
 mp4format.o: astmedkit/mp4format.h medkit/mp4writer.h medkit/mp4reader.h medkit/media.h
 
 clean:

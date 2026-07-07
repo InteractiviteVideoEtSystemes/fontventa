@@ -132,24 +132,39 @@ bool VideoFrame::PacketizeH264(unsigned int mtu)
 
 	ClearRTPPacketizationInfo();
 
-	if (p[l] == 0 && p[l+1] == 0)
+	// Saut d'un éventuel start code de tête : UNIQUEMENT en mode Annex-B.
+	// En AVCC (useStartCode==false), les 4 premiers octets sont un préfixe de
+	// longueur ; un préfixe valant 00 00 01 xx (taille dans [256,512[) NE doit
+	// PAS être confondu avec un start code.
+	if (useStartCode)
 	{
-		if (p[l+2] == 1)
-			l += 3;
-	}
-	else if(p[l+2] == 0 && p[l+3] == 1)
-	{
-		l += 4;
+		if (p[l] == 0 && p[l+1] == 0)
+		{
+			if (p[l+2] == 1)
+				l += 3;
+		}
+		else if(p[l+2] == 0 && p[l+3] == 1)
+		{
+			l += 4;
+		}
 	}
 
 	while (l < GetLength())
 	{
 		if (useStartCode)
+		{
 			naluSz = DetectNaluBoundary(p + l, GetLength() - l);
+			if (naluSz == 0 || naluSz > GetLength()) return false;
+		}
 		else
+		{
+			// AVCC : lire la taille puis SAUTER le préfixe de longueur avant
+			// de packetiser la NALU elle-même.
 			naluSz = ReadNaluSize(p + l);
+			l += naluSizeLen;
+			if (naluSz == 0 || l + naluSz > GetLength()) return false;
+		}
 
-		if (naluSz == 0 || naluSz > GetLength()) return false;
 		bool last = (l + naluSz >= GetLength());
 		PacketizeH264Nalu(mtu, l, naluSz, last);
 		l += naluSz;
@@ -165,7 +180,9 @@ void VideoFrame::PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz,
 
 	if (naluSz <= mtu)
 	{
-		AddRtpPacket(l, naluSz, 0L, 0, last);
+		// NALU tenant dans un seul paquet : référencer la NALU à `offset`
+		// (et non l, qui vaut 0 → pointerait sur le préfixe de longueur).
+		AddRtpPacket(offset, naluSz, 0L, 0, last);
 		return;
 	}
 
