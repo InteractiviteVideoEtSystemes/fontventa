@@ -42,10 +42,20 @@ public:
 
 		switch(codec)
 		{
+			// Codecs « sample-based » : chaque octet est un échantillon
+			// indépendant, on découpe donc à 160 octets = 20 ms de RTP.
 			case AudioCodec::PCMA:
 			case AudioCodec::PCMU:
-			default:
+			case AudioCodec::G722:
 				packetization = 160;
+				break;
+			// Codecs « frame-based » (Opus, AMR, GSM, G722.1, Speex, AAC…) :
+			// une trame codée est une unité indivisible qui doit tenir dans
+			// UN paquet RTP. On met une valeur large (plafonnée au mtu par
+			// Packetize) pour ne jamais fragmenter une trame en octets — sans
+			// quoi le flux (Opus notamment) devient indécodable côté pair.
+			default:
+				packetization = 0xFFFF;
 				break;
 		}
 	}
