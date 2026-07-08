@@ -57,6 +57,12 @@ public:
     bool GetCodec( AudioCodec::Type & codec ) const;
     bool GetVideoCodec( VideoCodec::Type & codec ) const;
 
+    // Interroge le fichier SANS effet de bord (ne change pas la piste
+    // sélectionnée) : renvoie true si une piste mappable de ce codec existe.
+    // Sert à la négociation de codec côté appelant (choix d'une alternative).
+    bool HasAudioCodec( AudioCodec::Type codec ) const;
+    bool HasVideoCodec( VideoCodec::Type codec ) const;
+
     // Métadonnées
     bool   HasAudioTrack()  { return audioStreamIdx >= 0; }
     bool   HasVideoTrack()  { return videoStreamIdx >= 0; }

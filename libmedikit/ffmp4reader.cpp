@@ -95,43 +95,16 @@ Mp4FfReader::Mp4FfReader( const char * filename )
         return;
     }
 
-    // Détection des meilleures pistes vidéo / audio, codecs mappables uniquement
+    // Détection de la piste texte uniquement. Le choix des pistes audio/vidéo
+    // est DIFFÉRÉ à OpenTrack : un enregistrement maison porte souvent la même
+    // audio (et parfois la même vidéo) en plusieurs codecs ALTERNATIFS
+    // (p.ex. PCMU ET PCMA sur toute la durée), et c'est l'appelant qui choisit,
+    // via prefCodec, la piste correspondant au codec négocié avec le pair.
     for( unsigned i = 0; i < fmtctx->nb_streams; i++ )
     {
         AVCodecParameters * par = fmtctx->streams[i]->codecpar;
 
-        if( par->codec_type == AVMEDIA_TYPE_VIDEO && videoStreamIdx < 0 )
-        {
-            VideoCodec::Type vc;
-            if( MapVideoCodec( par->codec_id, vc ) )
-            {
-                videoStreamIdx = i;
-                videoCodec = vc;
-                if( par->codec_id == AV_CODEC_ID_H264 &&
-                    par->extradata != NULL && par->extradata_size >= 5 )
-                    videoNalLengthSize = ( par->extradata[4] & 0x03 ) + 1;
-            }
-            else
-            {
-                Log( "Mp4FfReader: video stream %u codec %s non supporté (v1)\n",
-                     i, avcodec_get_name( par->codec_id ) );
-            }
-        }
-        else if( par->codec_type == AVMEDIA_TYPE_AUDIO && audioStreamIdx < 0 )
-        {
-            AudioCodec::Type ac;
-            if( MapAudioCodec( par->codec_id, ac ) )
-            {
-                audioStreamIdx = i;
-                audioCodec = ac;
-            }
-            else
-            {
-                Log( "Mp4FfReader: audio stream %u codec %s non supporté (v1)\n",
-                     i, avcodec_get_name( par->codec_id ) );
-            }
-        }
-        else if( par->codec_type == AVMEDIA_TYPE_SUBTITLE && textStreamIdx < 0 )
+        if( par->codec_type == AVMEDIA_TYPE_SUBTITLE && textStreamIdx < 0 )
         {
             // Seul le mov_text (tx3g = 3GPP timed text) est exploitable : ses
             // échantillons sont [2 octets de longueur][UTF-8], convertibles en
@@ -144,20 +117,8 @@ Mp4FfReader::Mp4FfReader( const char * filename )
         }
     }
 
-    // Buffers réutilisables + paramètres H264
-    if( HasVideoTrack() )
-    {
-        videoFrame = new VideoFrame( videoCodec, 0x40000 /* 256KB, réalloue si besoin */ );
-        videoFrame->SetH264NalSizeLength( videoNalLengthSize );
-        if( videoCodec == VideoCodec::H264 )
-            BuildVideoParams();
-    }
-    if( HasAudioTrack() )
-        audioFrame = new AudioFrame( audioCodec, ClockRateFor( audioCodec ) );
-
-    Log( "<Mp4FfReader opened [%s] video:%d(%s) audio:%d(%s)\n", filename,
-         HasVideoTrack(), HasVideoTrack() ? VideoCodec::GetNameFor( videoCodec ) : "-",
-         HasAudioTrack(), HasAudioTrack() ? AudioCodec::GetNameFor( audioCodec ) : "-" );
+    Log( "<Mp4FfReader opened [%s] (%u streams, sélection audio/vidéo à OpenTrack)\n",
+         filename, fmtctx->nb_streams );
 }
 
 Mp4FfReader::~Mp4FfReader()
@@ -178,32 +139,110 @@ Mp4FfReader::~Mp4FfReader()
 int Mp4FfReader::OpenTrack( VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
                             VideoCodec::Type prefCodec, bool cantranscode, bool secondary )
 {
-    if( videoStreamIdx < 0 ) return 0;
+    // Parmi TOUTES les pistes vidéo mappables du fichier, choisir celle qui
+    // correspond au codec préféré (prefCodec), sinon la mieux classée dans
+    // outputCodecs (passthrough : le codec doit être demandé, pas de transcodage).
+    int              bestIdx   = -1;
+    VideoCodec::Type bestCodec = (VideoCodec::Type)-1;
+    unsigned int     bestRank  = nbCodecs;   // rang dans outputCodecs
 
-    for( unsigned int i = 0; i < nbCodecs; i++ )
-        if( outputCodecs[i] == videoCodec )
-            return 1;
+    for( unsigned i = 0; i < fmtctx->nb_streams; i++ )
+    {
+        AVCodecParameters * par = fmtctx->streams[i]->codecpar;
+        if( par->codec_type != AVMEDIA_TYPE_VIDEO ) continue;
+        VideoCodec::Type vc;
+        if( !MapVideoCodec( par->codec_id, vc ) )
+        {
+            Log( "Mp4FfReader: video stream %u codec %s non supporté (v1)\n",
+                 i, avcodec_get_name( par->codec_id ) );
+            continue;
+        }
 
-    // Codec du fichier non demandé par l'appelant, et pas de transcodage en v1
-    Log( "Mp4FfReader: video codec %s non demandé par l'appelant (pas de transcodage v1)\n",
-         VideoCodec::GetNameFor( videoCodec ) );
-    videoStreamIdx = -1;
-    return 0;
+        unsigned int rank = nbCodecs;
+        for( unsigned int k = 0; k < nbCodecs; k++ )
+            if( outputCodecs[k] == vc ) { rank = k; break; }
+        if( rank == nbCodecs ) continue;   // codec non demandé
+
+        if( vc == prefCodec ) { bestIdx = i; bestCodec = vc; break; }   // priorité absolue
+        if( rank < bestRank ) { bestIdx = i; bestCodec = vc; bestRank = rank; }
+    }
+
+    if( bestIdx < 0 )
+    {
+        Log( "Mp4FfReader: aucune piste vidéo compatible (pas de transcodage v1)\n" );
+        videoStreamIdx = -1;
+        return 0;
+    }
+
+    videoStreamIdx = bestIdx;
+    videoCodec     = bestCodec;
+
+    // Taille du préfixe de longueur NALU (avcC) + buffers, propres à la piste choisie
+    AVCodecParameters * par = fmtctx->streams[videoStreamIdx]->codecpar;
+    videoNalLengthSize = 4;
+    if( par->codec_id == AV_CODEC_ID_H264 &&
+        par->extradata != NULL && par->extradata_size >= 5 )
+        videoNalLengthSize = ( par->extradata[4] & 0x03 ) + 1;
+
+    if( videoFrame ) { delete videoFrame; videoFrame = NULL; }
+    videoFrame = new VideoFrame( videoCodec, 0x40000 /* 256KB, réalloue si besoin */ );
+    videoFrame->SetH264NalSizeLength( videoNalLengthSize );
+    if( videoCodec == VideoCodec::H264 )
+        BuildVideoParams();
+
+    Log( "Mp4FfReader: piste vidéo %d sélectionnée (%s)\n",
+         videoStreamIdx, VideoCodec::GetNameFor( videoCodec ) );
+    return 1;
 }
 
 int Mp4FfReader::OpenTrack( AudioCodec::Type outputCodecs[], unsigned int nbCodecs,
                             AudioCodec::Type prefCodec, bool cantranscode )
 {
-    if( audioStreamIdx < 0 ) return 0;
+    // Parmi TOUTES les pistes audio mappables du fichier (souvent la même audio
+    // en plusieurs codecs alternatifs — PCMU ET PCMA), choisir celle qui
+    // correspond au codec préféré (prefCodec), sinon la mieux classée dans
+    // outputCodecs. Passthrough : le codec doit être demandé, pas de transcodage.
+    int              bestIdx   = -1;
+    AudioCodec::Type bestCodec = (AudioCodec::Type)-1;
+    unsigned int     bestRank  = nbCodecs;
 
-    for( unsigned int i = 0; i < nbCodecs; i++ )
-        if( outputCodecs[i] == audioCodec )
-            return 1;
+    for( unsigned i = 0; i < fmtctx->nb_streams; i++ )
+    {
+        AVCodecParameters * par = fmtctx->streams[i]->codecpar;
+        if( par->codec_type != AVMEDIA_TYPE_AUDIO ) continue;
+        AudioCodec::Type ac;
+        if( !MapAudioCodec( par->codec_id, ac ) )
+        {
+            Log( "Mp4FfReader: audio stream %u codec %s non supporté (v1)\n",
+                 i, avcodec_get_name( par->codec_id ) );
+            continue;
+        }
 
-    Log( "Mp4FfReader: audio codec %s non demandé par l'appelant (pas de transcodage v1)\n",
-         AudioCodec::GetNameFor( audioCodec ) );
-    audioStreamIdx = -1;
-    return 0;
+        unsigned int rank = nbCodecs;
+        for( unsigned int k = 0; k < nbCodecs; k++ )
+            if( outputCodecs[k] == ac ) { rank = k; break; }
+        if( rank == nbCodecs ) continue;   // codec non demandé
+
+        if( ac == prefCodec ) { bestIdx = i; bestCodec = ac; break; }   // priorité absolue
+        if( rank < bestRank ) { bestIdx = i; bestCodec = ac; bestRank = rank; }
+    }
+
+    if( bestIdx < 0 )
+    {
+        Log( "Mp4FfReader: aucune piste audio compatible (pas de transcodage v1)\n" );
+        audioStreamIdx = -1;
+        return 0;
+    }
+
+    audioStreamIdx = bestIdx;
+    audioCodec     = bestCodec;
+
+    if( audioFrame ) { delete audioFrame; audioFrame = NULL; }
+    audioFrame = new AudioFrame( audioCodec, ClockRateFor( audioCodec ) );
+
+    Log( "Mp4FfReader: piste audio %d sélectionnée (%s)\n",
+         audioStreamIdx, AudioCodec::GetNameFor( audioCodec ) );
+    return 1;
 }
 
 int Mp4FfReader::OpenTrack( TextCodec::Type c, BYTE pt, int rendering )
@@ -252,6 +291,32 @@ bool Mp4FfReader::GetCodec( AudioCodec::Type & codec ) const
     if( audioStreamIdx < 0 ) return false;
     codec = audioCodec;
     return true;
+}
+
+bool Mp4FfReader::HasAudioCodec( AudioCodec::Type codec ) const
+{
+    if( !fmtctx ) return false;
+    for( unsigned i = 0; i < fmtctx->nb_streams; i++ )
+    {
+        AVCodecParameters * par = fmtctx->streams[i]->codecpar;
+        if( par->codec_type != AVMEDIA_TYPE_AUDIO ) continue;
+        AudioCodec::Type ac;
+        if( MapAudioCodec( par->codec_id, ac ) && ac == codec ) return true;
+    }
+    return false;
+}
+
+bool Mp4FfReader::HasVideoCodec( VideoCodec::Type codec ) const
+{
+    if( !fmtctx ) return false;
+    for( unsigned i = 0; i < fmtctx->nb_streams; i++ )
+    {
+        AVCodecParameters * par = fmtctx->streams[i]->codecpar;
+        if( par->codec_type != AVMEDIA_TYPE_VIDEO ) continue;
+        VideoCodec::Type vc;
+        if( MapVideoCodec( par->codec_id, vc ) && vc == codec ) return true;
+    }
+    return false;
 }
 
 // ---------------------------------------------------------------------------
