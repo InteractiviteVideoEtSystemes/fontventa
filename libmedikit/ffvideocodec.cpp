@@ -95,41 +95,160 @@ static void AllocateVAAPIFrame(AVCodecContext * ctx)
 /***********************
 * FfVideoEncoder
 ************************/
-FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id)
+FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id, bool tryHW)
 {
 	// Set default values
 	frame	= NULL;
 	ctx	= NULL;
+	codec	= NULL;
 	picture	= NULL;
+	hw_frame = nullptr;
 	opened	= false;
 	type    = codec_id;
 	format  = 0;
+	avCodecId = av_codec;
+	hwFailed = false;
+	pts	= 0;
 
 	// Init framerate
 	SetFrameRate(5,300,20);
 
-	// Get encoder
-	codec = avcodec_find_encoder(av_codec);
-
-	// Check codec
-	if(!codec)
-	{
-		Error("Encoder [%s] not supported in ffmpeg\n", avcodec_get_name(av_codec));
+	// Choix de l'encodeur (VAAPI si demandé et utilisable, sinon logiciel)
+	if (!SelectCodec(tryHW))
 		return;
+
+	picture = av_frame_alloc();
+}
+
+/***********************
+* SelectCodec
+*	Choisit l'encodeur (VAAPI ou logiciel) et alloue le contexte
+************************/
+bool FfVideoEncoder::SelectCodec(bool tryHW)
+{
+	// Libère un éventuel contexte précédent (bascule VAAPI -> logiciel)
+	if (ctx)
+		avcodec_free_context(&ctx);
+	codec = NULL;
+
+	if (tryHW && !hwFailed)
+	{
+		// Cherche un encodeur VAAPI pour ce codec. avcodec_find_encoder()
+		// renvoie l'encodeur logiciel (ex libx264) : les encodeurs matériels
+		// (h264_vaapi...) doivent être sélectionnés explicitement.
+		void *it = NULL;
+		const AVCodec *c;
+		while (!codec && (c = av_codec_iterate(&it)))
+		{
+			if (!av_codec_is_encoder(c) || c->id != avCodecId)
+				continue;
+			for (int i = 0; ; i++)
+			{
+				const AVCodecHWConfig *hc = avcodec_get_hw_config(c, i);
+				if (!hc)
+					break;
+				if (hc->device_type == AV_HWDEVICE_TYPE_VAAPI)
+				{
+					codec = c;
+					break;
+				}
+			}
+		}
+
+		if (codec)
+		{
+			AVBufferRef *dev = NULL;
+			int ret = av_hwdevice_ctx_create(&dev, AV_HWDEVICE_TYPE_VAAPI, NULL, NULL, 0);
+			if (ret < 0)
+			{
+				Log("FFMpeg encoder: no usable VAAPI device (%s), falling back to software\n", AVErrToStr(ret));
+				codec = NULL;
+				hwFailed = true;
+			}
+			else
+			{
+				ctx = avcodec_alloc_context3(codec);
+				ctx->hw_device_ctx = dev;
+				Log("FFMpeg encoder: using VAAPI hardware encoder [%s]\n", codec->name);
+				return true;
+			}
+		}
+		else
+		{
+			Log("FFMpeg encoder: no VAAPI encoder for [%s], using software\n", avcodec_get_name(avCodecId));
+		}
 	}
+
+	// Encodeur logiciel par défaut
+	codec = avcodec_find_encoder(avCodecId);
+	if (!codec)
+		return Error("Encoder [%s] not supported in ffmpeg\n", avcodec_get_name(avCodecId));
 
 	if (codec->type != AVMEDIA_TYPE_VIDEO)
 	{
-		Error("FFMpeg encoder [%s] is not a video encoder\n", codec->name);
-		return;
+		codec = NULL;
+		return Error("FFMpeg encoder [%s] is not a video encoder\n", avcodec_get_name(avCodecId));
 	}
 
-	//Alocamos el conto y el picture
 	ctx = avcodec_alloc_context3(codec);
-	picture = av_frame_alloc();
-	hw_frame = nullptr;
+	return true;
+}
 
-	TryVAAPI(ctx, codec);
+/***********************
+* CloseCodec
+*	Ferme le codec et repart sur un contexte vierge (même encodeur)
+************************/
+void FfVideoEncoder::CloseCodec()
+{
+	if (!ctx)
+		return;
+
+	// Conserve le device VAAPI pour le contexte suivant
+	AVBufferRef *dev = ctx->hw_device_ctx ? av_buffer_ref(ctx->hw_device_ctx) : NULL;
+
+	if (hw_frame)
+		av_frame_free(&hw_frame);
+
+	avcodec_free_context(&ctx);
+	ctx = avcodec_alloc_context3(codec);
+	ctx->hw_device_ctx = dev;
+
+	opened = false;
+}
+
+/***********************
+* ReopenCodec
+*	Réouverture à chaud aux dimensions courantes
+************************/
+int FfVideoEncoder::ReopenCodec()
+{
+	int width  = ctx->width;
+	int height = ctx->height;
+
+	CloseCodec();
+
+	return SetSize(width, height);
+}
+
+/***********************
+* FallbackToSoftware
+*	Bascule définitive sur l'encodeur logiciel après un échec VAAPI
+************************/
+int FfVideoEncoder::FallbackToSoftware()
+{
+	int width  = ctx->width;
+	int height = ctx->height;
+
+	hwFailed = true;
+
+	if (hw_frame)
+		av_frame_free(&hw_frame);
+	avcodec_free_context(&ctx);
+
+	if (!SelectCodec(false))
+		return 0;
+
+	return SetSize(width, height);
 }
 
 /***********************
@@ -158,6 +277,14 @@ FfVideoEncoder::~FfVideoEncoder()
 int FfVideoEncoder::SetSize(int width, int height)
 {
 	Log("-SetSize [%d,%d]\n",width,height);
+
+	if (!ctx)
+		return Error("FfVideoEncoder: no encoder context\n");
+
+	// Redimensionnement à chaud : un contexte ffmpeg ne se rouvre pas, on le
+	// remplace par un contexte vierge sur le même encodeur.
+	if (opened)
+		CloseCodec();
 
 	// Set pixel format
 	if (ctx->hw_device_ctx)
@@ -218,7 +345,7 @@ int FfVideoEncoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 ************************/
 int FfVideoEncoder::OpenCodec()
 {
-	Log("-OpenCodec %s [%dbps,%dfps]\n", VideoCodec::GetNameFor(type), bitrate, fps);
+	Log("-OpenCodec %s [%s,%dbps,%dfps]\n", VideoCodec::GetNameFor(type), codec ? codec->name : "none", bitrate, fps);
 
 	// Check
 	if (codec==NULL)
@@ -246,19 +373,12 @@ int FfVideoEncoder::OpenCodec()
 
 	// Bitrate,fps
 	ctx->bit_rate 		= bitrate;
-	ctx->bit_rate_tolerance = bitrate/fps+1;
 	ctx->time_base          = (AVRational){1,fps};
 	ctx->gop_size		= intraPeriod;
-
-	// Encoder quality
-	ctx->rc_max_rate	= bitrate;
-	ctx->rc_buffer_size	= bitrate/fps+1;
-	ctx->rc_initial_buffer_occupancy = 0;
 	ctx->max_b_frames	= 0;
-	// Tell the encoder to use fixed quantizer (qscale)
-	ctx->flags |= AV_CODEC_FLAG_QSCALE;
-	// Set the global quality based on a quantizer value of 10
-	ctx->global_quality = FF_QP2LAMBDA * 10;
+
+	// Réglages spécifiques au codec (rate control, profil, options privées)
+	ConfigureContext();
 
 	if (ctx->hw_device_ctx)
 	{
@@ -280,24 +400,51 @@ int FfVideoEncoder::OpenCodec()
 			}
 		}
 
-		// L'init VAAPI (AllocateVAAPIFrame ou l'allocation de hw_frame) a échoué :
-		// SetSize() avait déjà positionné le format matériel, il faut revenir au logiciel.
+		// L'init VAAPI (AllocateVAAPIFrame ou l'allocation de hw_frame) a
+		// échoué : l'encodeur matériel ne sait pas consommer de trames
+		// système, bascule complète sur l'encodeur logiciel.
 		if (!ctx->hw_device_ctx)
-		{
-			ctx->pix_fmt = AV_PIX_FMT_YUV420P;
-			picture->format = AV_PIX_FMT_YUV420P;
-		}
+			return FallbackToSoftware();
 	}
 
 	// Open codec
 	if (avcodec_open2(ctx, codec, NULL)<0)
+	{
+		// Un encodeur VAAPI peut refuser à l'ouverture (profil/résolution non
+		// supportés par le driver) : on retombe sur l'encodeur logiciel.
+		if (IsHWAccelerated())
+		{
+			Error("ffmpeg is unable to open VAAPI encoder %s, falling back to software\n", codec->name);
+			return FallbackToSoftware();
+		}
 		return Error("ffmpeg is unable to open %s encoder\n", codec->name);
+	}
 
 	// We are opened
 	opened=true;
 
 	// Exit
 	return 1;
+}
+
+/***********************
+* ConfigureContext
+*	Réglages par défaut des encodeurs logiciels ffmpeg (H263, MPEG4, FLV1...) :
+*	quantizer fixe historique. Redéfini par les codecs à rate control propre
+*	(H264 : CRF+VBV libx264 ou VBR VAAPI).
+************************/
+void FfVideoEncoder::ConfigureContext()
+{
+	ctx->bit_rate_tolerance = bitrate/fps+1;
+
+	// Encoder quality
+	ctx->rc_max_rate	= bitrate;
+	ctx->rc_buffer_size	= bitrate/fps+1;
+	ctx->rc_initial_buffer_occupancy = 0;
+	// Tell the encoder to use fixed quantizer (qscale)
+	ctx->flags |= AV_CODEC_FLAG_QSCALE;
+	// Set the global quality based on a quantizer value of 10
+	ctx->global_quality = FF_QP2LAMBDA * 10;
 }
 
 
@@ -312,18 +459,22 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 	if (!opened)
 		return NULL;
 
-	AVPacket* pkt = av_packet_alloc();
-
 	int numPixels = ctx->width*ctx->height;
 
 	//Comprobamos el tamano
 	if (numPixels*3/2 != len)
 		return NULL;
 
+	AVPacket* pkt = av_packet_alloc();
+
 	//POnemos los valores
 	picture->data[0] = in;
 	picture->data[1] = in+numPixels;
 	picture->data[2] = in+numPixels*5/4;
+
+	// pts monotone requis par les encodeurs ffmpeg (libx264 notamment),
+	// en unités de time_base (1/fps)
+	picture->pts = pts++;
 
 	bool firstPacket = true;
 
@@ -339,14 +490,20 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 		ret = av_hwframe_get_buffer(ctx->hw_frames_ctx, hw_frame, 0);
 		if (ret < 0) {
 			Error("Failed to get VAAPI surface: %s\n", AVErrToStr(ret));
+			av_packet_free(&pkt);
 			return NULL;
 		}
 
 		ret = av_hwframe_transfer_data(hw_frame, picture, 0);
 		if (ret < 0) {
 			Error("Failed to transfer frame to VAAPI: %s\n", AVErrToStr(ret));
+			av_packet_free(&pkt);
 			return NULL;
 		}
+
+		// Recopie pts et pict_type/key_frame (demande d'intra FPU) sur la
+		// trame matérielle : av_hwframe_transfer_data ne copie que les pixels.
+		av_frame_copy_props(hw_frame, picture);
 
 		ret = avcodec_send_frame(ctx, hw_frame);
 	}
@@ -358,8 +515,13 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 
 	if (ret < 0) {
 		Error("Encoding error: %s\n", AVErrToStr(ret));
+		av_packet_free(&pkt);
 		return NULL;
 	}
+
+	// La demande d'intra éventuelle (FPU) est partie avec cette trame
+	picture->key_frame = 0;
+	picture->pict_type = AV_PICTURE_TYPE_NONE;
 
 	DWORD size = 0;
 
@@ -375,12 +537,11 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 				//Is intra
 				frame->SetIntra( (pkt->flags & AV_PKT_FLAG_KEY) != 0 );
 
-				//Unset fpu
-				picture->key_frame = 0;
-				picture->pict_type = AV_PICTURE_TYPE_NONE;
-
 				//Clean all previous packets
 				frame->ClearRTPPacketizationInfo();
+
+				//Reset previous content
+				frame->SetLength(0);
 
 				firstPacket = false;
 			}
@@ -389,7 +550,8 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 			// Avec l'API send/receive, ffmpeg écrit dans SON propre tampon
 			// (pkt->data) ; la packetisation RTP (PacketizeFrame) référence des
 			// offsets dans le tampon de la frame, qu'il faut donc remplir.
-			frame->SetMedia(pkt->data, pkt->size);
+			// Accumulation : un même envoi peut produire plusieurs paquets.
+			frame->AppendMedia(pkt->data, pkt->size);
 			size += pkt->size;
 		}
 		else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
@@ -466,15 +628,10 @@ int FfVideoEncoder::FastPictureUpdate()
 	//If we have picture
 	if (picture)
 	{
-		//Set it
+		// Recopié sur la trame VAAPI par av_frame_copy_props() au moment de
+		// l'encodage : un seul point de forçage.
 		picture->key_frame = 1;
 		picture->pict_type = AV_PICTURE_TYPE_I;
-	}
-
-	if (ctx->hw_device_ctx && hw_frame) 
-	{
-		hw_frame->key_frame = 1;
-		hw_frame->pict_type = AV_PICTURE_TYPE_I;
 	}
 
 	return 1;

@@ -11,7 +11,6 @@ extern "C" {
 
 // libswresample n'est nécessaire que dans le .cpp : pointeur opaque ici.
 struct SwrContext;
-enum AVCodecID id;
 
 bool MapAudioCodec( enum AVCodecID id, AudioCodec::Type & out );
 

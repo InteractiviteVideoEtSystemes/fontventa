@@ -28,7 +28,10 @@ inline bool MapVideoCodec( enum AVCodecID id, VideoCodec::Type & out )
 class FfVideoEncoder : public VideoEncoder
 {
 public:
-	FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id);
+	// tryHW : essaye d'abord un encodeur matériel VAAPI pour ce codec ; en cas
+	// d'indisponibilité (pas de device, driver refusant profil/résolution...)
+	// l'encodeur logiciel ffmpeg est utilisé en repli.
+	FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id, bool tryHW = false);
 	virtual ~FfVideoEncoder();
 	virtual VideoFrame* EncodeFrame(BYTE *in, DWORD len);
 	virtual int FastPictureUpdate();
@@ -38,11 +41,35 @@ public:
 protected:
 	int OpenCodec();
 
+	// Un AVCodecContext ffmpeg ne se rouvre pas : ferme le codec et réalloue
+	// un contexte vierge sur le même encodeur, en conservant le device VAAPI.
+	void CloseCodec();
+
+	// Réouverture à chaud aux dimensions courantes (reconfiguration).
+	int ReopenCodec();
+
+	// Choisit l'encodeur (VAAPI si tryHW et utilisable, sinon l'encodeur
+	// logiciel ffmpeg par défaut) et alloue le contexte.
+	bool SelectCodec(bool tryHW);
+
+	// Bascule définitive sur l'encodeur logiciel après un échec VAAPI,
+	// et rouvre aux dimensions courantes.
+	int FallbackToSoftware();
+
+	bool IsHWAccelerated() const	{ return ctx && ctx->hw_device_ctx; }
+
+	// Réglages spécifiques au codec (rate control, profil, options privées),
+	// appelés par OpenCodec() juste avant avcodec_open2(). Défaut : quantizer
+	// fixe historique (H263, MPEG4, FLV1...).
+	virtual void ConfigureContext();
+
 	// Construit l'info de packetisation RTP de `frame` (déjà rempli). Défaut :
 	// schéma H263 (saut du start code 2 octets + préfixe RFC 2429). Les codecs
-	// à packetisation RTP propre (VP8...) la redéfinissent dans leur sous-classe.
+	// à packetisation RTP propre (H264, VP8...) la redéfinissent dans leur
+	// sous-classe.
 	virtual void PacketizeFrame();
 
+	enum AVCodecID	avCodecId;
 	const AVCodec 	*codec;
 	AVCodecContext	*ctx;
 	AVFrame		*picture;
@@ -53,6 +80,8 @@ protected:
 	int		intraPeriod;
 	VideoFrame	*frame;
 	VideoCodec::Type type;
+	int64_t		pts;
+	bool		hwFailed;	// l'init VAAPI a déjà échoué : ne plus réessayer
 
 
 	//Hardware acceleration

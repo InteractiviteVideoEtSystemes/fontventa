@@ -2,42 +2,34 @@
 #define _H264ENCODER_H_
 #include "../medkit/codecs.h"
 #include "../medkit/video.h"
-extern "C" {
-#include <x264.h>
-}
+#include "../ffvideocodec.h"
+#include <string>
 
-class H264Encoder : public VideoEncoder
+// Encodeur H264 sur ffmpeg : h264_vaapi si un device VAAPI est utilisable,
+// libx264 en repli. Remplace l'ancien encodeur x264 direct.
+class H264Encoder : public FfVideoEncoder
 {
 public:
 	H264Encoder(const Properties& properties);
 	virtual ~H264Encoder();
 	virtual VideoFrame* EncodeFrame(BYTE *in,DWORD len);
-	virtual int FastPictureUpdate();
-	virtual int SetSize(int width,int height);
+	// Reconfiguration à chaud (adaptation dynamique de débit) : mise à jour
+	// du VBV relue par libx264 à chaque trame, ou réouverture throttlée en
+	// VAAPI (qui ne sait pas changer son rate control en cours de route).
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod);
 
+protected:
+	virtual void ConfigureContext();
+	virtual void PacketizeFrame();
+
 private:
-	int OpenCodec();
-	x264_t*		enc;
-	x264_param_t    params;
-	x264_nal_t*	nals;
-	x264_picture_t  pic;
-	x264_picture_t 	pic_out;
-	VideoFrame*	frame;
-	int curNal;
-	int numNals;
-	int width;
-	int height;
-	int numPixels;
-	int bitrate;
-	int fps;
-	int format;
-	int opened;
-	int intraPeriod;
-	int pts;
+	void GetProfileLevel(int &profile, int &level);
+
 	std::string h264ProfileLevelId;
 	bool intraRefresh;
 	int qPel;
+	// Débit effectif à l'ouverture : sert à décider une réouverture VAAPI
+	int openedBitrate;
 };
 
 #endif

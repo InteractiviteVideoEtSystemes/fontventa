@@ -1,58 +1,33 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <inttypes.h>
+#include <vector>
+#include <utility>
 #include "../medkit/log.h"
+#include "../medkit/tools.h"
 #include "h264encoder.h"
 
+extern "C" {
+#include <libavutil/opt.h>
+}
 
-#define X264_REOPEN 1
-#define ABR_VBV_ENCODING 0
-#define CRF_VBV_ENCODING 1
 //////////////////////////////////////////////////////////////////////////
 //Encoder
-// 	Codificador H264
+// 	Codificador H264 (ffmpeg : h264_vaapi si dispo, libx264 sinon)
 //
 //////////////////////////////////////////////////////////////////////////
-
-static void X264_log(void *p, int level, const char *fmt, va_list args)
-{
-	static char line[1024];
-	//Create line
-	vsnprintf(line,1024,fmt,args);
-	//Remove underflow
-	if (strstr(line,"VBV underflow")!=NULL)
-		//Not show it
-		return;
-	//Print it
-	Log("x264 %s",line);
-}
 
 /**********************
 * H264Encoder
 *	Constructor de la clase
 ***********************/
 H264Encoder::H264Encoder(const Properties& properties)
+	: FfVideoEncoder(properties, AV_CODEC_ID_H264, VideoCodec::H264, /*tryHW*/ true)
 {
-	// Set default values
-	type    = VideoCodec::H264;
-	format  = 0;
-	frame	= NULL;
-	pts	= 0;
-
-	//No estamos abiertos
-	opened = false;
-
-	//No bitrate
-	bitrate = 0;
-	fps = 0;
-	intraPeriod = 0;
-
 	h264ProfileLevelId = properties.GetProperty("h264.profile-level-id",std::string("42801F"));
 	intraRefresh = (bool) properties.GetProperty("h264.intra_refresh",0);
 	qPel =  properties.GetProperty("h264.qpel",3);
-	//Reste values
-	enc = NULL;
+	openedBitrate = 0;
 }
 
 /**********************
@@ -61,403 +36,245 @@ H264Encoder::H264Encoder(const Properties& properties)
 ***********************/
 H264Encoder::~H264Encoder()
 {
-	//If we have an encoder
-	if (enc)
-		//Close it
-		x264_encoder_close(enc);
-	//If we have created a frame
-	if (frame)
-		//Delete it
-		delete(frame);
 }
 
 /**********************
-* SetSize
-*	Inicializa el tama�o de la imagen a codificar
+* GetProfileLevel
+*	Décode le profile-level-id SDP (ex 42801F), avec le même écrêtage de
+*	level que l'ancien encodeur x264
 ***********************/
-
-
-
-int H264Encoder::SetSize(int width, int height)
+void H264Encoder::GetProfileLevel(int &profile, int &level)
 {
-	Log("H264Encoder: SetSize [%d,%d]\n",width,height);
+	profile = strtol(h264ProfileLevelId.substr(0,2).c_str(),NULL,16);
+	level   = strtol(h264ProfileLevelId.substr(4,2).c_str(),NULL,16);
 
-        if (width <= 0 || height <= 0 || (width%2) == 1 )
-                return Error("H264Encoder: invalid size %d x %d\n", width, height);
+	if (level < 9)
+		// level choisi par l'encodeur selon le débit
+		level = -1;
+	else if (level >13 && level < 20)
+		level = 13;
+	else if (level > 22 && level < 30)
+		level = 30;
+	else if (level > 32 && level < 40)
+		level = 32;
+	else if (level > 42 && level < 50)
+		level = 42;
+	else if (level > 52)
+		level = 52;
+}
 
+/**********************
+* ConfigureContext
+*	Réglages H264 du contexte ffmpeg, appelés par OpenCodec() juste avant
+*	avcodec_open2() (le générique bit_rate/time_base/gop_size est déjà posé)
+***********************/
+void H264Encoder::ConfigureContext()
+{
+	int profile;
+	int level;
 
-        if (opened)
-        {
-            Log("-H264Encoder: reconfig size\n");
+	GetProfileLevel(profile, level);
 
-#ifdef X264_REOPEN
-            /* Here we close and reopen the encoder to apply the new size */
+	if (level > 0)
+		ctx->level = level;
 
-            if (enc != NULL)
-            {
-                    x264_encoder_close(enc);
-                    enc =NULL;
-            }
-            opened=false;
-            this->width = width;
-            this->height = height;
-            numPixels = width*height;
-            return OpenCodec();
-#else
-          /*
-           *  x264_encoder_reconfig does not seem to work with size.
-           * it prodices a log such as:
-           *
-           * "x264 Input picture width (352) is greater than stride (250)"
-           */
-          // Set encoding context size
+	if (IsHWAccelerated())
+	{
+		// --- Encodeur VAAPI ---
+		// VBR piloté par bit_rate (moyenne) / rc_max_rate (crête). Pas de
+		// reconfiguration en cours de route : SetFrameRate() rouvre le codec.
+		ctx->bit_rate	    = bitrate*0.8;
+		ctx->rc_max_rate    = bitrate;
+		ctx->rc_buffer_size = bitrate;	// 1 seconde de VBV
 
-
-            params.i_width 	= width;
-            params.i_height	= height;
-            int ret = x264_encoder_reconfig(enc,&params);
-            if ( ret == 0 )
-            {
-                // Update size parameters
-                this->width = width;
-                this->height = height;
-                numPixels = width*height;
-
-                // Reset picture structures
-                memset(&pic,0,sizeof(x264_picture_t));
-                memset(&pic_out,0,sizeof(x264_picture_t));
-
-                //Set picture type
-                pic.i_type = X264_TYPE_AUTO;
-                return 1;
-            }
-            else
-            {
-                return Error("264Encoder: Failed to resize. X264 errcode=%d.\n", ret);
-            }
-#endif
+		switch (profile)
+		{
+			case 100:
+			case 88:
+				ctx->profile = FF_PROFILE_H264_HIGH;
+				break;
+			case 77:
+				ctx->profile = FF_PROFILE_H264_MAIN;
+				break;
+			case 66:
+			default:
+				// le baseline "pur" n'est pas supporté par la plupart
+				// des drivers VAAPI
+				ctx->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
+				break;
+		}
 	}
-        else
-        {
-            this->width = width;
-            this->height = height;
-            numPixels = width*height;
+	else
+	{
+		// --- libx264 ---
+		// Mêmes réglages que l'ancien encodeur x264 direct (CRF borné VBV,
+		// zerolatency, slices calibrées sur le payload RTP).
+		av_opt_set(ctx->priv_data, "preset", "medium", 0);
+		av_opt_set(ctx->priv_data, "tune", "zerolatency", 0);
+		// FPU => vraie IDR (resynchronisation du décodeur distant)
+		av_opt_set_int(ctx->priv_data, "forced-idr", 1, 0);
+		// CRF 23 borné par le VBV : le débit suit rc_max_rate/rc_buffer_size,
+		// que le wrapper libx264 relit à chaque trame => reconfigurable à
+		// chaud sans réouverture (cf. SetFrameRate).
+		av_opt_set_double(ctx->priv_data, "crf", 23, 0);
+		ctx->rc_max_rate    = 0.6*bitrate;
+		ctx->rc_buffer_size = ctx->rc_max_rate;
 
-            return OpenCodec();
-        }
+		switch (profile)
+		{
+			case 100:
+			case 88:
+				av_opt_set(ctx->priv_data, "profile", "high", 0);
+				break;
+			case 77:
+				av_opt_set(ctx->priv_data, "profile", "main", 0);
+				break;
+			case 66:
+			default:
+				av_opt_set(ctx->priv_data, "profile", "baseline", 0);
+				break;
+		}
+
+		char x264params[256];
+		snprintf(x264params, sizeof(x264params),
+			 "slice-max-size=%d:scenecut=0:subme=%d:ref=1%s",
+			 RTPPAYLOADSIZE-8, qPel, intraRefresh ? ":intra-refresh=1" : "");
+		av_opt_set(ctx->priv_data, "x264-params", x264params, 0);
+
+		ctx->thread_count = 1;
+	}
+
+	Log("-H264Encoder: %s encoder, profile-level-id %s => profile %d level %d\n",
+	    IsHWAccelerated() ? "VAAPI" : "software", h264ProfileLevelId.c_str(), profile, level);
+
+	// Mémorise le débit d'ouverture pour la logique de réouverture VAAPI
+	openedBitrate = bitrate;
 }
 
 /************************
 * SetFrameRate
-* 	Indica el numero de frames por segudno actual
+* 	Reconfiguration à chaud pour l'adaptation dynamique de débit. Appelé
+* 	depuis la boucle d'encodage (même thread que EncodeFrame), potentiellement
+* 	à chaque trame.
 **************************/
 int H264Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 {
-	// Save frame rate
-	if (frames>0)
-		fps=frames;
-	else
-		fps=10;
+	// Mémorise fps/débit/période intra
+	FfVideoEncoder::SetFrameRate(frames,kbits,intraPeriod);
 
-	// Save bitrate
-	if (kbits>0)
-		bitrate=kbits;
-
-	//Save intra period
-	if (intraPeriod>0)
-		//Set maximium intra period
-		this->intraPeriod = intraPeriod;
-	else
-		//No maximum intra period
-		this->intraPeriod = X264_KEYINT_MAX_INFINITE;
-
-	//Check if already opened
 	if (opened)
 	{
-		//Reconfig parameters -> FPS is not allowed to be recondigured
-		params.i_keyint_max         = intraPeriod ;
-		params.i_frame_reference    = 1;
-		params.rc.i_rc_method	    = X264_RC_ABR;
-#if ABR_VBV_ENCODING
-		params.rc.i_bitrate         = 0.6*bitrate;
-		params.rc.i_vbv_max_bitrate = params.rc.i_bitrate;
-		params.rc.i_vbv_buffer_size = params.rc.i_vbv_max_bitrate;
-#elif CRF_VBV_ENCODING
-		params.rc.i_rc_method	    = X264_RC_CRF;
-		params.rc.i_vbv_max_bitrate = 0.6*bitrate;
-		params.rc.i_vbv_buffer_size = params.rc.i_vbv_max_bitrate;
-		params.rc.f_rf_constant 	= 23;
-#else
-		params.rc.i_bitrate         = 0.8*bitrate;
-		params.rc.i_vbv_max_bitrate = 1.1*bitrate;
-		params.rc.i_vbv_buffer_size = 1.1*bitrate/fps;
-#endif
-		params.rc.f_vbv_buffer_init = 0;
-		params.rc.f_rate_tolerance  = 0.2;
-		params.i_fps_num	    	= fps;
-		//Reconfig
-		x264_encoder_reconfig(enc,&params);
+		if (IsHWAccelerated())
+		{
+			// VAAPI ne sait pas changer son rate control en cours de route :
+			// réouverture (=> nouvelle IDR), seulement sur une variation
+			// significative (>=10%) pour ne pas rouvrir à chaque
+			// micro-ajustement de la boucle d'adaptation (+8%/s).
+			if (openedBitrate > 0 && abs(bitrate-openedBitrate)*10 >= openedBitrate)
+				ReopenCodec();
+		}
+		else
+		{
+			// Le wrapper libx264 relit ces champs à chaque trame et applique
+			// x264_encoder_reconfig() : mise à jour sans réouverture ni IDR.
+			ctx->bit_rate	    = bitrate;
+			ctx->rc_max_rate    = 0.6*bitrate;
+			ctx->rc_buffer_size = ctx->rc_max_rate;
+		}
 	}
 
 	return 1;
 }
-
-/**********************
-* OpenCodec
-*	Abre el codec
-***********************/
-int H264Encoder::OpenCodec()
-{
-	Log("-OpenCodec H264 [%dkbps,%dfps,%dintra]\n",bitrate,fps,intraPeriod);
-
-	// Check
-	if (opened)
-		return Error("Codec already opened\n");
-
-	// Reset default values
-	x264_param_default(&params);
-
-	// Use a defulat preset
-	x264_param_default_preset(&params,"medium","zerolatency");
-
-	// Set log
-	params.pf_log               = X264_log;
-
-#ifdef MCUDEBUG
-	//Set debug level loging
-	params.i_log_level          = X264_LOG_INFO;
-#else
-	//Set error level for loging
-	params.i_log_level          = X264_LOG_ERROR;
-#endif
-
-
-	// Set encoding context size
-	params.i_width 	= width;
-	params.i_height	= height;
-
-	// Set parameters
-	params.i_keyint_max         = intraPeriod;
-	params.i_frame_reference    = 1;
-	params.rc.i_rc_method	    = X264_RC_ABR;
-#if ABR_VBV_ENCODING
-	params.rc.i_bitrate         = 0.6*bitrate;
-	params.rc.i_vbv_max_bitrate = params.rc.i_bitrate;
-	params.rc.i_vbv_buffer_size = params.rc.i_vbv_max_bitrate;
-	Log("-H264Encoder: Use ABR VBV encoding b=%d, mb=%d, vbv=%d\n", (int)params.rc.i_bitrate, (int)params.rc.i_vbv_max_bitrate, (int)params.rc.i_vbv_buffer_size);
-#elif CRF_VBV_ENCODING
-	params.rc.i_rc_method	    = X264_RC_CRF;
-	params.rc.i_vbv_max_bitrate = 0.6*bitrate;
-	params.rc.i_vbv_buffer_size = params.rc.i_vbv_max_bitrate;
-	params.rc.f_rf_constant 	= 23;
-	Log("-H264Encoder: Use CRF VBV encoding crf=%d, mb=%d, vbv=%d\n", (int)params.rc.f_rf_constant, (int)params.rc.i_vbv_max_bitrate, (int)params.rc.i_vbv_buffer_size);
-#else
-	params.rc.i_bitrate         = 0.8*bitrate;
-	params.rc.i_vbv_max_bitrate = 1.1*bitrate;
-	params.rc.i_vbv_buffer_size = (1.1*bitrate)/fps;
-#endif
-	params.rc.f_vbv_buffer_init = 0;
-	params.rc.f_rate_tolerance  = 0.2;
-	params.rc.b_stat_write      = 0;
-	params.i_slice_max_size     = RTPPAYLOADSIZE-8;
-	params.i_threads	    = 1; //0 is auto!!
-	params.b_sliced_threads	    = 0;
-	params.rc.i_lookahead       = 0;
-	params.i_sync_lookahead	    = 0;
-	params.i_bframe             = 0;
-	params.b_annexb		    = 0;
-	params.b_repeat_headers     = 1;
-	params.i_fps_num	    = fps;
-	params.i_fps_den	    = 1;
-	params.b_intra_refresh	    = (intraRefresh) ? 1 : 0;
-	params.vui.i_chroma_loc	    = 0;
-	params.i_scenecut_threshold = 0;
-	params.analyse.i_subpel_refine = qPel; //Subpixel motion estimation and mode decision :3 qpel (medim:6, ultrafast:1)
-	Log("h264 qPel is %d.\n", qPel );
-	Log("h264: progressive intra refresh is %s.\n", (intraRefresh)?"enabled" : "disabled" );
-	//Get profile and level
-	int profile = strtol(h264ProfileLevelId.substr(0,2).c_str(),NULL,16);
-	int level   = strtol(h264ProfileLevelId.substr(4,2).c_str(),NULL,16);
-
-	//Set level
-	if (level < 9)
-	{
-		// level set by x264 based on bw settings
-		params.i_level_idc = -1;
-	}
-	else if (level >13 && level < 20)
-	{
-		params.i_level_idc = 13;
-	}
-	else if (level > 22 && level < 30)
-	{
-		 params.i_level_idc = 30;
-	}
-	else if (level > 32 && level < 40)
-	{
-		 params.i_level_idc = 32;
-	}
-	else if (level > 42 && level < 50)
-	{
-		 params.i_level_idc = 42;
-	}
-	else if (level > 52)
-	{
-		 params.i_level_idc = 52;
-	}
-	else
-	{
-		params.i_level_idc = level;
-	}
-
-	//Depending on the profile in hex
-	switch (profile)
-	{
-		case 100:
-		case 88:
-			//High
-			x264_param_apply_profile(&params,"high");
-			Log("h264: encoding with profile high and level %d.\n", level);
-			break;
-		case 77:
-			//Main
-			x264_param_apply_profile(&params,"main");
-			Log("h264: encoding with profile main and level %d.\n", level);
-			break;
-		case 66:
-		default:
-			//Baseline
-			Log("h264: encoding with profile baseline and level %d.\n", level);
-			x264_param_apply_profile(&params,"baseline");
-	}
-
-	// Open encoder
-	enc = x264_encoder_open(&params);
-
-	//Check it is correct
-	if (!enc)
-		return Error("Could not open h264 codec\n");
-
-	// Clean pictures
-	memset(&pic,0,sizeof(x264_picture_t));
-	memset(&pic_out,0,sizeof(x264_picture_t));
-
-	//Set picture type
-	pic.i_type = X264_TYPE_AUTO;
-
-	// We are opened
-	opened = true;
-
-	// Exit
-	return 1;
-}
-
 
 /**********************
 * EncodeFrame
 *	Codifica un frame
 ***********************/
-VideoFrame* H264Encoder::EncodeFrame(BYTE *buffer,DWORD bufferSize)
+VideoFrame* H264Encoder::EncodeFrame(BYTE *in,DWORD len)
 {
-	if(!opened)
-	{
-		Error("-Codec not opened\n");
-		return NULL;
-	}
+	// Patch IVeS : une I-frame toutes les 2 s pendant la première période
+	// intra (repris de l'ancien encodeur x264)
+	if (opened && fps > 0 && pts < 8*fps && (pts % (2*fps)) == 0)
+		FastPictureUpdate();
 
-	//Comprobamos el tama�o
-	if (numPixels*3/2 != bufferSize)
-	{
-		Error("-H264 EncodeFrame length error [%d,%d]\n",numPixels*5/4,bufferSize);
-		return NULL;
-	}
-
-	//POnemos los valores
-	pic.img.plane[0] = buffer;
-	pic.img.plane[1] = buffer+numPixels;
-	pic.img.plane[2] = buffer+numPixels*5/4;
-	pic.img.i_stride[0] = width;
-	pic.img.i_stride[1] = width/2;
-	pic.img.i_stride[2] = width/2;
-	pic.img.i_csp   = X264_CSP_I420;
-	pic.img.i_plane = 3;
-	pic.i_pts  = pts++;
-
-	/* IVeS - patch send one I-frame every 2 sec during first intra period */
-	if ( pic.i_pts < 8*fps && (pic.i_pts % (2*fps) == 0) )
-    {
-        pic.i_type = X264_TYPE_I;
-    }
-
-
-	// Encode frame and get length
-	int len = x264_encoder_encode(enc, &nals, &numNals, &pic, &pic_out);
-
-	//Check it
-	if (len<=0)
-	{
-		//Error
-		Error("Error encoding frame [len:%d]\n",len);
-		return NULL;
-	}
-	//Check size
-	if (!frame)
-		//Create new frame
-		frame = new VideoFrame(type,len);
-
-	//Set the media
-	frame->SetMedia(nals[0].p_payload,len);
-
-	//Set width and height
-	frame->SetWidth(width);
-	frame->SetHeight(height);
-
-	//Set intra
-	frame->SetIntra(pic_out.b_keyframe);
-
-	//Unset type
-	pic.i_type = X264_TYPE_AUTO;
-
-	//Emtpy rtp info
-	frame->ClearRTPPacketizationInfo();
-
-	//Add packetization
-	for (DWORD i=0;i<numNals;i++)
-	{
-		// Get NAL data pointer skiping the header
-		BYTE* nalData = nals[i].p_payload+4;
-		//Get size
-		DWORD nalSize = nals[i].i_payload-4;
-		//Get nal pos
-		DWORD pos = nalData - nals[0].p_payload;
-		//Get nal type
-		BYTE nalType = (nalData[0] & 0x1f);
-		//Check if it is an SPS
-		if (nalType==7)
-		{
-			//Get profile as hex representation
-			DWORD profileLevel = strtol (h264ProfileLevelId.c_str(),NULL,16);
-			//Modify profile level ID to match offered one
-			set3(nalData,1,profileLevel);
-		}
-		//Add rtp packet (mark bit on last NAL)
-		frame->AddRtpPacket(pos,nalSize,NULL,0,i+1 >= numNals);
-	}
-
-	//Set first nal
-	curNal = 0;
-
-	return frame;
+	return FfVideoEncoder::EncodeFrame(in,len);
 }
 
 /**********************
-* FastPictureUpdate
-*	Manda un frame entero
+* PacketizeFrame
+*	ffmpeg (libx264 comme h264_vaapi) produit un flux Annex-B (start codes).
+*	Tout l'aval (packetisation RTP, descripteur AVC RTMP, enregistrement MP4)
+*	attend des NALs préfixées par leur taille sur 4 octets, comme l'ancien
+*	encodeur x264 (b_annexb=0) : on convertit, puis on réécrit dans chaque SPS
+*	le profile-level-id négocié en SDP (interop), et on packetise
+*	(single NAL / FU-A).
 ***********************/
-int H264Encoder::FastPictureUpdate()
+void H264Encoder::PacketizeFrame()
 {
-	//Set next picture type
-	pic.i_type = X264_TYPE_I;
+	BYTE* data = frame->GetData();
+	DWORD len  = frame->GetLength();
 
-	return 1;
+	// Découpe Annex-B : liste (offset,taille) des NALs
+	std::vector< std::pair<DWORD,DWORD> > nalus;
+	DWORD pos = 0;
+	DWORD nalStart = 0;
+	bool inNal = false;
+
+	while (pos + 2 < len)
+	{
+		if (data[pos] == 0 && data[pos+1] == 0 && data[pos+2] == 1)
+		{
+			if (inNal)
+			{
+				DWORD end = pos;
+				// start code long (00 00 00 01) : le zéro précédent
+				// appartient au start code, pas à la NAL
+				if (end > nalStart && data[end-1] == 0)
+					end--;
+				nalus.push_back(std::make_pair(nalStart, end-nalStart));
+			}
+			pos += 3;
+			nalStart = pos;
+			inNal = true;
+		}
+		else
+			pos++;
+	}
+	if (inNal && nalStart < len)
+		nalus.push_back(std::make_pair(nalStart, len-nalStart));
+
+	if (nalus.empty())
+	{
+		Error("-H264Encoder: no NAL found in encoded frame [len:%u]\n", len);
+		return;
+	}
+
+	// profile-level-id négocié, réécrit dans chaque SPS
+	DWORD profileLevel = strtol(h264ProfileLevelId.c_str(),NULL,16);
+
+	// Reconstruit la trame en NALs préfixées taille 4 octets
+	BYTE* out = (BYTE*)malloc(len + 4*nalus.size());
+	DWORD outLen = 0;
+
+	for (size_t i = 0; i < nalus.size(); ++i)
+	{
+		BYTE* nal     = data + nalus[i].first;
+		DWORD nalSize = nalus[i].second;
+
+		// SPS : profile_idc/constraints/level_idc = valeur négociée
+		if (nalSize >= 4 && (nal[0] & 0x1f) == 7)
+			set3(nal,1,profileLevel);
+
+		// NB : le paramètre offset de set4() est un BYTE, on avance le pointeur
+		set4(out+outLen,0,nalSize);
+		memcpy(out+outLen+4,nal,nalSize);
+		outLen += 4+nalSize;
+	}
+
+	frame->SetMedia(out,outLen);
+	free(out);
+
+	// Packetisation RTP single NAL / FU-A sur les préfixes de taille
+	frame->SetH264NalSizeLength(4);
+	frame->Packetize(RTPPAYLOADSIZE-2);
 }
