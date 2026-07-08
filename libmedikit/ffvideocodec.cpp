@@ -581,22 +581,23 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 			ret = avcodec_send_packet(ctx, pkt);
 
 			if (ret < 0) {
-				// TODO: use av_err2str()
-                Error("%s decoding error (send packet). Error = %d\n", VideoCodec::GetNameFor(type), ret);
+				Error("%s decoding error (send packet). Error = %s\n", VideoCodec::GetNameFor(type), AVErrToStr(ret));
                 goto error;
             }
 
-			while (ret >= 0) {
-                ret = avcodec_receive_frame(ctx, picture);
-                // EAGAIN : besoin de plus de données ; EOF : flux terminé.
-                // Ce sont des fins de drain normales, pas des erreurs.
-                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-                    break;
-                } else if (ret < 0) {
-                    Error("%s decoding error (receive frame). Error = %d\n", VideoCodec::GetNameFor(type), ret);
-                	goto error;
-                }
-            }
+			// avcodec_receive_frame() fait toujours un av_frame_unref(picture) en
+			// entrée (doc ffmpeg) : un 2e appel après un succès écraserait aussitôt
+			// la frame qu'on vient de recevoir, avant même que Decode() ne rende la
+			// main à l'appelant pour que GetFrame() la lise. On s'arrête donc dès la
+			// première frame obtenue ; 'picture' garde alors la dernière frame
+			// décodée avec succès tant qu'aucune nouvelle frame n'est disponible.
+			ret = avcodec_receive_frame(ctx, picture);
+			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+				// Pas de frame prête pour ce paquet (ex: NAL SPS/PPS seul) : normal.
+			} else if (ret < 0) {
+				Error("%s decoding error (receive frame). Error = %s\n", VideoCodec::GetNameFor(type), AVErrToStr(ret));
+				goto error;
+			}
 		}
 	}
 
