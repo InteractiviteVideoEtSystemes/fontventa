@@ -372,9 +372,18 @@ void Mp4RecorderEnableVideoPrologue( struct mp4rec *r, bool yesno )
     r2->EnableVideoPrologue( yesno );
 }
 
-struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, MP4FileHandle mp4, bool transcodeVideo, int renderText )
+struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, const char *filename, bool transcodeVideo, int renderText )
 {
-    mp4reader *p = new mp4reader( chan, mp4 );
+    // Le lecteur ffmpeg ouvre le fichier lui-même (libavformat) : plus de
+    // MP4Read/MP4FileHandle côté appelant (cf. ffmpeg_mp4reader_plan.md §3.1).
+    Mp4FfReader *p = new Mp4FfReader( filename );
+
+    if( p && !p->IsOpen() )
+    {
+        Error( "mp4play: failed to open file %s.\n", filename );
+        delete p;
+        return NULL;
+    }
 
     if( p )
     {
@@ -457,6 +466,11 @@ struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, MP4FileHandle mp4, bo
                 Log( "mp4play: [%s]  No suitable text track found.\n", chan->name );
             }
         }
+
+        // Amorce l'horloge de lecture : Rewind DOIT être appelé après
+        // l'ouverture des pistes et avant le premier GetNextFrame, sinon le
+        // reader ffmpeg ne cadence pas (startPlaying non initialisée).
+        p->Rewind();
     }
     return (mp4play *)p;
 }
@@ -466,9 +480,13 @@ struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, MP4FileHandle mp4, bo
 
 int Mp4PlayerPlayNextFrame( struct ast_channel *chan, struct mp4play *p )
 {
-    mp4reader *p2 = (mp4reader *)p;
+    Mp4FfReader *p2 = (Mp4FfReader *)p;
     unsigned long wait = 0;
     int ret = -1;
+    // Tampon de travail pour la construction de l'ast_frame (l'ancien reader
+    // exposait un membre public `buffer`; Mp4FfReader n'en a pas). Une trame est
+    // entièrement consommée dans cet appel : un tampon local suffit.
+    BYTE buffer[2000];
 
     while( wait == 0 )
     {
@@ -497,7 +515,7 @@ int Mp4PlayerPlayNextFrame( struct ast_channel *chan, struct mp4play *p )
             {
                 bool  first = (it == pinfo.begin());
 
-                if( !MediaFrameToAstFrame2( f, *it, first, f2, p2->buffer, sizeof( p2->buffer ) ) )
+                if( !MediaFrameToAstFrame2( f, *it, first, f2, buffer, sizeof( buffer ) ) )
                 {
                     return -5; /* incompatible codec read from MP4 file or unsupported media */
                 }
@@ -536,6 +554,6 @@ int Mp4PlayerPlayNextFrame( struct ast_channel *chan, struct mp4play *p )
 
 void Mp4PlayerDestroy( struct mp4play *p )
 {
-    mp4reader *p2 = (mp4reader *)p;
+    Mp4FfReader *p2 = (Mp4FfReader *)p;
     if( p2 ) delete p2;
 }

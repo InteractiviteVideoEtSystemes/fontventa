@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 
 #include <medkit/mp4writer.h>
-#include <medkit/mp4reader.h>
+#include <medkit/ffmp4reader.h>
 
 /**
  * Convert an asterisk format into a medkit codec type.
@@ -108,11 +108,11 @@ extern "C"
 	/**
 	 * Create an instance of MP4 player
 	 * @param chan asterisk channel to associate with this player. nativeformats and writeformat needs to be correctly set
-	 * @param mp4 MP4 File handle
+	 * @param filename chemin du fichier MP4 à lire (le lecteur l'ouvre lui-même via libavformat)
 	 * @param transcodeVideo true if video transcoding is authorized (takes more CPU)
 	 * @param renderText 0 = render as subtitle (ocompelte sencences) 1 = render as realtime text, 2 = render in video (not supported yet)
 	 */
-    struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, MP4FileHandle mp4, bool transcodeVideo, int renderText);
+    struct mp4play * Mp4PlayerCreate(struct ast_channel * chan, const char * filename, bool transcodeVideo, int renderText);
 
     int Mp4PlayerPlayNextFrame(struct ast_channel * chan, struct mp4play * p);
 

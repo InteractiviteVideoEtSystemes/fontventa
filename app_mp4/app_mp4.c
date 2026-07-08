@@ -255,7 +255,6 @@ static int mp4_play_process_frame( struct ast_channel *chan, struct ast_frame *f
 static int mp4_play( struct ast_channel *chan, void *data )
 {
     struct ast_module_user *u = NULL;
-    MP4FileHandle mp4;
     struct mp4play *player;
     //const char *type = NULL;
 
@@ -384,23 +383,15 @@ static int mp4_play( struct ast_channel *chan, void *data )
     }
 
     ast_verbose( VERBOSE_PREFIX_3 "MP4Play [%s].\n", cformat1 );
-    mp4 = MP4Read( cformat1 );
 
-    /* If not valid */
-    if( mp4 == MP4_INVALID_FILE_HANDLE )
-    {
-        ast_log( LOG_WARNING, "mp4play: failed to open file %s.\n", cformat1 );
-        /* exit */
-        res = -1;
-        goto clean;
-    }
-
-    player = Mp4PlayerCreate( chan, mp4, true, 0 );
+    /* Le lecteur ffmpeg ouvre le fichier lui-même (libavformat) : on lui passe
+     * le chemin. Plus de MP4Read/MP4Close ici (cf. ffmpeg_mp4reader_plan.md). */
+    player = Mp4PlayerCreate( chan, cformat1, true, 0 );
     if( player == NULL )
     {
         ast_log( LOG_WARNING, "mp4play: failed to create MP4 player for file %s.\n", args.filename );
         res = -1;
-        goto end;
+        goto clean;
     }
 
     ast_log( LOG_DEBUG, "Native formats:%s , Channel capabilites ( videocaps.cap ):%s\n",
@@ -470,9 +461,8 @@ static int mp4_play( struct ast_channel *chan, void *data )
     }
 
 end:
+    /* Le lecteur ffmpeg a ouvert et fermera le fichier lui-même (destructeur). */
     if( player != NULL ) Mp4PlayerDestroy( player );
-    /* Close file */
-    MP4Close( mp4, 0 );
 
 clean:
     /* Unlock module*/

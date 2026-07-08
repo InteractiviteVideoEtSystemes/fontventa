@@ -96,7 +96,7 @@ NELLYOBJ=nellycodec.o
 
 OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o text2subtitle.o log.o media.o
 OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(SPEEXOBJ) $(VP8OBJ) ffvideocodec.o ffaudiocodec.o
-OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o mp4reader.o ffmp4reader.o
+OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o ffmp4reader.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
 ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
@@ -144,9 +144,8 @@ libmedkit.a: $(OBJS)
 	ar r $@ $(OBJS)
 
 mp4writer.o: medkit/mp4writer.h medkit/media.h
-mp4reader.o: medkit/mp4reader.h medkit/media.h
 ffmp4reader.o: medkit/ffmp4reader.h medkit/media.h
-mp4format.o: astmedkit/mp4format.h medkit/mp4writer.h medkit/mp4reader.h medkit/media.h
+mp4format.o: astmedkit/mp4format.h medkit/mp4writer.h medkit/ffmp4reader.h medkit/media.h
 
 clean:
 	rm -f $(OBJS) libmedkit.a
@@ -184,3 +183,11 @@ testsps.o: medkit/bitstream.h
 
 #testsps: testsps.o libmedkit.a
 #	g++ -o testsps testsps.o libmedkit.a -l mp4v2
+
+# Harnais de test hors-ligne pour Mp4FfReader (cf. ffmpeg_mp4reader_plan.md P0) :
+# ouverture, métadonnées, lecture cadencée, seek. Ne dépend ni d'Asterisk ni du
+# mediaserver. Usage : make ffmp4probe && ./ffmp4probe fichier.mp4 [seekMs]
+ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
+	$(CXX) $(CXXFLAGS) tools/ffmp4probe.cpp libmedkit.a -o $@ \
+		-L../../../staticdeps/lib -Wl,-Bstatic -lg722_1 -Wl,-Bdynamic \
+		$(LDFLAGS) -lmp4v2 -lgsm
