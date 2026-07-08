@@ -5,6 +5,8 @@
 #include "medkit/text.h"
 #include "medkit/text2subtitle.h"
 #include "medkit/red.h"
+#include "ffaudiocodec.h"
+#include "ffvideocodec.h"
 #include "medkit/ffmp4reader.h"
 
 extern "C" {

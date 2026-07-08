@@ -53,6 +53,10 @@ protected:
 	int		intraPeriod;
 	VideoFrame	*frame;
 	VideoCodec::Type type;
+
+
+	//Hardware acceleration
+	AVFrame *hw_frame;
 };
 
 class FfVideoDecoder : public VideoDecoder
@@ -67,8 +71,10 @@ public:
 	virtual int DecodePacket(BYTE *in,DWORD len,int lost,int last);
 	virtual int GetWidth()		{ return ctx->width;		};
 	virtual int GetHeight()		{ return ctx->height;		};
-	virtual BYTE* GetFrame()	{ return (BYTE *)frame;		};
+	virtual BYTE* GetFrame();
 	virtual bool  IsKeyFrame()	{ return picture->key_frame;	};
+
+	AVFrame * GetAVFrame() { return picture; }
 protected:
 	// Accessibles aux décodeurs dérivés pour leur dépaquetiseur (DecodePacket).
 	const AVCodec 	*codec;
@@ -82,6 +88,7 @@ protected:
 	DWORD		frameSize;
 	BYTE		src;
 	VideoCodec::Type type;
+
 };
 
 #endif

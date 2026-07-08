@@ -4,6 +4,94 @@
 #include "medkit/video.h"
 #include "ffvideocodec.h"
 
+
+// av_err2str() alloue un tableau temporaire et en prend l'adresse : invalide en C++.
+static const char* AVErrToStr(int err)
+{
+	static thread_local char buf[AV_ERROR_MAX_STRING_SIZE];
+	av_strerror(err, buf, sizeof(buf));
+	return buf;
+}
+
+static void TryVAAPI(AVCodecContext * ctx, const AVCodec *codec)
+{
+	// Try to enable hardware accelation
+	// Check if VAAPI is available for this codec.
+	bool use_vaapi = false;
+
+    const AVCodecHWConfig *hw_config = nullptr;
+    for (int i = 0; ; i++) {
+        hw_config = avcodec_get_hw_config(codec, i);
+        if (!hw_config) break;
+        if (hw_config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX &&
+            hw_config->device_type == AV_HWDEVICE_TYPE_VAAPI) {
+			use_vaapi = true;
+            break;
+        }
+    }
+
+	if (use_vaapi)
+	{
+		AVBufferRef *hw_device_ctx = nullptr;
+
+		Log("FFMpeg encoder [%s] supports VAAPI hardware acceleration\n", codec->name);
+
+		int ret = av_hwdevice_ctx_create(&hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI, nullptr, nullptr, 0);
+		if (ret < 0)
+		{
+           	Log("Failed to create VAAPI device. Error: %s. Falling back to CPU.\n", AVErrToStr(ret));
+        	ctx->hw_device_ctx = nullptr;
+        }
+		else
+		{
+			ctx->hw_device_ctx = hw_device_ctx;
+		}
+	}
+}
+
+// Callback get_format : impose le format matériel VAAPI au décodeur quand il est
+// proposé, sinon celui-ci reste en logiciel sans jamais activer le hwaccel.
+static enum AVPixelFormat GetVAAPIFormat(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
+{
+	for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++)
+		if (*p == AV_PIX_FMT_VAAPI)
+			return *p;
+
+	Error("Failed to get VAAPI pixel format, falling back to default\n");
+	return avcodec_default_get_format(ctx, pix_fmts);
+}
+
+static void AllocateVAAPIFrame(AVCodecContext * ctx)
+{
+	if (ctx->hw_device_ctx) 
+	{
+		ctx->hw_frames_ctx = av_hwframe_ctx_alloc(ctx->hw_device_ctx);
+		if (!ctx->hw_frames_ctx)
+		{
+			Log("Failed to allocate VAAPI frame context. Falling back to CPU.\n");
+			av_buffer_unref(&ctx->hw_device_ctx);
+			ctx->hw_device_ctx = nullptr;
+		}
+		else
+		{
+			AVHWFramesContext *frames_ctx = (AVHWFramesContext *)ctx->hw_frames_ctx->data;
+
+            frames_ctx->format = AV_PIX_FMT_VAAPI;
+            frames_ctx->sw_format = AV_PIX_FMT_YUV420P;
+            frames_ctx->width = ctx->width;
+            frames_ctx->height = ctx->height;
+            frames_ctx->initial_pool_size = 20;
+
+            int ret = av_hwframe_ctx_init(ctx->hw_frames_ctx);
+            if (ret < 0) {
+                Log("Failed to initialize VAAPI frame context: %s. Falling back to CPU.\n", AVErrToStr(ret));
+                av_buffer_unref(&ctx->hw_frames_ctx);
+				av_buffer_unref(&ctx->hw_device_ctx);
+				ctx->hw_device_ctx= nullptr;
+            }
+		}
+	}
+}
 /***********************
 * FfVideoEncoder
 ************************/
@@ -39,6 +127,9 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 	//Alocamos el conto y el picture
 	ctx = avcodec_alloc_context3(codec);
 	picture = av_frame_alloc();
+	hw_frame = nullptr;
+
+	TryVAAPI(ctx, codec);
 }
 
 /***********************
@@ -49,6 +140,9 @@ FfVideoEncoder::~FfVideoEncoder()
 {
 	if (frame)
 		delete frame;
+
+	if (hw_frame)
+		av_frame_free(&hw_frame);
 
 	if (ctx)
 		avcodec_free_context(&ctx);
@@ -66,13 +160,23 @@ int FfVideoEncoder::SetSize(int width, int height)
 	Log("-SetSize [%d,%d]\n",width,height);
 
 	// Set pixel format
-	ctx->pix_fmt		= AV_PIX_FMT_YUV420P;
+	if (ctx->hw_device_ctx)
+	{
+		ctx->pix_fmt = AV_PIX_FMT_VAAPI;
+		picture->format = AV_PIX_FMT_VAAPI;
+	}
+	else
+	{
+		ctx->pix_fmt = AV_PIX_FMT_YUV420P;
+		picture->format		= AV_PIX_FMT_YUV420P;
+	}
+	
 	ctx->width 		= width;
-	ctx->height 		= height;
+	ctx->height 	= height;
 
 	// L'API avcodec_send_frame() exige que l'AVFrame porte lui-même son
 	// format et ses dimensions (l'ancienne API les déduisait du contexte).
-	picture->format		= AV_PIX_FMT_YUV420P;
+	
 	picture->width		= width;
 	picture->height		= height;
 
@@ -156,6 +260,35 @@ int FfVideoEncoder::OpenCodec()
 	// Set the global quality based on a quantizer value of 10
 	ctx->global_quality = FF_QP2LAMBDA * 10;
 
+	if (ctx->hw_device_ctx)
+	{
+		AllocateVAAPIFrame(ctx);
+
+		if (ctx->hw_device_ctx)
+		{
+			hw_frame = av_frame_alloc();
+			if (!hw_frame) {
+				Error("Failed to allocate VAAPI frame. Falling back to CPU.\n");
+				av_buffer_unref(&ctx->hw_frames_ctx);
+				av_buffer_unref(&ctx->hw_device_ctx);
+			}
+			else
+			{
+				hw_frame->format = AV_PIX_FMT_VAAPI;
+				hw_frame->width = ctx->width;
+				hw_frame->height = ctx->height;
+			}
+		}
+
+		// L'init VAAPI (AllocateVAAPIFrame ou l'allocation de hw_frame) a échoué :
+		// SetSize() avait déjà positionné le format matériel, il faut revenir au logiciel.
+		if (!ctx->hw_device_ctx)
+		{
+			ctx->pix_fmt = AV_PIX_FMT_YUV420P;
+			picture->format = AV_PIX_FMT_YUV420P;
+		}
+	}
+
 	// Open codec
 	if (avcodec_open2(ctx, codec, NULL)<0)
 		return Error("ffmpeg is unable to open %s encoder\n", codec->name);
@@ -174,6 +307,7 @@ int FfVideoEncoder::OpenCodec()
 ************************/
 VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 {
+	int ret = 0;
 	//Check if we are opened
 	if (!opened)
 		return NULL;
@@ -193,11 +327,37 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 
 	bool firstPacket = true;
 
-	//Codificamos
-	int ret = avcodec_send_frame(ctx, picture);
+	if (hw_frame && ctx->hw_device_ctx && ctx->hw_frames_ctx)
+	{
+		// HW encoding : on prend une nouvelle surface VAAPI du pool à chaque trame
+		// (hw_frame ne porte lui-même aucun buffer tant qu'on ne l'a pas demandé).
+		av_frame_unref(hw_frame);
+		hw_frame->format = AV_PIX_FMT_VAAPI;
+		hw_frame->width  = ctx->width;
+		hw_frame->height = ctx->height;
+
+		ret = av_hwframe_get_buffer(ctx->hw_frames_ctx, hw_frame, 0);
+		if (ret < 0) {
+			Error("Failed to get VAAPI surface: %s\n", AVErrToStr(ret));
+			return NULL;
+		}
+
+		ret = av_hwframe_transfer_data(hw_frame, picture, 0);
+		if (ret < 0) {
+			Error("Failed to transfer frame to VAAPI: %s\n", AVErrToStr(ret));
+			return NULL;
+		}
+
+		ret = avcodec_send_frame(ctx, hw_frame);
+	}
+	else
+	{
+		// SW encoding
+		ret = avcodec_send_frame(ctx, picture);
+	}
 
 	if (ret < 0) {
-		Error("Encoding error: %d\n", ret);
+		Error("Encoding error: %s\n", AVErrToStr(ret));
 		return NULL;
 	}
 
@@ -240,7 +400,7 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 		}
 		else
 		{
-			Error("Encoding error (receive_packet): %d\n", ret);
+			Error("Encoding error (receive_packet): %s\n", AVErrToStr(ret));
 			av_packet_free(&pkt);
 			return NULL;
 		}
@@ -311,6 +471,12 @@ int FfVideoEncoder::FastPictureUpdate()
 		picture->pict_type = AV_PICTURE_TYPE_I;
 	}
 
+	if (ctx->hw_device_ctx && hw_frame) 
+	{
+		hw_frame->key_frame = 1;
+		hw_frame->pict_type = AV_PICTURE_TYPE_I;
+	}
+
 	return 1;
 }
 
@@ -342,6 +508,12 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
         Error("Unable to open FFmpeg decoder (parser). Codec ID = %s", VideoCodec::GetNameFor(type));
     }
 	picture = av_frame_alloc();
+
+	TryVAAPI(ctx, codec);
+	if (ctx->hw_device_ctx)
+		// Sans ce callback le décodeur ne négocie jamais le format matériel
+		// et reste en logiciel malgré hw_device_ctx.
+		ctx->get_format = GetVAAPIFormat;
 
 	//POnemos los valores del contexto
 	ctx->workaround_bugs 	= 255*255;
@@ -424,40 +596,6 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
                     Error("%s decoding error (receive frame). Error = %d\n", VideoCodec::GetNameFor(type), ret);
                 	goto error;
                 }
-
-				if (picture->width==0 || picture->height==0) {
-					Error("-Wrong dimmensions [%d,%d]\n",picture->width,picture->height);
-					goto error;
-				}
-
-				int w = picture->width;
-				int h = picture->height;
-				int u = w*h;
-				int v = w*h*5/4;
-				int size = w*h*3/2;
-
-				//Comprobamos el tamano
-				if (size>frameSize)
-				{
-					Log("-Frame size %dx%d\n",w,h);
-					//Liberamos si habia
-					if(frame!=NULL)
-						free(frame);
-					//Y allocamos de nuevo
-					frame = (BYTE*) malloc(size);
-					frameSize = size;
-				}
-
-				//Copaamos  el Cy
-				for(int i=0;i<ctx->height;i++)
-					memcpy(&frame[i*w],(void*) &picture->data[0][i*picture->linesize[0]],w);
-
-				//Y el Cr y Cb
-				for(int i=0;i<ctx->height/2;i++)
-				{
-					memcpy(&frame[i*w/2+u],(void*) &picture->data[1][i*picture->linesize[1]],w/2);
-					memcpy(&frame[i*w/2+v],(void*) &picture->data[2][i*picture->linesize[2]],w/2);
-				}
             }
 		}
 	}
@@ -503,4 +641,82 @@ int FfVideoDecoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 	}
 
 	return ret;
+}
+
+BYTE* FfVideoDecoder::GetFrame()
+{
+	if (!picture)
+		return NULL;
+
+	if (picture->width==0 || picture->height==0) {
+		Error("-Wrong dimensions [%d,%d]\n",picture->width,picture->height);
+		return NULL;
+	}
+
+	AVFrame *output_frame = picture;
+	AVFrame *sw_frame = nullptr;
+
+	if (picture->format == AV_PIX_FMT_VAAPI)
+	{
+		// This was a frame that was decoded using VAAPI
+		sw_frame = av_frame_alloc();
+		sw_frame->format = AV_PIX_FMT_YUV420P;
+		sw_frame->width = picture->width;
+		sw_frame->height = picture->height;
+
+		int ret = av_frame_get_buffer(sw_frame, 0);
+		if (ret < 0)
+		{
+			Error("Failed to allocate software frame: %s\n", AVErrToStr(ret));
+			av_frame_free(&sw_frame);
+			return NULL;
+		}
+
+		ret = av_hwframe_transfer_data(sw_frame, picture, 0);
+		if (ret < 0)
+		{
+			Error("Failed to transfer data from hardware frame: %s\n", AVErrToStr(ret));
+			av_frame_free(&sw_frame);
+			return nullptr;
+		}
+		output_frame = sw_frame;
+	}
+
+	int w = output_frame->width;
+	int h = output_frame->height;
+	int u = w*h;
+	int v = w*h*5/4;
+	int size = w*h*3/2;
+
+	//Comprobamos el tamano
+	if (size>frameSize)
+	{
+		Log("-Frame size %dx%d\n",w,h);
+		if (frame!=NULL)
+		{
+			frame = (BYTE*) realloc(frame, size);
+		}
+		else
+		{
+			frame = (BYTE*) malloc(size);
+		}
+		frameSize = size;
+	}
+
+	//Copaamos  el Cy
+	for(int i=0;i<ctx->height;i++)
+		memcpy(&frame[i*w],(void*) &output_frame->data[0][i*output_frame->linesize[0]],w);
+
+	//Y el Cr y Cb
+	for(int i=0;i<ctx->height/2;i++)
+	{
+		memcpy(&frame[i*w/2+u],(void*) &output_frame->data[1][i*output_frame->linesize[1]],w/2);
+		memcpy(&frame[i*w/2+v],(void*) &output_frame->data[2][i*output_frame->linesize[2]],w/2);
+	}
+
+	// Frame système intermédiaire : copiée dans `frame`, on n'en a plus besoin.
+	if (sw_frame)
+		av_frame_free(&sw_frame);
+
+	return frame;
 }
