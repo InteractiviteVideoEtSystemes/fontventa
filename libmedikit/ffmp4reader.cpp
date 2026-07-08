@@ -12,6 +12,8 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavutil/avutil.h>
 #include <libavutil/mathematics.h>
+#include <libavutil/channel_layout.h>
+#include <libswresample/swresample.h>
 }
 
 // ---------------------------------------------------------------------------
@@ -42,8 +44,10 @@ static bool MapAudioCodec( enum AVCodecID id, AudioCodec::Type & out )
         case AV_CODEC_ID_ADPCM_G722:out = AudioCodec::G722; return true;
         case AV_CODEC_ID_GSM:
         case AV_CODEC_ID_GSM_MS:    out = AudioCodec::GSM;  return true;
-        // AAC volontairement non mappé en v1 (passthrough impossible vers un
-        // pair télécom, cf. ffmpeg_mp4reader_plan.md décision c).
+        // AAC : reconnu comme codec source (décodable). Le passthrough ne le
+        // sélectionne jamais (absent des listes des appelants) ; il sert de
+        // source au transcodage vers un codec télécom (cf. OpenAudioTranscoded).
+        case AV_CODEC_ID_AAC:       out = AudioCodec::AAC;  return true;
         default:                                            return false;
     }
 }
@@ -73,6 +77,16 @@ Mp4FfReader::Mp4FfReader( const char * filename )
     videoFrame       = NULL;
     audioFrame       = NULL;
     currentTs        = 0;
+    audioTranscode   = false;
+    audioSrcCodec    = (AudioCodec::Type)-1;
+    audioDec         = NULL;
+    audioEnc         = NULL;
+    audioSwr         = NULL;
+    srcRate          = 0;
+    encRate          = 0;
+    outFrameSamples  = 0;
+    audioOutTs       = 0;
+    audioOutTsSet    = false;
     setZeroTime( &startPlaying );
 
     Log( ">Mp4FfReader opening [%s]\n", filename );
@@ -126,6 +140,9 @@ Mp4FfReader::~Mp4FfReader()
     if( pending ) av_packet_free( &pending );
     if( videoFrame ) delete videoFrame;
     if( audioFrame ) delete audioFrame;
+    if( audioDec ) delete audioDec;
+    if( audioEnc ) delete audioEnc;
+    if( audioSwr ) swr_free( &audioSwr );
     if( textFrame ) delete textFrame;
     if( subConv ) delete subConv;
     if( redenc ) delete redenc;
@@ -242,6 +259,110 @@ int Mp4FfReader::OpenTrack( AudioCodec::Type outputCodecs[], unsigned int nbCode
 
     Log( "Mp4FfReader: piste audio %d sélectionnée (%s)\n",
          audioStreamIdx, AudioCodec::GetNameFor( audioCodec ) );
+    return 1;
+}
+
+int Mp4FfReader::OpenAudioTranscoded( AudioCodec::Type target )
+{
+    if( !fmtctx ) return 0;
+
+    // 1) Trouver la 1ʳᵉ piste audio décodable (tout codec mappable, AAC compris).
+    int              srcIdx  = -1;
+    AudioCodec::Type srcType = (AudioCodec::Type)-1;
+    for( unsigned i = 0; i < fmtctx->nb_streams; i++ )
+    {
+        AVCodecParameters * par = fmtctx->streams[i]->codecpar;
+        if( par->codec_type != AVMEDIA_TYPE_AUDIO ) continue;
+
+        AudioCodec::Type t;
+        if( MapAudioCodec( par->codec_id, t ) )
+            { srcIdx = i; srcType = t; break; }
+    }
+    if( srcIdx < 0 )
+    {
+        Log( "Mp4FfReader: aucune piste audio décodable pour transcodage\n" );
+        return 0;
+    }
+
+    // 2) Décodeur source via la fabrique. L'extradata (AudioSpecificConfig pour
+    //    l'AAC des MP4) est transmise génériquement : les codecs qui n'en ont
+    //    pas besoin l'ignorent.
+    AVCodecParameters * spar = fmtctx->streams[srcIdx]->codecpar;
+    AudioDecoder * dec = AudioCodecFactory::CreateDecoder(
+                             srcType, spar->extradata, (DWORD)spar->extradata_size );
+    if( dec == NULL )
+    {
+        Error( "Mp4FfReader: décodeur source %s indisponible\n",
+               AudioCodec::GetNameFor( srcType ) );
+        return 0;
+    }
+
+    // 3) Encodeur cible. Les encodeurs télécom (PCMU/PCMA/G722…) NE resamplent
+    //    PAS (TrySetRate renvoie leur fréquence native) : on rééchantillonne
+    //    donc nous-mêmes source -> encRate via libswresample.
+    AudioEncoder * enc = AudioCodecFactory::CreateEncoder( target );
+    if( enc == NULL )
+    {
+        Error( "Mp4FfReader: encodeur cible %s indisponible\n",
+               AudioCodec::GetNameFor( target ) );
+        delete dec;
+        return 0;
+    }
+
+    // Fréquence source : celle du conteneur (fiable dès l'ouverture), et non
+    // dec->GetRate() qui peut valoir 0/8000 tant qu'aucune trame n'est décodée.
+    int cpRate = fmtctx->streams[srcIdx]->codecpar->sample_rate;
+    DWORD dr = ( cpRate > 0 ) ? (DWORD)cpRate : dec->GetRate();
+    if( dr == 0 ) dr = 8000;          // sécurité
+    DWORD er = enc->TrySetRate( dr ); // fréquence d'entrée réellement acceptée
+    if( er == 0 ) er = 8000;
+
+    // Resampler S16 mono dr -> er (si nécessaire).
+    SwrContext * swr = NULL;
+    if( dr != er )
+    {
+        AVChannelLayout mono;
+        av_channel_layout_default( &mono, 1 );
+        int e = swr_alloc_set_opts2( &swr,
+                    &mono, AV_SAMPLE_FMT_S16, (int)er,
+                    &mono, AV_SAMPLE_FMT_S16, (int)dr,
+                    0, NULL );
+        av_channel_layout_uninit( &mono );
+        if( e < 0 || swr_init( swr ) < 0 )
+        {
+            Error( "Mp4FfReader: resampler %u->%u Hz KO\n", dr, er );
+            if( swr ) swr_free( &swr );
+            delete dec; delete enc;
+            return 0;
+        }
+    }
+
+    // Installation
+    if( audioDec ) delete audioDec;
+    if( audioEnc ) delete audioEnc;
+    if( audioSwr ) swr_free( &audioSwr );
+    if( audioFrame ) { delete audioFrame; audioFrame = NULL; }
+
+    audioDec        = dec;
+    audioEnc        = enc;
+    audioSwr        = swr;
+    audioStreamIdx  = srcIdx;
+    audioSrcCodec   = srcType;
+    audioCodec      = target;
+    audioTranscode  = true;
+    srcRate         = dr;
+    encRate         = er;
+    outFrameSamples = er / 50;         // 20 ms à la fréquence d'entrée encodeur (160@8k)
+    if( outFrameSamples == 0 ) outFrameSamples = 160;
+    audioOutTsSet   = false;
+    pcmFifo.clear();
+    audioOutQueue.clear();
+
+    audioFrame = new AudioFrame( target, ClockRateFor( target ) );
+
+    Log( "Mp4FfReader: transcodage audio %s(%u Hz) -> %s(%u Hz) (piste %d, tranche %u éch.)\n",
+         AudioCodec::GetNameFor( srcType ), srcRate,
+         AudioCodec::GetNameFor( target ), encRate, audioStreamIdx, outFrameSamples );
     return 1;
 }
 
@@ -449,6 +570,82 @@ long Mp4FfReader::SchedMsOf( AVPacket * pkt )
     return ms - schedOffsetMs;
 }
 
+void Mp4FfReader::TranscodeAudioPacket( AVPacket * pkt )
+{
+    // 1) Décodage source -> PCM S16 mono @ srcRate (le décodeur restitue par
+    //    tranches ; on draine avec (NULL,0)).
+    SWORD dpcm[8192];
+    BYTE * in    = pkt->data;
+    int    inLen = pkt->size;
+    int    n;
+    while( ( n = audioDec->Decode( in, inLen, dpcm, (int)(sizeof(dpcm)/sizeof(dpcm[0])) ) ) > 0 )
+    {
+        // 2) Rééchantillonnage srcRate -> encRate (ou copie directe si égal),
+        //    puis empilage dans la FIFO à encRate.
+        if( audioSwr )
+        {
+            // marge : ceil(n * er/dr) + latence swr
+            int cap = (int)( (long long)n * encRate / ( srcRate ? srcRate : 1 ) ) + 64;
+            std::vector<SWORD> tmp( cap );
+            SWORD *   op[1]  = { &tmp[0] };
+            const uint8_t * ip[1] = { (const uint8_t *)dpcm };
+            int got = swr_convert( audioSwr, (uint8_t **)op, cap, ip, n );
+            if( got > 0 ) pcmFifo.insert( pcmFifo.end(), tmp.begin(), tmp.begin() + got );
+        }
+        else
+        {
+            pcmFifo.insert( pcmFifo.end(), dpcm, dpcm + n );
+        }
+        in = NULL; inLen = 0;
+    }
+
+    // Base d'horodatage RTP cible calée sur le 1er paquet transcodé.
+    if( !audioOutTsSet )
+    {
+        AVStream * st  = fmtctx->streams[audioStreamIdx];
+        double     tb  = av_q2d( st->time_base );
+        int64_t    s   = ( st->start_time == AV_NOPTS_VALUE ) ? 0 : st->start_time;
+        int64_t    pts = ( pkt->pts == AV_NOPTS_VALUE ) ? pkt->dts : pkt->pts;
+        if( pts == AV_NOPTS_VALUE ) pts = s;
+        audioOutTs    = (QWORD)( ( pts - s ) * tb * ClockRateFor( audioCodec ) );
+        audioOutTsSet = true;
+    }
+
+    // 3) Encodage par tranches de 20 ms (à encRate) -> 1 trame cible / tranche.
+    const DWORD outInc = ClockRateFor( audioCodec ) / 50;   // 160@8k, 960@48k
+    BYTE out[4096];
+    while( pcmFifo.size() >= outFrameSamples )
+    {
+        int len = audioEnc->Encode( &pcmFifo[0], (int)outFrameSamples, out, (int)sizeof(out) );
+        pcmFifo.erase( pcmFifo.begin(), pcmFifo.begin() + outFrameSamples );
+        if( len <= 0 ) continue;
+
+        EncFrame ef;
+        ef.data.assign( out, out + len );
+        ef.ts = (DWORD)audioOutTs;
+        audioOutQueue.push_back( std::move( ef ) );
+        audioOutTs += outInc;
+    }
+}
+
+MediaFrame * Mp4FfReader::BuildTranscodedAudioFront()
+{
+    EncFrame & ef = audioOutQueue.front();
+    audioFrame->SetMedia( ef.data.empty() ? (BYTE*)"" : &ef.data[0], ef.data.size() );
+    audioFrame->SetTimestamp( ef.ts );
+    audioFrame->ClearRTPPacketizationInfo();
+    audioFrame->Packetize( 1400 );
+    MediaFrame * r = audioFrame;
+    audioOutQueue.pop_front();
+    return r;
+}
+
+void Mp4FfReader::ResetAudioTranscode()
+{
+    // Recrée décodeur/encodeur pour purger leurs tampons internes (post-seek).
+    if( audioTranscode ) OpenAudioTranscoded( audioCodec );
+}
+
 MediaFrame * Mp4FfReader::BuildFrame( AVPacket * pkt )
 {
     AVStream * st = fmtctx->streams[pkt->stream_index];
@@ -550,6 +747,15 @@ MediaFrame * Mp4FfReader::GetNextFrame( int & errcode, unsigned long & waittime 
 
     if( !fmtctx ) { errcode = -1; return NULL; }
 
+    // 1) Écouler d'abord les trames audio transcodées déjà prêtes (un paquet
+    //    source produit 0..n trames cibles de 20 ms) : émission sans attente.
+    if( !audioOutQueue.empty() )
+    {
+        errcode  = 1;
+        waittime = 0;
+        return BuildTranscodedAudioFront();
+    }
+
     // Assure un paquet en attente
     if( !FillPending() ) { errcode = -1; return NULL; } // EOF
 
@@ -574,6 +780,27 @@ MediaFrame * Mp4FfReader::GetNextFrame( int & errcode, unsigned long & waittime 
 
         waittime = t - now;
         errcode  = 0;
+        return NULL;
+    }
+
+    // Cas transcodage audio : décoder+réencoder le paquet source, puis émettre
+    // la 1ʳᵉ trame produite (les suivantes le seront au prochain appel via 1)).
+    if( audioTranscode && pending->stream_index == audioStreamIdx )
+    {
+        currentTs = t;
+        TranscodeAudioPacket( pending );
+        av_packet_unref( pending );
+        av_packet_free( &pending );
+
+        if( !audioOutQueue.empty() )
+        {
+            errcode  = 1;
+            waittime = 0;              // écouler la file en rafale, puis lire la suite
+            return BuildTranscodedAudioFront();
+        }
+        // Paquet sans trame complète (démarrage encodeur) : réessayer aussitôt.
+        errcode  = 0;
+        waittime = 0;
         return NULL;
     }
 
@@ -616,6 +843,7 @@ int Mp4FfReader::Rewind()
     currentTs      = 0;
     if( subConv ) subConv->Reset();     // repartir d'un état RTT vierge
     nextBOMorRepeat = -1;
+    ResetAudioTranscode();             // purge FIFO/dec/enc de transcodage
     gettimeofday( &startPlaying, 0 );  // (re)démarre l'horloge de lecture
     return 1;
 }
@@ -652,6 +880,7 @@ QWORD Mp4FfReader::Seek( QWORD timeMs )
     schedOffsetMs  = 0;
     if( subConv ) subConv->Reset();
     nextBOMorRepeat = -1;
+    ResetAudioTranscode();
     gettimeofday( &startPlaying, 0 );
 
     // Peek de la 1re trame pour connaître le temps réel atteint (keyframe)

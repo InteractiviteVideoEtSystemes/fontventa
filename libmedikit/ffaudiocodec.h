@@ -77,6 +77,11 @@ class FfAudioDecoder : public AudioDecoder
 {
 public:
 	FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id);
+	// Variante avec extradata (AudioSpecificConfig / avcC audio) : indispensable
+	// pour l'AAC raw des MP4 (sans en-tête ADTS), qui ne se décode pas sans sa
+	// config. extradata peut être NULL (équivaut au ctor à 2 arguments).
+	FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id,
+	               const uint8_t* extradata, int extradata_size);
 	virtual ~FfAudioDecoder();
 	virtual int   Decode(BYTE *in, int inLen, SWORD* out, int outLen);
 	virtual DWORD TrySetRate(DWORD rate);

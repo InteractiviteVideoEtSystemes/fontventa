@@ -334,6 +334,12 @@ int FfAudioEncoder::Encode(SWORD *in, int inLen, BYTE* out, int outLen)
  ******************************************************************************/
 
 FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id) :
+	FfAudioDecoder(av_codec, codec_id, nullptr, 0)
+{
+}
+
+FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id,
+                               const uint8_t* extradata, int extradata_size) :
 	codec(nullptr), ctx(nullptr), swr(nullptr), frame(nullptr), pkt(nullptr), opened(false)
 {
 	// Membres hérités d'AudioDecoder
@@ -365,6 +371,18 @@ FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_i
 	// l'honorent ; sinon on convertit via le resampler).
 	av_channel_layout_default(&ctx->ch_layout, 1);
 	ctx->request_sample_fmt = AV_SAMPLE_FMT_S16;
+
+	// Extradata (AudioSpecificConfig pour l'AAC des MP4) : recopié avec le
+	// padding ffmpeg requis. Sans lui, l'AAC raw ne se décode pas.
+	if (extradata != nullptr && extradata_size > 0)
+	{
+		ctx->extradata = (uint8_t*)av_mallocz(extradata_size + AV_INPUT_BUFFER_PADDING_SIZE);
+		if (ctx->extradata)
+		{
+			memcpy(ctx->extradata, extradata, extradata_size);
+			ctx->extradata_size = extradata_size;
+		}
+	}
 
 	if (avcodec_open2(ctx, codec, nullptr) < 0)
 	{

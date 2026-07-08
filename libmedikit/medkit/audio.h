@@ -113,6 +113,10 @@ class AudioCodecFactory
 {
 public:
 	static AudioDecoder* CreateDecoder(AudioCodec::Type codec);
+	// Variante avec extradata (AudioSpecificConfig/esds) : requise par les codecs
+	// dont le décodeur a besoin de sa configuration (AAC des MP4). Ignoré par les
+	// codecs qui n'en ont pas besoin.
+	static AudioDecoder* CreateDecoder(AudioCodec::Type codec, const BYTE* extradata, DWORD extradataSize);
 	static AudioEncoder* CreateEncoder(AudioCodec::Type codec);
 	static AudioEncoder* CreateEncoder(AudioCodec::Type codec, const Properties &properties);
 };

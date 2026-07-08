@@ -4,6 +4,7 @@
 #include "g722/g722codec.h"
 #include "g722/g7221codec.h"
 #include "aac/aacencoder.h"
+#include "aac/aacdecoder.h"
 #include "amr/amrcodec.h"
 #include "nelly/nellycodec.h"
 #include "gsm/gsmcodec.h"
@@ -101,6 +102,10 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 		case AudioCodec::OPUS:
 			return new OPUSDecoder();
 
+		case AudioCodec::AAC:
+			// AAC des MP4 : nécessite l'extradata (cf. surcharge à 3 arguments).
+			return new AACDecoder();
+
 		case AudioCodec::G7221:
 			return new G7221Decoder();
 
@@ -109,6 +114,15 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 	}
 
 	return NULL;
+}
+
+AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec, const BYTE* extradata, DWORD extradataSize)
+{
+	// Seul l'AAC exploite l'extradata (AudioSpecificConfig des MP4) ; les autres
+	// codecs n'en ont pas besoin et passent par la fabrique standard.
+	if (codec == AudioCodec::AAC)
+		return new AACDecoder(extradata, (int)extradataSize);
+	return CreateDecoder(codec);
 }
 
 bool AudioFrame::Packetize(unsigned int mtu)

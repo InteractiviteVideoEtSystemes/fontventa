@@ -86,7 +86,7 @@ G722DIR=g722
 G722OBJ=g722codec.o g7221codec.o
 
 AACDIR=aac
-AACOBJ=aacencoder.o
+AACOBJ=aacencoder.o aacdecoder.o
 
 AMRDIR=amr
 AMROBJ=amrcodec.o

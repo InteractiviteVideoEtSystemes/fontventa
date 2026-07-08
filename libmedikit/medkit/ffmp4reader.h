@@ -5,12 +5,14 @@
 
 #include <sys/time.h>
 #include <vector>
+#include <deque>
 #include <medkit/audio.h>
 #include <medkit/video.h>
 #include <medkit/avcdescriptor.h>
 
 struct AVFormatContext;
 struct AVPacket;
+struct SwrContext;
 
 class TextFrame;
 class SubtitleToRtt;
@@ -47,6 +49,15 @@ public:
     int OpenTrack( VideoCodec::Type outputCodecs[], unsigned int nbCodecs,
                    VideoCodec::Type prefCodec, bool cantranscode, bool secondary = false );
     int OpenTrack( TextCodec::Type c, BYTE pt, int rendering );
+
+    /**
+     *  Active le transcodage audio : lit la 1ʳᵉ piste audio décodable du fichier
+     *  (AAC compris) et produit des trames dans `target` (codec télécom cible
+     *  négocié avec le pair : PCMU/PCMA/…). Décodage → resampling → réencodage
+     *  par tranches de 20 ms. @return 1 si activé, 0 sinon (aucune piste audio
+     *  décodable, ou cible non encodable).
+     */
+    int OpenAudioTranscoded( AudioCodec::Type target );
 
     /** cf. mp4reader::GetNextFrame — implémenté en P2. */
     MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime );
@@ -122,6 +133,31 @@ private:
     std::vector<BYTE> videoParamsAvcc; // SPS/PPS en AVCC (préfixe longueur)
 
     QWORD currentTs;
+
+    // --- Transcodage audio (repli quand aucun codec du fichier n'est accepté
+    //     par le pair, p.ex. fichier AAC vers un pair télécom). ---
+    bool             audioTranscode;   // transcodage audio actif
+    AudioCodec::Type audioSrcCodec;    // codec source (fichier) si transcodage
+    AudioDecoder *   audioDec;         // décodeur source (AAC…)
+    AudioEncoder *   audioEnc;         // encodeur cible (PCMU/PCMA…)
+    SwrContext *     audioSwr;         // resampler srcRate -> encRate (S16 mono)
+    std::vector<SWORD> pcmFifo;        // PCM S16 mono @ encRate en attente d'encodage
+    DWORD            srcRate;          // fréquence de restitution du décodeur
+    DWORD            encRate;          // fréquence d'entrée de l'encodeur cible
+    DWORD            outFrameSamples;  // tranche d'encodage = encRate/50 (20 ms)
+    QWORD            audioOutTs;        // horodatage RTP cible courant (échantillons)
+    bool             audioOutTsSet;
+    // Trame encodée prête à émettre (une par paquet RTP)
+    struct EncFrame { std::vector<BYTE> data; DWORD ts; };
+    std::deque<EncFrame> audioOutQueue;
+
+    // Décode `pkt` (piste audio source), réencode par tranches de 20 ms vers
+    // audioOutQueue. N'émet rien directement.
+    void TranscodeAudioPacket( AVPacket * pkt );
+    // Construit audioFrame à partir de audioOutQueue.front() et la dépile.
+    MediaFrame * BuildTranscodedAudioFront();
+    // Vide FIFO/file de sortie (Rewind/Seek).
+    void ResetAudioTranscode();
 };
 
 #endif /* __cplusplus */
