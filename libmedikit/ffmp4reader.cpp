@@ -16,41 +16,6 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
-// ---------------------------------------------------------------------------
-// Mapping AVCodecID -> Codec::Type medkit
-// ---------------------------------------------------------------------------
-static bool MapVideoCodec( enum AVCodecID id, VideoCodec::Type & out )
-{
-    switch( id )
-    {
-        case AV_CODEC_ID_H264:  out = VideoCodec::H264;      return true;
-        case AV_CODEC_ID_H263:  out = VideoCodec::H263_1996; return true;
-        case AV_CODEC_ID_H263P: out = VideoCodec::H263_1998; return true;
-        case AV_CODEC_ID_MPEG4: out = VideoCodec::MPEG4;     return true;
-        case AV_CODEC_ID_VP8:   out = VideoCodec::VP8;       return true;
-        default:                                             return false;
-    }
-}
-
-static bool MapAudioCodec( enum AVCodecID id, AudioCodec::Type & out )
-{
-    switch( id )
-    {
-        case AV_CODEC_ID_PCM_MULAW: out = AudioCodec::PCMU; return true;
-        case AV_CODEC_ID_PCM_ALAW:  out = AudioCodec::PCMA; return true;
-        case AV_CODEC_ID_AMR_NB:    out = AudioCodec::AMR;  return true;
-        case AV_CODEC_ID_AMR_WB:    out = AudioCodec::AMRWB;return true;
-        case AV_CODEC_ID_OPUS:      out = AudioCodec::OPUS; return true;
-        case AV_CODEC_ID_ADPCM_G722:out = AudioCodec::G722; return true;
-        case AV_CODEC_ID_GSM:
-        case AV_CODEC_ID_GSM_MS:    out = AudioCodec::GSM;  return true;
-        // AAC : reconnu comme codec source (décodable). Le passthrough ne le
-        // sélectionne jamais (absent des listes des appelants) ; il sert de
-        // source au transcodage vers un codec télécom (cf. OpenAudioTranscoded).
-        case AV_CODEC_ID_AAC:       out = AudioCodec::AAC;  return true;
-        default:                                            return false;
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Cycle de vie

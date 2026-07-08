@@ -8,6 +8,23 @@ extern "C" {
 #include "medkit/video.h"
 #include <list>
 
+// ---------------------------------------------------------------------------
+// Mapping AVCodecID -> Codec::Type medkit
+// ---------------------------------------------------------------------------
+inline bool MapVideoCodec( enum AVCodecID id, VideoCodec::Type & out )
+{
+    switch( id )
+    {
+        case AV_CODEC_ID_H264:  out = VideoCodec::H264;      return true;
+        case AV_CODEC_ID_H263:  out = VideoCodec::H263_1996; return true;
+        case AV_CODEC_ID_H263P: out = VideoCodec::H263_1998; return true;
+        case AV_CODEC_ID_MPEG4: out = VideoCodec::MPEG4;     return true;
+        case AV_CODEC_ID_VP8:   out = VideoCodec::VP8;       return true;
+        default:                                             return false;
+    }
+}
+
+
 class FfVideoEncoder : public VideoEncoder
 {
 public:

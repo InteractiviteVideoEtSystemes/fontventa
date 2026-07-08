@@ -8,6 +8,25 @@ extern "C" {
 #include "medkit/log.h"
 #include <string.h>
 
+
+bool MapAudioCodec( enum AVCodecID id, AudioCodec::Type & out )
+{
+    switch( id )
+    {
+        case AV_CODEC_ID_PCM_MULAW: out = AudioCodec::PCMU; return true;
+        case AV_CODEC_ID_PCM_ALAW:  out = AudioCodec::PCMA; return true;
+        case AV_CODEC_ID_AMR_NB:    out = AudioCodec::AMR;  return true;
+        case AV_CODEC_ID_AMR_WB:    out = AudioCodec::AMRWB;return true;
+        case AV_CODEC_ID_OPUS:      out = AudioCodec::OPUS; return true;
+        case AV_CODEC_ID_ADPCM_G722:out = AudioCodec::G722; return true;
+        case AV_CODEC_ID_GSM:
+        case AV_CODEC_ID_GSM_MS:    out = AudioCodec::GSM;  return true;
+        case AV_CODEC_ID_AAC:       out = AudioCodec::AAC;  return true;
+        default:                                            return false;
+    }
+}
+
+
 FfAudioEncoder::FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id,
                                const char* codec_name) :
 	defaultSampleRate(8000), inputRate(0), codec(nullptr), ctx(nullptr), swr(nullptr),
