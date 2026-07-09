@@ -78,7 +78,7 @@ public:
 class VideoCodec
 {
 public:
-	enum Type {H263_1996=34,H263_1998=103,MPEG4=104,H264=99,SORENSON=100,VP6=106,VP8=107,ULPFEC=108,RED=109};
+	enum Type {H263_1996=34,H263_1998=103,MPEG4=104,H264=99,SORENSON=100,VP6=106,VP8=107,ULPFEC=108,RED=109,AV1=110};
 	static const char* GetNameFor(Type type)
 	{
 		switch (type)
@@ -90,6 +90,7 @@ public:
 			case SORENSON:  return "SORENSON";
 			case VP6:	return "VP6";
 			case VP8:	return "VP8";
+			case AV1:	return "AV1";
 			default:	return "unknown";
 		}
 	}
@@ -110,8 +111,8 @@ public:
 		 ||
 		 strcmp(name, "H263-1996") == 0)
 	    {
-		c = H263_1996;
-		return true;
+			c = H263_1996;
+			return true;
 	    }
 
 	    if ( strcmp(name, "H263_1998") == 0
@@ -128,14 +129,22 @@ public:
 
 	    if ( strcmp(name, "VP8") == 0)
 	    {
-		c = VP8;
-		return true;
+			c = VP8;
+			return true;
+	    }
+
+	    if ( strcmp(name, "AV1") == 0)
+	    {
+			c = AV1;
+			return true;
 	    }
 
 	    return false;
 	}
 
 	typedef std::map<int,Type> RTPMap;
+
+private:
 };
 
 
