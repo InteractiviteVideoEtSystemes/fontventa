@@ -116,7 +116,7 @@ public:
 	virtual void  CancelGrabFrame()=0;
 	virtual DWORD GetBufferSize()=0;
 	virtual int   StopVideoCapture() = 0;
-        virtual DWORD GetNativeWidth() { return 0; }
+    virtual DWORD GetNativeWidth() { return 0; }
         virtual DWORD GetNativeHeight() { return 0; }
 
         bool HasNativeSizeChanged()
@@ -159,6 +159,8 @@ public:
 	virtual VideoFrame* EncodeFrame(BYTE *in,DWORD len)=0;
 	virtual int FastPictureUpdate()=0;
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod)=0;
+	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp =""; return false; };
+
 public:
 	VideoCodec::Type type;
 };
@@ -176,7 +178,9 @@ public:
 	// mcu/include/video.h (même position vtable, entre Decode et GetFrame).
 	virtual int DecodePacket(BYTE *in,DWORD len,int lost,int last)=0;
 	virtual BYTE* GetFrame()=0;
-	virtual bool  IsKeyFrame()=0;
+	virtual bool IsKeyFrame()=0;
+	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp =""; return false; };
+
 public:
 	VideoCodec::Type type;
 
