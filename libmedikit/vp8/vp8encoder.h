@@ -26,6 +26,10 @@ protected:
 	// Packetisation RTP VP8 (RFC 7741) : préfixe chaque fragment d'un VP8 payload
 	// descriptor minimal (S=1 sur le 1er paquet de la trame, 0 ensuite).
 	virtual void PacketizeFrame();
+	virtual void ConfigureContext();
+
+	int maxFrameSize;
+	int maxFrameRate;
 };
 
 #endif

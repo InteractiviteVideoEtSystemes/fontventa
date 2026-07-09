@@ -8,6 +8,17 @@
 VP8Encoder::VP8Encoder(const Properties& properties) :
 	FfVideoEncoder(properties, AV_CODEC_ID_VP8, VideoCodec::VP8)
 {
+	maxFrameRate = properties.GetProperty("vp8.max-fr", 0);
+	maxFrameSize = properties.GetProperty("vp8.max-fs", 0);
+}
+
+void VP8Encoder::ConfigureContext()
+{
+	if (maxFrameRate > 0) 
+	{
+		ctx->framerate.num = maxFrameRate;
+		ctx->framerate.den = 1;
+	}
 }
 
 VP8Encoder::~VP8Encoder()
