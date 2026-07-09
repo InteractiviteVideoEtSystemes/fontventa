@@ -11,10 +11,11 @@ extern "C" {
 #include <libavutil/opt.h>
 }
 
+
+extern std::string BuildH264Fmtp(int payloadType, AVCodecContext *ctx);
+
 //////////////////////////////////////////////////////////////////////////
-//Encoder
-// 	Codificador H264 (ffmpeg : h264_vaapi si dispo, libx264 sinon)
-//
+//Encoder H264 (ffmpeg : h264_vaapi si dispo, libx264 sinon)
 //////////////////////////////////////////////////////////////////////////
 
 /**********************
@@ -277,4 +278,12 @@ void H264Encoder::PacketizeFrame()
 	// Packetisation RTP single NAL / FU-A sur les préfixes de taille
 	frame->SetH264NalSizeLength(4);
 	frame->Packetize(RTPPAYLOADSIZE-2);
+}
+
+bool H264Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)
+{
+	if (!ctx) return false;
+
+	fmtp = BuildH264Fmtp(payloadType, ctx);
+	return !fmtp.empty();
 }

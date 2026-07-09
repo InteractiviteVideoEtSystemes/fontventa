@@ -1,9 +1,121 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <sstream>
+#include <vector>
 #include <netinet/in.h>
 #include "../medkit/log.h"
 #include "h264decoder.h"
+
+// Fonction pour extraire SPS et PPS depuis extradata
+static bool extractSPSAndPPS(const uint8_t* extradata, size_t extradataSize,
+                      std::vector<uint8_t>& sps, std::vector<uint8_t>& pps)
+{
+    if (extradataSize < 8) 
+	{
+		Log("H264: Extradata too small to contain SPS and PPS\n");
+        return false;
+    }
+
+    // Chercher le début du SPS (après 0x00 0x00 0x00 0x01)
+    for (size_t i = 0; i < extradataSize - 4; ++i) 
+	{
+        if (extradata[i] == 0 && extradata[i+1] == 0 &&
+            extradata[i+2] == 0 && extradata[i+3] == 1)
+		{
+            // Le SPS commence à i+4
+            size_t spsStart = i + 4;
+            // La taille du SPS est encodée sur 2 octets (big-endian)
+            size_t spsSize = (extradata[spsStart - 2] << 8) | extradata[spsStart - 1];
+            if (spsStart + spsSize > extradataSize) {
+                return false;
+            }
+            sps.assign(extradata + spsStart, extradata + spsStart + spsSize);
+
+            // Chercher le PPS (après le SPS)
+            size_t ppsStart = spsStart + spsSize;
+            while (ppsStart < extradataSize - 4) {
+                if (extradata[ppsStart] == 0 && extradata[ppsStart+1] == 0 &&
+                    extradata[ppsStart+2] == 0 && extradata[ppsStart+3] == 1) {
+                    ppsStart += 4;
+                    size_t ppsSize = (extradata[ppsStart - 2] << 8) | extradata[ppsStart - 1];
+                    if (ppsStart + ppsSize > extradataSize) {
+                        return false;
+                    }
+                    pps.assign(extradata + ppsStart, extradata + ppsStart + ppsSize);
+                    return true;
+                }
+                ++ppsStart;
+            }
+        }
+    }
+    return false;
+}
+
+#include <sstream>
+#include <iomanip>
+#include <stdexcept>
+#include <vector>
+#include <cstdint>
+
+extern "C" {
+#include <libavutil/base64.h>
+}
+
+std::string Base64Encode(const std::vector<uint8_t> &binary)
+{
+    int sz = AV_BASE64_SIZE(binary.size()); // macro officielle FFmpeg
+    std::vector<char> buf(sz);
+
+    char *result = av_base64_encode(buf.data(), sz, binary.data(),
+                                     static_cast<int>(binary.size()));
+    if (!result) 
+	{
+		Error("H264: buffer to small to convert to base64"); 
+		return "";
+	}
+    
+    return std::string(result);
+}
+
+std::string BuildH264Fmtp(int payloadType, AVCodecContext *ctx)
+{
+    if (!ctx)
+        return "";
+
+    std::vector<uint8_t> sps, pps;
+
+    if (!extractSPSAndPPS(ctx->extradata, ctx->extradata_size, sps, pps))
+    {
+        Error("H264: Failed to extract SPS and PPS from extradata\n");
+        return "";
+    }
+
+    if (sps.size() < 4)
+    {
+        Error("H264: Invalid SPS size\n");
+        return "";
+    }
+
+    // profile_idc, constraint flags, level_idc — nécessite que sps[0] soit le header NAL
+    uint8_t profileIdc      = sps[1];
+    uint8_t constraintFlags = sps[2];
+    uint8_t levelIdc        = sps[3];
+
+    std::string spsB64 = Base64Encode(sps);
+    std::string ppsB64 = Base64Encode(pps);
+
+    std::ostringstream fmtp;
+    fmtp << "a=fmtp:" << payloadType << " profile-level-id="
+         << std::hex << std::setfill('0')
+         << std::setw(2) << static_cast<int>(profileIdc)
+         << std::setw(2) << static_cast<int>(constraintFlags)
+         << std::setw(2) << static_cast<int>(levelIdc)
+         << "; sprop-parameter-sets=" << spsB64 << "," << ppsB64
+         << "; packetization-mode=1";
+
+    return fmtp.str();
+}
 
 //H264Decoder
 // 	Decodificador H264
@@ -174,6 +286,14 @@ int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 		bufLen = 0;
 	}
 	return ret;
+}
+
+bool H264Decoder::GetFmtpInfo(std::string &fmtp, int payloadType)
+{
+	if (!ctx) return false;
+
+	fmtp = BuildH264Fmtp(payloadType, ctx);
+	return !fmtp.empty();
 }
 
 #if 0

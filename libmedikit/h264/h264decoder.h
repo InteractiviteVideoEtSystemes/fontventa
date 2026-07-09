@@ -11,5 +11,6 @@ public:
 
 	// Dépaquetisation RTP H.264 (RFC 6184 : single NAL, STAP-A, FU-A).
 	virtual int DecodePacket(BYTE *in,DWORD len,int lost,int last);
+	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 };
 #endif

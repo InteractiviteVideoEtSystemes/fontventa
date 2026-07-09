@@ -17,6 +17,7 @@ public:
 	// du VBV relue par libx264 à chaque trame, ou réouverture throttlée en
 	// VAAPI (qui ne sait pas changer son rate control en cours de route).
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod);
+	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 
 protected:
 	virtual void ConfigureContext();
