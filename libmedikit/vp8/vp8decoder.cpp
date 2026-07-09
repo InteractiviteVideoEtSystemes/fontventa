@@ -4,8 +4,41 @@
  * Décodeur VP8 natif ffmpeg + dépaquetisation RTP VP8 (RFC 7741).
  */
 #include <string.h>
+#include <sstream>
 #include "medkit/log.h"
 #include "vp8decoder.h"
+
+// Fonction pour construire l'entête fmtp pour VP8 avec payloadType en paramètre
+bool buildVP8FmtpHeader(AVCodecContext* ctx, int payloadType, std::string &fmtp2)
+{
+    std::ostringstream fmtp;
+
+    // Ajouter le payload type
+    fmtp << "a=fmtp:" << payloadType;
+
+    // Paramètres optionnels pour VP8
+    // Exemple : max-fr (taux d'images maximal) et max-fs (taille maximale des trames)
+    // Ces valeurs peuvent être extraites de ctx si nécessaire
+    int maxFrameRate = ctx->framerate.num > 0 && ctx->framerate.den > 0 ?
+                       ctx->framerate.num / ctx->framerate.den : 30;
+    int maxFrameSize = 4000; // Valeur par défaut, à adapter selon votre cas
+
+    // Ajouter max-fr si disponible
+    if (maxFrameRate > 0) {
+        fmtp << " max-fr=" << maxFrameRate;
+    }
+
+    // Ajouter max-fs si nécessaire
+    if (maxFrameSize > 0) 
+	{
+		if (!fmtp.str().empty()) fmtp << ";";
+		fmtp << " max-fs=" << maxFrameSize;
+    }
+
+    fmtp2 = fmtp.str();
+    return fmtp2.length() > 0;
+}
+
 
 VP8Decoder::VP8Decoder() :
 	FfVideoDecoder(AV_CODEC_ID_VP8, VideoCodec::VP8)
@@ -92,4 +125,9 @@ int VP8Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 		bufLen = 0;
 	}
 	return ret;
+}
+
+bool VP8Decoder::GetFmtpInfo(std::string &fmtp, int payloadType)
+{
+	return buildVP8FmtpHeader(ctx, payloadType, fmtp);
 }
