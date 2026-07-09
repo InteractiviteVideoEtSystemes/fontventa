@@ -290,6 +290,8 @@ inline void set8(BYTE *data,BYTE i,QWORD val)
     v = i ? (v << 6) + bits : bits; \
 } while(0)
 
+#if 0
+
 #define AV_BASE64_SIZE(x)  (((x)+2) / 3 * 4 + 1)
 
 inline int av_base64_decode(uint8_t *out, const char *in_str, int out_size)
@@ -417,6 +419,8 @@ inline char *av_base64_encode(char *out, int out_size, const uint8_t *in, int in
 
     return ret;
 }
+
+#endif 
 
 inline DWORD pad32(DWORD size)
 {
