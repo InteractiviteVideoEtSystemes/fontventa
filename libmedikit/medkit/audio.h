@@ -49,7 +49,7 @@ public:
 			case AudioCodec::G722:
 				packetization = 160;
 				break;
-			// Codecs « frame-based » (Opus, AMR, GSM, G722.1, Speex, AAC…) :
+			// Codecs « frame-based » (Opus, AMR, GSM, Speex, AAC…) :
 			// une trame codée est une unité indivisible qui doit tenir dans
 			// UN paquet RTP. On met une valeur large (plafonnée au mtu par
 			// Packetize) pour ne jamais fragmenter une trame en octets — sans

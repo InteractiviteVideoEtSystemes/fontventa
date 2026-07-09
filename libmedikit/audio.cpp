@@ -2,7 +2,6 @@
 #include "medkit/audio.h"
 #include "g711/g711codec.h"
 #include "g722/g722codec.h"
-#include "g722/g7221codec.h"
 #include "aac/aacencoder.h"
 #include "aac/aacdecoder.h"
 #include "amr/amrcodec.h"
@@ -60,9 +59,6 @@ AudioEncoder* AudioCodecFactory::CreateEncoder(AudioCodec::Type codec, const Pro
 		case AudioCodec::OPUS:
 			return new OPUSEncoder(properties);
 
-		case AudioCodec::G7221:
-			return new G7221Encoder(properties);
-
 		default:
 			Error("Codec not found [%d]\n",codec);
 	}
@@ -105,9 +101,6 @@ AudioDecoder* AudioCodecFactory::CreateDecoder(AudioCodec::Type codec)
 		case AudioCodec::AAC:
 			// AAC des MP4 : nécessite l'extradata (cf. surcharge à 3 arguments).
 			return new AACDecoder();
-
-		case AudioCodec::G7221:
-			return new G7221Decoder();
 
 		default:
 			Error("Codec not found [%d]\n",codec);

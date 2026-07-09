@@ -83,7 +83,7 @@ OPUSDIR=opus
 OPUSOBJ=opuscodec.o
 
 G722DIR=g722
-G722OBJ=g722codec.o g7221codec.o
+G722OBJ=g722codec.o
 
 AACDIR=aac
 AACOBJ=aacencoder.o aacdecoder.o
@@ -189,5 +189,4 @@ testsps.o: medkit/bitstream.h
 # mediaserver. Usage : make ffmp4probe && ./ffmp4probe fichier.mp4 [seekMs]
 ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
 	$(CXX) $(CXXFLAGS) tools/ffmp4probe.cpp libmedkit.a -o $@ \
-		-L../../../staticdeps/lib -Wl,-Bstatic -lg722_1 -Wl,-Bdynamic \
 		$(LDFLAGS) -lmp4v2 -lgsm
