@@ -418,9 +418,9 @@ int Mp4AudioTrack::Create( const char *trackName, int codec, DWORD samplerate )
 
 
         case AudioCodec::AAC:
-            // TODO: complete AAC support
-            mediatrack = MP4AddAudioTrack( mp4, samplerate, 1024, MP4_MPEG2_AAC_LC_AUDIO_TYPE );
-            // Create no hint track
+            // AAC-LC MPEG-4 (l'AudioSpecificConfig porte object type 2 = LC).
+            // Pas de hint track : l'AAC n'est pas re-streamé en RTP.
+            mediatrack = MP4AddAudioTrack( mp4, samplerate, 1024, MP4_MPEG4_AUDIO_TYPE );
 
                 // Set channel and sample properties
             MP4SetTrackESConfiguration( mp4, mediatrack, config.GetData(), config.GetSize() );
@@ -499,6 +499,9 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame *f )
                 }
             }
             prevts = f2->GetTimeStamp();
+            // Une trame AAC-LC fait toujours 1024 échantillons : durée constante,
+            // indépendante des timestamps en ms (leur arrondi ferait dériver la piste).
+            if( codec == AudioCodec::AAC ) duration = 1024;
             MP4WriteSample( mp4, mediatrack, f2->GetData(), f2->GetLength(), duration, 0, 1 );
             sampleId++;
             totalDuration += duration / (f2->GetRate() / 1000);

@@ -350,9 +350,12 @@ int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
         case MediaFrame::Text:
             if( mediatracks[MP4_TEXT_TRACK] == NULL )
             {
-                /* auto create text track if needed */
-                const char *n = &partName[0];
-                AddTrack( TextCodec::T140, n, 0 );
+                /* auto create text track if needed.
+                 * textfile=-1 : pas de fichier texte annexe -- 0 serait pris
+                 * pour un fd valide (stdin !) par les gardes `textfile >= 0`
+                 * de Mp4TextTrack (onNewLine y ecrivait les sous-titres et
+                 * GetSavedTextForVm bloquait dans read(0) a la fermeture). */
+                AddTrack( TextCodec::T140, &partName[0], -1 );
             }
 
             if( mediatracks[MP4_TEXT_TRACK] )
