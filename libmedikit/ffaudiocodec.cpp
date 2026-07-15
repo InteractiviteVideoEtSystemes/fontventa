@@ -352,21 +352,27 @@ int FfAudioEncoder::Encode(SWORD *in, int inLen, BYTE* out, int outLen)
  *                              FfAudioDecoder                                *
  ******************************************************************************/
 
-FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id) :
-	FfAudioDecoder(av_codec, codec_id, nullptr, 0)
+FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id, const char* codec_name) :
+	FfAudioDecoder(av_codec, codec_id, nullptr, 0, codec_name)
 {
 }
 
 FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id,
-                               const uint8_t* extradata, int extradata_size) :
+                               const uint8_t* extradata, int extradata_size, const char* codec_name) :
 	codec(nullptr), ctx(nullptr), swr(nullptr), frame(nullptr), pkt(nullptr), opened(false)
 {
 	// Membres hérités d'AudioDecoder
 	type = codec_id;
 	numFrameSamples = 0;
 
-	// Recherche du décodeur
-	codec = avcodec_find_decoder(av_codec);
+	// Recherche du décodeur : si un nom est fourni, on privilégie le décodeur
+	// natif (ou wrapper) explicitement demandé plutôt que celui qu'
+	// avcodec_find_decoder() retournerait par défaut, avec repli sur l'ID si non
+	// trouvé (même logique que FfAudioEncoder).
+	if (codec_name)
+		codec = avcodec_find_decoder_by_name(codec_name);
+	if (!codec)
+		codec = avcodec_find_decoder(av_codec);
 	if (!codec)
 	{
 		Error("Decoder [%s] not supported in ffmpeg\n", avcodec_get_name(av_codec));

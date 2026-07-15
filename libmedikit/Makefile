@@ -70,6 +70,10 @@ H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 VP8DIR=vp8
 VP8OBJ=vp8decoder.o vp8encoder.o
 
+# AV1 : encodeur via le wrapper libsvtav1 (temps-réel), décodeur via libdav1d.
+AV1DIR=av1
+AV1OBJ=av1codec.o
+
 GSMDIR=gsm
 GSMOBJ=gsmcodec.o
 
@@ -95,7 +99,7 @@ NELLYDIR=nelly
 NELLYOBJ=nellycodec.o
 
 OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o text2subtitle.o log.o media.o
-OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(SPEEXOBJ) $(VP8OBJ) ffvideocodec.o ffaudiocodec.o
+OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(SPEEXOBJ) $(VP8OBJ) $(AV1OBJ) ffvideocodec.o ffaudiocodec.o
 OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o ffmp4reader.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
@@ -116,6 +120,7 @@ VPATH += %.cpp $(GSMDIR)
 VPATH += %.cpp $(SPEEXDIR)
 VPATH += %.cpp $(OPUSDIR)
 VPATH += %.cpp $(VP8DIR)
+VPATH += %.cpp $(AV1DIR)
 LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lx264  -lbz2 -lssl -lcrypto -lpthread
 
 #For abyss

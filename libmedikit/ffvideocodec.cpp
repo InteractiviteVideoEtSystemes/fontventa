@@ -95,7 +95,8 @@ static void AllocateVAAPIFrame(AVCodecContext * ctx)
 /***********************
 * FfVideoEncoder
 ************************/
-FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id, bool tryHW)
+FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id,
+                               bool tryHW, const char* codec_name)
 {
 	// Set default values
 	frame	= NULL;
@@ -109,6 +110,7 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 	avCodecId = av_codec;
 	hwFailed = false;
 	pts	= 0;
+	codecName = codec_name;
 
 	// Init framerate
 	SetFrameRate(5,300,20);
@@ -179,8 +181,14 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 		}
 	}
 
-	// Encodeur logiciel par défaut
-	codec = avcodec_find_encoder(avCodecId);
+	// Encodeur logiciel par défaut : si un nom est fourni, on privilégie
+	// explicitement ce backend (ex : "libsvtav1" plutôt que "libaom-av1",
+	// que avcodec_find_encoder() renvoie par défaut pour AV1 mais qui n'est
+	// pas temps réel), avec repli sur l'ID si non trouvé.
+	if (codecName)
+		codec = avcodec_find_encoder_by_name(codecName);
+	if (!codec)
+		codec = avcodec_find_encoder(avCodecId);
 	if (!codec)
 		return Error("Encoder [%s] not supported in ffmpeg\n", avcodec_get_name(avCodecId));
 
@@ -641,14 +649,20 @@ int FfVideoEncoder::FastPictureUpdate()
 * FfVideoDecoder
 *	Consturctor
 ************************/
-FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id)
+FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id, const char* codec_name)
 {
 	//Guardamos los valores por defecto
 	type = codec_id;
 	bufLen = 0;
 
-	//Encotramos el codec
-	codec = avcodec_find_decoder(av_codec);
+	//Encotramos el codec : si un nom est fourni, on le privilégie (explicite
+	// plutôt que de dépendre de l'ordre de résolution par défaut de ffmpeg),
+	// avec repli sur l'ID si non trouvé.
+	codec = NULL;
+	if (codec_name)
+		codec = avcodec_find_decoder_by_name(codec_name);
+	if (!codec)
+		codec = avcodec_find_decoder(av_codec);
 
 	//Comprobamos
 	if(codec==NULL)

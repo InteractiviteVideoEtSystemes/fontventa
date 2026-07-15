@@ -4,6 +4,8 @@
 #include "../medkit/video.h"
 #include "../ffvideocodec.h"
 #include <string>
+#include <vector>
+#include <cstdint>
 
 // Encodeur H264 sur ffmpeg : h264_vaapi si un device VAAPI est utilisable,
 // libx264 en repli. Remplace l'ancien encodeur x264 direct.
@@ -31,6 +33,14 @@ private:
 	int qPel;
 	// Débit effectif à l'ouverture : sert à décider une réouverture VAAPI
 	int openedBitrate;
+
+	// SPS/PPS (bruts, sans start code) du premier NAL vu par PacketizeFrame,
+	// capturés APRÈS réécriture du profile-level-id négocié (cf.
+	// PacketizeFrame) : source de GetFmtpInfo, ctx->extradata n'étant jamais
+	// peuplé ici. Invalidés à chaque (ré)ouverture par ConfigureContext().
+	std::vector<uint8_t> cachedSps;
+	std::vector<uint8_t> cachedPps;
+	bool spsPpsCached;
 };
 
 #endif

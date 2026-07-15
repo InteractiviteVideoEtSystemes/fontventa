@@ -20,6 +20,7 @@ inline bool MapVideoCodec( enum AVCodecID id, VideoCodec::Type & out )
         case AV_CODEC_ID_H263P: out = VideoCodec::H263_1998; return true;
         case AV_CODEC_ID_MPEG4: out = VideoCodec::MPEG4;     return true;
         case AV_CODEC_ID_VP8:   out = VideoCodec::VP8;       return true;
+        case AV_CODEC_ID_AV1:   out = VideoCodec::AV1;       return true;
         default:                                             return false;
     }
 }
@@ -31,7 +32,13 @@ public:
 	// tryHW : essaye d'abord un encodeur matériel VAAPI pour ce codec ; en cas
 	// d'indisponibilité (pas de device, driver refusant profil/résolution...)
 	// l'encodeur logiciel ffmpeg est utilisé en repli.
-	FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id, bool tryHW = false);
+	// codec_name : si non nul, force ce nom d'encodeur ffmpeg (par ex.
+	// "libsvtav1" plutôt que "libaom-av1", que avcodec_find_encoder()
+	// retournerait par défaut pour AV_CODEC_ID_AV1) dans la branche logicielle
+	// de SelectCodec(). Laisser à nullptr pour le comportement par défaut
+	// (utilisé par H264/VP8, où il n'y a pas d'ambiguïté de backend).
+	FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id,
+	               bool tryHW = false, const char* codec_name = nullptr);
 	virtual ~FfVideoEncoder();
 	virtual VideoFrame* EncodeFrame(BYTE *in, DWORD len);
 	virtual int FastPictureUpdate();
@@ -49,8 +56,11 @@ protected:
 	int ReopenCodec();
 
 	// Choisit l'encodeur (VAAPI si tryHW et utilisable, sinon l'encodeur
-	// logiciel ffmpeg par défaut) et alloue le contexte.
+	// logiciel ffmpeg par défaut, ou codec_name si fourni) et alloue le contexte.
 	bool SelectCodec(bool tryHW);
+
+	// Nom d'encodeur logiciel forcé (cf. constructeur), ou nullptr.
+	const char* codecName;
 
 	// Bascule définitive sur l'encodeur logiciel après un échec VAAPI,
 	// et rouvre aux dimensions courantes.
@@ -91,7 +101,11 @@ protected:
 class FfVideoDecoder : public VideoDecoder
 {
 public:
-	FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id);
+	// codec_name : si non nul, force ce nom de décodeur ffmpeg. Laisser à
+	// nullptr pour le comportement par défaut (avcodec_find_decoder par ID) ;
+	// utile pour être explicite plutôt que de dépendre de l'ordre de
+	// résolution par défaut de ffmpeg (ex : AV1 -> "libdav1d").
+	FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id, const char* codec_name = nullptr);
 	virtual ~FfVideoDecoder();
 	virtual int Decode(BYTE *in,DWORD len);
 	// Dépaquetisation par défaut : accumule le payload brut puis décode sur 'last'.

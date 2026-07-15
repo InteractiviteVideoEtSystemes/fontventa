@@ -5,6 +5,10 @@
  */
 #include "vp8encoder.h"
 
+// Partagée avec vp8decoder.cpp : construction générique "a=fmtp:<pt>
+// max-fr=X;max-fs=Y" à partir de limites déjà résolues par l'appelant.
+extern bool BuildVP8FmtpFromLimits(int payloadType, int maxFrameRate, int maxFrameSize, std::string &fmtp2);
+
 VP8Encoder::VP8Encoder(const Properties& properties) :
 	FfVideoEncoder(properties, AV_CODEC_ID_VP8, VideoCodec::VP8)
 {
@@ -57,4 +61,9 @@ void VP8Encoder::PacketizeFrame()
 
 		ini += lenpkt;
 	}
+}
+
+bool VP8Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)
+{
+	return BuildVP8FmtpFromLimits(payloadType, maxFrameRate, maxFrameSize, fmtp);
 }

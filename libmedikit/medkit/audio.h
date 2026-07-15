@@ -12,6 +12,7 @@ public:
 	virtual DWORD TrySetRate(DWORD rate)=0;
 	virtual DWORD GetRate()=0;
 	virtual DWORD GetClockRate()=0;
+	virtual bool  GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp=""; return false; };
 
 	AudioCodec::Type	type;
 	int			numFrameSamples;
@@ -25,6 +26,7 @@ public:
 	virtual int   Decode(BYTE *in,int inLen,SWORD* out,int outLen)=0;
 	virtual DWORD TrySetRate(DWORD rate)=0;
 	virtual DWORD GetRate()=0;
+	virtual bool  GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp=""; return false; };
 	AudioCodec::Type	type;
 	int			numFrameSamples;
 	int			frameLength;

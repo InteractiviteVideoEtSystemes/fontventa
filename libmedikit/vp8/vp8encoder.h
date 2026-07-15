@@ -15,12 +15,16 @@
 #define _VP8ENCODER_H_
 
 #include "../ffvideocodec.h"
+#include <string>
 
 class VP8Encoder : public FfVideoEncoder
 {
 public:
 	VP8Encoder(const Properties& properties);
 	virtual ~VP8Encoder();
+	// max-fr/max-fs (RFC 7742) reflètent directement maxFrameRate/maxFrameSize
+	// ci-dessous : les vraies limites configurées pour cet encodeur.
+	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 
 protected:
 	// Packetisation RTP VP8 (RFC 7741) : préfixe chaque fragment d'un VP8 payload

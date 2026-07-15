@@ -8,35 +8,46 @@
 #include "medkit/log.h"
 #include "vp8decoder.h"
 
-// Fonction pour construire l'entête fmtp pour VP8 avec payloadType en paramètre
-bool buildVP8FmtpHeader(AVCodecContext* ctx, int payloadType, std::string &fmtp2)
+// Construit "a=fmtp:<pt> max-fr=X;max-fs=Y" (RFC 7742) à partir de limites déjà
+// résolues par l'appelant (encodeur : ses propres bornes configurées ;
+// décodeur : sa capacité de décodage locale). Un booléen explicite marque
+// qu'un paramètre a déjà été ajouté, plutôt que de tester si le flux
+// accumulé est vide (celui-ci contient toujours "a=fmtp:<pt>", donc le test
+// était systématiquement vrai — bug corrigé ici).
+bool BuildVP8FmtpFromLimits(int payloadType, int maxFrameRate, int maxFrameSize, std::string &fmtp2)
 {
     std::ostringstream fmtp;
-
-    // Ajouter le payload type
     fmtp << "a=fmtp:" << payloadType;
 
-    // Paramètres optionnels pour VP8
-    // Exemple : max-fr (taux d'images maximal) et max-fs (taille maximale des trames)
-    // Ces valeurs peuvent être extraites de ctx si nécessaire
-    int maxFrameRate = ctx->framerate.num > 0 && ctx->framerate.den > 0 ?
-                       ctx->framerate.num / ctx->framerate.den : 30;
-    int maxFrameSize = 4000; // Valeur par défaut, à adapter selon votre cas
+    bool any = false;
 
-    // Ajouter max-fr si disponible
-    if (maxFrameRate > 0) {
+    if (maxFrameRate > 0)
+    {
         fmtp << " max-fr=" << maxFrameRate;
+        any = true;
     }
 
-    // Ajouter max-fs si nécessaire
-    if (maxFrameSize > 0) 
-	{
-		if (!fmtp.str().empty()) fmtp << ";";
-		fmtp << " max-fs=" << maxFrameSize;
+    if (maxFrameSize > 0)
+    {
+        fmtp << (any ? ";" : " ") << "max-fs=" << maxFrameSize;
+        any = true;
     }
 
     fmtp2 = fmtp.str();
-    return fmtp2.length() > 0;
+    return any;
+}
+
+// Rapporte la capacité de décodage LOCALE (ce que ce décodeur peut encaisser
+// en réception, au sens RFC 7742 §6.2 — pas les limites de l'encodeur
+// distant). ctx->framerate ne reflète jamais une vraie contrainte ici (rien
+// dans FfVideoDecoder ne l'alimente) : valeurs fixes documentées, cohérentes
+// avec le tampon de décodage réel (cf. FfVideoDecoder, bufSize=1024x756).
+bool buildVP8FmtpHeader(AVCodecContext* ctx, int payloadType, std::string &fmtp2)
+{
+    const int localMaxFrameRate = 30;
+    const int localMaxFrameSize = 3072; // macroblocs 16x16 pour ~1024x756
+
+    return BuildVP8FmtpFromLimits(payloadType, localMaxFrameRate, localMaxFrameSize, fmtp2);
 }
 
 

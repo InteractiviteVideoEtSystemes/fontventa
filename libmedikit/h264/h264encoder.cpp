@@ -12,7 +12,7 @@ extern "C" {
 }
 
 
-extern std::string BuildH264Fmtp(int payloadType, AVCodecContext *ctx);
+extern std::string BuildH264Fmtp(int payloadType, const std::vector<uint8_t>& sps, const std::vector<uint8_t>& pps);
 
 //////////////////////////////////////////////////////////////////////////
 //Encoder H264 (ffmpeg : h264_vaapi si dispo, libx264 sinon)
@@ -29,6 +29,7 @@ H264Encoder::H264Encoder(const Properties& properties)
 	intraRefresh = (bool) properties.GetProperty("h264.intra_refresh",0);
 	qPel =  properties.GetProperty("h264.qpel",3);
 	openedBitrate = 0;
+	spsPpsCached = false;
 }
 
 /**********************
@@ -71,6 +72,12 @@ void H264Encoder::GetProfileLevel(int &profile, int &level)
 ***********************/
 void H264Encoder::ConfigureContext()
 {
+	// Un (ré)ouverture (resize, bascule VAAPI<->logiciel...) produit un
+	// nouveau SPS : invalide le cache utilisé par GetFmtpInfo.
+	spsPpsCached = false;
+	cachedSps.clear();
+	cachedPps.clear();
+
 	int profile;
 	int level;
 
@@ -261,10 +268,24 @@ void H264Encoder::PacketizeFrame()
 	{
 		BYTE* nal     = data + nalus[i].first;
 		DWORD nalSize = nalus[i].second;
+		BYTE  nalType = nal[0] & 0x1f;
 
 		// SPS : profile_idc/constraints/level_idc = valeur négociée
-		if (nalSize >= 4 && (nal[0] & 0x1f) == 7)
+		if (nalSize >= 4 && nalType == 7)
 			set3(nal,1,profileLevel);
+
+		// Cache SPS/PPS pour GetFmtpInfo (une seule fois par ouverture,
+		// invalidé par ConfigureContext au resize) : capturés APRÈS la
+		// réécriture ci-dessus, pour refléter le profil réellement négocié.
+		if (!spsPpsCached)
+		{
+			if (nalType == 7)
+				cachedSps.assign(nal, nal + nalSize);
+			else if (nalType == 8)
+				cachedPps.assign(nal, nal + nalSize);
+			if (!cachedSps.empty() && !cachedPps.empty())
+				spsPpsCached = true;
+		}
 
 		// NB : le paramètre offset de set4() est un BYTE, on avance le pointeur
 		set4(out+outLen,0,nalSize);
@@ -282,8 +303,8 @@ void H264Encoder::PacketizeFrame()
 
 bool H264Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)
 {
-	if (!ctx) return false;
+	if (!spsPpsCached) return false;
 
-	fmtp = BuildH264Fmtp(payloadType, ctx);
+	fmtp = BuildH264Fmtp(payloadType, cachedSps, cachedPps);
 	return !fmtp.empty();
 }

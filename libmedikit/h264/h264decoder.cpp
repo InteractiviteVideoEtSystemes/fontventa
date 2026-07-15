@@ -7,51 +7,6 @@
 #include "../medkit/log.h"
 #include "h264decoder.h"
 
-// Fonction pour extraire SPS et PPS depuis extradata
-static bool extractSPSAndPPS(const uint8_t* extradata, size_t extradataSize,
-                      std::vector<uint8_t>& sps, std::vector<uint8_t>& pps)
-{
-    if (extradataSize < 8) 
-	{
-		Log("H264: Extradata too small to contain SPS and PPS\n");
-        return false;
-    }
-
-    // Chercher le début du SPS (après 0x00 0x00 0x00 0x01)
-    for (size_t i = 0; i < extradataSize - 4; ++i) 
-	{
-        if (extradata[i] == 0 && extradata[i+1] == 0 &&
-            extradata[i+2] == 0 && extradata[i+3] == 1)
-		{
-            // Le SPS commence à i+4
-            size_t spsStart = i + 4;
-            // La taille du SPS est encodée sur 2 octets (big-endian)
-            size_t spsSize = (extradata[spsStart - 2] << 8) | extradata[spsStart - 1];
-            if (spsStart + spsSize > extradataSize) {
-                return false;
-            }
-            sps.assign(extradata + spsStart, extradata + spsStart + spsSize);
-
-            // Chercher le PPS (après le SPS)
-            size_t ppsStart = spsStart + spsSize;
-            while (ppsStart < extradataSize - 4) {
-                if (extradata[ppsStart] == 0 && extradata[ppsStart+1] == 0 &&
-                    extradata[ppsStart+2] == 0 && extradata[ppsStart+3] == 1) {
-                    ppsStart += 4;
-                    size_t ppsSize = (extradata[ppsStart - 2] << 8) | extradata[ppsStart - 1];
-                    if (ppsStart + ppsSize > extradataSize) {
-                        return false;
-                    }
-                    pps.assign(extradata + ppsStart, extradata + ppsStart + ppsSize);
-                    return true;
-                }
-                ++ppsStart;
-            }
-        }
-    }
-    return false;
-}
-
 #include <sstream>
 #include <iomanip>
 #include <stdexcept>
@@ -69,31 +24,26 @@ std::string Base64Encode(const std::vector<uint8_t> &binary)
 
     char *result = av_base64_encode(buf.data(), sz, binary.data(),
                                      static_cast<int>(binary.size()));
-    if (!result) 
+    if (!result)
 	{
-		Error("H264: buffer to small to convert to base64"); 
+		Error("H264: buffer to small to convert to base64");
 		return "";
 	}
-    
+
     return std::string(result);
 }
 
-std::string BuildH264Fmtp(int payloadType, AVCodecContext *ctx)
+// Construit la ligne SDP a=fmtp à partir des octets bruts (sans start code) du
+// SPS et du PPS. Ces octets viennent du flux Annex-B réellement encodé (cf.
+// H264Encoder::PacketizeFrame qui les met en cache) : ctx->extradata n'est
+// jamais peuplé par libx264/h264_vaapi ici (nécessiterait
+// AV_CODEC_FLAG_GLOBAL_HEADER, jamais positionné), ce n'est donc pas une
+// source utilisable.
+std::string BuildH264Fmtp(int payloadType, const std::vector<uint8_t>& sps, const std::vector<uint8_t>& pps)
 {
-    if (!ctx)
-        return "";
-
-    std::vector<uint8_t> sps, pps;
-
-    if (!extractSPSAndPPS(ctx->extradata, ctx->extradata_size, sps, pps))
+    if (sps.size() < 4 || pps.empty())
     {
-        Error("H264: Failed to extract SPS and PPS from extradata\n");
-        return "";
-    }
-
-    if (sps.size() < 4)
-    {
-        Error("H264: Invalid SPS size\n");
+        Error("H264: Invalid SPS/PPS size\n");
         return "";
     }
 
@@ -286,14 +236,6 @@ int H264Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 		bufLen = 0;
 	}
 	return ret;
-}
-
-bool H264Decoder::GetFmtpInfo(std::string &fmtp, int payloadType)
-{
-	if (!ctx) return false;
-
-	fmtp = BuildH264Fmtp(payloadType, ctx);
-	return !fmtp.empty();
 }
 
 #if 0

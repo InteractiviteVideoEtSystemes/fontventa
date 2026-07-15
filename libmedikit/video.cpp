@@ -5,6 +5,7 @@
 #include "h264/h264decoder.h"
 #include "vp8/vp8decoder.h"
 #include "vp8/vp8encoder.h"
+#include "av1/av1codec.h"
 #include "ffvideocodec.h"
 
 
@@ -42,6 +43,8 @@ VideoDecoder* VideoCodecFactory::CreateDecoder(VideoCodec::Type codec)
 			return new FfVideoDecoder(AV_CODEC_ID_VP6F, VideoCodec::VP6);
 		case VideoCodec::VP8:
 			return new VP8Decoder();
+		case VideoCodec::AV1:
+			return new AV1Decoder();
 		default:
 			Error("Video decoder not found [%d]\n",codec);
 	}
@@ -72,6 +75,8 @@ VideoEncoder* VideoCodecFactory::CreateEncoder(VideoCodec::Type codec, const Pro
 			return new H264Encoder(properties);
 		case VideoCodec::VP8:
 			return new VP8Encoder(properties);
+		case VideoCodec::AV1:
+			return new AV1Encoder(properties);
 		default:
 			Error("Video Encoder not found\n");
 	}
