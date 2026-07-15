@@ -117,6 +117,10 @@ public:
 	virtual BYTE* GetFrame();
 	virtual bool  IsKeyFrame()	{ return picture->key_frame;	};
 
+	// cf. FfAudioDecoder::IsCodecAvailable : primitive de disponibilité ffmpeg
+	// pour les codecs vidéo adossés à libavcodec.
+	static bool IsCodecAvailable(enum AVCodecID id, const char* preferredName = nullptr);
+
 	AVFrame * GetAVFrame() { return picture; }
 protected:
 	// Accessibles aux décodeurs dérivés pour leur dépaquetiseur (DecodePacket).

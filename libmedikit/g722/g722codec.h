@@ -26,6 +26,8 @@ public:
 
 	// Restitution fixée à 16 kHz (fréquence native du flux G.722).
 	virtual DWORD GetRate()		{ return 16000; }
+
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_ADPCM_G722); }
 };
 
 #endif	/* G722_H */

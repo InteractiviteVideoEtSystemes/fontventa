@@ -95,6 +95,12 @@ public:
 	virtual DWORD TrySetRate(DWORD rate);
 	virtual DWORD GetRate();
 
+	// Primitive de disponibilité pour les codecs adossés à ffmpeg : vrai si
+	// libavcodec fournit un décodeur (par nom préféré si fourni, sinon par ID) —
+	// même test/repli que le constructeur. Utilisée par le IsSupported() des
+	// codecs concrets ffmpeg ; les codecs sur une AUTRE lib ne l'appellent pas.
+	static bool IsCodecAvailable(enum AVCodecID id, const char* preferredName = nullptr);
+
 private:
 	const AVCodec	*codec;
 	AVCodecContext	*ctx;

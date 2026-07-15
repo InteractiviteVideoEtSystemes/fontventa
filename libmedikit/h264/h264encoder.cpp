@@ -308,3 +308,16 @@ bool H264Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)
 	fmtp = BuildH264Fmtp(payloadType, cachedSps, cachedPps);
 	return !fmtp.empty();
 }
+
+std::string H264Encoder::GetFmtpParams(const Properties& properties)
+{
+	// profile-level-id = notre capacité de décodage annoncée (config), en
+	// minuscules par convention SDP (l'attribut est insensible à la casse).
+	std::string profileLevelId = properties.GetProperty("h264.profile-level-id", std::string("42801F"));
+	for (char &c : profileLevelId)
+		if (c >= 'A' && c <= 'Z')
+			c += 'a' - 'A';
+
+	// sprop-parameter-sets délibérément absent (cf. déclaration).
+	return "profile-level-id=" + profileLevelId + ";packetization-mode=1";
+}

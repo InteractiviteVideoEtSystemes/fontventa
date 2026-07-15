@@ -192,5 +192,8 @@ public:
 	static VideoDecoder* CreateDecoder(VideoCodec::Type codec);
 	static VideoEncoder* CreateEncoder(VideoCodec::Type codec);
 	static VideoEncoder* CreateEncoder(VideoCodec::Type codec, const Properties &properties);
+
+	// cf. AudioCodecFactory::GetSupportedCodecs.
+	static const std::vector<VideoCodec::Type>& GetSupportedCodecs();
 };
 #endif

@@ -14,27 +14,40 @@
 // qu'un paramètre a déjà été ajouté, plutôt que de tester si le flux
 // accumulé est vide (celui-ci contient toujours "a=fmtp:<pt>", donc le test
 // était systématiquement vrai — bug corrigé ici).
-bool BuildVP8FmtpFromLimits(int payloadType, int maxFrameRate, int maxFrameSize, std::string &fmtp2)
+// Paramètres VP8 seuls "max-fr=X;max-fs=Y" (RFC 7742), SANS "a=fmtp:<pt> ", à
+// partir de limites déjà résolues. Chaîne vide si aucune limite active.
+std::string BuildVP8FmtpParams(int maxFrameRate, int maxFrameSize)
 {
     std::ostringstream fmtp;
-    fmtp << "a=fmtp:" << payloadType;
-
     bool any = false;
 
     if (maxFrameRate > 0)
     {
-        fmtp << " max-fr=" << maxFrameRate;
+        fmtp << "max-fr=" << maxFrameRate;
         any = true;
     }
 
     if (maxFrameSize > 0)
     {
-        fmtp << (any ? ";" : " ") << "max-fs=" << maxFrameSize;
+        fmtp << (any ? ";" : "") << "max-fs=" << maxFrameSize;
         any = true;
     }
 
+    return fmtp.str();
+}
+
+// Forme « ligne complète » historique : "a=fmtp:<pt> <params>".
+bool BuildVP8FmtpFromLimits(int payloadType, int maxFrameRate, int maxFrameSize, std::string &fmtp2)
+{
+    std::string params = BuildVP8FmtpParams(maxFrameRate, maxFrameSize);
+
+    std::ostringstream fmtp;
+    fmtp << "a=fmtp:" << payloadType;
+    if (!params.empty())
+        fmtp << " " << params;
+
     fmtp2 = fmtp.str();
-    return any;
+    return !params.empty();
 }
 
 // Rapporte la capacité de décodage LOCALE (ce que ce décodeur peut encaisser

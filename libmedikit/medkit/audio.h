@@ -121,6 +121,11 @@ public:
 	static AudioDecoder* CreateDecoder(AudioCodec::Type codec, const BYTE* extradata, DWORD extradataSize);
 	static AudioEncoder* CreateEncoder(AudioCodec::Type codec);
 	static AudioEncoder* CreateEncoder(AudioCodec::Type codec, const Properties &properties);
+
+	// Liste des codecs audio réellement disponibles (candidats instanciables
+	// filtrés par AudioCodec::IsSupported). Calculée une fois, mémoïsée,
+	// thread-safe. Ordre = priorité de préférence.
+	static const std::vector<AudioCodec::Type>& GetSupportedCodecs();
 };
 
 #endif

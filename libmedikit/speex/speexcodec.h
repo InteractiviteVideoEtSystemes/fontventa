@@ -24,6 +24,8 @@ public:
 	virtual ~SpeexDecoder() {}
 	virtual DWORD GetRate()          { return 16000; }
 	virtual DWORD TrySetRate(DWORD)  { return 16000; }
+
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_SPEEX); }
 };
 
 #endif

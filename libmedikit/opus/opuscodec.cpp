@@ -57,19 +57,38 @@ DWORD OPUSEncoder::TrySetRate(DWORD /*rate*/)
 	return FfAudioEncoder::TrySetRate(48000);
 }
 
-bool OPUSEncoder::GetFmtpInfo(std::string &fmtp, int payloadType)
+// Formate les paramètres fmtp OPUS (sans "a=fmtp:<pt> "). Source unique partagée
+// par la forme « ligne complète » (GetFmtpInfo) et la forme « params seuls »
+// (GetFmtpParams), pour éviter toute dérive entre les deux.
+static std::string OpusFmtpParams(bool useInbandFec, bool useDtx, int maxAverageBitrate, bool cbr)
 {
 	std::ostringstream f;
-	f << "a=fmtp:" << payloadType
-	  << " useinbandfec=" << (useInbandFec ? 1 : 0)
+	f << "useinbandfec=" << (useInbandFec ? 1 : 0)
 	  << ";usedtx=" << (useDtx ? 1 : 0);
 	if (maxAverageBitrate > 0)
 		f << ";maxaveragebitrate=" << maxAverageBitrate;
 	if (cbr)
 		f << ";cbr=1";
+	return f.str();
+}
 
+bool OPUSEncoder::GetFmtpInfo(std::string &fmtp, int payloadType)
+{
+	std::ostringstream f;
+	f << "a=fmtp:" << payloadType << " "
+	  << OpusFmtpParams(useInbandFec, useDtx, maxAverageBitrate, cbr);
 	fmtp = f.str();
 	return true;
+}
+
+std::string OPUSEncoder::GetFmtpParams(const Properties &properties)
+{
+	// Mêmes clés/défauts que le constructeur, sans instancier d'encodeur.
+	return OpusFmtpParams(
+		(bool) properties.GetProperty("opus.useinbandfec", 0),
+		(bool) properties.GetProperty("opus.usedtx", 0),
+		properties.GetProperty("opus.maxaveragebitrate", 0),
+		(bool) properties.GetProperty("opus.cbr", 0));
 }
 
 /******************************** OPUSDecoder ********************************/

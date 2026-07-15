@@ -98,7 +98,7 @@ AMROBJ=amrcodec.o
 NELLYDIR=nelly
 NELLYOBJ=nellycodec.o
 
-OBJS=audio.o video.o framescaler.o utf8parser.o  avcdescriptor.o red.o text2subtitle.o log.o media.o
+OBJS=audio.o video.o codecs.o negotiator.o framescaler.o utf8parser.o  avcdescriptor.o red.o text2subtitle.o log.o media.o
 OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(SPEEXOBJ) $(VP8OBJ) $(AV1OBJ) ffvideocodec.o ffaudiocodec.o
 OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o ffmp4reader.o
 

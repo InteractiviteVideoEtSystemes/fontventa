@@ -15,6 +15,8 @@ class AACDecoder : public FfAudioDecoder
 {
 public:
 	AACDecoder(const BYTE* extradata = NULL, int extradataSize = 0);
+
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_AAC); }
 };
 
 #endif	/* AACDECODER_H */

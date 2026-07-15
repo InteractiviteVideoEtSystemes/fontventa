@@ -33,6 +33,12 @@ public:
 	// premier sequence header OBU vu dans le flux encodé.
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 
+	// Paramètres fmtp SDP (SANS "a=fmtp:<pt> ") dérivés de la seule config
+	// (av1.profile / av1.level-idx / av1.tier + défauts), sans codec ouvert.
+	// Forme de négociation ; la forme instance ci-dessus reste dérivée du
+	// sequence header réel. cf. nego_fmtp décision E.
+	static std::string GetFmtpParams(const Properties& properties);
+
 protected:
 	virtual void ConfigureContext();
 	virtual void PacketizeFrame();
@@ -51,6 +57,8 @@ class AV1Decoder : public FfVideoDecoder
 public:
 	AV1Decoder();
 	virtual ~AV1Decoder();
+
+	static bool IsSupported() { return FfVideoDecoder::IsCodecAvailable(AV_CODEC_ID_AV1, "libdav1d"); }
 };
 
 #endif

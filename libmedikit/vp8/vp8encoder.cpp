@@ -5,9 +5,10 @@
  */
 #include "vp8encoder.h"
 
-// Partagée avec vp8decoder.cpp : construction générique "a=fmtp:<pt>
-// max-fr=X;max-fs=Y" à partir de limites déjà résolues par l'appelant.
+// Partagées avec vp8decoder.cpp : construction du fmtp VP8 (max-fr/max-fs,
+// RFC 7742) à partir de limites déjà résolues par l'appelant.
 extern bool BuildVP8FmtpFromLimits(int payloadType, int maxFrameRate, int maxFrameSize, std::string &fmtp2);
+extern std::string BuildVP8FmtpParams(int maxFrameRate, int maxFrameSize);
 
 VP8Encoder::VP8Encoder(const Properties& properties) :
 	FfVideoEncoder(properties, AV_CODEC_ID_VP8, VideoCodec::VP8)
@@ -66,4 +67,12 @@ void VP8Encoder::PacketizeFrame()
 bool VP8Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)
 {
 	return BuildVP8FmtpFromLimits(payloadType, maxFrameRate, maxFrameSize, fmtp);
+}
+
+std::string VP8Encoder::GetFmtpParams(const Properties& properties)
+{
+	// Mêmes clés/défauts que le constructeur, sans instancier d'encodeur.
+	return BuildVP8FmtpParams(
+		properties.GetProperty("vp8.max-fr", 0),
+		properties.GetProperty("vp8.max-fs", 0));
 }

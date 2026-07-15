@@ -21,6 +21,13 @@ public:
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod);
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 
+	// Paramètres fmtp SDP (SANS "a=fmtp:<pt> ") dérivés de la seule config, sans
+	// codec ouvert : profile-level-id (h264.profile-level-id) + packetization-mode.
+	// sprop-parameter-sets est OMIS car les SPS/PPS ne sont connus qu'après
+	// l'encodage d'une trame (indispo à la négociation) ; le pair les reçoit
+	// in-band, l'offer best-effort s'en passe (cf. nego_fmtp §3.2). cf. décision E.
+	static std::string GetFmtpParams(const Properties& properties);
+
 protected:
 	virtual void ConfigureContext();
 	virtual void PacketizeFrame();

@@ -266,6 +266,17 @@ bool AV1Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)
 	return true;
 }
 
+std::string AV1Encoder::GetFmtpParams(const Properties& properties)
+{
+	// Défauts : profile 0 (Main), level-idx 5 (≈ niveau 3.1, cf. AV1 RTP payload
+	// format), tier 0 (Main). Surchargeables par la config si connus.
+	std::ostringstream f;
+	f << "profile="   << properties.GetProperty("av1.profile", 0)
+	  << ";level-idx=" << properties.GetProperty("av1.level-idx", 5)
+	  << ";tier="      << properties.GetProperty("av1.tier", 0);
+	return f.str();
+}
+
 //////////////////////////////////////////////////////////////////////////
 // AV1Decoder
 //////////////////////////////////////////////////////////////////////////

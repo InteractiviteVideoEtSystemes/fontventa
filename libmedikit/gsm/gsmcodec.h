@@ -24,6 +24,8 @@ class GSMDecoder : public FfAudioDecoder
 public:
 	GSMDecoder();
 	virtual ~GSMDecoder() {}
+
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_GSM); }
 };
 
 #endif /* GSMCODEC_H */

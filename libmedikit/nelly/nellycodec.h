@@ -38,6 +38,8 @@ public:
 	// NellyMoser embarque la fréquence dans le flux ; on retourne la valeur fixe.
 	virtual DWORD GetRate() { return 8000; }
 	virtual DWORD TrySetRate(DWORD) { return 8000; }
+
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_NELLYMOSER); }
 };
 
 class NellyDecoder11Khz : public FfAudioDecoder
@@ -47,6 +49,8 @@ public:
 	virtual ~NellyDecoder11Khz() {}
 	virtual DWORD GetRate() { return 11025; }
 	virtual DWORD TrySetRate(DWORD) { return 11025; }
+
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_NELLYMOSER); }
 };
 
 #endif

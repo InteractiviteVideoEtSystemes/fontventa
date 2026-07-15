@@ -19,6 +19,8 @@ public:
 	// Dépaquetisation RTP VP8 (RFC 7741 : retrait du payload descriptor).
 	virtual int DecodePacket(BYTE *in,DWORD len,int lost,int last);
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
+
+	static bool IsSupported() { return FfVideoDecoder::IsCodecAvailable(AV_CODEC_ID_VP8); }
 };
 
 #endif

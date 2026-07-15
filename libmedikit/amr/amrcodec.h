@@ -24,6 +24,8 @@ class AMRNBDecoder : public FfAudioDecoder
 {
 public:
 	AMRNBDecoder();
+
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_AMR_NB); }
 };
 
 /**
@@ -39,6 +41,8 @@ class AMRWBDecoder : public FfAudioDecoder
 {
 public:
 	AMRWBDecoder();
+
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_AMR_WB); }
 };
 
 #endif	/* AMRCODEC_H */

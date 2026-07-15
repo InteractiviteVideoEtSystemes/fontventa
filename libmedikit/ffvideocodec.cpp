@@ -649,6 +649,15 @@ int FfVideoEncoder::FastPictureUpdate()
 * FfVideoDecoder
 *	Consturctor
 ************************/
+bool FfVideoDecoder::IsCodecAvailable(enum AVCodecID id, const char* preferredName)
+{
+	// Même logique de résolution que le constructeur (nom préféré puis ID),
+	// sans ouvrir le codec.
+	if (preferredName && avcodec_find_decoder_by_name(preferredName))
+		return true;
+	return avcodec_find_decoder(id) != nullptr;
+}
+
 FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id, const char* codec_name)
 {
 	//Guardamos los valores por defecto

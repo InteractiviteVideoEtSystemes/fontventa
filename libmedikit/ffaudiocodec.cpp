@@ -352,6 +352,15 @@ int FfAudioEncoder::Encode(SWORD *in, int inLen, BYTE* out, int outLen)
  *                              FfAudioDecoder                                *
  ******************************************************************************/
 
+bool FfAudioDecoder::IsCodecAvailable(enum AVCodecID id, const char* preferredName)
+{
+	// Même logique de résolution que le constructeur : nom préféré d'abord, puis
+	// repli sur l'ID. Ne rien ouvrir (avcodec_open2), juste tester la présence.
+	if (preferredName && avcodec_find_decoder_by_name(preferredName))
+		return true;
+	return avcodec_find_decoder(id) != nullptr;
+}
+
 FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id, const char* codec_name) :
 	FfAudioDecoder(av_codec, codec_id, nullptr, 0, codec_name)
 {

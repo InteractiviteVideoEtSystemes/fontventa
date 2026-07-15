@@ -45,6 +45,11 @@ public:
 	virtual DWORD GetClockRate() { return 48000; }
 	virtual bool  GetFmtpInfo(std::string &fmtp, int payloadType);
 
+	// Paramètres fmtp SDP (SANS "a=fmtp:<pt> "), dérivés de la seule config
+	// (aucun codec ouvert requis) : forme consommée par la négociation. Le
+	// contrôleur SIP préfixe l'en-tête "a=fmtp:<pt> " (décision E, nego_fmtp).
+	static std::string GetFmtpParams(const Properties &properties);
+
 private:
 	bool useInbandFec;
 	bool useDtx;
@@ -65,6 +70,9 @@ public:
 
 	virtual DWORD GetRate()         { return 48000; }
 	virtual DWORD TrySetRate(DWORD) { return 48000; }
+
+	// OPUS via le wrapper libopus de ffmpeg (cf. en-tête de fichier).
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_OPUS, "libopus"); }
 };
 
 #endif /* OPUSCODEC_H */

@@ -4,6 +4,7 @@
 #include "config.h"
 #include "media.h"
 #include <map>
+#include <vector>
 
 class AudioCodec
 {
@@ -72,6 +73,13 @@ public:
 
 	    return false;
 	}
+
+	// Vrai si le média serveur (libmedikit/ffmpeg) sait réellement traiter ce
+	// codec, c.-à-d. si le décodeur correspondant est disponible (même test
+	// avcodec_find_decoder[_by_name] que l'ouverture réelle des classes Ff*).
+	// Défini hors ligne dans codecs.cpp pour garder ce header sans ffmpeg.
+	static bool IsSupported(Type codec);
+
 	typedef std::map<int,Type> RTPMap;
 };
 
@@ -142,6 +150,9 @@ public:
 	    return false;
 	}
 
+	// cf. AudioCodec::IsSupported.
+	static bool IsSupported(Type codec);
+
 	typedef std::map<int,Type> RTPMap;
 
 private:
@@ -161,7 +172,25 @@ public:
 			default:	return "unknown";
 		}
 	}
+
+	// T140/T140RED sont gérés nativement (pas de dépendance ffmpeg).
+	static bool IsSupported(Type codec);
+
+	// Paramètres fmtp du RED texte (RFC 4103), SANS "a=fmtp:<red_pt> " : la liste
+	// des PT redondants "<t140_pt>/<t140_pt>/..." (generations éléments, primaire
+	// inclus). Le contrôleur SIP préfixe "a=fmtp:<red_pt> ". cf. nego_fmtp §7 ph.2.
+	static std::string GetT140RedFmtpParams(int t140PayloadType, int generations = 3);
+
 	typedef std::map<int,Type> RTPMap;
+};
+
+// Catalogue des codecs texte réellement disponibles. Symétrique de
+// AudioCodecFactory/VideoCodecFactory ; introduite pour la négociation fmtp.
+// (Pas de Create* pour l'instant : la couche texte du MCU n'en a pas besoin.)
+class TextCodecFactory
+{
+public:
+	static const std::vector<TextCodec::Type>& GetSupportedCodecs();
 };
 
 class AppCodec
@@ -176,6 +205,10 @@ public:
 			default:	return "unknown";
 		}
 	}
+
+	// BFCP est un protocole applicatif (pas un codec ffmpeg) : toujours dispo.
+	static bool IsSupported(Type codec);
+
 	typedef std::map<int,Type> RTPMap;
 };
 

@@ -23,6 +23,9 @@ public:
 	virtual int Decode(BYTE *in,int inLen,SWORD* out,int outLen);
 	virtual DWORD TrySetRate(DWORD rate)	{ return 8000;	}
 	virtual DWORD GetRate()			{ return 8000;	}
+
+	// G.711 implémenté localement (sans lib externe) : toujours disponible.
+	static bool IsSupported()		{ return true;	}
 };
 
 class PCMUEncoder : public AudioEncoder
@@ -44,6 +47,9 @@ public:
 	virtual int Decode(BYTE *in,int inLen,SWORD* out,int outLen);
 	virtual DWORD TrySetRate(DWORD rate)	{ return 8000;	}
 	virtual DWORD GetRate()			{ return 8000;	}
+
+	// G.711 implémenté localement (sans lib externe) : toujours disponible.
+	static bool IsSupported()		{ return true;	}
 };
 
 #endif

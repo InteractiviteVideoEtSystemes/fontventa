@@ -26,6 +26,10 @@ public:
 	// ci-dessous : les vraies limites configurées pour cet encodeur.
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 
+	// Paramètres fmtp SDP (SANS "a=fmtp:<pt> ") dérivés de la seule config
+	// (vp8.max-fr / vp8.max-fs), sans codec ouvert. cf. nego_fmtp décision E.
+	static std::string GetFmtpParams(const Properties& properties);
+
 protected:
 	// Packetisation RTP VP8 (RFC 7741) : préfixe chaque fragment d'un VP8 payload
 	// descriptor minimal (S=1 sur le 1er paquet de la trame, 0 ensuite).
