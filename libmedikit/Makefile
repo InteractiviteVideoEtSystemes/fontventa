@@ -195,3 +195,11 @@ testsps.o: medkit/bitstream.h
 ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
 	$(CXX) $(CXXFLAGS) tools/ffmp4probe.cpp libmedkit.a -o $@ \
 		$(LDFLAGS) -lmp4v2 -lgsm
+
+# Harnais de test hors-ligne du négociateur de codecs (CodecNegotiator, cf.
+# nego_fmtp.md). Vérifie le contrat de la struct fmtpByPt d'EndpointStartReceiving
+# (§6.7 xmlrpc_jsr309_api.md). Ne dépend ni d'Asterisk ni du mediaserver.
+# Usage : make negotest && ./negotest
+negotest: tools/negotest.cpp libmedkit.a
+	$(CXX) $(CXXFLAGS) tools/negotest.cpp libmedkit.a -o $@ \
+		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm
