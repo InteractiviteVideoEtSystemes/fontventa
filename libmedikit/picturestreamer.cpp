@@ -2,7 +2,7 @@
 #include "medkit/log.h"
 
 
-PictureStreamer::PictureStreamer() : Logo()
+PictureStreamer::PictureStreamer()
 {
 	encoder = NULL;
 }
@@ -40,8 +40,7 @@ bool PictureStreamer::SetFrameRate(int fps,int kbits,int intraPeriod)
 
 VideoFrame* PictureStreamer::Stream(bool askiframe)
 {
-	BYTE* buf = GetFrame();
-	if ( buf == NULL)
+	if (!pict)
 	{
 		// No picture loaded
 		Error("-PictureStreamer: no picture loaded. Cannot stream.\n");
@@ -55,28 +54,7 @@ VideoFrame* PictureStreamer::Stream(bool askiframe)
 		return NULL;
 	}
 
-	const int w = GetWidth();
-	const int h = GetHeight();
-
-	// Enveloppe le buffer YUV420P contigu du logo dans un AVFrame NON refcompté
-	// (data pointe dans le buffer, aucun ownership : buf[] restent nuls, donc
-	// av_frame_free ne libère pas le buffer du logo). L'encodeur en fera une copie
-	// interne (av_frame_ref recopie une trame non refcomptée).
-	AVFrame* f = av_frame_alloc();
-	if (!f) return NULL;
-	f->format = AV_PIX_FMT_YUV420P;
-	f->width  = w;
-	f->height = h;
-	f->data[0] = buf;
-	f->data[1] = buf + w*h;
-	f->data[2] = buf + w*h*5/4;
-	f->linesize[0] = w;
-	f->linesize[1] = w/2;
-	f->linesize[2] = w/2;
-
-	PictPtr pic = std::make_shared<Pict>(f);
-
-	VideoFrame * vf = encoder->EncodeFrame( pic );
+	VideoFrame * vf = encoder->EncodeFrame( pict );
 
 	if (vf == NULL) Error("-PictureStreamer: fail to encode picture. Cannot stream.\n");
 
@@ -85,11 +63,12 @@ VideoFrame* PictureStreamer::Stream(bool askiframe)
 
 bool PictureStreamer::HandleSizeChange()
 {
-	if (GetWidth() == 0 || GetHeight() == 0) return false;
+	if (!pict || pict->GetWidth() == 0 || pict->GetHeight() == 0)
+		return false;
 
 	if (encoder)
 	{
-		return encoder->SetSize(GetWidth(), GetHeight());
+		return encoder->SetSize(pict->GetWidth(), pict->GetHeight());
 	}
 	else
 	{
