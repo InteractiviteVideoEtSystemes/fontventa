@@ -110,6 +110,7 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 	avCodecId = av_codec;
 	hwFailed = false;
 	pts	= 0;
+	forceIntra = false;
 	codecName = codec_name;
 
 	// Init framerate
@@ -460,36 +461,41 @@ void FfVideoEncoder::ConfigureContext()
 * EncodeFrame
 *	Codifica un frame
 ************************/
-VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
+VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 {
 	int ret = 0;
 	//Check if we are opened
 	if (!opened)
 		return NULL;
 
-	int numPixels = ctx->width*ctx->height;
-
-	//Comprobamos el tamano
-	if (numPixels*3/2 != len)
+	if (!pic || !pic->GetAVFrame())
 		return NULL;
+
+	AVFrame* src = pic->GetAVFrame();
+
+	// L'encodeur est configuré pour ctx->width x ctx->height (SetSize) : on refuse
+	// une trame de dimensions différentes (le pipeline amont gère le resize).
+	if (src->width != ctx->width || src->height != ctx->height)
+	{
+		Error("-EncodeFrame: frame size %dx%d != encoder %dx%d\n",
+		      src->width, src->height, ctx->width, ctx->height);
+		return NULL;
+	}
+
+	const bool encoderHW = (ctx->hw_device_ctx && ctx->hw_frames_ctx && hw_frame);
+	const bool srcHW     = (src->format == AV_PIX_FMT_VAAPI);
 
 	AVPacket* pkt = av_packet_alloc();
 
-	//POnemos los valores
-	picture->data[0] = in;
-	picture->data[1] = in+numPixels;
-	picture->data[2] = in+numPixels*5/4;
+	// Trame effectivement envoyée à l'encodeur. On ne mute JAMAIS `src` (trame
+	// partagée/immuable) : on travaille sur une trame que l'encodeur possède
+	// (hw_frame pour l'upload, ou `picture` en simple référence des buffers de src).
+	AVFrame* frameToSend = NULL;
+	PictPtr  cpuTmp;   // garde en vie une éventuelle redescente GPU->CPU
 
-	// pts monotone requis par les encodeurs ffmpeg (libx264 notamment),
-	// en unités de time_base (1/fps)
-	picture->pts = pts++;
-
-	bool firstPacket = true;
-
-	if (hw_frame && ctx->hw_device_ctx && ctx->hw_frames_ctx)
+	if (encoderHW && !srcHW)
 	{
-		// HW encoding : on prend une nouvelle surface VAAPI du pool à chaque trame
-		// (hw_frame ne porte lui-même aucun buffer tant qu'on ne l'a pas demandé).
+		// CPU -> GPU : upload dans une surface VAAPI neuve du pool.
 		av_frame_unref(hw_frame);
 		hw_frame->format = AV_PIX_FMT_VAAPI;
 		hw_frame->width  = ctx->width;
@@ -502,34 +508,68 @@ VideoFrame* FfVideoEncoder::EncodeFrame(BYTE *in,DWORD len)
 			return NULL;
 		}
 
-		ret = av_hwframe_transfer_data(hw_frame, picture, 0);
+		ret = av_hwframe_transfer_data(hw_frame, src, 0);
 		if (ret < 0) {
 			Error("Failed to transfer frame to VAAPI: %s\n", AVErrToStr(ret));
 			av_packet_free(&pkt);
 			return NULL;
 		}
-
-		// Recopie pts et pict_type/key_frame (demande d'intra FPU) sur la
-		// trame matérielle : av_hwframe_transfer_data ne copie que les pixels.
-		av_frame_copy_props(hw_frame, picture);
-
-		ret = avcodec_send_frame(ctx, hw_frame);
+		frameToSend = hw_frame;
 	}
 	else
 	{
-		// SW encoding
-		ret = avcodec_send_frame(ctx, picture);
+		// Cas envoyés par simple référence (buffers partagés avec src, zéro-copie) :
+		//  - SW + src CPU        : envoi direct
+		//  - HW + src déjà GPU   : envoi direct de la surface VAAPI
+		//  - SW + src GPU        : redescente explicite puis envoi
+		const AVFrame* refSrc = src;
+		if (!encoderHW && srcHW)
+		{
+			// GPU -> SW : l'encodeur logiciel a besoin d'une trame CPU.
+			cpuTmp = pic->DownloadToCPU();
+			if (!cpuTmp || !cpuTmp->GetAVFrame()) {
+				Error("-EncodeFrame: GPU->CPU download failed\n");
+				av_packet_free(&pkt);
+				return NULL;
+			}
+			refSrc = cpuTmp->GetAVFrame();
+		}
+
+		av_frame_unref(picture);
+		ret = av_frame_ref(picture, refSrc);
+		if (ret < 0) {
+			Error("-EncodeFrame: av_frame_ref failed: %s\n", AVErrToStr(ret));
+			av_packet_free(&pkt);
+			return NULL;
+		}
+		frameToSend = picture;
 	}
 
+	// pts monotone requis par les encodeurs ffmpeg (libx264 notamment), en unités
+	// de time_base (1/fps). Champs de conteneur : ne touchent pas les buffers de src.
+	frameToSend->pts = pts++;
+
+	// Demande d'intra (FPU) : forcée ici, sur la trame envoyée uniquement.
+	if (forceIntra)
+	{
+		frameToSend->key_frame = 1;
+		frameToSend->pict_type = AV_PICTURE_TYPE_I;
+		forceIntra = false;
+	}
+	else
+	{
+		frameToSend->key_frame = 0;
+		frameToSend->pict_type = AV_PICTURE_TYPE_NONE;
+	}
+
+	bool firstPacket = true;
+
+	ret = avcodec_send_frame(ctx, frameToSend);
 	if (ret < 0) {
 		Error("Encoding error: %s\n", AVErrToStr(ret));
 		av_packet_free(&pkt);
 		return NULL;
 	}
-
-	// La demande d'intra éventuelle (FPU) est partie avec cette trame
-	picture->key_frame = 0;
-	picture->pict_type = AV_PICTURE_TYPE_NONE;
 
 	DWORD size = 0;
 
@@ -633,15 +673,9 @@ void FfVideoEncoder::PacketizeFrame()
 ************************/
 int FfVideoEncoder::FastPictureUpdate()
 {
-	//If we have picture
-	if (picture)
-	{
-		// Recopié sur la trame VAAPI par av_frame_copy_props() au moment de
-		// l'encodage : un seul point de forçage.
-		picture->key_frame = 1;
-		picture->pict_type = AV_PICTURE_TYPE_I;
-	}
-
+	// Forçage appliqué au prochain EncodeFrame, sur la trame réellement envoyée
+	// (le membre `picture` est désormais une simple référence de la trame source).
+	forceIntra = true;
 	return 1;
 }
 
@@ -687,7 +721,7 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 	if (!parser_ctx) {
         Error("Unable to open FFmpeg decoder (parser). Codec ID = %s", VideoCodec::GetNameFor(type));
     }
-	picture = av_frame_alloc();
+	// `picture` (PictPtr) est assigné à chaque Decode() ; pas de pré-allocation ici.
 
 	TryVAAPI(ctx, codec);
 	if (ctx->hw_device_ctx)
@@ -702,8 +736,6 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 	//Alocamos el buffer
 	bufSize = 1024*756*3/2;
 	buffer = (BYTE *)malloc(bufSize);
-	frame = NULL;
-	frameSize = 0;
 	src = 0;
 
 	//Lo abrimos
@@ -717,11 +749,9 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 FfVideoDecoder::~FfVideoDecoder()
 {
 	free(buffer);
-	if (frame!=NULL)
-		free(frame);
 	if (parser_ctx)
 		av_parser_close(parser_ctx);
-	av_frame_free(&picture);
+	// `picture` est un PictPtr : sa destruction (shared_ptr) libère l'AVFrame.
 	avcodec_free_context(&ctx);	// ferme aussi le codec
 }
 
@@ -732,6 +762,10 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 	BYTE *current_ptr = buffer;
     int remaining_size = size;
 	int ret;
+	// Chaque trame décodée est reçue dans son PROPRE AVFrame (un Pict neuf) :
+	// c'est ce qui évite le piège du picture réutilisé par avcodec_receive_frame.
+	// On ne remplace le membre `picture` que si une trame a réellement été reçue.
+	PictPtr pict;
 
 	while (remaining_size > 0) {
 		if (parser_ctx) {
@@ -765,16 +799,14 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
                 goto error;
             }
 
-			// avcodec_receive_frame() fait toujours un av_frame_unref(picture) en
-			// entrée (doc ffmpeg) : un 2e appel après un succès écraserait aussitôt
-			// la frame qu'on vient de recevoir, avant même que Decode() ne rende la
-			// main à l'appelant pour que GetFrame() la lise. On s'arrête donc dès la
-			// première frame obtenue ; 'picture' garde alors la dernière frame
-			// décodée avec succès tant qu'aucune nouvelle frame n'est disponible.
-			ret = avcodec_receive_frame(ctx, picture);
-			if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+			PictPtr tmp = std::make_shared<Pict>(av_frame_alloc());
+			ret = avcodec_receive_frame(ctx, tmp->GetAVFrame());
+			if (ret == 0) {
+				// Trame prête : on la garde.
+				pict = tmp;
+			} else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
 				// Pas de frame prête pour ce paquet (ex: NAL SPS/PPS seul) : normal.
-			} else if (ret < 0) {
+			} else {
 				Error("%s decoding error (receive frame). Error = %s\n", VideoCodec::GetNameFor(type), AVErrToStr(ret));
 				goto error;
 			}
@@ -782,7 +814,8 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 	}
 
 	if (pkt) av_packet_free(&pkt);
-
+	// Ne remplace le membre que si on a décodé une trame complète.
+	if (pict) picture = pict;
 	return 1;
 error:
 	if (pkt) av_packet_free(&pkt);
@@ -824,80 +857,20 @@ int FfVideoDecoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 	return ret;
 }
 
-BYTE* FfVideoDecoder::GetFrame()
+PictPtr FfVideoDecoder::GetFrame()
 {
 	if (!picture)
-		return NULL;
+		return nullptr;
 
-	if (picture->width==0 || picture->height==0) {
-		Error("-Wrong dimensions [%d,%d]\n",picture->width,picture->height);
-		return NULL;
+	AVFrame *pic = picture->GetAVFrame();
+	if (!pic || pic->width==0 || pic->height==0) {
+		Error("-Wrong dimensions [%d,%d]\n", pic?pic->width:0, pic?pic->height:0);
+		return nullptr;
 	}
 
-	AVFrame *output_frame = picture;
-	AVFrame *sw_frame = nullptr;
-
-	if (picture->format == AV_PIX_FMT_VAAPI)
-	{
-		// This was a frame that was decoded using VAAPI
-		sw_frame = av_frame_alloc();
-		sw_frame->format = AV_PIX_FMT_YUV420P;
-		sw_frame->width = picture->width;
-		sw_frame->height = picture->height;
-
-		int ret = av_frame_get_buffer(sw_frame, 0);
-		if (ret < 0)
-		{
-			Error("Failed to allocate software frame: %s\n", AVErrToStr(ret));
-			av_frame_free(&sw_frame);
-			return NULL;
-		}
-
-		ret = av_hwframe_transfer_data(sw_frame, picture, 0);
-		if (ret < 0)
-		{
-			Error("Failed to transfer data from hardware frame: %s\n", AVErrToStr(ret));
-			av_frame_free(&sw_frame);
-			return nullptr;
-		}
-		output_frame = sw_frame;
-	}
-
-	int w = output_frame->width;
-	int h = output_frame->height;
-	int u = w*h;
-	int v = w*h*5/4;
-	int size = w*h*3/2;
-
-	//Comprobamos el tamano
-	if (size>frameSize)
-	{
-		Log("-Frame size %dx%d\n",w,h);
-		if (frame!=NULL)
-		{
-			frame = (BYTE*) realloc(frame, size);
-		}
-		else
-		{
-			frame = (BYTE*) malloc(size);
-		}
-		frameSize = size;
-	}
-
-	//Copaamos  el Cy
-	for(int i=0;i<ctx->height;i++)
-		memcpy(&frame[i*w],(void*) &output_frame->data[0][i*output_frame->linesize[0]],w);
-
-	//Y el Cr y Cb
-	for(int i=0;i<ctx->height/2;i++)
-	{
-		memcpy(&frame[i*w/2+u],(void*) &output_frame->data[1][i*output_frame->linesize[1]],w/2);
-		memcpy(&frame[i*w/2+v],(void*) &output_frame->data[2][i*output_frame->linesize[2]],w/2);
-	}
-
-	// Frame système intermédiaire : copiée dans `frame`, on n'en a plus besoin.
-	if (sw_frame)
-		av_frame_free(&sw_frame);
-
-	return frame;
+	// PAS de redescente GPU->CPU implicite : on renvoie la trame telle quelle
+	// (surface VAAPI ou CPU), partage zéro-copie du PictPtr. C'est au consommateur
+	// de décider via Pict::IsGPUPict() / Pict::DownloadToCPU() (cf. avframe.md),
+	// afin de préserver un éventuel pipeline GPU de bout en bout.
+	return picture;
 }

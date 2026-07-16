@@ -14,7 +14,7 @@ class H264Encoder : public FfVideoEncoder
 public:
 	H264Encoder(const Properties& properties);
 	virtual ~H264Encoder();
-	virtual VideoFrame* EncodeFrame(BYTE *in,DWORD len);
+	virtual VideoFrame* EncodeFrame(PictPtr pic);
 	// Reconfiguration à chaud (adaptation dynamique de débit) : mise à jour
 	// du VBV relue par libx264 à chaque trame, ou réouverture throttlée en
 	// VAAPI (qui ne sait pas changer son rate control en cours de route).

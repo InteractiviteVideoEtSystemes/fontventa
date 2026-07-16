@@ -1,5 +1,9 @@
 #include "medkit/log.h"
 #include "medkit/video.h"
+extern "C"
+{
+#include <libavutil/hwcontext.h>
+}
 #include "h263/h263codec.h"
 #include "h264/h264encoder.h"
 #include "h264/h264decoder.h"
@@ -8,6 +12,132 @@
 #include "av1/av1codec.h"
 #include "ffvideocodec.h"
 
+
+PictPtr Pict::DownloadToCPU() const
+{
+	// Rien à faire si la trame n'est pas une surface GPU (déjà CPU, ou vide) :
+	// le consommateur est censé tester IsGPUPict() avant d'appeler.
+	if (!av_frame || av_frame->format != AV_PIX_FMT_VAAPI)
+		return nullptr;
+
+	AVFrame *sw = av_frame_alloc();
+	if (!sw)
+		return nullptr;
+	sw->format = AV_PIX_FMT_YUV420P;
+	sw->width  = av_frame->width;
+	sw->height = av_frame->height;
+
+	int ret = av_frame_get_buffer(sw, 0);
+	if (ret < 0)
+	{
+		Error("-Pict::DownloadToCPU: av_frame_get_buffer failed (%d)\n", ret);
+		av_frame_free(&sw);
+		return nullptr;
+	}
+
+	ret = av_hwframe_transfer_data(sw, av_frame, 0);
+	if (ret < 0)
+	{
+		Error("-Pict::DownloadToCPU: av_hwframe_transfer_data failed (%d)\n", ret);
+		av_frame_free(&sw);
+		return nullptr;
+	}
+
+	// Conserve pts / métadonnées de la trame source.
+	av_frame_copy_props(sw, av_frame);
+	return std::make_shared<Pict>(sw);
+}
+
+// Contexte de device VAAPI partagé, créé au plus une fois (thread-safe : magic
+// static C++11). Renvoie nullptr si l'accélération VAAPI n'est pas disponible.
+static AVBufferRef* GetSharedVAAPIDevice()
+{
+	static AVBufferRef* device = []() -> AVBufferRef*
+	{
+		AVBufferRef* dev = nullptr;
+		int ret = av_hwdevice_ctx_create(&dev, AV_HWDEVICE_TYPE_VAAPI, NULL, NULL, 0);
+		if (ret < 0)
+		{
+			Error("-VAAPI device unavailable, GPU upload disabled (%d)\n", ret);
+			return nullptr;
+		}
+		return dev;
+	}();
+	return device;
+}
+
+int Pict::UploadToGPU(PictPtr& out) const
+{
+	out = nullptr;
+
+	if (!av_frame)
+		return AVERROR(EINVAL);
+
+	// Déjà une surface GPU : le consommateur est censé tester IsGPUPict() avant.
+	if (av_frame->format == AV_PIX_FMT_VAAPI)
+		return AVERROR(EALREADY);
+
+	// Device VAAPI partagé — absent => pas d'accélération sur cette machine.
+	AVBufferRef* device = GetSharedVAAPIDevice();
+	if (!device)
+		return AVERROR(ENOSYS);
+
+	// Contexte de frames GPU pour cette taille. sw_format = format de la trame
+	// source (av_hwframe_transfer_data ne convertit pas le pixel format).
+	AVBufferRef* frames_ref = av_hwframe_ctx_alloc(device);
+	if (!frames_ref)
+		return AVERROR(ENOMEM);
+
+	AVHWFramesContext* frames_ctx = (AVHWFramesContext*) frames_ref->data;
+	frames_ctx->format            = AV_PIX_FMT_VAAPI;
+	frames_ctx->sw_format         = (AVPixelFormat) av_frame->format;
+	frames_ctx->width             = av_frame->width;
+	frames_ctx->height            = av_frame->height;
+	frames_ctx->initial_pool_size = 1;
+
+	int ret = av_hwframe_ctx_init(frames_ref);
+	if (ret < 0)
+	{
+		Error("-Pict::UploadToGPU: av_hwframe_ctx_init failed (%d)\n", ret);
+		av_buffer_unref(&frames_ref);
+		return ret;
+	}
+
+	AVFrame* hw = av_frame_alloc();
+	if (!hw)
+	{
+		av_buffer_unref(&frames_ref);
+		return AVERROR(ENOMEM);
+	}
+
+	// Alloue une surface GPU dans le pool.
+	ret = av_hwframe_get_buffer(frames_ref, hw, 0);
+	if (ret < 0)
+	{
+		Error("-Pict::UploadToGPU: av_hwframe_get_buffer failed (%d)\n", ret);
+		av_frame_free(&hw);
+		av_buffer_unref(&frames_ref);
+		return ret;
+	}
+
+	// Upload CPU->GPU.
+	ret = av_hwframe_transfer_data(hw, av_frame, 0);
+	if (ret < 0)
+	{
+		Error("-Pict::UploadToGPU: av_hwframe_transfer_data failed (%d)\n", ret);
+		av_frame_free(&hw);
+		av_buffer_unref(&frames_ref);
+		return ret;
+	}
+
+	av_frame_copy_props(hw, av_frame);
+	// La trame conserve sa propre référence au frames_ctx (hw->hw_frames_ctx) :
+	// on relâche notre référence locale.
+	av_buffer_unref(&frames_ref);
+
+	out = std::make_shared<Pict>(hw);
+	return 0;
+}
 
 bool VideoFrame::Packetize(unsigned int mtu)
 {

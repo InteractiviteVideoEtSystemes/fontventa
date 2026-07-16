@@ -198,14 +198,14 @@ int H264Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 * EncodeFrame
 *	Codifica un frame
 ***********************/
-VideoFrame* H264Encoder::EncodeFrame(BYTE *in,DWORD len)
+VideoFrame* H264Encoder::EncodeFrame(PictPtr pic)
 {
 	// Patch IVeS : une I-frame toutes les 2 s pendant la première période
 	// intra (repris de l'ancien encodeur x264)
 	if (opened && fps > 0 && pts < 8*fps && (pts % (2*fps)) == 0)
 		FastPictureUpdate();
 
-	return FfVideoEncoder::EncodeFrame(in,len);
+	return FfVideoEncoder::EncodeFrame(pic);
 }
 
 /**********************

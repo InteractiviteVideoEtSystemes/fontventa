@@ -40,7 +40,7 @@ public:
 	FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id,
 	               bool tryHW = false, const char* codec_name = nullptr);
 	virtual ~FfVideoEncoder();
-	virtual VideoFrame* EncodeFrame(BYTE *in, DWORD len);
+	virtual VideoFrame* EncodeFrame(PictPtr pic);
 	virtual int FastPictureUpdate();
 	virtual int SetSize(int width, int height);
 	virtual int SetFrameRate(int fps, int kbits, int intraPeriod);
@@ -92,6 +92,7 @@ protected:
 	VideoCodec::Type type;
 	int64_t		pts;
 	bool		hwFailed;	// l'init VAAPI a déjà échoué : ne plus réessayer
+	bool		forceIntra;	// FPU demandé : forcer une I-frame au prochain EncodeFrame
 
 
 	//Hardware acceleration
@@ -114,25 +115,22 @@ public:
 	virtual int DecodePacket(BYTE *in,DWORD len,int lost,int last);
 	virtual int GetWidth()		{ return ctx->width;		};
 	virtual int GetHeight()		{ return ctx->height;		};
-	virtual BYTE* GetFrame();
-	virtual bool  IsKeyFrame()	{ return picture->key_frame;	};
+	virtual PictPtr GetFrame();
+	virtual bool  IsKeyFrame()	{ return picture && picture->GetAVFrame() ? picture->GetAVFrame()->key_frame : false; };
 
 	// cf. FfAudioDecoder::IsCodecAvailable : primitive de disponibilité ffmpeg
 	// pour les codecs vidéo adossés à libavcodec.
 	static bool IsCodecAvailable(enum AVCodecID id, const char* preferredName = nullptr);
 
-	AVFrame * GetAVFrame() { return picture; }
 protected:
 	// Accessibles aux décodeurs dérivés pour leur dépaquetiseur (DecodePacket).
 	const AVCodec 	*codec;
 	AVCodecContext	*ctx;
 	AVCodecParserContext *parser_ctx;
-	AVFrame		*picture;
+	PictPtr		picture;
 	BYTE*		buffer;
 	DWORD		bufLen;
 	DWORD 		bufSize;
-	BYTE*		frame;
-	DWORD		frameSize;
 	BYTE		src;
 	VideoCodec::Type type;
 
