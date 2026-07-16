@@ -136,6 +136,18 @@ public:
 	DWORD GetWidth()  const { return av_frame ? av_frame->width  : 0; }
 	DWORD GetHeight() const { return av_frame ? av_frame->height : 0; }
 
+	// ---- Fabriques (producteurs de Pict immuables) ---------------------------
+	// Charge un fichier image et le met à l'échelle en YUV420P. width/height=0 :
+	// taille native ; l'un des deux à 0 : ratio conservé. Remplace Logo::Load.
+	// nullptr en cas d'échec. Impl. dans logo.cpp.
+	static PictPtr Load(const char* filename, int width = 0, int height = 0);
+	// Trame noire YUV420P (Y=0, U=V=128). Remplace Logo::CreateBlack/Clean.
+	static PictPtr CreateBlack(int width, int height);
+	// Trame unie YUV420P remplie de (y,u,v). Sert de fond de mosaïque
+	// (gris neutre Y=U=V=128, équivalent du memset -128 historique). nullptr en
+	// cas de dimensions invalides. Impl. dans logo.cpp, à côté de CreateBlack.
+	static PictPtr CreateColor(int width, int height, BYTE y, BYTE u, BYTE v);
+
 	// True si la trame réside en mémoire GPU (surface matérielle VAAPI).
 	bool IsGPUPict() const { return av_frame && av_frame->format == AV_PIX_FMT_VAAPI; }
 
