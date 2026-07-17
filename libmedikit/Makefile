@@ -195,7 +195,7 @@ testsps.o: medkit/bitstream.h
 # mediaserver. Usage : make ffmp4probe && ./ffmp4probe fichier.mp4 [seekMs]
 ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
 	$(CXX) $(CXXFLAGS) tools/ffmp4probe.cpp libmedkit.a -o $@ \
-		$(LDFLAGS) -lmp4v2 -lgsm
+		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm
 
 # Harnais de test hors-ligne du négociateur de codecs (CodecNegotiator, cf.
 # nego_fmtp.md). Vérifie le contrat de la struct fmtpByPt d'EndpointStartReceiving
@@ -215,14 +215,16 @@ negotest: tools/negotest.cpp libmedkit.a
 GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null)
 GTEST_LIBS   := $(shell pkg-config --libs gtest 2>/dev/null) -lgtest_main
 TEST_SRCS    := $(wildcard tests/*.cpp)
-TEST_MP4     ?= $(abspath tests/fixtures/record.mp4)
+TEST_MP4      ?= $(abspath tests/fixtures/record.mp4)
+TEST_MP4_TITI ?= $(abspath tests/fixtures/titi.mp4)
 
 # libmedkit.a n'est PAS un prerequis direct : on force sa (re)construction en
 # ASTERISK=no via un sous-make, sinon le defaut ASTERISK=yes tenterait de batir
 # transcoder.o/mp4format.o (en-tetes <asterisk/...> absents) hors perimetre.
 tests/runtests: $(TEST_SRCS)
 	$(MAKE) ASTERISK=no libmedkit.a
-	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) -DTEST_MP4_FILE='"$(TEST_MP4)"' \
+	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) \
+		-DTEST_MP4_FILE='"$(TEST_MP4)"' -DTEST_MP4_TITI_FILE='"$(TEST_MP4_TITI)"' \
 		$(TEST_SRCS) libmedkit.a -o $@ \
 		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm $(GTEST_LIBS)
 

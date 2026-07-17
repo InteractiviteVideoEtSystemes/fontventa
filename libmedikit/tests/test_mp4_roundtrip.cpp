@@ -36,42 +36,47 @@ bool WriteMp4(int& videoWritten, int& audioWritten)
 	if (mp4 == MP4_INVALID_FILE_HANDLE)
 		return false;
 
-	mp4writer w(NULL, mp4, /*waitVideo*/ false);
-	w.EnableVideoPrologue(false); // pas d'image de garde 640x480 (mélange de tailles)
-	w.AddTrack(VideoCodec::H264, W, H, 256, "video", false);
-	w.AddTrack(AudioCodec::PCMU, 8000, "audio");
-
-	// Encodeur H264 (bien formé) : 10 fps, 256 kbps, intra toutes les 10 trames.
-	Properties props;
-	H264Encoder enc(props);
-	enc.SetFrameRate(FPS, 256, FPS);
-	RET_FALSE_IF_NEG(enc.SetSize(W, H));
-
-	std::vector<BYTE> yuv(W * H * 3 / 2);
-
-	for (int i = 0; i < NFRAMES; i++)
+	// IMPORTANT : le mp4writer doit être DÉTRUIT avant MP4Close — son destructeur
+	// écrit encore dans le handle (MP4TagsStore). L'inverse déclenche l'assert
+	// mp4v2 « AddDescendantAtoms (pAncestorAtom) » (écriture sur handle fermé).
 	{
-		// Image I420 unie (variation de luma pour éviter une image figée).
-		memset(&yuv[0], 16 + (i * 8) % 200, W * H);          // Y
-		memset(&yuv[W * H], 128, W * H / 4);                 // U
-		memset(&yuv[W * H * 5 / 4], 128, W * H / 4);         // V
+		mp4writer w(NULL, mp4, /*waitVideo*/ false);
+		w.EnableVideoPrologue(false); // pas d'image de garde 640x480 (mélange de tailles)
+		w.AddTrack(VideoCodec::H264, W, H, 256, "video", false);
+		w.AddTrack(AudioCodec::PCMU, 8000, "audio");
 
-		VideoFrame* vf = enc.EncodeFrame(&yuv[0], yuv.size());
-		if (vf)
+		// Encodeur H264 (bien formé) : 10 fps, 256 kbps, intra toutes les 10 trames.
+		Properties props;
+		H264Encoder enc(props);
+		enc.SetFrameRate(FPS, 256, FPS);
+		RET_FALSE_IF_NEG(enc.SetSize(W, H));
+
+		std::vector<BYTE> yuv(W * H * 3 / 2);
+
+		for (int i = 0; i < NFRAMES; i++)
 		{
-			vf->SetTimestamp((DWORD)(i * (90000 / FPS)));    // horloge 90 kHz
-			if (w.ProcessFrame(vf) == 1)
-				videoWritten++;
-		}
+			// Image I420 unie (variation de luma pour éviter une image figée).
+			memset(&yuv[0], 16 + (i * 8) % 200, W * H);          // Y
+			memset(&yuv[W * H], 128, W * H / 4);                 // U
+			memset(&yuv[W * H * 5 / 4], 128, W * H / 4);         // V
 
-		// Une trame audio PCMU de 20 ms (160 échantillons µ-law = 0xFF silence).
-		AudioFrame af(AudioCodec::PCMU, 8000);
-		std::vector<BYTE> pcm(160, 0xFF);
-		af.SetMedia(&pcm[0], pcm.size());
-		af.SetTimestamp((DWORD)(i * 160));                   // horloge 8 kHz
-		if (w.ProcessFrame(&af) == 1)
-			audioWritten++;
-	}
+			VideoFrame* vf = enc.EncodeFrame(&yuv[0], yuv.size());
+			if (vf)
+			{
+				vf->SetTimestamp((DWORD)(i * (90000 / FPS)));    // horloge 90 kHz
+				if (w.ProcessFrame(vf) == 1)
+					videoWritten++;
+			}
+
+			// Une trame audio PCMU de 20 ms (160 échantillons µ-law = 0xFF silence).
+			AudioFrame af(AudioCodec::PCMU, 8000);
+			std::vector<BYTE> pcm(160, 0xFF);
+			af.SetMedia(&pcm[0], pcm.size());
+			af.SetTimestamp((DWORD)(i * 160));                   // horloge 8 kHz
+			if (w.ProcessFrame(&af) == 1)
+				audioWritten++;
+		}
+	} // <- destruction du mp4writer (MP4TagsStore) AVANT MP4Close
 
 	MP4Close(mp4);
 	return true;
