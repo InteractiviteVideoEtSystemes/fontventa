@@ -154,6 +154,7 @@ mp4format.o: astmedkit/mp4format.h medkit/mp4writer.h medkit/ffmp4reader.h medki
 
 clean:
 	rm -f $(OBJS) libmedkit.a
+	rm -f tests/runtests tests/*.o
 
 
 install32:
@@ -203,3 +204,31 @@ ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
 negotest: tools/negotest.cpp libmedkit.a
 	$(CXX) $(CXXFLAGS) tools/negotest.cpp libmedkit.a -o $@ \
 		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm
+
+############################################
+# Tests automatises (GoogleTest, cf. libmedikit_tests_plan.md)
+############################################
+# Suite gtest liee contre libmedkit.a (batie ASTERISK=no) + gtest systeme.
+# Usage : make check   (build + execution)   ;   make tests   (build seul)
+# La fixture MP4 (tests/fixtures/record.mp4) est versionnee ; son chemin absolu
+# est injecte via -DTEST_MP4_FILE (surchargeable : make check TEST_MP4=/chemin).
+GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null)
+GTEST_LIBS   := $(shell pkg-config --libs gtest 2>/dev/null) -lgtest_main
+TEST_SRCS    := $(wildcard tests/*.cpp)
+TEST_MP4     ?= $(abspath tests/fixtures/record.mp4)
+
+# libmedkit.a n'est PAS un prerequis direct : on force sa (re)construction en
+# ASTERISK=no via un sous-make, sinon le defaut ASTERISK=yes tenterait de batir
+# transcoder.o/mp4format.o (en-tetes <asterisk/...> absents) hors perimetre.
+tests/runtests: $(TEST_SRCS)
+	$(MAKE) ASTERISK=no libmedkit.a
+	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) -DTEST_MP4_FILE='"$(TEST_MP4)"' \
+		$(TEST_SRCS) libmedkit.a -o $@ \
+		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm $(GTEST_LIBS)
+
+tests: tests/runtests
+
+check: tests/runtests
+	./tests/runtests
+
+.PHONY: tests check
