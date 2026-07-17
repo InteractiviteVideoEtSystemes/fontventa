@@ -117,6 +117,17 @@ DWORD FfAudioEncoder::TrySetRate(DWORD rate)
 		return defaultSampleRate;
 	}
 
+	// Un encodeur déjà ouvert ne peut plus être reconfiguré : ffmpeg fige le
+	// contexte à avcodec_open2, et réécrire ctx->sample_rate serait sans effet.
+	// Certains encodeurs (AMR-NB/WB) s'ouvrent dès leur constructeur ; leur
+	// fréquence de travail est alors figée à sa valeur native (8000/16000 Hz).
+	// On renvoie cette fréquence RÉELLE plutôt qu'un taux qui serait ignoré —
+	// sans quoi le pipeline (OpenAudioTranscoded) calcule une taille de trame
+	// erronée (cf. IsRateNativelySupported qui, faute de supported_samplerates
+	// déclaré par libopencore, croit toutes les fréquences acceptées).
+	if (opened)
+		return ctx->sample_rate;
+
 	// Mémorise le taux d'entrée (taux pipeline du MCU) avant tout ajustement.
 	inputRate = rate;
 
