@@ -13,7 +13,8 @@ static const char* AVErrToStr(int err)
 	return buf;
 }
 
-static void TryVAAPI(AVCodecContext * ctx, const AVCodec *codec)
+// Retourne true si un device VAAPI a été créé et attaché à ctx->hw_device_ctx.
+static bool TryVAAPI(AVCodecContext * ctx, const AVCodec *codec)
 {
 	// Try to enable hardware accelation
 	// Check if VAAPI is available for this codec.
@@ -45,8 +46,10 @@ static void TryVAAPI(AVCodecContext * ctx, const AVCodec *codec)
 		else
 		{
 			ctx->hw_device_ctx = hw_device_ctx;
+			return true;
 		}
 	}
+	return false;
 }
 
 // Callback get_format : impose le format matériel VAAPI au décodeur quand il est
@@ -111,12 +114,14 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 	hwFailed = false;
 	pts	= 0;
 	codecName = codec_name;
+	// Accélération matérielle exigée par configuration : aucun repli logiciel.
+	requireHW = properties.GetProperty("video.hwaccel.required", 0) != 0;
 
 	// Init framerate
 	SetFrameRate(5,300,20);
 
-	// Choix de l'encodeur (VAAPI si demandé et utilisable, sinon logiciel)
-	if (!SelectCodec(tryHW))
+	// Choix de l'encodeur (VAAPI si demandé/exigé et utilisable, sinon logiciel)
+	if (!SelectCodec(tryHW || requireHW))
 		return;
 
 	picture = av_frame_alloc();
@@ -163,9 +168,12 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 			int ret = av_hwdevice_ctx_create(&dev, AV_HWDEVICE_TYPE_VAAPI, NULL, NULL, 0);
 			if (ret < 0)
 			{
-				Log("FFMpeg encoder: no usable VAAPI device (%s), falling back to software\n", AVErrToStr(ret));
 				codec = NULL;
 				hwFailed = true;
+				// Mode HW exigé : aucun repli logiciel autorisé -> échec.
+				if (requireHW)
+					return Error("FFMpeg encoder: VAAPI device required but unavailable (%s)\n", AVErrToStr(ret));
+				Log("FFMpeg encoder: no usable VAAPI device (%s), falling back to software\n", AVErrToStr(ret));
 			}
 			else
 			{
@@ -177,6 +185,9 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 		}
 		else
 		{
+			// Mode HW exigé : pas d'encodeur VAAPI pour ce codec -> échec.
+			if (requireHW)
+				return Error("FFMpeg encoder: VAAPI encoder required but none for [%s]\n", avcodec_get_name(avCodecId));
 			Log("FFMpeg encoder: no VAAPI encoder for [%s], using software\n", avcodec_get_name(avCodecId));
 		}
 	}
@@ -244,6 +255,10 @@ int FfVideoEncoder::ReopenCodec()
 ************************/
 int FfVideoEncoder::FallbackToSoftware()
 {
+	// Mode HW exigé : aucun repli logiciel autorisé.
+	if (requireHW)
+		return Error("FFMpeg encoder: VAAPI required but open failed; no software fallback\n");
+
 	int width  = ctx->width;
 	int height = ctx->height;
 
@@ -658,11 +673,17 @@ bool FfVideoDecoder::IsCodecAvailable(enum AVCodecID id, const char* preferredNa
 	return avcodec_find_decoder(id) != nullptr;
 }
 
-FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id, const char* codec_name)
+FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id, const char* codec_name,
+                               bool requireHW)
 {
 	//Guardamos los valores por defecto
 	type = codec_id;
 	bufLen = 0;
+	this->requireHW = requireHW;
+	// Initialisés tôt : un return anticipé (codec introuvable, HW exigé absent)
+	// laisserait sinon le destructeur free() des pointeurs indéterminés.
+	ctx = NULL; parser_ctx = NULL; picture = NULL;
+	buffer = NULL; frame = NULL; frameSize = 0; src = 0;
 
 	//Encotramos el codec : si un nom est fourni, on le privilégie (explicite
 	// plutôt que de dépendre de l'ordre de résolution par défaut de ffmpeg),
@@ -689,11 +710,20 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
     }
 	picture = av_frame_alloc();
 
-	TryVAAPI(ctx, codec);
+	bool hwOk = TryVAAPI(ctx, codec);
 	if (ctx->hw_device_ctx)
 		// Sans ce callback le décodeur ne négocie jamais le format matériel
 		// et reste en logiciel malgré hw_device_ctx.
 		ctx->get_format = GetVAAPIFormat;
+
+	// Mode HW exigé : sans device VAAPI on refuse d'ouvrir le décodeur (pas de
+	// repli logiciel). IsHardwareReady() restera false et Decode() échouera.
+	if (requireHW && !hwOk)
+	{
+		Error("FFMpeg decoder [%s]: VAAPI device required but unavailable\n", VideoCodec::GetNameFor(type));
+		avcodec_free_context(&ctx);   // ctx==NULL -> IsHardwareReady()=false, Decode() sort en erreur
+		return;
+	}
 
 	//POnemos los valores del contexto
 	ctx->workaround_bugs 	= 255*255;
@@ -727,6 +757,10 @@ FfVideoDecoder::~FfVideoDecoder()
 
 int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 {
+	// Contexte absent (décodeur non ouvert, ex. HW VAAPI exigé mais indisponible).
+	if (!ctx)
+		return Error("[%s] decoder not opened (no context)\n", VideoCodec::GetNameFor(type));
+
 	//Decodificamos
 	AVPacket* pkt = av_packet_alloc();
 	BYTE *current_ptr = buffer;

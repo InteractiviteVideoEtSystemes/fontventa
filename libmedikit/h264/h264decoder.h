@@ -6,7 +6,8 @@
 class H264Decoder : public FfVideoDecoder
 {
 public:
-	H264Decoder();
+	// requireHW : exige un décodage matériel VAAPI (aucun repli logiciel).
+	H264Decoder(bool requireHW = false);
 	virtual ~H264Decoder();
 
 	// Dépaquetisation RTP H.264 (RFC 6184 : single NAL, STAP-A, FU-A).

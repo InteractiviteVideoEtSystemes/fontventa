@@ -92,10 +92,17 @@ protected:
 	VideoCodec::Type type;
 	int64_t		pts;
 	bool		hwFailed;	// l'init VAAPI a déjà échoué : ne plus réessayer
+	// Accélération matérielle EXIGÉE (propriété "video.hwaccel.required") : aucun
+	// repli logiciel n'est autorisé ; l'ouverture échoue si VAAPI est indisponible.
+	bool		requireHW;
 
 
 	//Hardware acceleration
 	AVFrame *hw_frame;
+
+public:
+	// true si l'encodeur tourne effectivement en VAAPI (device matériel actif).
+	bool IsHardwareReady() const { return ctx && ctx->hw_device_ctx; }
 };
 
 class FfVideoDecoder : public VideoDecoder
@@ -105,9 +112,16 @@ public:
 	// nullptr pour le comportement par défaut (avcodec_find_decoder par ID) ;
 	// utile pour être explicite plutôt que de dépendre de l'ordre de
 	// résolution par défaut de ffmpeg (ex : AV1 -> "libdav1d").
-	FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id, const char* codec_name = nullptr);
+	// requireHW : exige un décodage matériel VAAPI. Sans device VAAPI (pas de
+	// /dev/dri/renderD128...), le décodeur reste « non prêt » (IsHardwareReady()
+	// == false) et Decode() échoue, au lieu de retomber silencieusement en
+	// logiciel comme le mode par défaut.
+	FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type codec_id, const char* codec_name = nullptr,
+	               bool requireHW = false);
 	virtual ~FfVideoDecoder();
 	virtual int Decode(BYTE *in,DWORD len);
+	// true si le décodeur dispose d'un device VAAPI actif.
+	bool IsHardwareReady() const { return ctx && ctx->hw_device_ctx; }
 	// Dépaquetisation par défaut : accumule le payload brut puis décode sur 'last'.
 	// Les codecs à dépaquetisation RTP spécifique (H264, H263+, VP8...) la
 	// redéfinissent dans leur propre classe (cf. h264decoder, h263codec, vp8decoder).
@@ -135,6 +149,8 @@ protected:
 	DWORD		frameSize;
 	BYTE		src;
 	VideoCodec::Type type;
+	// Décodage matériel VAAPI exigé (cf. constructeur) : pas de repli logiciel.
+	bool		requireHW;
 
 };
 

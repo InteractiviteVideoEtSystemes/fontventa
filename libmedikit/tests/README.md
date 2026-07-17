@@ -45,6 +45,22 @@ Filtrer une suite ou un test précis :
 | `test_mp4_read_titi.cpp` | `Mp4ReadTiti` | `Mp4FfReader` sur `titi.mp4` : lecture vidéo réelle |
 | `test_mp4_roundtrip.cpp` | `Mp4RoundTrip` | Écriture (`mp4writer`) → relecture (`Mp4FfReader`) audio PCMU + vidéo H264 |
 | `test_mp4_transcode.cpp` | `Mp4Transcode` | Transcodage `titi.mp4` : H264→H263 + AAC→AMR-NB → enregistrement `.3gp` → relecture |
+| `test_h264_hwaccel.cpp` | `H264HwVaapi` | Encodage + décodage H264 **VAAPI** (accélération matérielle exigée) — **DÉSACTIVÉ par défaut** |
+
+### Tests désactivés par défaut (`DISABLED_`)
+
+`H264HwVaapi.DISABLED_EncodeDecodeRequiresVaapi` exige un GPU exposé via VAAPI
+(`/dev/dri/renderD128`). Il n'est **pas** lancé par la suite normale ; sur une
+machine sans GPU il échoue volontairement. Le lancer explicitement :
+
+```sh
+./tests/runtests --gtest_also_run_disabled_tests --gtest_filter='*H264HwVaapi*'
+```
+
+Il s'appuie sur le mode « accélération matérielle exigée » :
+- **encodeur** : propriété `video.hwaccel.required=1` (aucun repli logiciel) ;
+- **décodeur** : `H264Decoder(/*requireHW*/ true)`.
+Les deux exposent `IsHardwareReady()`.
 
 ### Fixtures (`tests/fixtures/`, versionnées)
 
