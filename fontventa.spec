@@ -17,7 +17,6 @@ Requires:       ffmpeg
 
 %description
 Fontventa shared libraries for Asterisk.
-Add h324m support.
 
 %build
 %{make_build}

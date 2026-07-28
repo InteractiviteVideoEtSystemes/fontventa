@@ -16,7 +16,7 @@ d'activité :
    Asterisk de ce dépôt, soit par un projet applicatif externe qui l'embarque en
    sous-module et lie `libmedkit.a` par chemin.
 2. **Modules Asterisk et outils historiques** — `app_mp4/` (`mp4save`/`mp4play`),
-   `app_rtsp/`, `app_transcoder/`, `astlog/`, `libh324m/` (visiophonie 3G-324M),
+   `app_rtsp/`, `app_transcoder/`, `astlog/`,
    `mp4av/` + `mp4creator/` (fork mpeg4ip), `tools/` (`mp4asterisk`, `mp4band`,
    `pcm2mp4`, `IVES_convert.ksh`). Code ancien, peu touché ; il exige les
    en-têtes `<asterisk/...>` d'`asteriskv-devel`.
