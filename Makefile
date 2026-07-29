@@ -1,5 +1,10 @@
 include ./Makeinclude
 
+# Ces cibles ne sont pas des fichiers : sans .PHONY, « astlog » est considere
+# comme deja a jour a cause du repertoire homonyme et n'est jamais construit.
+.PHONY: all astlog libmp4av.a libmedkit.a mp4creator-util \
+	app_mp4.so app_rtsp.so app_transcoder.so install clean
+
 all: app_mp4.so  app_rtsp.so astlog mp4creator-util
 	echo "Fontventa compile"
 

@@ -121,7 +121,9 @@ VPATH += %.cpp $(SPEEXDIR)
 VPATH += %.cpp $(OPUSDIR)
 VPATH += %.cpp $(VP8DIR)
 VPATH += %.cpp $(AV1DIR)
-LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lx264  -lbz2 -lssl -lcrypto -lpthread
+# Plus de -lx264 : l'encodeur H264 passe par ffmpeg (wrapper libx264 ou
+# h264_vaapi), aucun appel direct à l'API x264 ne subsiste dans la lib.
+LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lbz2 -lssl -lcrypto -lpthread
 
 #For abyss
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g -Wno-narrowing

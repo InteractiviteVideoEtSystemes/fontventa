@@ -10,4 +10,5 @@ tools/pcm2mp4
 tools/mp4nfo
 tools/mp4creator
 mp4creator/mp4creator
+astlog/astlog
 libmedikit/ffmp4probe

@@ -665,7 +665,9 @@ static int mp4_save( struct ast_channel *chan, void *data )
 
     time_t now;
     struct tm *tmvalue;
-    MP4Tags *tags = MP4TagsAlloc();
+    /* MP4TagsAlloc() rend un const MP4Tags* (mp4v2 2.x) ; les setters,
+     * MP4TagsStore() et MP4TagsFree() acceptent tous ce pointeur const. */
+    const MP4Tags *tags = MP4TagsAlloc();
 
     time( &now );
     tmvalue = localtime( &now );

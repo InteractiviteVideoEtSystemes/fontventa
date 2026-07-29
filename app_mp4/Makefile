@@ -41,7 +41,12 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc
 
-LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -lmp4v2 -Wl,-Bdynamic -lavcodec -lavformat -lswscale -lx264
+# libmedkit.a est liee en statique ; mp4v2 est packagee en partage seulement
+# (mp4v2-devel ne fournit pas de .a), cf. "Requires: mp4v2" de fontventa.spec.
+# Plus de -lx264 : l'encodeur H264 de libmedkit passe desormais par ffmpeg.
+LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -Wl,-Bdynamic -lmp4v2 \
+	-lavcodec -lavformat -lavutil -lswscale -lswresample -lgsm \
+	-lssl -lcrypto -lbz2 -lstdc++ -lpthread -lm
 DEBUG := -g
 
 CFLAGS = -I../libmedikit -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
