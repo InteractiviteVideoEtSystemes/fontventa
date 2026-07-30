@@ -9,6 +9,7 @@
 #include <medkit/video.h>
 
 class Mp4Basetrack;
+class Mp4VideoTrack;
 class H264Depacketizer;
 class RTPRedundantEncoder;
 class PictureStreamer;
@@ -104,6 +105,15 @@ public:
     void DumpInfo();
 
 protected:
+	/**
+	 * Fill the gap between the beginning of the recording and the first real
+	 * video frame with black frames, so that the first genuine picture is not
+	 * stretched over the whole delay. `firstTs` is the timestamp (90 kHz) of
+	 * that first real frame; black frames are timestamped backwards from it.
+	 * Returns the number of black frames written.
+	 */
+	unsigned int WriteVideoPrologue(Mp4VideoTrack *tr, DWORD firstTs, DWORD delayMs);
+
     char partName[80];
 
     MP4FileHandle mp4;
