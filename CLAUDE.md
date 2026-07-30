@@ -76,9 +76,28 @@ de lecture MP4 hors-ligne : ouverture, métadonnées, lecture cadencée, seek),
 `install.ksh` **génère `Makeinclude`** (`SYS_LIB=`) que le `Makefile` racine
 inclut : le lancer au moins une fois avant tout `make` à la racine. Le `Makefile`
 racine bâtit `libmedkit.a`, puis `app_mp4.so`, `app_rtsp.so`, `astlog`,
-`mp4creator`. Les modules se lient contre `libmedkit.a` en statique
-(`-L../libmedikit -lmedkit -lmp4v2`) et s'installent dans
+`mp4creator`. Seul `app_mp4` se lie contre `libmedkit.a` (en statique,
+`-L../libmedikit -lmedkit`) ; les modules s'installent dans
 `$(libdir)/asterisk/modules`.
+
+> **Piège** : `libmedkit.a` existe en deux variantes selon `ASTERISK`, et un
+> module lié contre la variante `ASTERISK=no` **se lie sans erreur** (les
+> symboles indéfinis sont tolérés dans un objet partagé) — la panne n'apparaît
+> qu'au chargement : `undefined symbol: RedirectLogToAsterisk`. C'est ce que
+> produit un `make check` (qui force `ASTERISK=no`) suivi d'un `make` dans
+> `app_mp4/`. Deux gardes du `app_mp4/Makefile` l'interceptent désormais :
+> `check-medkit` (avant le lien : les objets d'`ASTOBJ` sont-ils dans
+> l'archive ?) et `check-undefined` (après le lien : `ldd -r` ne doit laisser
+> indéfinis que les symboles `ast_*`/`option_*`/`pbx_*`, fournis par le binaire
+> asterisk). Les deux se lancent aussi à la main. Si un autre module vient à
+> lier `libmedkit.a`, y reprendre ces gardes.
+>
+> `-fno-gnu-unique` est passé en `ASTERISK=yes` : g++ émet sinon des symboles
+> `STB_GNU_UNIQUE` (statiques locales de fonctions inline/templates, ex.
+> `std::piecewise_construct` dès qu'on utilise `std::map`), et la glibc marque
+> **NODELETE** tout `.so` qui en définit — `dlclose()` rend alors 0 sans jamais
+> décharger et la boucle `while (!dlclose(lib));` de `load_dynamic_module`
+> (asterisk 1.4) tourne à l'infini au démarrage.
 
 Deux specs distinctes : `fontventa.spec` (modules `app_*.so` + outils,
 version 1.6.17) et `libmedkit.spec` (la seule lib + ses en-têtes sous
