@@ -1,6 +1,6 @@
 Name:           fontventa
 Version:        2.0.0
-Release:        1.ives%{?dist}
+Release:        2.ives%{?dist}
 Summary:        Fontventa shared libraries for Asterisk
 License:        GPL
 URL:            http://sip.fontventa.com/
