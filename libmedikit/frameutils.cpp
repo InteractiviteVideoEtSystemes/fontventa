@@ -112,6 +112,47 @@ bool MediaFrameToAstFrame(const MediaFrame * mf, struct ast_frame & astf)
 	return MediaFrameToAstFrame2(mf, (MediaFrame::RtpPacketization *) NULL, false, astf, NULL, 0);
 }
 
+/*
+ * Rend l'horodatage RTP sortant déterministe pour la vidéo.
+ *
+ * rtp.c prend le delivery de la trame comme horloge de référence : l'écart entre
+ * deux delivery successifs (calc_txstamp) devient l'avance du timestamp RTP,
+ *   rtp->lastts += ms * 90
+ * et un delivery NON nul court-circuite sa prédiction
+ * rtp->lastovidtimestamp + f->samples (gardée par ast_tvzero(f->delivery)).
+ *
+ * Or ce delivery valait ast_tvnow() : le ts RTP suivait donc l'horloge
+ * d'ÉMISSION. Deux conséquences constatées en pcap :
+ *   - une rafale d'envoi (ms=0) fige le ts : une vingtaine d'unités d'accès
+ *     partagent alors un seul timestamp, avec autant de bits de marqueur, et le
+ *     pair ne reconstitue plus l'IDR ;
+ *   - les NAL d'UNE trame écrits de part et d'autre d'une milliseconde
+ *     reçoivent deux ts différents (SPS à 1080, le reste de son unité d'accès à
+ *     1170), donc une unité d'accès tronquée.
+ *
+ * En y mettant le temps MÉDIA, le ts RTP devient la somme exacte des écarts
+ * média, quel que soit l'instant réel d'envoi, et tous les NAL d'une même trame
+ * partagent le même ts (écart nul entre eux).
+ *
+ * Le delivery doit rester non nul : à zéro, rtp.c reprend sa prédiction, et
+ * comme `samples` vaut ici 0 (Mp4FfReader ne renseigne pas la durée des trames),
+ * cette prédiction fige le ts. C'est le « WebRTC bug with timestamp to zero »
+ * que contournait l'ancien ast_tvnow().
+ *
+ * AST_FRFLAG_HAS_TIMING_INFO ne convient PAS ici : rtp.c en dérive
+ * `f->ts * ast_format_rate(subclass)/1000`, et ast_format_rate() renvoie 8000
+ * pour tout sauf le G722 — soit une horloge à 8 kHz pour de la vidéo.
+ *
+ * Le ts vidéo medkit est à 90 kHz (contrat de la bibliothèque). Le décalage
+ * d'une seconde garantit un delivery non nul même à ts=0 (ast_tvzero le prendrait
+ * pour « pas d'information ») ; seuls les écarts comptent, il est sans effet.
+ */
+static void SetVideoDelivery(DWORD ts90k, struct timeval & delivery)
+{
+	delivery.tv_sec  = 1 + ts90k / 90000;
+	delivery.tv_usec = (ts90k % 90000) * 1000 / 90;
+}
+
 bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization * rtppak, bool first, struct ast_frame & astf, void * buffer, int len)
 {
 	static const char *MP4PLAYSRC = "mp4play";
@@ -149,6 +190,7 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 				astf.samples = mf->GetDuration() * 90;
 			else
 				astf.samples = 0;
+
 			break;
 
 		case MediaFrame::Text:
@@ -200,7 +242,19 @@ bool MediaFrameToAstFrame2(const MediaFrame * mf, MediaFrame::RtpPacketization *
 
 	// Copy frame timestamp
 	astf.ts = mf->GetTimeStamp();
-	//change the delivery time for avoiding WebRTC bug with timestamp to zero
-	astf.delivery = ast_tvnow();
+
+	/* Horodatage de livraison = horloge de référence de rtp.c (cf.
+	 * SetVideoDelivery). Vidéo : temps média, pour un ts RTP déterministe.
+	 * Autres médias : instant courant, comportement d'origine -- l'audio est
+	 * horodaté par rtp.c à la cadence de son format (8 kHz), et son ts medkit n'a
+	 * pas d'unité homogène entre les chemins (ms côté enregistreur, cadence
+	 * d'échantillonnage côté lecteur) : à ne convertir qu'avec cette
+	 * ambiguïté levée. */
+	if( mf->GetType() == MediaFrame::Video )
+		SetVideoDelivery(mf->GetTimeStamp(), astf.delivery);
+	else
+		//change the delivery time for avoiding WebRTC bug with timestamp to zero
+		astf.delivery = ast_tvnow();
+
 	return true;
 }
