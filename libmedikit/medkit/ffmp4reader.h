@@ -6,6 +6,7 @@
 #include <sys/time.h>
 #include <vector>
 #include <deque>
+#include <map>
 #include <medkit/audio.h>
 #include <medkit/video.h>
 #include <medkit/avcdescriptor.h>
@@ -91,12 +92,23 @@ public:
     QWORD Tell()            { return currentTs; }
 
 private:
-    // Remplit `pending` avec le prochain paquet d'une piste sélectionnée.
+    // Remplit `pending` avec le prochain paquet d'une piste sélectionnée, en
+    // ordre dts croissant toutes pistes confondues (cf. readahead).
     // @return false si EOF (pending laissé NULL).
     bool FillPending();
+    // Lit un paquet de plus dans les files de réordonnancement.
+    // @return false si EOF atteint.
+    bool ReadAhead();
+    // Vide les files de réordonnancement (Rewind / Seek / destruction).
+    void FlushReadAhead();
+    // Jette les paquets en file antérieurs au plancher de seek.
+    void DropBeforeSeekFloor();
     // Échéance de lecture (cadencement) en ms, cadencée par dts et normalisée
     // sur le premier dts rencontré.
     long SchedMsOf( AVPacket * pkt );
+    // Idem sans normalisation ni effet de bord : utilisable pour comparer des
+    // paquets avant de savoir lequel sera émis en premier.
+    long RawSchedMsOf( AVPacket * pkt );
     // Construit la MediaFrame (réutilise videoFrame/audioFrame) packetisée RTP.
     MediaFrame * BuildFrame( AVPacket * pkt );
     // Précalcule SPS/PPS en AVCC pour préfixe des trames intra.
@@ -124,6 +136,24 @@ private:
 
     // État de lecture (P2)
     AVPacket *      pending;        // paquet lu en avance, pas encore dû
+
+    /* Réordonnancement des paquets par dts.
+     *
+     * mp4v2 interleave le fichier par tranches (~1 s de vidéo, puis ~1 s
+     * d'audio), et av_read_frame restitue cet ordre de stockage, PAS l'ordre dts
+     * global : chaque tranche arrive donc « déjà due » et serait émise en
+     * rafale. Or Asterisk horodate les trames sortantes à l'instant d'émission ;
+     * une rafale colle plusieurs unités d'accès sur un seul timestamp RTP et le
+     * pair ne décode plus l'IDR. On lit donc en avance dans une file par piste
+     * et on émet toujours la tête de plus petit dts. */
+    std::map< int, std::deque<AVPacket *> > readahead;
+    long            maxSchedRead;   // plus grand dts lu (ms), horizon de tri
+    bool            maxSchedReadSet;
+    /* Plancher posé par Seek : après un saut, le démux livre pour les pistes
+     * éparses (texte) un échantillon antérieur au point atteint. Réordonné par
+     * dts il serait émis en premier et fausserait la position. */
+    long            seekFloorMs;
+    bool            seekFloorSet;
     struct timeval  startPlaying;   // origine horloge murale (Rewind/Seek)
     long            schedOffsetMs;   // normalisation du 1er dts
     bool            schedOffsetSet;
