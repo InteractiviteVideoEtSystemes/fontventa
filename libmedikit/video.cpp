@@ -192,10 +192,17 @@ void VideoFrame::PacketizeH264Nalu(unsigned int mtu, DWORD offset, DWORD naluSz,
 	}
 
 	uint8_t fua_hdr[H264_FUA_HEADER_SIZE];
-	fua_hdr[0] = p[l] & 0x60; /* NRI */
+	fua_hdr[0] = p[0] & 0x60; /* NRI */
 	fua_hdr[0] |= 28;          /* fu_a */
 	fua_hdr[1] = 0x80;         /* S=1,E=0,R=0 */
-	fua_hdr[1] |= p[l] & 0x1f; /* type */
+	fua_hdr[1] |= p[0] & 0x1f; /* type */
+
+	/* La charge utile FU-A EXCLUT l'octet d'en-tête NAL : le récepteur le
+	 * reconstruit depuis l'indicateur et l'en-tête FU (RFC 6184 §5.8).
+	 * L'inclure (l=0) le dupliquait à la réception -- toute la slice décalée
+	 * d'un octet, IDR indécodable dès le 3e macrobloc (constaté en production
+	 * sur tout NAL fragmenté ; les NAL <= mtu, non fragmentés, étaient sains). */
+	l = 1;
 
 	while (l < naluSz)
 	{
