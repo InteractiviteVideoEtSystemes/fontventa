@@ -12,3 +12,5 @@ tools/mp4creator
 mp4creator/mp4creator
 astlog/astlog
 libmedikit/ffmp4probe
+libmedikit/tests/runtests
+libmedikit/tests/.libmedkit.stamp

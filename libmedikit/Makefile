@@ -163,7 +163,7 @@ mp4format.o: astmedkit/mp4format.h medkit/mp4writer.h medkit/ffmp4reader.h medki
 
 clean:
 	rm -f $(OBJS) libmedkit.a
-	rm -f tests/runtests tests/*.o
+	rm -f tests/runtests tests/*.o tests/.libmedkit.stamp
 
 
 install32:
@@ -228,18 +228,32 @@ TEST_MP4      ?= $(abspath tests/fixtures/record.mp4)
 TEST_MP4_TITI ?= $(abspath tests/fixtures/titi.mp4)
 
 # libmedkit.a n'est PAS un prerequis direct : on force sa (re)construction en
-# ASTERISK=no via un sous-make, sinon le defaut ASTERISK=yes tenterait de batir
-# transcoder.o/mp4format.o (en-tetes <asterisk/...> absents) hors perimetre.
-tests/runtests: $(TEST_SRCS)
-	$(MAKE) ASTERISK=no libmedkit.a
+# ASTERISK=no via un sous-make (cible libstamp), sinon le defaut ASTERISK=yes
+# tenterait de batir transcoder.o/mp4format.o (en-tetes <asterisk/...> absents)
+# hors perimetre.
+#
+# Le temoin est indispensable : sans lui, runtests ne dependait que des sources
+# de test et n'etait donc PAS relie quand seule la bibliotheque changeait -- les
+# tests passaient sur un binaire perime, ce qui masque silencieusement une
+# regression comme une correction.
+tests/runtests: $(TEST_SRCS) tests/.libmedkit.stamp
 	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) \
 		-DTEST_MP4_FILE='"$(TEST_MP4)"' -DTEST_MP4_TITI_FILE='"$(TEST_MP4_TITI)"' \
 		$(TEST_SRCS) libmedkit.a -o $@ \
 		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm $(GTEST_LIBS)
+
+# Reconstruit la bibliotheque a chaque appel, mais ne touche le temoin que si
+# l'archive a reellement change : le binaire de test n'est relie qu'en cas de
+# besoin.
+tests/.libmedkit.stamp: force-libmedkit
+	@[ -f $@ ] && [ ! libmedkit.a -nt $@ ] || touch $@
+
+force-libmedkit:
+	@$(MAKE) ASTERISK=no libmedkit.a
 
 tests: tests/runtests
 
 check: tests/runtests
 	./tests/runtests
 
-.PHONY: tests check
+.PHONY: tests check force-libmedkit
