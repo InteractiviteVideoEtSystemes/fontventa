@@ -714,6 +714,24 @@ void Mp4FfReader::ResetAudioTranscode()
     if( audioTranscode ) OpenAudioTranscoded( audioCodec );
 }
 
+/*
+ * L'échantillon AVCC contient-il une NALU du type demandé ?
+ * `lenSize` = taille du préfixe de longueur (1..4, depuis l'avcC).
+ */
+static bool AvccHasNalType( const BYTE * data, DWORD size, DWORD lenSize, BYTE type )
+{
+    DWORD off = 0;
+    while( off + lenSize < size )
+    {
+        DWORD n = 0;
+        for( DWORD k = 0; k < lenSize; k++ ) n = ( n << 8 ) | data[off + k];
+        if( n == 0 || off + lenSize + n > size ) return false;   // corrompu : ne rien déduire
+        if( ( data[off + lenSize] & 0x1F ) == type ) return true;
+        off += lenSize + n;
+    }
+    return false;
+}
+
 MediaFrame * Mp4FfReader::BuildFrame( AVPacket * pkt )
 {
     AVStream * st = fmtctx->streams[pkt->stream_index];
@@ -725,8 +743,24 @@ MediaFrame * Mp4FfReader::BuildFrame( AVPacket * pkt )
     {
         bool intra = ( pkt->flags & AV_PKT_FLAG_KEY ) != 0;
 
-        // Trame intra : préfixer SPS/PPS (AVCC) devant les NALU du paquet (AVCC)
-        if( intra && videoCodec == VideoCodec::H264 && !videoParamsAvcc.empty() )
+        /* Préfixer les SPS/PPS de l'avcC devant les NALU du paquet -- mais
+         * SEULEMENT si l'échantillon porte un IDR sans ses propres paramètres.
+         *
+         * L'avcC ne mémorise que le PREMIER jeu SPS/PPS de la piste ; quand le
+         * fichier en contient deux (prologue de trames noires encodé par nous,
+         * puis flux réel du pair, tous deux en sps_id/pps_id 0), ce préfixe
+         * injecte les paramètres du prologue AU MILIEU du flux réel. Constaté en
+         * production : SPS prologue à log2_max_frame_num=4 contre 6 pour le flux
+         * réel -- toute slice réelle parsée sous le SPS du prologue se décale de
+         * 2 bits après frame_num, et le décodeur du pair rend des erreurs de
+         * parse en cascade (reordering idc, deblocking params, QP hors bornes).
+         * Un échantillon sync sans IDR (trame P marquée intra par l'enregistreur)
+         * déclenchait exactement cela. */
+        bool prefixParams = intra && videoCodec == VideoCodec::H264 && !videoParamsAvcc.empty()
+            && AvccHasNalType( pkt->data, pkt->size, videoNalLengthSize, 0x05 )
+            && !AvccHasNalType( pkt->data, pkt->size, videoNalLengthSize, 0x07 );
+
+        if( prefixParams )
         {
             videoFrame->SetMedia( &videoParamsAvcc[0], videoParamsAvcc.size() );
             videoFrame->AppendMedia( pkt->data, pkt->size );

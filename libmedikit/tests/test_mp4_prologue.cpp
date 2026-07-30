@@ -270,6 +270,52 @@ TEST(Mp4Prologue, ProfileLevelIdCoherentDansLAvcC)
 	unlink(path);
 }
 
+// --- Un échantillon sync doit porter un IDR -----------------------------------
+// Le dépacketiseur marque « intra » toute trame porteuse de SPS/PPS (points de
+// rafraîchissement x264 intra_refresh) ; marquer sync une trame P sans IDR
+// poussait le lecteur à lui préfixer les paramètres de l'avcC — ceux du
+// PROLOGUE — et le décodeur du pair se re-calait dessus en plein flux réel
+// (log2_max_frame_num 4 contre 6 : slices illisibles, constaté en production).
+TEST(Mp4Prologue, EchantillonSyncPorteUnIdr)
+{
+	const char* path = "/tmp/libmedkit_prologue_sync_idr.mp4";
+
+	ASSERT_GT(WriteWithDelay(path, /*prologue*/ true, 10, TS_BASE_ASTERISK), 0);
+
+	MP4FileHandle mp4 = MP4Read(path);
+	ASSERT_NE(mp4, MP4_INVALID_FILE_HANDLE);
+	MP4TrackId tid = MP4FindTrackId(mp4, 0, MP4_VIDEO_TRACK_TYPE);
+	ASSERT_NE(tid, MP4_INVALID_TRACK_ID);
+
+	MP4SampleId count = MP4GetTrackNumberOfSamples(mp4, tid);
+	int nsync = 0;
+	for (MP4SampleId sid = 1; sid <= count; sid++)
+	{
+		bool isSync = false;
+		ASSERT_TRUE(MP4GetSampleSync(mp4, tid, sid) != -1);
+		if (MP4GetSampleSync(mp4, tid, sid) != 1) continue;
+		nsync++;
+
+		uint8_t* buf = NULL; uint32_t len = 0;
+		ASSERT_TRUE(MP4ReadSample(mp4, tid, sid, &buf, &len));
+		bool idr = false;
+		uint32_t off = 0;
+		while (off + 4 < len)
+		{
+			uint32_t n = ((uint32_t)buf[off]<<24)|((uint32_t)buf[off+1]<<16)|((uint32_t)buf[off+2]<<8)|buf[off+3];
+			if (n == 0 || off + 4 + n > len) break;
+			if ((buf[off+4] & 0x1F) == 0x05) { idr = true; break; }
+			off += 4 + n;
+		}
+		free(buf);
+		EXPECT_TRUE(idr) << "échantillon sync #" << sid << " sans IDR";
+	}
+	EXPECT_GT(nsync, 0) << "aucun échantillon sync";
+
+	MP4Close(mp4);
+	unlink(path);
+}
+
 // --- Attente de l'IDR sans prologue créé ------------------------------------
 // Si la vidéo arrive tout de suite (délai < une période de trame), aucun
 // PictureStreamer n'est créé. Le chemin d'attente de l'IDR, qui remplace les

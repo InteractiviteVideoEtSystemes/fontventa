@@ -609,7 +609,27 @@ int Mp4VideoTrack::DoWritePrevFrame( DWORD duration )
     sampleId++;
     //Log("Process VIDEO frame sampleId: %d, ts:%lu, duration %u.\n", sampleId, frame->GetTimeStamp(), duration);
 
-    MP4WriteSample( mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, ((VideoFrame *)frame)->IsIntra() );
+    /* Drapeau sync (stss) : pour H264, seule une trame portant un IDR (NALU 5)
+     * est un point d'accès aléatoire. Le drapeau intra du dépacketiseur est plus
+     * large (il couvre les trames porteuses de SPS/PPS, points de rafraîchissement
+     * x264 intra_refresh) : marquer sync une trame P pousse le lecteur à lui
+     * préfixer les paramètres de l'avcC, et un décodeur à s'y caler à tort. */
+    bool sync = ((VideoFrame *)frame)->IsIntra();
+    if( codec == VideoCodec::H264 && sync )
+    {
+        sync = false;
+        const BYTE * d = frame->GetData();
+        DWORD len = frame->GetLength(), off = 0;
+        while( off + 4 < len )
+        {
+            DWORD n = get4( d, off );
+            if( n == 0 || off + 4 + n > len ) break;
+            if( ( d[off + 4] & 0x1F ) == 0x05 ) { sync = true; break; }
+            off += 4 + n;
+        }
+    }
+
+    MP4WriteSample( mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, sync );
 
     //Check if we have rtp data
     if( frame->HasRtpPacketizationInfo() )
