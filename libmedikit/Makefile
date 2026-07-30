@@ -106,6 +106,13 @@ OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o ffmp4reader.o
 ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
 ifeq ($(ASTERISK),yes)
 OBJS+= $(ASTOBJ)
+# En build Asterisk, libmedkit.a finit dans des modules chargés par dlopen().
+# Or g++ émet des symboles STB_GNU_UNIQUE pour les statiques locales des
+# fonctions inline/templates (ex. std::piecewise_construct dès qu'on utilise
+# std::map) et la glibc marque NODELETE tout .so qui en définit : dlclose()
+# rend alors 0 sans jamais décharger, et la boucle « while (!dlclose(lib)); »
+# de load_dynamic_module (asterisk 1.4) tourne à l'infini au démarrage.
+OPTS+= -fno-gnu-unique
 endif
 
 VPATH =  %.cpp $(H263DIR)
