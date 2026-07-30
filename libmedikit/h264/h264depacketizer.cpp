@@ -18,6 +18,8 @@ H264Depacketizer::H264Depacketizer() : frame( VideoCodec::H264, 0 )
     useStartCode = false;
     hasPPS = false;
     hasSPS = false;
+    fragNALUOpen = false;
+    iniFragNALU = 0;
     frame.SetIntra( false );
 }
 
@@ -41,6 +43,32 @@ void H264Depacketizer::ResetFrame()
     frame.SetIntra( false );
     hasPPS = false;
     hasSPS = false;
+    fragNALUOpen = false;
+}
+
+/*
+ * En AVCC, l'ouverture d'une FU-A (S=1) reserve un prefixe de longueur qui ne
+ * peut etre renseigne qu'a la fin du reassemblage. Si le paquet portant E=1
+ * n'est jamais vu (bit E absent chez certains emetteurs, perte du dernier
+ * fragment), le prefixe reste a sa valeur d'attente et l'echantillon MP4 est
+ * definitivement illisible. On referme donc la NALU des que l'on sait qu'elle
+ * est terminee : sur E=1, a l'arrivee d'une nouvelle NALU, et sur le mark RTP.
+ */
+void H264Depacketizer::CloseFragmentedNALU()
+{
+    if( !fragNALUOpen ) return;
+    fragNALUOpen = false;
+
+    if( useStartCode ) return;
+
+    DWORD nalSize = frame.GetLength() - iniFragNALU - 4;
+    if( nalSize == 0 )
+    {
+        Log( "H.264: FU-A sans donnee, NALU ignoree.\n" );
+        frame.SetLength( iniFragNALU );
+        return;
+    }
+    set4( frame.GetData(), iniFragNALU, nalSize );
 }
 
 MediaFrame *H264Depacketizer::AddPayload( BYTE *payload, DWORD payload_len, bool mark )
@@ -110,6 +138,9 @@ MediaFrame *H264Depacketizer::AddPayload( BYTE *payload, DWORD payload_len, bool
                   Figure 7.  An example of an RTP packet including an STAP-A and two
                      single-time aggregation units
             */
+
+            /* Une nouvelle NALU commence : la FU-A precedente est terminee */
+            CloseFragmentedNALU();
 
             /* Skip STAP-A NAL HDR */
             payload++;
@@ -258,6 +289,9 @@ MediaFrame *H264Depacketizer::AddPayload( BYTE *payload, DWORD payload_len, bool
                         break;
                 }
 
+                /* Une nouvelle NALU commence : la FU-A precedente est terminee */
+                CloseFragmentedNALU();
+
                 //Get init of the nal
                 iniFragNALU = frame.GetLength();
 
@@ -268,9 +302,13 @@ MediaFrame *H264Depacketizer::AddPayload( BYTE *payload, DWORD payload_len, bool
                 }
                 else
                 {
-                    // add placeholder for NALU size
-                    set4( nalHeader, 0, 1 );
+                    // Reserve le prefixe de longueur, renseigne par
+                    // CloseFragmentedNALU(). Valeur d'attente 0 : une longueur
+                    // nulle est invalide donc detectable, alors qu'un 1 formait
+                    // 00 00 00 01, indistinguable d'un start code Annex-B.
+                    set4( nalHeader, 0, 0 );
                     frame.AppendMedia( nalHeader, sizeof( nalHeader ) );
+                    fragNALUOpen = true;
                 }
 
                 //Start with reconstructed NAL header
@@ -286,13 +324,7 @@ MediaFrame *H264Depacketizer::AddPayload( BYTE *payload, DWORD payload_len, bool
 
             if( E )
             {
-                if( !useStartCode )
-                {
-                    //Get NAL size
-                    DWORD nalSize = frame.GetLength() - iniFragNALU - 4;
-                    //store it before the NALU data
-                    set4( frame.GetData(), iniFragNALU, nalSize );
-                }
+                CloseFragmentedNALU();
 
                 if( !mark ) Log( "H.264: warning end of FU-A and RTP mark is not set. Possible packetization issue.\n" );
             }
@@ -302,6 +334,10 @@ MediaFrame *H264Depacketizer::AddPayload( BYTE *payload, DWORD payload_len, bool
             /* 1-23	 NAL unit	Single NAL unit packet per H.264	 5.6 */
             //Check it
             //Log("H.264: single NAL\n");
+
+            /* Une nouvelle NALU commence : la FU-A precedente est terminee */
+            CloseFragmentedNALU();
+
             switch( nal_unit_type )
             {
                 case 0x05: // Intraframe
@@ -360,6 +396,11 @@ MediaFrame *H264Depacketizer::AddPayload( BYTE *payload, DWORD payload_len, bool
             //Done
             break;
     }
+
+    /* Fin de trame : plus aucun fragment ne viendra, la NALU eventuellement
+     * ouverte doit etre refermee avant que l'appelant n'ecrive l'echantillon
+     * (emetteurs qui signalent la fin par le mark RTP sans poser le bit E). */
+    if( mark ) CloseFragmentedNALU();
 
     return &frame;
 }
