@@ -99,11 +99,12 @@ racine bâtit `libmedkit.a`, puis `app_mp4.so`, `app_rtsp.so`, `astlog`,
 > décharger et la boucle `while (!dlclose(lib));` de `load_dynamic_module`
 > (asterisk 1.4) tourne à l'infini au démarrage.
 
-Deux specs distinctes : `fontventa.spec` (modules `app_*.so` + outils,
-version 1.6.17) et `libmedkit.spec` (la seule lib + ses en-têtes sous
-`/opt/ives`, version 2.0.0). `build.bash` est **obsolète** (il force
-ffmpeg 0.4.2). `medkit/version.h` (`MCUVERSION "1.5.1"`) est **périmé** : la
-version réelle vit dans les specs.
+Un seul spec : `fontventa.spec` (modules `app_*.so` + outils). Le paquet
+libmedkit séparé (`libmedkit.spec`/`install_lib.ksh`) a été supprimé :
+app_conference compile libmedkit depuis le submodule fontventa. La CI est
+GitLab CI (`.gitlab-ci.yml`, publication vers `forks-testing`), `build.bash`
+(Jenkins) a été supprimé. `medkit/version.h` (`MCUVERSION "1.5.1"`) est
+**périmé** : la version réelle vit dans le spec.
 
 ## Tests (`libmedikit/tests/`)
 

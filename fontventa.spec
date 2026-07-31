@@ -24,7 +24,7 @@ Fontventa shared libraries for Asterisk.
 
 %prep
 # Pas de tarball : install.ksh place un lien SOURCES/%{name} vers l'arbre
-# source, la construction se fait sur place (meme convention que libmedkit.spec).
+# source, la construction se fait sur place.
 
 %build
 cd $RPM_SOURCE_DIR/%{name}
