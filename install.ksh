@@ -104,7 +104,15 @@ case $1 in
   		create_rpm $2;;
 
 	"prereq")
-		sudo yum -y install ffmpeg-devel mp4v2-devel asteriskv-devel SDL-devel x264-devel ;;
+		# dependances de compilation almalinux 9 (cf. BuildRequires de fontventa.spec)
+		# plus de SDL-devel ni x264-devel : x264 passe par le ffmpeg de RPM Fusion
+		PKGS="gcc gcc-c++ make git rpm-build asteriskv-devel mp4v2-devel ffmpeg-devel gsm-devel openssl-devel bzip2-devel"
+		if [ "`id -u`" == "0" ]
+		then
+			dnf install -y $PKGS
+		else
+			sudo dnf install -y $PKGS
+		fi ;;
   	*)
   		echo "usage: install.ksh [options]"
   		echo "options :"

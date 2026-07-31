@@ -1,0 +1,63 @@
+include:
+  - project: "gitlab-ci/pipelines-parts"
+    file:
+      - .workflow-release-tags.yml
+
+stages:
+  - build
+  - publish
+
+variables:
+  RHEL_VERSION: "9"
+  PUBLISH_REPO: "forks"
+
+build:
+  stage: build
+  image: $CI_REGISTRY/gitlab-ci/docker-images:rpmbuild_el$RHEL_VERSION
+  script:
+    # installe notamment asteriskv-devel, mp4v2-devel et ffmpeg-devel
+    - ./install.ksh prereq
+    - ./install.ksh rpm nosign
+  cache:
+    key: $CI_PIPELINE_ID-rpms
+    policy: push
+    paths:
+      - $CI_PROJECT_DIR/*.rpm
+
+publish:
+  stage: publish
+  image: $CI_REGISTRY/gitlab-ci/docker-images:rpm_publisher
+  needs:
+    - job: build
+  variables:
+    REPO_URL: "https://rpm.ives.fr/$RHEL_VERSION/$PUBLISH_REPO-testing/x86_64"
+    REPO_PATH: "jenkins@web0.eu.ives.fr:/data/packages/$RHEL_VERSION/$PUBLISH_REPO-testing/x86_64/"
+  script:
+    # Publishing RPM:
+    - |
+      set -eo pipefail
+
+      find $CI_PROJECT_DIR/ -type f -name "*.rpm" | while read RPM_FILE
+      do
+        RPM_BASENAME=$(basename "$RPM_FILE")
+
+        echo "Processing $RPM_BASENAME..."
+
+        if curl --output /dev/null --silent --head --fail "$REPO_URL/$RPM_BASENAME"
+        then
+          echo "Package $RPM_BASENAME already exists on repository"
+          exit 255
+        else
+          echo "Publishing $RPM_BASENAME..."
+          scp "$RPM_FILE" "$REPO_PATH"
+          echo "$RPM_BASENAME published."
+        fi
+      done
+
+    # Updating repository:
+    - ssh jenkins@web0.eu.ives.fr /data/packages/$RHEL_VERSION/met_au_propre.sh
+  cache:
+    key: $CI_PIPELINE_ID-rpms
+    policy: pull
+    paths:
+      - $CI_PROJECT_DIR/
