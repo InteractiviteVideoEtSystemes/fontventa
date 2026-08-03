@@ -147,18 +147,13 @@ protected:
 	DWORD		bufLen;
 	DWORD 		bufSize;
 	BYTE		src;
-<<<<<<< HEAD
 	// PAS de 'VideoCodec::Type type' ici : il masquerait VideoDecoder::type
 	// (medkit/video.h), laissé alors non initialisé — et videostream.cpp:810
 	// (comme VideoDecoderWorker/mediabridgesession/rtmpparticipant) compare
 	// videoDecoder->type via un VideoDecoder*, ce qui recréait le décodeur à
 	// CHAQUE paquet RTP (aucune trame jamais décodée).
-=======
-	VideoCodec::Type type;
 	// Décodage matériel VAAPI exigé (cf. constructeur) : pas de repli logiciel.
 	bool		requireHW;
-
->>>>>>> migration/almalinux_9
 };
 
 #endif

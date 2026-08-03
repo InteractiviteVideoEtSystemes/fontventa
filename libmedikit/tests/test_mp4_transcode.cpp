@@ -89,17 +89,22 @@ TEST(Mp4Transcode, H264versH263_AacversAmr_3gp)
 				if (!ab.empty())
 				{
 					vdec.Decode(&ab[0], ab.size());
-					BYTE* yuv = vdec.GetFrame();
-					if (yuv)
+					PictPtr pic = vdec.GetFrame();
+					// L'encodeur H263 est logiciel : une trame décodée en VAAPI
+					// doit redescendre explicitement en CPU (aucun download
+					// implicite côté décodeur, cf. avframe.md).
+					if (pic && pic->IsGPUPict())
+						pic = pic->DownloadToCPU();
+					if (pic)
 					{
-						int dw = vdec.GetWidth(), dh = vdec.GetHeight();
+						int dw = pic->GetWidth(), dh = pic->GetHeight();
 						if (!encOpened)
 						{
 							venc.SetFrameRate(25, 256, 25);
 							ASSERT_GE(venc.SetSize(dw, dh), 0) << "ouverture encodeur H263";
 							encOpened = true;
 						}
-						VideoFrame* h = venc.EncodeFrame(yuv, dw * dh * 3 / 2);
+						VideoFrame* h = venc.EncodeFrame(pic);
 						if (h)
 						{
 							h->SetTimestamp(vf->GetTimeStamp());

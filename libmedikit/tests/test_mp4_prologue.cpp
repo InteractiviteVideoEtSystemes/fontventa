@@ -69,17 +69,15 @@ int WriteWithDelay(const char* path, bool prologue, int nframes, DWORD tsBase,
 		// Le délai se mesure depuis la construction du mp4writer.
 		usleep(DELAY_MS * 1000);
 
-		std::vector<BYTE> yuv(W * H * 3 / 2);
 		std::vector<BYTE> pcm(160, 0xFF);        // µ-law : 0xFF = silence
 		int audiosent = 0;
 
 		for (int i = 0; i < nframes; i++)
 		{
-			memset(&yuv[0], 16 + (i * 8) % 200, W * H);
-			memset(&yuv[W * H], 128, W * H / 4);
-			memset(&yuv[W * H * 5 / 4], 128, W * H / 4);
+			PictPtr pic = Pict::CreateColor(W, H, 16 + (i * 8) % 200, 128, 128);
+			if (!pic) break;
 
-			VideoFrame* vf = enc.EncodeFrame(&yuv[0], yuv.size());
+			VideoFrame* vf = enc.EncodeFrame(pic);
 			if (vf == NULL) continue;
 			vf->SetTimestamp(tsBase + i * FRAME_TS);
 			if (w.ProcessFrame(vf) < 0) break;
@@ -341,14 +339,13 @@ TEST(Mp4Prologue, AttenteIdrSansPictureStreamer)
 
 		// Deux images IDENTIQUES : la 2e ne déclenche pas de coupure de scène,
 		// c'est donc une P-frame. Pas de usleep : le délai reste sous 40 ms.
-		std::vector<BYTE> yuv(W * H * 3 / 2);
-		memset(&yuv[0], 64, W * H);
-		memset(&yuv[W * H], 128, W * H / 2);
+		PictPtr pic = Pict::CreateColor(W, H, 64, 128, 128);
+		ASSERT_TRUE(pic != nullptr);
 
-		VideoFrame* vf = enc.EncodeFrame(&yuv[0], yuv.size());   // intra, non transmise
+		VideoFrame* vf = enc.EncodeFrame(pic);   // intra, non transmise
 		ASSERT_TRUE(vf != NULL);
 
-		vf = enc.EncodeFrame(&yuv[0], yuv.size());
+		vf = enc.EncodeFrame(pic);
 		ASSERT_TRUE(vf != NULL);
 		if (vf->IsIntra()) GTEST_SKIP() << "l'encodeur a produit une 2e intra";
 

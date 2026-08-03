@@ -16,7 +16,6 @@
 #include <medkit/video.h>
 #include <h264/h264encoder.h>
 #include <h264/h264decoder.h>
-#include <vector>
 
 TEST(H264HwVaapi, DISABLED_EncodeDecodeRequiresVaapi)
 {
@@ -37,8 +36,9 @@ TEST(H264HwVaapi, DISABLED_EncodeDecodeRequiresVaapi)
 	ASSERT_TRUE(dec.IsHardwareReady()) << "décodeur H264 VAAPI indisponible (pas de GPU ?)";
 
 	// --- Aller-retour matériel : encode une image, décode-la ------------------
-	std::vector<BYTE> yuv(W * H * 3 / 2, 128); // image grise I420
-	VideoFrame* vf = enc.EncodeFrame(&yuv[0], yuv.size());
+	PictPtr pic = Pict::CreateColor(W, H, 128, 128, 128); // image grise I420
+	ASSERT_TRUE(pic != nullptr);
+	VideoFrame* vf = enc.EncodeFrame(pic);
 	ASSERT_TRUE(vf != NULL) << "échec encodage matériel";
 
 	int r = dec.Decode(vf->GetData(), vf->GetLength());

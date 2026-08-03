@@ -51,16 +51,13 @@ bool WriteMp4(int& videoWritten, int& audioWritten)
 		enc.SetFrameRate(FPS, 256, FPS);
 		RET_FALSE_IF_NEG(enc.SetSize(W, H));
 
-		std::vector<BYTE> yuv(W * H * 3 / 2);
-
 		for (int i = 0; i < NFRAMES; i++)
 		{
 			// Image I420 unie (variation de luma pour éviter une image figée).
-			memset(&yuv[0], 16 + (i * 8) % 200, W * H);          // Y
-			memset(&yuv[W * H], 128, W * H / 4);                 // U
-			memset(&yuv[W * H * 5 / 4], 128, W * H / 4);         // V
+			PictPtr pic = Pict::CreateColor(W, H, 16 + (i * 8) % 200, 128, 128);
+			RET_FALSE_IF_NEG(pic ? 0 : -1);
 
-			VideoFrame* vf = enc.EncodeFrame(&yuv[0], yuv.size());
+			VideoFrame* vf = enc.EncodeFrame(pic);
 			if (vf)
 			{
 				vf->SetTimestamp((DWORD)(i * (90000 / FPS)));    // horloge 90 kHz

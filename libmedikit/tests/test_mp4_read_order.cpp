@@ -50,15 +50,14 @@ bool WriteInterleavedMp4()
 		enc.SetFrameRate(FPS, 256, FPS);
 		if (enc.SetSize(W, H) < 0) { MP4Close(mp4); return false; }
 
-		std::vector<BYTE> yuv(W * H * 3 / 2);
 		std::vector<BYTE> pcm(160, 0xFF);
 
 		for (int i = 0; i < NVIDEO; i++)
 		{
-			memset(&yuv[0], 16 + (i * 8) % 200, W * H);
-			memset(&yuv[W * H], 128, W * H / 2);
+			PictPtr pic = Pict::CreateColor(W, H, 16 + (i * 8) % 200, 128, 128);
+			if (!pic) break;
 
-			VideoFrame* vf = enc.EncodeFrame(&yuv[0], yuv.size());
+			VideoFrame* vf = enc.EncodeFrame(pic);
 			if (vf)
 			{
 				vf->SetTimestamp(i * FRAME_TS);            // horloge 90 kHz

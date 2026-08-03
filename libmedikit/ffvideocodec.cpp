@@ -717,7 +717,7 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 	// Initialisés tôt : un return anticipé (codec introuvable, HW exigé absent)
 	// laisserait sinon le destructeur free() des pointeurs indéterminés.
 	ctx = NULL; parser_ctx = NULL; picture = NULL;
-	buffer = NULL; frame = NULL; frameSize = 0; src = 0;
+	buffer = NULL; src = 0;
 
 	//Encotramos el codec : si un nom est fourni, on le privilégie (explicite
 	// plutôt que de dépendre de l'ordre de résolution par défaut de ffmpeg),
