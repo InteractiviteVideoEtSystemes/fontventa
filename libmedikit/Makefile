@@ -98,12 +98,16 @@ AMROBJ=amrcodec.o
 NELLYDIR=nelly
 NELLYOBJ=nellycodec.o
 
-OBJS=audio.o video.o codecs.o negotiator.o framescaler.o utf8parser.o  avcdescriptor.o red.o text2subtitle.o log.o media.o
+OBJS=audio.o video.o codecs.o negotiator.o videorescaler.o utf8parser.o  avcdescriptor.o red.o text2subtitle.o log.o media.o
 OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(SPEEXOBJ) $(VP8OBJ) $(AV1OBJ) ffvideocodec.o ffaudiocodec.o
 OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o ffmp4reader.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
-ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
+# framescaler.o : dernier utilisateur = transcoder.cpp (BYTE*), donc réservé au
+# build Asterisk ; le reste de la bibliothèque (et le mcu) passe par
+# VideoRescaler (graphe avfilter). Porter transcoder.cpp sur VideoRescaler lors
+# d'une campagne Asterisk, puis supprimer framescaler.{h,cpp}.
+ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o framescaler.o
 ifeq ($(ASTERISK),yes)
 OBJS+= $(ASTOBJ)
 # En build Asterisk, libmedkit.a finit dans des modules chargés par dlopen().
