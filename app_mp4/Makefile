@@ -41,22 +41,85 @@ PROC = $(shell uname -m)
 INSTALL = install
 CC = gcc
 
-LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -lmp4v2 -Wl,-Bdynamic -lavcodec -lavformat -lswscale -lx264
+# libmedkit.a est liee en statique ; mp4v2 est packagee en partage seulement
+# (mp4v2-devel ne fournit pas de .a), cf. "Requires: mp4v2" de fontventa.spec.
+# Plus de -lx264 : l'encodeur H264 de libmedkit passe desormais par ffmpeg.
+LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -Wl,-Bdynamic -lmp4v2 \
+	-lavcodec -lavformat -lavutil -lswscale -lswresample -lgsm \
+	-lssl -lcrypto -lbz2 -lstdc++ -lpthread -lm
 DEBUG := -g
 
 CFLAGS = -I../libmedikit -fPIC  -DAST_MODULE=\"app_mp4\" -pipe -Wall -Wmissing-prototypes -Wmissing-declarations $(DEBUG) -D_REENTRANT -DVIDEOCAPS
 
 #
+# Gardes de l'edition de liens
+#
+# libmedkit.a existe en deux variantes : ASTERISK=yes (defaut) inclut les objets
+# couples Asterisk, ASTERISK=no les exclut -- c'est la variante que produit
+# « make check » dans ../libmedikit. Un module lie contre la variante ASTERISK=no
+# se lie SANS AUCUNE ERREUR, car les symboles indefinis sont tolerees dans un
+# objet partage ; la panne n'apparait qu'au chargement par asterisk :
+#   symbol lookup error: app_mp4.so: undefined symbol: RedirectLogToAsterisk
+# D'ou ces deux verifications, avant et apres le lien.
+
+MEDKIT_A = ../libmedikit/libmedkit.a
+
+# A garder aligne sur ASTOBJ de ../libmedikit/Makefile.
+MEDKIT_ASTOBJ = transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
+
+# Symboles que le binaire asterisk fournit lui-meme : ceux-la, et ceux-la
+# seulement, ont le droit de rester indefinis dans un module.
+AST_SYMS = ^(ast_|_ast_|__ast_|option_|pbx_)
+
+#
 # targets
 #
+# ATTENTION : « all » doit rester la PREMIERE regle du fichier, sinon make prend
+# la precedente comme cible par defaut.
+
+.PHONY: all clean install install32 install64 check-medkit check-undefined
 
 all: $(SHAREDOS)
+
+check-medkit:
+	@missing=`for o in $(MEDKIT_ASTOBJ); do \
+		ar t $(MEDKIT_A) 2>/dev/null | grep -qx "$$o" || echo "$$o"; \
+	done`; \
+	if [ -n "$$missing" ] ; then \
+		echo "" >&2; \
+		echo "*** ERREUR: $(MEDKIT_A) a ete batie avec ASTERISK=no." >&2; \
+		echo "*** Objets couples Asterisk manquants :" $$missing >&2; \
+		echo "***" >&2; \
+		echo "*** Le lien de $(SHAREDOS) reussirait quand meme, mais asterisk" >&2; \
+		echo "*** refuserait de le charger (undefined symbol: RedirectLogToAsterisk)." >&2; \
+		echo "*** Corriger avec : cd ../libmedikit && make clean && make" >&2; \
+		echo "" >&2; \
+		exit 1; \
+	fi
+
+check-undefined:
+	@undef=`ldd -r $(SHAREDOS) 2>&1 \
+		| awk -v m="$(SHAREDOS)" '/^undefined symbol:/ && index($$0, m) { print $$3 }' \
+		| grep -vE '$(AST_SYMS)'`; \
+	if [ -n "$$undef" ] ; then \
+		echo "" >&2; \
+		echo "*** ERREUR: symboles non resolus dans $(SHAREDOS) :" >&2; \
+		for s in $$undef; do echo "***   $$s" >&2; done; \
+		echo "***" >&2; \
+		echo "*** Seuls les symboles ast_*/option_*/pbx_*, fournis par le binaire" >&2; \
+		echo "*** asterisk, peuvent rester indefinis dans un module. Verifier que" >&2; \
+		echo "*** $(MEDKIT_A) est a jour et que LIBS est complet." >&2; \
+		echo "" >&2; \
+		exit 1; \
+	fi
 
 clean:
 	rm -f *.so *.o $(OBJS)
 
-app_mp4.so : $(OBJS) ../libmedikit/libmedkit.a
+app_mp4.so : $(OBJS) $(MEDKIT_A)
+	@$(MAKE) --no-print-directory check-medkit
 	$(CC) -g -shared -Xlinker -x -o $@ $(OBJS) $(LIBS) $(RPATH)
+	@$(MAKE) --no-print-directory check-undefined
 
 install: all
 	@if [ "`uname -m`" == "x86_64" ] ; then make install64 ; else make install32 ; fi

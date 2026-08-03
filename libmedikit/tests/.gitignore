@@ -1,0 +1,5 @@
+# Artefacts de build de la suite gtest (cf. libmedikit_tests_plan.md).
+# La fixture fixtures/record.mp4 est versionnee : ne pas l'ignorer.
+runtests
+*.o
+*.tmp.mp4

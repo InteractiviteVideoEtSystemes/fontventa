@@ -609,7 +609,27 @@ int Mp4VideoTrack::DoWritePrevFrame( DWORD duration )
     sampleId++;
     //Log("Process VIDEO frame sampleId: %d, ts:%lu, duration %u.\n", sampleId, frame->GetTimeStamp(), duration);
 
-    MP4WriteSample( mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, ((VideoFrame *)frame)->IsIntra() );
+    /* Drapeau sync (stss) : pour H264, seule une trame portant un IDR (NALU 5)
+     * est un point d'accès aléatoire. Le drapeau intra du dépacketiseur est plus
+     * large (il couvre les trames porteuses de SPS/PPS, points de rafraîchissement
+     * x264 intra_refresh) : marquer sync une trame P pousse le lecteur à lui
+     * préfixer les paramètres de l'avcC, et un décodeur à s'y caler à tort. */
+    bool sync = ((VideoFrame *)frame)->IsIntra();
+    if( codec == VideoCodec::H264 && sync )
+    {
+        sync = false;
+        const BYTE * d = frame->GetData();
+        DWORD len = frame->GetLength(), off = 0;
+        while( off + 4 < len )
+        {
+            DWORD n = get4( d, off );
+            if( n == 0 || off + 4 + n > len ) break;
+            if( ( d[off + 4] & 0x1F ) == 0x05 ) { sync = true; break; }
+            off += 4 + n;
+        }
+    }
+
+    MP4WriteSample( mp4, mediatrack, frame->GetData(), frame->GetLength(), duration, 0, sync );
 
     //Check if we have rtp data
     if( frame->HasRtpPacketizationInfo() )
@@ -674,6 +694,20 @@ int Mp4VideoTrack::DoWritePrevFrame( DWORD duration )
                         //Update widht an ehight
                         MP4SetTrackIntegerProperty( mp4, mediatrack, "mdia.minf.stbl.stsd.avc1.width", sps.GetWidth() );
                         MP4SetTrackIntegerProperty( mp4, mediatrack, "mdia.minf.stbl.stsd.avc1.height", sps.GetHeight() );
+
+                        /* Recale l'en-tete de l'avcC sur le SPS reel. Create() a
+                         * ecrit les valeurs par defaut de la classe (niveau 1.3),
+                         * bien avant d'avoir vu un SPS : un fichier 640x480 de
+                         * niveau 3.1 annoncait donc du niveau 1.3, dont les
+                         * limites (396 macroblocs) sont tres inferieures. Un
+                         * lecteur qui configure son decodeur sur l'en-tete plutot
+                         * que sur le SPS embarque s'y casse les dents. */
+                        MP4SetTrackIntegerProperty( mp4, mediatrack,
+                            "mdia.minf.stbl.stsd.avc1.avcC.AVCProfileIndication", AVCProfileIndication );
+                        MP4SetTrackIntegerProperty( mp4, mediatrack,
+                            "mdia.minf.stbl.stsd.avc1.avcC.profile_compatibility", nalSize >= 3 ? nalData[1] : AVCProfileCompat );
+                        MP4SetTrackIntegerProperty( mp4, mediatrack,
+                            "mdia.minf.stbl.stsd.avc1.avcC.AVCLevelIndication", AVCLevelIndication );
                     }
                     //continue;
                 }
@@ -738,24 +772,30 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame *f )
         }
 
 
+        // Horodatage vu par la piste : celui de la trame, décalé du prologue
+        // éventuel. Le clone conservé comme trame précédente porte déjà cette
+        // valeur, les comparaisons se font donc toutes dans le même repère.
+        DWORD ts = f2->GetTimeStamp() + tsOffset;
+
         if( frame == NULL )
         {
             // First frame: record frame when we will have the next one to compute duration.
             frame = f2->Clone();
+            frame->SetTimestamp( ts );
             return 1;
         }
         else
         {
-            if( frame->GetTimeStamp() < f2->GetTimeStamp() )
+            if( frame->GetTimeStamp() < ts )
             {
-                duration = f2->GetTimeStamp() - frame->GetTimeStamp();
+                duration = ts - frame->GetTimeStamp();
             }
             else
             {
                 // default to 20 fps
                 duration = 50 * 90;
                 Log( "Inconsistent video TS %ld >= %ld. Using defulat duration of %u.\n",
-                    frame->GetTimeStamp(), f2->GetTimeStamp(), duration );
+                    frame->GetTimeStamp(), ts, duration );
             }
 
             if( initialDelay > 0 && sampleId == 0 )
@@ -772,6 +812,7 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame *f )
         //Save current frame as previous frame
         delete frame;
         frame = f2->Clone();
+        frame->SetTimestamp( ts );
 
         return 1;
     }

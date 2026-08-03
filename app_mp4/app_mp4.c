@@ -665,7 +665,9 @@ static int mp4_save( struct ast_channel *chan, void *data )
 
     time_t now;
     struct tm *tmvalue;
-    MP4Tags *tags = MP4TagsAlloc();
+    /* MP4TagsAlloc() rend un const MP4Tags* (mp4v2 2.x) ; les setters,
+     * MP4TagsStore() et MP4TagsFree() acceptent tous ce pointeur const. */
+    const MP4Tags *tags = MP4TagsAlloc();
 
     time( &now );
     tmvalue = localtime( &now );
@@ -687,7 +689,11 @@ static int mp4_save( struct ast_channel *chan, void *data )
         goto mp4_save_cleanup;
     }
 
-    Mp4RecorderEnableVideoPrologue( recorder, false );
+    /* Comble par des trames noires le delai entre le debut de l'enregistrement
+     * et la premiere trame video (etablissement / premier IDR). Sans cela ce
+     * delai devient la duree du premier echantillon reel : a la relecture la
+     * premiere image reste figee d'autant. */
+    Mp4RecorderEnableVideoPrologue( recorder, true );
 
 #ifdef VIDEOCAPS
     int oldnative = chan->nativeformats;

@@ -195,11 +195,11 @@ int AstMp4Recorder::ProcessFrame( struct ast_frame *f, bool secondary )
 
                     }
 
-                    if( ret == -1 && vtc != NULL )
-                    {
-                        /* we need to transcode */
-                        return VideoTranscoderProcessFrame( vtc, f );
-                    }
+                    /* Le transcodage vidéo à l'enregistrement n'est plus câblé
+                     * ici (le membre vtc a disparu avec la séparation
+                     * recorder Asterisk / sous-jacent). ret == -1 signale à
+                     * l'appelant que le codec de la trame ne correspond pas à
+                     * celui de la piste. */
                     return ret;
                 }
                 else
@@ -415,17 +415,32 @@ struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, const char *filename,
 
             nbACodecs = AstFormatToCodecList( haveAudio, acodecList, 10 );
 
-            if( p->OpenTrack( acodecList, nbACodecs, ac, true ) < 0 )
+            // Mp4FfReader::OpenTrack rend 0 (et non un code négatif) quand aucune
+            // piste ne correspond : tester <= 0, sinon l'échec passe inaperçu.
+            int aret = p->OpenTrack( acodecList, nbACodecs, ac, true );
+
+            if( aret <= 0 )
             {
-                Error( "mp4play: [%s] No suitable audio track found.\n", chan->name );
+                // Aucune piste du fichier n'est jouable telle quelle (cas
+                // typique : audio AAC face à un pair télécom). Repli sur le
+                // transcodage du lecteur : décodage -> resampling -> réencodage
+                // par tranches de 20 ms vers le codec préféré du canal.
+                aret = p->OpenAudioTranscoded( ac );
+
+                if( aret <= 0 )
+                    Error( "mp4play: [%s] No suitable audio track found.\n", chan->name );
+                else
+                    Log( "mp4play: [%s] audio transcoding to %s enabled.\n",
+                        chan->name, AudioCodec::GetNameFor( ac ) );
             }
-            else
+
+            if( aret > 0 )
             {
                 if( p->GetCodec( ac ) )
                 {
                     CodecToAstFormat( ac, ast_codec );
 
-                    Log( "mp4play: [%s] activating audio transcoding from %s.\n", chan->name, AudioCodec::GetNameFor( ac ) );
+                    Log( "mp4play: [%s] reading audio track as %s.\n", chan->name, AudioCodec::GetNameFor( ac ) );
                     if( (chan->nativeformats & ast_codec) == 0 )
                     {
                         ast_set_write_format( chan, ast_codec );
@@ -449,7 +464,8 @@ struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, const char *filename,
 
             nbVCodecs = AstFormatToCodecList( chan->nativeformats, vcodecList, 3 );
 
-            if( p->OpenTrack( vcodecList, nbVCodecs, vc, transcodeVideo, false ) < 0 )
+            // Idem : 0 = aucune piste vidéo compatible.
+            if( p->OpenTrack( vcodecList, nbVCodecs, vc, transcodeVideo, false ) <= 0 )
             {
                 Error( "mp4play: [%s]  No suitable video track found.\n", chan->name );
             }
@@ -461,7 +477,12 @@ struct mp4play *Mp4PlayerCreate( struct ast_channel *chan, const char *filename,
                 tc = TextCodec::T140RED;
             else
                 tc = TextCodec::T140;
-            if( p->OpenTrack( tc, renderText, 1 ) < 0 )
+            // 2ᵈ argument = payload type des blocs T.140 encapsulés dans le RED
+            // (RFC 4103), 3ᵉ = drapeau de rendu. La table statique d'Asterisk
+            // associe 106 à T140 et 105 à T140RED : ce sont les valeurs des
+            // énumérés TextCodec, d'où TextCodec::T140 ici (renderText était
+            // passé par erreur à la place du pt).
+            if( p->OpenTrack( tc, (BYTE)TextCodec::T140, renderText ) < 0 )
             {
                 Log( "mp4play: [%s]  No suitable text track found.\n", chan->name );
             }

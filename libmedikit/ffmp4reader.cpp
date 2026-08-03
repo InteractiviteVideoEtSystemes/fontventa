@@ -38,6 +38,10 @@ Mp4FfReader::Mp4FfReader( const char * filename )
     textFrame        = NULL;
     nextBOMorRepeat  = -1;
     pending          = NULL;
+    maxSchedRead     = 0;
+    maxSchedReadSet  = false;
+    seekFloorMs      = 0;
+    seekFloorSet     = false;
     schedOffsetMs    = 0;
     schedOffsetSet   = false;
     eofReached       = false;
@@ -105,6 +109,7 @@ Mp4FfReader::Mp4FfReader( const char * filename )
 Mp4FfReader::~Mp4FfReader()
 {
     if( pending ) av_packet_free( &pending );
+    FlushReadAhead();
     if( videoFrame ) delete videoFrame;
     if( audioFrame ) delete audioFrame;
     if( audioDec ) delete audioDec;
@@ -500,38 +505,134 @@ void Mp4FfReader::BuildVideoParams()
          videoParamsAvcc.size() );
 }
 
-bool Mp4FfReader::FillPending()
+/* Horizon de réordonnancement : un paquet ne peut être émis qu'une fois qu'on a
+ * lu au-delà de son dts de cette marge, sinon un paquet plus ancien pourrait
+ * encore surgir d'une tranche suivante. Doit couvrir la taille de tranche de
+ * l'écrivain (mp4v2 : ~1 s) ; 2 s ne coûtent qu'une poignée de centaines de
+ * kio de tampon. */
+#define READAHEAD_HORIZON_MS  2000
+
+bool Mp4FfReader::ReadAhead()
 {
-    if( pending ) return true;
     if( eofReached ) return false;
 
-    if( !pending ) pending = av_packet_alloc();
+    AVPacket * pkt = av_packet_alloc();
+    if( !pkt ) { eofReached = true; return false; }
 
     for(;;)
     {
-        int r = av_read_frame( fmtctx, pending );
-        if( r < 0 )
+        if( av_read_frame( fmtctx, pkt ) < 0 )
         {
             eofReached = true;
-            av_packet_free( &pending );
+            av_packet_free( &pkt );
             return false;
         }
-        if( pending->stream_index == videoStreamIdx ||
-            pending->stream_index == audioStreamIdx ||
-            ( textEnabled && pending->stream_index == textStreamIdx ) )
-            return true;
-        // Piste ignorée (audio non supporté, texte non activé, data…) :
-        // recycler et relire
-        av_packet_unref( pending );
+
+        if( pkt->stream_index == videoStreamIdx ||
+            pkt->stream_index == audioStreamIdx ||
+            ( textEnabled && pkt->stream_index == textStreamIdx ) )
+        {
+            // Antérieur au point de seek atteint : périmé, ne pas l'émettre.
+            if( !seekFloorSet || RawSchedMsOf( pkt ) >= seekFloorMs ) break;
+        }
+
+        // Piste ignorée (audio non supporté, texte non activé, hint track…) ou
+        // paquet périmé : recycler et relire
+        av_packet_unref( pkt );
+    }
+
+    long ms = RawSchedMsOf( pkt );
+    if( !maxSchedReadSet || ms > maxSchedRead )
+    {
+        maxSchedRead    = ms;
+        maxSchedReadSet = true;
+    }
+
+    readahead[pkt->stream_index].push_back( pkt );
+    return true;
+}
+
+void Mp4FfReader::FlushReadAhead()
+{
+    for( std::map< int, std::deque<AVPacket *> >::iterator it = readahead.begin();
+         it != readahead.end(); it++ )
+    {
+        while( !it->second.empty() )
+        {
+            AVPacket * p = it->second.front();
+            it->second.pop_front();
+            av_packet_free( &p );
+        }
+    }
+    readahead.clear();
+    maxSchedRead    = 0;
+    maxSchedReadSet = false;
+}
+
+void Mp4FfReader::DropBeforeSeekFloor()
+{
+    if( !seekFloorSet ) return;
+
+    for( std::map< int, std::deque<AVPacket *> >::iterator it = readahead.begin();
+         it != readahead.end(); it++ )
+    {
+        while( !it->second.empty() && RawSchedMsOf( it->second.front() ) < seekFloorMs )
+        {
+            AVPacket * p = it->second.front();
+            it->second.pop_front();
+            av_packet_free( &p );
+        }
     }
 }
 
-long Mp4FfReader::SchedMsOf( AVPacket * pkt )
+bool Mp4FfReader::FillPending()
+{
+    if( pending ) return true;
+
+    for(;;)
+    {
+        // Tête de file de plus petit dts, toutes pistes confondues.
+        std::deque<AVPacket *> * best = NULL;
+        long bestSched = 0;
+
+        for( std::map< int, std::deque<AVPacket *> >::iterator it = readahead.begin();
+             it != readahead.end(); it++ )
+        {
+            if( it->second.empty() ) continue;
+            long s = RawSchedMsOf( it->second.front() );
+            if( best == NULL || s < bestSched )
+            {
+                best      = &it->second;
+                bestSched = s;
+            }
+        }
+
+        // On ne peut l'émettre qu'une fois l'horizon dépassé : au-delà, aucun
+        // paquet encore non lu ne peut avoir un dts plus ancien. En fin de
+        // fichier plus rien ne viendra, on vide donc les files telles quelles.
+        if( best != NULL && ( eofReached || maxSchedRead - bestSched >= READAHEAD_HORIZON_MS ) )
+        {
+            pending = best->front();
+            best->pop_front();
+            return true;
+        }
+
+        if( !ReadAhead() && best == NULL ) return false;   // EOF et rien en file
+    }
+}
+
+long Mp4FfReader::RawSchedMsOf( AVPacket * pkt )
 {
     AVStream * st = fmtctx->streams[pkt->stream_index];
     int64_t    s  = ( st->start_time == AV_NOPTS_VALUE ) ? 0 : st->start_time;
     int64_t    dts = ( pkt->dts == AV_NOPTS_VALUE ) ? pkt->pts : pkt->dts;
-    long       ms  = (long)( ( dts - s ) * av_q2d( st->time_base ) * 1000.0 );
+
+    return (long)( ( dts - s ) * av_q2d( st->time_base ) * 1000.0 );
+}
+
+long Mp4FfReader::SchedMsOf( AVPacket * pkt )
+{
+    long ms = RawSchedMsOf( pkt );
 
     if( !schedOffsetSet ) { schedOffsetMs = ms; schedOffsetSet = true; }
     return ms - schedOffsetMs;
@@ -613,6 +714,24 @@ void Mp4FfReader::ResetAudioTranscode()
     if( audioTranscode ) OpenAudioTranscoded( audioCodec );
 }
 
+/*
+ * L'échantillon AVCC contient-il une NALU du type demandé ?
+ * `lenSize` = taille du préfixe de longueur (1..4, depuis l'avcC).
+ */
+static bool AvccHasNalType( const BYTE * data, DWORD size, DWORD lenSize, BYTE type )
+{
+    DWORD off = 0;
+    while( off + lenSize < size )
+    {
+        DWORD n = 0;
+        for( DWORD k = 0; k < lenSize; k++ ) n = ( n << 8 ) | data[off + k];
+        if( n == 0 || off + lenSize + n > size ) return false;   // corrompu : ne rien déduire
+        if( ( data[off + lenSize] & 0x1F ) == type ) return true;
+        off += lenSize + n;
+    }
+    return false;
+}
+
 MediaFrame * Mp4FfReader::BuildFrame( AVPacket * pkt )
 {
     AVStream * st = fmtctx->streams[pkt->stream_index];
@@ -624,8 +743,24 @@ MediaFrame * Mp4FfReader::BuildFrame( AVPacket * pkt )
     {
         bool intra = ( pkt->flags & AV_PKT_FLAG_KEY ) != 0;
 
-        // Trame intra : préfixer SPS/PPS (AVCC) devant les NALU du paquet (AVCC)
-        if( intra && videoCodec == VideoCodec::H264 && !videoParamsAvcc.empty() )
+        /* Préfixer les SPS/PPS de l'avcC devant les NALU du paquet -- mais
+         * SEULEMENT si l'échantillon porte un IDR sans ses propres paramètres.
+         *
+         * L'avcC ne mémorise que le PREMIER jeu SPS/PPS de la piste ; quand le
+         * fichier en contient deux (prologue de trames noires encodé par nous,
+         * puis flux réel du pair, tous deux en sps_id/pps_id 0), ce préfixe
+         * injecte les paramètres du prologue AU MILIEU du flux réel. Constaté en
+         * production : SPS prologue à log2_max_frame_num=4 contre 6 pour le flux
+         * réel -- toute slice réelle parsée sous le SPS du prologue se décale de
+         * 2 bits après frame_num, et le décodeur du pair rend des erreurs de
+         * parse en cascade (reordering idc, deblocking params, QP hors bornes).
+         * Un échantillon sync sans IDR (trame P marquée intra par l'enregistreur)
+         * déclenchait exactement cela. */
+        bool prefixParams = intra && videoCodec == VideoCodec::H264 && !videoParamsAvcc.empty()
+            && AvccHasNalType( pkt->data, pkt->size, videoNalLengthSize, 0x05 )
+            && !AvccHasNalType( pkt->data, pkt->size, videoNalLengthSize, 0x07 );
+
+        if( prefixParams )
         {
             videoFrame->SetMedia( &videoParamsAvcc[0], videoParamsAvcc.size() );
             videoFrame->AppendMedia( pkt->data, pkt->size );
@@ -778,7 +913,15 @@ MediaFrame * Mp4FfReader::GetNextFrame( int & errcode, unsigned long & waittime 
     av_packet_unref( pending );
     av_packet_free( &pending );
 
-    if( f == NULL ) { errcode = -5; return NULL; }
+    if( f == NULL )
+    {
+        // Echantillon inexploitable (fichier produit par un enregistreur
+        // defaillant) : le sauter et reessayer aussitot plutot que d'avorter
+        // toute la lecture. Le paquet est deja consomme, donc pas de boucle.
+        errcode  = 0;
+        waittime = 0;
+        return NULL;
+    }
     errcode = 1;
 
     // Après une trame texte, armer la retransmission RTT (utile en T140RED)
@@ -803,6 +946,8 @@ int Mp4FfReader::Rewind()
 {
     if( !fmtctx ) return 0;
     if( pending ) av_packet_free( &pending );
+    FlushReadAhead();
+    seekFloorSet = false;
     av_seek_frame( fmtctx, -1, 0, AVSEEK_FLAG_BACKWARD );
     eofReached     = false;
     schedOffsetSet = false;
@@ -817,7 +962,14 @@ int Mp4FfReader::Rewind()
 
 bool Mp4FfReader::Eof()
 {
-    return eofReached && pending == NULL;
+    if( !eofReached || pending != NULL ) return false;
+
+    // Des paquets peuvent rester dans les files de réordonnancement.
+    for( std::map< int, std::deque<AVPacket *> >::const_iterator it = readahead.begin();
+         it != readahead.end(); it++ )
+        if( !it->second.empty() ) return false;
+
+    return true;
 }
 
 // Piste de référence pour le seek : la vidéo pilote (sync frames), sinon audio.
@@ -842,6 +994,7 @@ QWORD Mp4FfReader::Seek( QWORD timeMs )
     // la timeline de cadencement redémarre à 0 au point de seek (schedOffset
     // sera pris sur le 1er paquet lu), donc pas d'attente initiale.
     if( pending ) av_packet_free( &pending );
+    FlushReadAhead();
     eofReached     = false;
     schedOffsetSet = false;
     schedOffsetMs  = 0;
@@ -850,12 +1003,25 @@ QWORD Mp4FfReader::Seek( QWORD timeMs )
     ResetAudioTranscode();
     gettimeofday( &startPlaying, 0 );
 
-    // Peek de la 1re trame pour connaître le temps réel atteint (keyframe)
+    // Peek de la 1re trame pour connaître le temps réel atteint (keyframe).
+    // La conversion passe par RawSchedMsOf : depuis le réordonnancement par dts,
+    // `pending` n'est pas forcément un paquet de la piste de référence, et
+    // l'échelle de temps de `st` ne s'y applique pas (1/8000 vs 1/90000).
     QWORD actualMs = timeMs;
-    if( FillPending() )
+    seekFloorSet = false;
+
+    // Lit jusqu'à obtenir un paquet de la piste de référence : son dts EST le
+    // temps réellement atteint (sync frame <= cible), et sert de plancher aux
+    // autres pistes.
+    while( !eofReached && readahead[refIdx].empty() )
+        if( !ReadAhead() ) break;
+
+    if( !readahead[refIdx].empty() )
     {
-        int64_t pts = ( pending->pts == AV_NOPTS_VALUE ) ? pending->dts : pending->pts;
-        double  ms  = ( pts - s ) * av_q2d( st->time_base ) * 1000.0;
+        long ms      = RawSchedMsOf( readahead[refIdx].front() );
+        seekFloorMs  = ms;
+        seekFloorSet = true;
+        DropBeforeSeekFloor();
         actualMs = ( ms < 0 ) ? 0 : (QWORD)ms;   // clamp (dts de priming négatif)
     }
     currentTs = actualMs;

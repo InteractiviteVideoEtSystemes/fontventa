@@ -75,8 +75,8 @@ std::string BuildH264Fmtp(int payloadType, const std::vector<uint8_t>& sps, cons
 * H264Decoder
 *	Consturctor
 ************************/
-H264Decoder::H264Decoder():
-	FfVideoDecoder(AV_CODEC_ID_H264, VideoCodec::H264)
+H264Decoder::H264Decoder(bool requireHW):
+	FfVideoDecoder(AV_CODEC_ID_H264, VideoCodec::H264, nullptr, requireHW)
 {
 }
 

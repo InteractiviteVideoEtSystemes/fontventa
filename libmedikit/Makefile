@@ -106,6 +106,13 @@ OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o ffmp4reader.o
 ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
 ifeq ($(ASTERISK),yes)
 OBJS+= $(ASTOBJ)
+# En build Asterisk, libmedkit.a finit dans des modules chargés par dlopen().
+# Or g++ émet des symboles STB_GNU_UNIQUE pour les statiques locales des
+# fonctions inline/templates (ex. std::piecewise_construct dès qu'on utilise
+# std::map) et la glibc marque NODELETE tout .so qui en définit : dlclose()
+# rend alors 0 sans jamais décharger, et la boucle « while (!dlclose(lib)); »
+# de load_dynamic_module (asterisk 1.4) tourne à l'infini au démarrage.
+OPTS+= -fno-gnu-unique
 endif
 
 VPATH =  %.cpp $(H263DIR)
@@ -121,7 +128,9 @@ VPATH += %.cpp $(SPEEXDIR)
 VPATH += %.cpp $(OPUSDIR)
 VPATH += %.cpp $(VP8DIR)
 VPATH += %.cpp $(AV1DIR)
-LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lx264  -lbz2 -lssl -lcrypto -lpthread
+# Plus de -lx264 : l'encodeur H264 passe par ffmpeg (wrapper libx264 ou
+# h264_vaapi), aucun appel direct à l'API x264 ne subsiste dans la lib.
+LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lbz2 -lssl -lcrypto -lpthread
 
 #For abyss
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g -Wno-narrowing
@@ -154,6 +163,7 @@ mp4format.o: astmedkit/mp4format.h medkit/mp4writer.h medkit/ffmp4reader.h medki
 
 clean:
 	rm -f $(OBJS) libmedkit.a
+	rm -f tests/runtests tests/*.o tests/.libmedkit.stamp
 
 
 install32:
@@ -194,7 +204,7 @@ testsps.o: medkit/bitstream.h
 # mediaserver. Usage : make ffmp4probe && ./ffmp4probe fichier.mp4 [seekMs]
 ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
 	$(CXX) $(CXXFLAGS) tools/ffmp4probe.cpp libmedkit.a -o $@ \
-		$(LDFLAGS) -lmp4v2 -lgsm
+		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm
 
 # Harnais de test hors-ligne du négociateur de codecs (CodecNegotiator, cf.
 # nego_fmtp.md). Vérifie le contrat de la struct fmtpByPt d'EndpointStartReceiving
@@ -203,3 +213,47 @@ ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
 negotest: tools/negotest.cpp libmedkit.a
 	$(CXX) $(CXXFLAGS) tools/negotest.cpp libmedkit.a -o $@ \
 		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm
+
+############################################
+# Tests automatises (GoogleTest, cf. libmedikit_tests_plan.md)
+############################################
+# Suite gtest liee contre libmedkit.a (batie ASTERISK=no) + gtest systeme.
+# Usage : make check   (build + execution)   ;   make tests   (build seul)
+# La fixture MP4 (tests/fixtures/record.mp4) est versionnee ; son chemin absolu
+# est injecte via -DTEST_MP4_FILE (surchargeable : make check TEST_MP4=/chemin).
+GTEST_CFLAGS := $(shell pkg-config --cflags gtest 2>/dev/null)
+GTEST_LIBS   := $(shell pkg-config --libs gtest 2>/dev/null) -lgtest_main
+TEST_SRCS    := $(wildcard tests/*.cpp)
+TEST_MP4      ?= $(abspath tests/fixtures/record.mp4)
+TEST_MP4_TITI ?= $(abspath tests/fixtures/titi.mp4)
+
+# libmedkit.a n'est PAS un prerequis direct : on force sa (re)construction en
+# ASTERISK=no via un sous-make (cible libstamp), sinon le defaut ASTERISK=yes
+# tenterait de batir transcoder.o/mp4format.o (en-tetes <asterisk/...> absents)
+# hors perimetre.
+#
+# Le temoin est indispensable : sans lui, runtests ne dependait que des sources
+# de test et n'etait donc PAS relie quand seule la bibliotheque changeait -- les
+# tests passaient sur un binaire perime, ce qui masque silencieusement une
+# regression comme une correction.
+tests/runtests: $(TEST_SRCS) tests/.libmedkit.stamp
+	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) \
+		-DTEST_MP4_FILE='"$(TEST_MP4)"' -DTEST_MP4_TITI_FILE='"$(TEST_MP4_TITI)"' \
+		$(TEST_SRCS) libmedkit.a -o $@ \
+		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm $(GTEST_LIBS)
+
+# Reconstruit la bibliotheque a chaque appel, mais ne touche le temoin que si
+# l'archive a reellement change : le binaire de test n'est relie qu'en cas de
+# besoin.
+tests/.libmedkit.stamp: force-libmedkit
+	@[ -f $@ ] && [ ! libmedkit.a -nt $@ ] || touch $@
+
+force-libmedkit:
+	@$(MAKE) ASTERISK=no libmedkit.a
+
+tests: tests/runtests
+
+check: tests/runtests
+	./tests/runtests
+
+.PHONY: tests check force-libmedkit

@@ -17,8 +17,16 @@ class H264SeqParameterSet
 public:
 	bool Decode(BYTE* buffer,DWORD bufferSize)
 	{
+		// Durcissement (cf. libmedikit_tests_plan.md) : un SPS porte au moins
+		// les 3 octets fixes (profile_idc, contraintes+reserved, level_idc)
+		// suivis d'exp-Golomb obligatoires ; en deçà de 4 octets l'entrée est
+		// forcément tronquée -> on refuse au lieu de lire des bits nuls.
+		if (!buffer || bufferSize < 4)
+			return false;
 		//SHould be done otherway, like modifying the BitReader to escape the input NAL, but anyway.. duplicate memory
 		BYTE *aux = (BYTE*)malloc(bufferSize);
+		if (!aux)
+			return false;
 		//Escape
 		DWORD len = Escape(aux,buffer,bufferSize);
 		//Create bit reader
@@ -42,6 +50,14 @@ public:
 			num_ref_frames_in_pic_order_cnt_cycle = ExpGolombDecoder::Decode(r);
 			for( int i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++ )
 				offset_for_ref_frame.assign(i,ExpGolombDecoder::Decode(r));
+		}
+		// Flux épuisé avant les champs obligatoires (dimensions) -> SPS tronqué.
+		// Get() renvoie alors des zéros silencieux ; on refuse plutôt que de
+		// retourner des dimensions fabriquées.
+		if (r.Left() == 0)
+		{
+			free(aux);
+			return false;
 		}
 		num_ref_frames = ExpGolombDecoder::Decode(r);
 		gaps_in_frame_num_value_allowed_flag = r.Get(1);

@@ -97,6 +97,7 @@ public:
     {
         width = 0;
 		height =0;
+		tsOffset = 0;
 		videoStarted = false;
 		AVCProfileIndication 	= 0x42;	//Baseline
 		AVCLevelIndication	= 0x0D;	//1.3
@@ -109,6 +110,7 @@ public:
     Mp4VideoTrack(MP4FileHandle mp4, MP4TrackId mediaTrack, MP4TrackId hintTrack, VideoCodec::Type codec) : Mp4Basetrack(mp4, mediaTrack, hintTrack)
     {
 		this->codec = codec;
+		tsOffset = 0;
 		VideoFrame * f = new VideoFrame(codec,262143);
 
 		// Obtain NALU size storage size
@@ -139,6 +141,14 @@ public:
     virtual int ProcessFrame( const MediaFrame * f );
     bool IsVideoStarted() { return videoStarted; }
 
+    /**
+     * Décale l'horodatage de toutes les trames à venir. Sert au prologue vidéo :
+     * les trames noires occupent [firstTs, firstTs + offset[ et la vidéo réelle,
+     * dont les ts repartent de firstTs, est reportée juste après. Les écarts
+     * entre trames réelles -- donc les durées d'échantillon -- sont inchangés.
+     */
+    void SetTimestampOffset(DWORD offset) { tsOffset = offset; }
+
     void WriteLastFrame()
     {
                 if (frame)
@@ -165,6 +175,7 @@ private:
 	VideoFrame * ReadH264Params();
 
     DWORD width, height, bitrate;
+    DWORD tsOffset;
     bool videoStarted;
     bool firstpkt;
     bool intratrame;

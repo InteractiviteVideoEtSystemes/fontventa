@@ -7,6 +7,65 @@
 #include "medkit/text2subtitle.h"
 #include "medkit/avcdescriptor.h"
 #include "h264/h264depacketizer.h"
+#include "h264/h264.h"
+
+// Cadence du prologue vidéo : une trame noire toutes les 40 ms (25 im/s).
+#define PROLOGUE_FRAME_MS   40
+#define PROLOGUE_FRAME_TS   ( PROLOGUE_FRAME_MS * 90 )   /* horloge 90 kHz */
+
+/*
+ * Dimensions de l'image et profile-level-id, lus dans le SPS porté par la trame.
+ *
+ * Le dépacketiseur H.264 ne renseigne pas VideoFrame::width/height : sans cette
+ * lecture, le prologue encoderait du 640x480 arbitraire. Or son SPS est le
+ * premier écrit sur la piste, donc c'est lui qui alimente l'avcC -- une taille
+ * fausse y resterait déclarée pour tout le fichier.
+ *
+ * Même raisonnement pour profile_idc/contraintes/level_idc : à la relecture, les
+ * trames noires et la vidéo réelle se suivent dans un seul flux. Deux SPS de
+ * niveaux différents y cohabiteraient (constaté : 42801F pour le prologue contre
+ * 42c016 négocié et effectivement utilisé par le pair), et un décodeur
+ * initialisé sur le premier peut refuser la suite. `plid` reçoit les 3 octets
+ * sous forme hexadécimale, format de la propriété h264.profile-level-id.
+ */
+static bool GetSizeFromSps( VideoFrame *f, DWORD &width, DWORD &height, std::string &plid )
+{
+    if( f->GetCodec() != VideoCodec::H264 ) return false;
+
+    MediaFrame::RtpPacketizationInfo &rtpInfo = f->GetRtpPacketizationInfo();
+
+    for( MediaFrame::RtpPacketizationInfo::iterator it = rtpInfo.begin(); it != rtpInfo.end(); it++ )
+    {
+        BYTE *data = f->GetData() + (*it)->GetPos();
+
+        if( (*it)->GetSize() < 2 ) continue;
+        if( (data[0] & 0x1F) != 0x07 ) continue;
+
+        H264SeqParameterSet sps;
+
+        try
+        {
+            if( !sps.Decode( data + 1, (*it)->GetSize() - 1 ) ) continue;
+        }
+        catch( std::exception &e )
+        {
+            continue;
+        }
+
+        if( sps.GetWidth() == 0 || sps.GetHeight() == 0 ) continue;
+
+        width = sps.GetWidth();
+        height = sps.GetHeight();
+
+        // 3 octets bruts du SPS : profile_idc, contraintes+reserved, level_idc
+        char hex[8];
+        snprintf( hex, sizeof( hex ), "%02X%02X%02X", data[1], data[2], data[3] );
+        plid = hex;
+
+        return true;
+    }
+    return false;
+}
 
 mp4writer::mp4writer( void *ctxdata, MP4FileHandle mp4, bool waitVideo )
 {
@@ -23,6 +82,9 @@ mp4writer::mp4writer( void *ctxdata, MP4FileHandle mp4, bool waitVideo )
     gettimeofday( &firstframets, NULL );
     gettimeofday( &lastfur, NULL );
     initialDelay = 0;
+    // Délai de référence commun aux pistes, 0 = pas encore connu. N'était pas
+    // initialisé : la piste texte pouvait être décalée d'une valeur aléatoire.
+    videoDelay = 0;
     for( int i = 0; i < MP4_TEXT_TRACK + 1; i++ )
     {
         mediatracks[i] = NULL;
@@ -216,11 +278,24 @@ int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
                     //else
                     //{
                     // no video
-                    if( addVideoPrologue )
+                    if( addVideoPrologue && videoDelay > 0 )
                     {
+                        /* Exactement la référence posée par le prologue vidéo,
+                         * pas une nouvelle mesure : le silence initial de l'audio
+                         * et les trames noires doivent s'achever au même instant.
+                         * (L'audio est de toute façon jeté tant que la vidéo n'a
+                         * pas démarré, cf. `if (waitVideo) return 0;` ci-dessus,
+                         * donc son contenu réel commence bien à cet instant.) */
+                        Log( "Adding %lu ms of initial delay + video start for audio.\n",
+                             (unsigned long)videoDelay );
+                        mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( videoDelay );
+                    }
+                    else if( addVideoPrologue )
+                    {
+                        // Pas de vidéo (ou prologue non écrit) : mesure propre.
                         DWORD delay = initialDelay + (getDifTime( &firstframets ) / 1000);
 
-                        Log( "Adding %u of initial delay + video start for audio.\n", delay );
+                        Log( "Adding %u of initial delay for audio (pas de référence vidéo).\n", delay );
                         mediatracks[MP4_AUDIO_TRACK]->SetInitialDelay( delay );
                     }
                     else if( initialDelay > 0 )
@@ -247,20 +322,85 @@ int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
                 VideoFrame *f2 = (VideoFrame *)f;
                 Mp4VideoTrack *tr = (Mp4VideoTrack *)mediatracks[trackidx];
 
-                if( tr->IsEmpty() )
-                {
-                    Properties properties;
+                /* Délai écoulé depuis le début de l'enregistrement, lu UNE SEULE
+                 * FOIS par trame. L'encodage du prologue coûte quelques dizaines
+                 * de ms : une seconde lecture d'horloge après lui donnerait une
+                 * référence différente pour l'audio, donc un décalage entre les
+                 * pistes (37 ms constatés en production). */
+                DWORD nowDelay = initialDelay + (getDifTime( &firstframets ) / 1000);
 
-                    if( pcstream == NULL )
+                if( tr->IsEmpty() && pcstream == NULL )
+                {
+                    // Première trame vidéo : on connaît enfin le délai écoulé
+                    // depuis le début de l'enregistrement. Il faut le combler
+                    // avec de vraies trames, sinon la durée atterrit sur le
+                    // premier échantillon réel, qui reste alors affiché pendant
+                    // tout le délai (première image figée à la relecture).
+                    DWORD delay = nowDelay;
+
+                    if( addVideoPrologue && delay >= PROLOGUE_FRAME_MS )
                     {
-                        DWORD delay = initialDelay + (getDifTime( &firstframets ) / 1000);
-                        Log( "-mp4recorder: Initializing video prologue.\n" );
-                        Log( "Adding %u of initial delay for video.\n", delay );
-                        pcstream = new  PictureStreamer();
-                        pcstream->SetCodec( tr->GetCodec(), properties );
-                        pcstream->SetFrameRate( 25, 100, 50 );
-                        pcstream->PaintBlackRectangle( 640, 480 );
-                        tr->SetInitialDelay( delay );
+                        Properties properties;
+                        DWORD      w = 0, h = 0;
+                        std::string plid;
+
+                        // Aligne taille ET profile-level-id du prologue sur la
+                        // vidéo réelle : son SPS sera le premier de la piste.
+                        if( !GetSizeFromSps( f2, w, h, plid ) )
+                        {
+                            w = f2->GetWidth();
+                            h = f2->GetHeight();
+                        }
+                        if( w == 0 || h == 0 )
+                        {
+                            w = 640;
+                            h = 480;
+                            Log( "-mp4recorder: taille vidéo inconnue, prologue en %lux%lu.\n",
+                                 (unsigned long)w, (unsigned long)h );
+                        }
+                        if( !plid.empty() )
+                            properties.SetProperty( "h264.profile-level-id", plid.c_str() );
+
+                        pcstream = new PictureStreamer();
+                        if( !pcstream->SetCodec( tr->GetCodec(), properties )
+                            || !pcstream->SetFrameRate( 1000 / PROLOGUE_FRAME_MS, 100, 50 ) )
+                        {
+                            Error( "-mp4recorder: prologue vidéo indisponible (codec %s), "
+                                   "délai non comblé.\n",
+                                   VideoCodec::GetNameFor( tr->GetCodec() ) );
+                            delete pcstream;
+                            pcstream = NULL;
+                            // Ne pas retenter à chaque trame
+                            addVideoPrologue = false;
+                        }
+                        else
+                        {
+                            pcstream->PaintBlackRectangle( w, h );
+
+                            // Le prologue couvre la totalité du délai, initialDelay
+                            // compris : la piste ne doit pas l'étirer une 2e fois
+                            // sur son premier échantillon.
+                            tr->SetInitialDelay( 0 );
+
+                            unsigned int n = WriteVideoPrologue( tr, f2->GetTimeStamp(), delay );
+
+                            // Référence de synchro pour les autres pistes : la
+                            // vidéo réelle commence exactement à cet instant.
+                            if( n > 0 ) videoDelay = delay;
+
+                            Log( "-mp4recorder: prologue vidéo de %u trames noires (%lux%lu) "
+                                 "pour %lu ms de délai.\n",
+                                 n, (unsigned long)w, (unsigned long)h, (unsigned long)delay );
+                        }
+                    }
+                    else if( initialDelay > 0 )
+                    {
+                        // Pas de prologue : seul le délai explicitement demandé par
+                        // l'appelant est reporté (participant arrivé en cours de
+                        // route). Le temps d'établissement de la vidéo n'est PAS
+                        // étiré sur la première image. Appel idempotent.
+                        Log( "Adding %lu ms of initial delay for video.\n", initialDelay );
+                        tr->SetInitialDelay( initialDelay );
                     }
                 }
 
@@ -269,8 +409,16 @@ int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
                     waitVideo--;
                     if( waitVideo == 0 )
                     {
-                        videoDelay = initialDelay + (getDifTime( &firstframets ) / 1000);
-                        Log( "-mp4recorder: video has started after %lu ms.\n", getDifTime( &firstframets ) / 1000 );
+                        /* Référence de synchro : l'instant où le contenu vidéo
+                         * réel commence, donc celui de CETTE trame -- l'attente
+                         * de l'IDR a pu durer, et les trames noires émises
+                         * pendant ce temps ont fait avancer la piste d'autant.
+                         * `nowDelay` a été lu à l'entrée de l'appel : s'il inclut
+                         * le prologue écrit ci-dessus, c'est bien la même valeur
+                         * que lui, sans le temps d'encodage. */
+                        videoDelay = nowDelay;
+                        Log( "-mp4recorder: video has started after %lu ms.\n",
+                             (unsigned long)nowDelay );
                     }
                     else
                     {
@@ -283,33 +431,22 @@ int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
 
                 if( waitVideo > 0 )
                 {
-                    if( addVideoPrologue )
+                    /* pcstream peut être NULL alors que le prologue est demandé :
+                     * délai initial inférieur à une période, ou échec de création
+                     * de l'encodeur. Le déréférencer ici plantait. */
+                    if( addVideoPrologue && pcstream != NULL )
                     {
                         // We are still waiting for video
                         // Replace P-Frames with black frames
                         VideoFrame *f3 = pcstream->Stream( false );
                         if( f3 != NULL )
                         {
-                            // depaketize f3
-                            DWORD ts = f2->GetTimeStamp();
-                            MediaFrame *f4;
-
-                            // Specific H.264. We would need to do it in the video frame class directly to remain multi codecs ...
-                            depak->ResetFrame();
-
-                            for( MediaFrame::RtpPacketizationInfo::iterator it = f3->GetRtpPacketizationInfo().begin();
-                                it != f3->GetRtpPacketizationInfo().end();
-                                it++ )
-
-                            {
-                                f4 = depak->AddPayload( f3->GetData() + (*it)->GetPos(), (*it)->GetSize(), (*it)->IsMark() );
-                            }
-
-                            if( f4 )
-                            {
-                                f4->SetTimestamp( ts );
-                                tr->ProcessFrame( f4 );
-                            }
+                            /* Pas de détour par `depak` : sa trame interne est
+                             * celle que l'appelant vient de nous passer (f2), la
+                             * réutiliser ici la détruirait. Et c'est inutile,
+                             * l'encodeur rendant déjà de l'AVCC. */
+                            f3->SetTimestamp( f2->GetTimeStamp() );
+                            tr->ProcessFrame( f3 );
                         }
                     }
 
@@ -385,6 +522,50 @@ int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
             break;
     }
     return 0;
+}
+
+/*
+ * Comble le délai précédant la première trame vidéo réelle avec des trames
+ * noires encodées, plutôt que d'étirer la durée de cette première trame.
+ *
+ * Les horodatages courent VERS L'AVANT depuis `firstTs`, et la vidéo réelle est
+ * ensuite décalée d'autant (SetTimestampOffset). Un calcul à rebours depuis
+ * `firstTs` serait plus direct mais est impossible ici : côté Asterisk les ts
+ * vidéo sont relatifs à la première trame, donc `firstTs` vaut 0 et il n'existe
+ * aucune place avant lui.
+ *
+ * La piste n'écrit un échantillon qu'à l'arrivée du suivant : la dernière trame
+ * noire est écrite quand la trame réelle arrive, avec pour durée l'écart créé
+ * par le décalage. Ce décalage vaut le délai EXACT (pas un multiple de la
+ * période) : la dernière trame noire absorbe le reste de la division et le
+ * prologue couvre `delayMs` à la milliseconde, sans quoi jusqu'à
+ * PROLOGUE_FRAME_MS-1 ms de désynchronisation avec l'audio subsisteraient.
+ */
+unsigned int mp4writer::WriteVideoPrologue( Mp4VideoTrack *tr, DWORD firstTs, DWORD delayMs )
+{
+    unsigned int nframes = delayMs / PROLOGUE_FRAME_MS;
+    unsigned int written = 0;
+
+    for( unsigned int i = 0; i < nframes; i++ )
+    {
+        // La 1re trame doit être une intra : Mp4VideoTrack ignore tout ce qui
+        // précède la première image clé. Elle porte aussi les SPS/PPS qui
+        // initialisent l'avcC de la piste.
+        VideoFrame *bf = pcstream->Stream( i == 0 );
+        if( bf == NULL ) break;
+
+        // L'encodeur rend déjà des NALs préfixées par leur taille (AVCC), le
+        // format attendu par MP4WriteSample : aucune conversion à faire.
+        bf->SetTimestamp( firstTs + i * PROLOGUE_FRAME_TS );
+        if( tr->ProcessFrame( bf ) < 0 ) break;
+        written++;
+    }
+
+    // Rien d'écrit (échec d'encodage) : pas de décalage, sinon la vidéo réelle
+    // serait reportée derrière un prologue inexistant.
+    if( written > 0 ) tr->SetTimestampOffset( delayMs * 90 );
+
+    return written;
 }
 
 void  mp4writer::SetInitialDelay( unsigned long delay )

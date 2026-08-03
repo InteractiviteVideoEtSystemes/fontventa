@@ -240,35 +240,39 @@ inline void calcTimout(struct timespec *ts,DWORD timeout)
 
 inline void EmptyCatch(int c) { };
 
-inline BYTE  get1(const BYTE *data,BYTE i) { return data[i]; }
-inline DWORD get2(const BYTE *data,BYTE i) { return (DWORD)(data[i+1]) | ((DWORD)(data[i]))<<8; }
-inline DWORD get3(const BYTE *data,BYTE i) { return (DWORD)(data[i+2]) | ((DWORD)(data[i+1]))<<8 | ((DWORD)(data[i]))<<16; }
-inline DWORD get4(const BYTE *data,BYTE i) { return (DWORD)(data[i+3]) | ((DWORD)(data[i+2]))<<8 | ((DWORD)(data[i+1]))<<16 | ((DWORD)(data[i]))<<24; }
-inline DWORD get8(const BYTE *data,BYTE i) { return ((QWORD)get4(data,i))<<32 | get4(data,i+4);	}
+// ATTENTION : l'index `i` était historiquement un BYTE, ce qui repliait
+// silencieusement tout offset >= 256 modulo 256 -- corruption mémoire muette
+// dès qu'on adresse au-delà du 256e octet d'un tampon (bug constaté sur le
+// préfixe de longueur AVCC d'un échantillon MP4). Il doit rester un DWORD.
+inline BYTE  get1(const BYTE *data,DWORD i) { return data[i]; }
+inline DWORD get2(const BYTE *data,DWORD i) { return (DWORD)(data[i+1]) | ((DWORD)(data[i]))<<8; }
+inline DWORD get3(const BYTE *data,DWORD i) { return (DWORD)(data[i+2]) | ((DWORD)(data[i+1]))<<8 | ((DWORD)(data[i]))<<16; }
+inline DWORD get4(const BYTE *data,DWORD i) { return (DWORD)(data[i+3]) | ((DWORD)(data[i+2]))<<8 | ((DWORD)(data[i+1]))<<16 | ((DWORD)(data[i]))<<24; }
+inline QWORD get8(const BYTE *data,DWORD i) { return ((QWORD)get4(data,i))<<32 | get4(data,i+4);	}
 
-inline void set1(BYTE *data,BYTE i,BYTE val)
+inline void set1(BYTE *data,DWORD i,BYTE val)
 {
 	data[i] = val;
 }
-inline void set2(BYTE *data,BYTE i,DWORD val)
+inline void set2(BYTE *data,DWORD i,DWORD val)
 {
 	data[i+1] = (BYTE)(val);
 	data[i]   = (BYTE)(val>>8);
 }
-inline void set3(BYTE *data,BYTE i,DWORD val)
+inline void set3(BYTE *data,DWORD i,DWORD val)
 {
 	data[i+2] = (BYTE)(val);
 	data[i+1] = (BYTE)(val>>8);
 	data[i]   = (BYTE)(val>>16);
 }
-inline void set4(BYTE *data,BYTE i,DWORD val)
+inline void set4(BYTE *data,DWORD i,DWORD val)
 {
 	data[i+3] = (BYTE)(val);
 	data[i+2] = (BYTE)(val>>8);
 	data[i+1] = (BYTE)(val>>16);
 	data[i]   = (BYTE)(val>>24);
 }
-inline void set8(BYTE *data,BYTE i,QWORD val)
+inline void set8(BYTE *data,DWORD i,QWORD val)
 {
 	data[i+7] = (BYTE)(val);
 	data[i+6] = (BYTE)(val>>8);

@@ -21,8 +21,14 @@ void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 	//The the payload
 	BYTE *payload = data;
 
-	//redundant counter
-	WORD i = 0;
+	//redundant counter (DWORD pour comparer sans risque aux bornes du buffer)
+	DWORD i = 0;
+
+	//Durcissement (cf. libmedikit_tests_plan.md) : ParseRed ne bornait aucun
+	//accès. Un RED forgé (bit F toujours à 1, buffer tronqué) provoquait une
+	//lecture hors limites. On vérifie désormais chaque accès contre size.
+	if (!data || size == 0)
+		return;
 
 	//Check if it is the last
 	bool last = !(payload[i]>>7);
@@ -30,6 +36,17 @@ void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 	//Read redundant headers
 	while(!last)
 	{
+		//Un header de redondance = 4 octets (i..i+3) + 1 octet pour tester le
+		//header suivant (payload[i+4]). Si le buffer ne les porte pas, le RED
+		//est tronqué : on abandonne dans un état sûr (aucune redondance).
+		if (i + 4 >= size)
+		{
+			headers.clear();
+			primaryType = 0;
+			primaryData = NULL;
+			primarySize = 0;
+			return;
+		}
 		//Check it
 		/*
 		    0                   1                    2                   3
@@ -70,6 +87,15 @@ void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 		//Check if it is the last
 		last = !(payload[i]>>7);
 	}
+	//L'octet du type primaire (payload[i]) doit être dans le buffer.
+	if (i >= size)
+	{
+		headers.clear();
+		primaryType = 0;
+		primaryData = NULL;
+		primarySize = 0;
+		return;
+	}
 	//Get primaty type
 	primaryType = payload[i] & 0x7F;
 	//Skip it
@@ -78,6 +104,14 @@ void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 	redundantData = payload+i;
 	//Get prymary payload
 	primaryData = redundantData+skip;
+	//La taille annoncée des redondances (skip) ne doit pas dépasser le buffer,
+	//sinon size-i-skip sous-déborde (DWORD) -> primarySize aberrant.
+	if (i + skip > size)
+	{
+		primaryData = NULL;
+		primarySize = 0;
+		return;
+	}
 	//Get size of primary payload
 	primarySize = size-i-skip;
 }
