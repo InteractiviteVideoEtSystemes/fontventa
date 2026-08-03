@@ -33,20 +33,22 @@ static bool TryVAAPI(AVCodecContext * ctx, const AVCodec *codec)
 
 	if (use_vaapi)
 	{
-		AVBufferRef *hw_device_ctx = nullptr;
-
 		Log("FFMpeg encoder [%s] supports VAAPI hardware acceleration\n", codec->name);
 
-		int ret = av_hwdevice_ctx_create(&hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI, nullptr, nullptr, 0);
-		if (ret < 0)
+		// Device VAAPI PARTAGÉ du processus : indispensable pour que décodeurs,
+		// encodeurs et graphe de composition mosaïque (overlay_vaapi) échangent
+		// leurs surfaces sans copie — les filtres *_vaapi refusent de mélanger
+		// des trames issues de devices distincts.
+		AVBufferRef *shared = Pict::GetVAAPIDevice();
+		if (!shared)
 		{
-           	Log("Failed to create VAAPI device. Error: %s. Falling back to CPU.\n", AVErrToStr(ret));
-        	ctx->hw_device_ctx = nullptr;
-        }
+			Log("Shared VAAPI device unavailable. Falling back to CPU.\n");
+			ctx->hw_device_ctx = nullptr;
+		}
 		else
 		{
-			ctx->hw_device_ctx = hw_device_ctx;
-			return true;
+			ctx->hw_device_ctx = av_buffer_ref(shared);
+			return ctx->hw_device_ctx != nullptr;
 		}
 	}
 	return false;
@@ -165,16 +167,18 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 
 		if (codec)
 		{
-			AVBufferRef *dev = NULL;
-			int ret = av_hwdevice_ctx_create(&dev, AV_HWDEVICE_TYPE_VAAPI, NULL, NULL, 0);
-			if (ret < 0)
+			// Device VAAPI PARTAGÉ (cf. TryVAAPI) : jamais de device privé, les
+			// surfaces doivent circuler entre codecs et graphe de composition.
+			AVBufferRef *shared = Pict::GetVAAPIDevice();
+			AVBufferRef *dev = shared ? av_buffer_ref(shared) : NULL;
+			if (!dev)
 			{
 				codec = NULL;
 				hwFailed = true;
 				// Mode HW exigé : aucun repli logiciel autorisé -> échec.
 				if (requireHW)
-					return Error("FFMpeg encoder: VAAPI device required but unavailable (%s)\n", AVErrToStr(ret));
-				Log("FFMpeg encoder: no usable VAAPI device (%s), falling back to software\n", AVErrToStr(ret));
+					return Error("FFMpeg encoder: VAAPI device required but unavailable\n");
+				Log("FFMpeg encoder: no usable VAAPI device, falling back to software\n");
 			}
 			else
 			{

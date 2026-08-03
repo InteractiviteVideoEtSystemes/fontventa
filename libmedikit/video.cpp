@@ -66,6 +66,13 @@ static AVBufferRef* GetSharedVAAPIDevice()
 	return device;
 }
 
+// Accesseur public du device partagé (cf. medkit/video.h) : décodeurs,
+// encodeurs et graphes de composition doivent TOUS dériver de ce device.
+AVBufferRef* Pict::GetVAAPIDevice()
+{
+	return GetSharedVAAPIDevice();
+}
+
 int Pict::UploadToGPU(PictPtr& out) const
 {
 	out = nullptr;

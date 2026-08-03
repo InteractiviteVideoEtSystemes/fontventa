@@ -164,6 +164,14 @@ public:
 	// AVERROR(ENOSYS) si l'accélération VAAPI n'est pas disponible sur la machine.
 	int UploadToGPU(PictPtr& out) const;
 
+	// Device VAAPI PARTAGÉ du processus (nullptr si l'accélération matérielle
+	// est indisponible). Créé au plus une fois, jamais détruit. C'est LE device
+	// commun : décodeurs, encodeurs, uploads et graphes de composition doivent
+	// tous en dériver (av_buffer_ref), sinon les filtres *_vaapi refusent de
+	// mélanger des trames issues de devices distincts. Sert aussi de sonde
+	// « l'accélération matérielle est-elle disponible ? » (log de démarrage mcu).
+	static AVBufferRef* GetVAAPIDevice();
+
 private:
 	AVFrame * av_frame;
 };
