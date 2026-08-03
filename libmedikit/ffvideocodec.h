@@ -89,7 +89,9 @@ protected:
 	int		opened;
 	int		intraPeriod;
 	VideoFrame	*frame;
-	VideoCodec::Type type;
+	// PAS de 'VideoCodec::Type type' ici : il masquerait VideoEncoder::type
+	// (medkit/video.h), que le constructeur laisserait alors non initialisé —
+	// or les appelants le lisent via un VideoEncoder* (FLVEncoder.cpp).
 	int64_t		pts;
 	bool		hwFailed;	// l'init VAAPI a déjà échoué : ne plus réessayer
 	bool		forceIntra;	// FPU demandé : forcer une I-frame au prochain EncodeFrame
@@ -132,8 +134,11 @@ protected:
 	DWORD		bufLen;
 	DWORD 		bufSize;
 	BYTE		src;
-	VideoCodec::Type type;
-
+	// PAS de 'VideoCodec::Type type' ici : il masquerait VideoDecoder::type
+	// (medkit/video.h), laissé alors non initialisé — et videostream.cpp:810
+	// (comme VideoDecoderWorker/mediabridgesession/rtmpparticipant) compare
+	// videoDecoder->type via un VideoDecoder*, ce qui recréait le décodeur à
+	// CHAQUE paquet RTP (aucune trame jamais décodée).
 };
 
 #endif
