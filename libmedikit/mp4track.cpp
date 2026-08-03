@@ -455,7 +455,25 @@ int Mp4AudioTrack::ProcessFrame( const MediaFrame *f )
 
             if( sampleId == 0 )
             {
-                if( initialDelay > 0 )
+                if( initialDelay > 0 && codec == AudioCodec::AAC )
+                {
+                    /* L'AAC ne se decoupe pas en tranches de 20 ms : une trame
+                     * porte toujours 1024 echantillons, et il n'existe pas de
+                     * trame de silence AAC pre-calculee (GetSilenceFrame rend
+                     * NULL). Le pre-roll se compte donc en TRAMES, en repetant la
+                     * premiere trame recue. Sans ce cas particulier, la boucle
+                     * generique ecrivait des durees en echantillons PCM sur des
+                     * trames de 1024 : la piste audio derivait d'autant. */
+                    DWORD frameMs = 1024 * 1000 / f2->GetRate();
+                    Log( "Adding %d ms of initial delay on AAC audio track id:%d.\n", initialDelay, mediatrack );
+                    for( DWORD d = 0; frameMs > 0 && d + frameMs <= initialDelay; d += frameMs )
+                    {
+                        MP4WriteSample( mp4, mediatrack, f2->GetData(), f2->GetLength(), 1024, 0, 1 );
+                        sampleId++;
+                        totalDuration += frameMs;
+                    }
+                }
+                else if( initialDelay > 0 )
                 {
                     const AudioFrame *silence = GetSilenceFrame( codec );
                     if( silence == NULL ) silence = f2;
@@ -788,6 +806,15 @@ int Mp4VideoTrack::ProcessFrame( const MediaFrame *f )
         {
             if( frame->GetTimeStamp() < ts )
             {
+                /* CONTRAT : les horodatages des trames video sont exprimes sur
+                 * l'HORLOGE VIDEO 90 kHz, comme la piste MP4 elle-meme
+                 * (MP4AddH264VideoTrack(..., 90000, ...)) et comme le prologue
+                 * de mp4writer (PROLOGUE_FRAME_TS = PROLOGUE_FRAME_MS * 90).
+                 * Aucune conversion ici : c'est a l'appelant de fournir cette
+                 * echelle (cote mediaserver, MP4Recorder::onMediaFrame convertit
+                 * les millisecondes du mcu). Les durees derivees d'un delai en ms
+                 * (repli 50*90, initialDelay*90) sont converties explicitement,
+                 * et totalDuration repasse en ms par /90. */
                 duration = ts - frame->GetTimeStamp();
             }
             else
@@ -994,6 +1021,35 @@ int Mp4TextTrack::ProcessFrame( const MediaFrame *f )
     }
 
     return 0;
+}
+
+int Mp4TextTrack::FlushSubtitle( DWORD nowts )
+{
+    if( !IsOpen() || sampleId == 0 ) return 0;
+
+    DWORD frameduration = ( nowts > prevts ) ? ( nowts - prevts ) : 0;
+    if( frameduration == 0 ) return 0;
+
+    std::string subtitle;
+    encoder.GetSubtitle( subtitle );
+
+    unsigned int subsize = subtitle.length();
+    BYTE *data = (BYTE *)malloc( subsize + 2 );
+    if( data == NULL ) return 0;
+
+    data[0] = subsize >> 8;
+    data[1] = subsize & 0xFF;
+    memcpy( data + 2, subtitle.data(), subsize );
+
+    Log( "-mp4recorder: flushing last subtitle (%u bytes) for %u ms on track id:%d.\n",
+         subsize, frameduration, mediatrack );
+
+    MP4WriteSample( mp4, mediatrack, data, subsize + 2, frameduration, 0, true );
+    sampleId++;
+    prevts = nowts;
+
+    free( data );
+    return 1;
 }
 
 void Mp4TextTrack::onNewLine( std::string &prevline )

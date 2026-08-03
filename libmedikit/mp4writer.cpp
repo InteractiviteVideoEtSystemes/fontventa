@@ -586,6 +586,15 @@ void mp4writer::Flush()
         Mp4VideoTrack *tr = (Mp4VideoTrack *)mediatracks[MP4_VIDEO_TRACK];
         tr->WriteLastFrame();
     }
+
+    if( mediatracks[MP4_TEXT_TRACK] )
+    {
+        /* Tient le dernier sous-titre jusqu'a la fin de l'enregistrement : la
+         * piste texte n'ecrit un echantillon qu'a l'arrivee du suivant, donc
+         * sans cette purge le texte disparaissait a la derniere frappe. */
+        Mp4TextTrack *tr = (Mp4TextTrack *)mediatracks[MP4_TEXT_TRACK];
+        tr->FlushSubtitle( initialDelay + ( getDifTime( &firstframets ) / 1000 ) );
+    }
 }
 
 /* ---- callbeck used for video transcoding --- */

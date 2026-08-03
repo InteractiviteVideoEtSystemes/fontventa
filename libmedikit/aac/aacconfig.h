@@ -57,7 +57,10 @@ public:
 			    24000, 22050, 16000, 12000, 11025, 8000, 7350
 			};
 		//Search
-		for (int i=0;i<sizeof(rates);i++)
+		//NB : la borne etait sizeof(rates) (= 64 octets) et non le nombre
+		//d'entrees : la recherche d'une frequence absente de la table lisait
+		//48 entiers HORS du tableau et pouvait rendre un index quelconque.
+		for (int i=0;i<(int)(sizeof(rates)/sizeof(rates[0]));i++)
 			//Check rate
 			if (rates[i]==rate)
 				//Found

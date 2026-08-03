@@ -209,6 +209,16 @@ public:
     virtual ~Mp4TextTrack();
     virtual int Create(const char * trackName, int codec, DWORD bitrate);
     virtual int ProcessFrame( const MediaFrame * f );
+
+    /**
+     * Ecrit un dernier echantillon portant le sous-titre courant, tenu jusqu'a
+     * `nowts` (ms depuis le debut de l'enregistrement). A appeler a la
+     * fermeture du fichier : chaque echantillon etant ecrit avec la duree de
+     * l'intervalle PRECEDENT, la piste s'arretait sinon a la derniere frappe et
+     * le texte disparaissait de l'ecran pour tout le reste de l'enregistrement.
+     * @return 1 si un echantillon a ete ecrit, 0 sinon.
+     */
+    int FlushSubtitle( DWORD nowts );
     virtual const MediaFrame * ReadFrame();
     void GetSavedTextForVm(std::string & text)
     {
