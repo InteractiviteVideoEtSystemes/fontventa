@@ -15,8 +15,70 @@
 #include "vp8/vp8encoder.h"     // VP8Encoder::GetFmtpParams
 #include "av1/av1codec.h"       // AV1Encoder::GetFmtpParams
 
+std::map<std::string,std::string> ParseFmtpParams(const std::string& params)
+{
+	std::map<std::string,std::string> out;
+
+	size_t pos = 0;
+	while (pos <= params.size())
+	{
+		size_t sep = params.find(';', pos);
+		std::string item = params.substr(pos, sep == std::string::npos ? std::string::npos : sep - pos);
+
+		// Découpe clé/valeur, en tolérant un drapeau nu (pas de '=').
+		size_t eq = item.find('=');
+		std::string key = (eq == std::string::npos) ? item : item.substr(0, eq);
+		std::string val = (eq == std::string::npos) ? std::string() : item.substr(eq + 1);
+
+		// Espaces autour, et clé en minuscules (noms de paramètres SDP
+		// insensibles à la casse).
+		const char* ws = " \t\r\n";
+		size_t b = key.find_first_not_of(ws), e = key.find_last_not_of(ws);
+		key = (b == std::string::npos) ? std::string() : key.substr(b, e - b + 1);
+		b = val.find_first_not_of(ws); e = val.find_last_not_of(ws);
+		val = (b == std::string::npos) ? std::string() : val.substr(b, e - b + 1);
+		for (char &c : key)
+			if (c >= 'A' && c <= 'Z')
+				c += 'a' - 'A';
+
+		if (!key.empty())
+			out[key] = val;
+
+		if (sep == std::string::npos)
+			break;
+		pos = sep + 1;
+	}
+
+	return out;
+}
+
 namespace
 {
+
+// fmtp du pair pour un codec donné, découpé. La convention de clé est celle de
+// nego_fmtp.md §5.3 : "<nomcodec>.fmtp" en minuscules. Map vide si le contrôleur
+// n'a rien transmis pour ce codec (ou rien du tout).
+std::map<std::string,std::string> RemoteParamsFor(const Properties* remoteFmtp,
+                                                  MediaFrame::Type media, int codec)
+{
+	if (!remoteFmtp)
+		return std::map<std::string,std::string>();
+
+	const char* name = GetNameForCodec(media, (DWORD) codec);
+	if (!name)
+		return std::map<std::string,std::string>();
+
+	std::string key(name);
+	for (char &c : key)
+		if (c >= 'A' && c <= 'Z')
+			c += 'a' - 'A';
+	key += ".fmtp";
+
+	if (!remoteFmtp->HasProperty(key))
+		return std::map<std::string,std::string>();
+
+	return ParseFmtpParams(remoteFmtp->GetProperty(key, std::string()));
+}
 
 bool IsCodecSupported(MediaFrame::Type media, int codec)
 {
@@ -45,15 +107,36 @@ std::string AudioFmtp(int codec, const Properties& props)
 	}
 }
 
-// fmtp local (params seuls) d'un codec vidéo. H264/VP8/AV1 en produisent.
-std::string VideoFmtp(int codec, const Properties& props)
+// Résout un codec vidéo : le fmtp que nous ANNONÇONS (notre capacité de réception)
+// et, dans `nc.effectiveProps`, ce qui BORNE NOTRE ENCODEUR (ce que le pair sait
+// décoder). Les deux ne coïncident que lorsqu'aucun fmtp distant n'a été transmis.
+//
+// Seul H.264 ingère le fmtp distant pour l'instant (RFC 6184 §8.2.2, cf.
+// H264Encoder::ResolveNegotiation). VP8 et AV1 dérivent encore leur fmtp de la
+// seule config locale : l'ingestion AV1 (profile / level-idx / tier) est à
+// spécifier avant d'être écrite, et VP8 n'a pas de paramètre qui s'y prête.
+void ResolveVideo(int codec, const Properties& localProps,
+                  const std::map<std::string,std::string>& remoteParams,
+                  NegotiatedCodec& nc)
 {
 	switch ((VideoCodec::Type)codec)
 	{
-		case VideoCodec::H264: return H264Encoder::GetFmtpParams(props);
-		case VideoCodec::VP8:  return VP8Encoder::GetFmtpParams(props);
-		case VideoCodec::AV1:  return AV1Encoder::GetFmtpParams(props);
-		default:               return "";
+		case VideoCodec::H264:
+		{
+			Properties announceProps;
+			H264Encoder::ResolveNegotiation(localProps, remoteParams, announceProps, nc.effectiveProps);
+			nc.fmtp = H264Encoder::GetFmtpParams(announceProps);
+			break;
+		}
+		case VideoCodec::VP8:
+			nc.fmtp = VP8Encoder::GetFmtpParams(localProps);
+			break;
+		case VideoCodec::AV1:
+			nc.fmtp = AV1Encoder::GetFmtpParams(localProps);
+			break;
+		default:
+			nc.fmtp = "";
+			break;
 	}
 }
 
@@ -65,9 +148,6 @@ bool CodecNegotiator::Negotiate(MediaFrame::Type media,
                                 const Properties* remoteFmtp,
                                 NegotiationResult& out)
 {
-	// remoteFmtp : réservé à la négociation entrante (phase 5), ignoré ici.
-	(void) remoteFmtp;
-
 	out.acceptedMap.clear();
 	out.codecs.clear();
 
@@ -105,7 +185,9 @@ bool CodecNegotiator::Negotiate(MediaFrame::Type media,
 		NegotiatedCodec nc;
 		nc.payloadType   = pt;
 		nc.codec         = codec;
-		nc.effectiveProps = localProps; // remoteFmtp ignoré en phase 3
+		// Par défaut l'encodeur n'est borné que par notre config ; les codecs qui
+		// ingèrent le fmtp distant écrasent ceci (ResolveVideo).
+		nc.effectiveProps = localProps;
 
 		switch (media)
 		{
@@ -113,7 +195,7 @@ bool CodecNegotiator::Negotiate(MediaFrame::Type media,
 				nc.fmtp = AudioFmtp(codec, localProps);
 				break;
 			case MediaFrame::Video:
-				nc.fmtp = VideoFmtp(codec, localProps);
+				ResolveVideo(codec, localProps, RemoteParamsFor(remoteFmtp, media, codec), nc);
 				break;
 			case MediaFrame::Text:
 				if ((TextCodec::Type)codec == TextCodec::T140RED && t140Pt >= 0)

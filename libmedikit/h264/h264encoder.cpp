@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <vector>
 #include <utility>
 #include "../medkit/log.h"
@@ -309,15 +310,149 @@ bool H264Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)
 	return !fmtp.empty();
 }
 
-std::string H264Encoder::GetFmtpParams(const Properties& properties)
+namespace
 {
-	// profile-level-id = notre capacité de décodage annoncée (config), en
-	// minuscules par convention SDP (l'attribut est insensible à la casse).
-	std::string profileLevelId = properties.GetProperty("h264.profile-level-id", std::string("42801F"));
-	for (char &c : profileLevelId)
+
+// Passe une chaîne en minuscules (les valeurs hexa du profile-level-id et les noms
+// de paramètres SDP sont insensibles à la casse).
+std::string LowerCopy(std::string s)
+{
+	for (char &c : s)
 		if (c >= 'A' && c <= 'Z')
 			c += 'a' - 'A';
+	return s;
+}
 
+// Un profile-level-id vaut exactement 6 chiffres hexadécimaux :
+// profile_idc (2) || profile_iop (2) || level_idc (2). On rend le profil (les 4
+// premiers, gardés tels quels puisque la règle 1 les recopie) et le niveau.
+bool ParseProfileLevelId(const std::string& plid, std::string& profilePart, int& level)
+{
+	if (plid.size() != 6)
+		return false;
+	for (char c : plid)
+		if (!isxdigit((unsigned char) c))
+			return false;
+
+	profilePart = plid.substr(0,4);
+	level = (int) strtol(plid.substr(4,2).c_str(), NULL, 16);
+	return true;
+}
+
+std::string FormatProfileLevelId(const std::string& profilePart, int level)
+{
+	char buf[8];
+	snprintf(buf, sizeof(buf), "%s%02x", profilePart.c_str(), level & 0xFF);
+	return LowerCopy(std::string(buf));
+}
+
+} // namespace
+
+std::string H264Encoder::GetFmtpParams(const Properties& properties)
+{
+	// profile-level-id = notre capacité de décodage annoncée — la config, ou le
+	// résultat de ResolveNegotiation quand un fmtp distant a été ingéré. En
+	// minuscules par convention SDP (l'attribut est insensible à la casse).
+	std::string profileLevelId = LowerCopy(properties.GetProperty("h264.profile-level-id", std::string("42801F")));
+
+	// level-asymmetry-allowed=1 : un mixeur transcode dans les deux sens, donc le
+	// cas même pour lequel ce paramètre existe — décoder à un niveau et encoder à un
+	// autre — est le nôtre. Sans lui, RFC 6184 §8.2.2 nous imposerait le niveau de
+	// l'offre même quand nous savons faire mieux.
+	//
+	// packetization-mode ANNONCÉ = le nôtre (mode 1). Le mode d'ÉMISSION, qui doit
+	// être un mode que le pair a déclaré, voyage dans effectiveProps et pas ici.
+	//
 	// sprop-parameter-sets délibérément absent (cf. déclaration).
-	return "profile-level-id=" + profileLevelId + ";packetization-mode=1";
+	return "profile-level-id=" + profileLevelId +
+	       ";packetization-mode=1;level-asymmetry-allowed=1";
+}
+
+void H264Encoder::ResolveNegotiation(const Properties& localProps,
+                                     const std::map<std::string,std::string>& remoteParams,
+                                     Properties& announceProps,
+                                     Properties& effectiveProps)
+{
+	// On repart des props locales dans les deux cas : tout ce que la négociation ne
+	// touche pas (débit, intra_refresh, qpel…) doit survivre de part et d'autre.
+	// NB : on écrit ensuite via operator[] et non SetProperty(), qui fait un insert
+	// et n'écraserait donc PAS la valeur héritée.
+	announceProps  = localProps;
+	effectiveProps = localProps;
+
+	const std::string localPlid = localProps.GetProperty("h264.profile-level-id", std::string("42801F"));
+
+	std::string ourProfile;
+	int ourLevel = 0;
+	if (!ParseProfileLevelId(LowerCopy(localPlid), ourProfile, ourLevel))
+	{
+		// Notre propre config est illisible : il n'y a rien à résoudre contre elle.
+		Log("-H264 ResolveNegotiation: local profile-level-id illisible [%s], negotiation skipped\n",
+		    localPlid.c_str());
+		return;
+	}
+
+	// Pas d'entrée distante — offer sortant, ou pair qui n'envoie aucun fmtp : on
+	// annonce notre config telle quelle et rien ne borne l'encodeur au-delà d'elle.
+	std::map<std::string,std::string>::const_iterator itPlid = remoteParams.find("profile-level-id");
+	if (itPlid == remoteParams.end())
+		return;
+
+	std::string peerProfile;
+	int peerLevel = 0;
+	if (!ParseProfileLevelId(LowerCopy(itPlid->second), peerProfile, peerLevel))
+	{
+		Log("-H264 ResolveNegotiation: remote profile-level-id illisible [%s], keeping ours\n",
+		    itPlid->second.c_str());
+		return;
+	}
+
+	// RFC 6184 §8.2.2 : l'asymétrie de niveau exige level-asymmetry-allowed=1 des
+	// DEUX côtés. Nous l'annonçons toujours (GetFmtpParams), donc seul le pair
+	// tranche ici.
+	std::map<std::string,std::string>::const_iterator itAsym = remoteParams.find("level-asymmetry-allowed");
+	const bool peerAllowsAsymmetry = (itAsym != remoteParams.end() && itAsym->second == "1");
+
+	int announcedLevel;
+	if (peerAllowsAsymmetry)
+	{
+		// Asymétrie permise : nous annonçons notre vraie capacité de décodage.
+		announcedLevel = ourLevel;
+	}
+	else if (peerLevel > ourLevel)
+	{
+		// Écart assumé à la RFC (qui ne laisse que refléter ou retirer) : refuser la
+		// vidéo est un échec plus dur qu'annoncer en dessous, et annoncer en dessous
+		// est justement ce dont un pair correct a besoin pour encoder à notre portée.
+		// Ce log est la SEULE trace qui relie « pas de vidéo sur cette patte » à sa
+		// cause : il doit nommer les deux niveaux.
+		Log("-H264 ResolveNegotiation: offered level not decodable, announcing ours "
+		    "[offered=0x%02x announced=0x%02x profile=%s]\n",
+		    peerLevel, ourLevel, peerProfile.c_str());
+		announcedLevel = ourLevel;
+	}
+	else
+	{
+		// Pas d'asymétrie et niveau décodable : règles 1 et 2 combinées ⇒ on renvoie
+		// le profile-level-id de l'offre tel quel.
+		announcedLevel = peerLevel;
+	}
+
+	// Règle 1 : le profil annoncé est celui de l'offre — nous n'annonçons jamais un
+	// profil que l'appelant n'a pas nommé.
+	announceProps["h264.profile-level-id"] = FormatProfileLevelId(peerProfile, announcedLevel);
+
+	// Ce qui borne l'encodeur : le pair a déclaré ce qu'il sait décoder, et émettre
+	// au-dessus produit un flux négocié avec succès et décodé par personne.
+	effectiveProps["h264.profile-level-id"] =
+		FormatProfileLevelId(peerProfile, peerLevel < ourLevel ? peerLevel : ourLevel);
+
+	// packetization-mode n'est PAS régi par la règle d'asymétrie : c'est une capacité
+	// de réception par direction. Ce que nous annonçons reste le nôtre ; ce que nous
+	// émettons doit être un mode que le pair a déclaré, remonté ici en propriété. Le
+	// packetiseur reste à y brancher (il émet aujourd'hui du single-NAL/FU-A, soit
+	// le mode 1).
+	std::map<std::string,std::string>::const_iterator itMode = remoteParams.find("packetization-mode");
+	if (itMode != remoteParams.end())
+		effectiveProps["h264.packetization-mode"] = itMode->second;
 }

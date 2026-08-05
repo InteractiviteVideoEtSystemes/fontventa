@@ -28,6 +28,15 @@
 #include <vector>
 #include <string>
 
+// Découpe une chaîne de paramètres fmtp SEULS (ce qui suit "a=fmtp:<pt> ", ex.
+// "profile-level-id=42e01f;packetization-mode=1") en couples clé→valeur.
+//
+// Les noms de paramètres SDP étant insensibles à la casse, les clés sont
+// normalisées en minuscules ; les espaces autour de la clé, du '=' et de la valeur
+// sont retirés. Un élément sans '=' est conservé avec une valeur vide (certains
+// paramètres sont des drapeaux nus). Une chaîne vide donne une map vide.
+std::map<std::string,std::string> ParseFmtpParams(const std::string& params);
+
 // Un codec retenu par la négociation.
 struct NegotiatedCodec
 {
@@ -52,7 +61,12 @@ public:
 	// media      : Audio / Video / Text (Application non négocié ici).
 	// proposed   : RTPMap (PT -> codec Type) venant du contrôleur SIP.
 	// localProps : props locales (config + défauts) pour dériver le fmtp local.
-	// remoteFmtp : fmtp distant déjà ingéré — IGNORÉ en phase 3 (nullable).
+	// remoteFmtp : fmtp du pair, une entrée par codec sous la clé
+	//              "<nomcodec>.fmtp" en minuscules (ex. "h264.fmtp"), portant les
+	//              paramètres SEULS. Convention §5.3 de nego_fmtp.md, alimentée par
+	//              `codec.<x>.fmtp` via SetRTPProperties (JSR-309) ou par le
+	//              paramètre `offer` de StartReceiving (MCU). NULL ⇒ pas d'entrée
+	//              distante, on annonce notre config telle quelle.
 	// out        : rempli avec la map filtrée + le détail par codec.
 	// Retourne false si le média n'est pas négociable ; true sinon
 	// (out.acceptedMap peut être vide si rien de proposé n'est supporté).
