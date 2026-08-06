@@ -15,6 +15,10 @@ extern "C" {
 
 extern std::string BuildH264Fmtp(int payloadType, const std::vector<uint8_t>& sps, const std::vector<uint8_t>& pps);
 
+// Borne de slice en mode 1 (octets). Assez grande pour ne plus contraindre la
+// compression, assez petite pour qu'une perte n'emporte qu'une fraction de trame.
+static const int H264_MODE1_SLICE_MAX_SIZE = 10000;
+
 //////////////////////////////////////////////////////////////////////////
 //Encoder H264 (ffmpeg : h264_vaapi si dispo, libx264 sinon)
 //////////////////////////////////////////////////////////////////////////
@@ -23,12 +27,40 @@ extern std::string BuildH264Fmtp(int payloadType, const std::vector<uint8_t>& sp
 * H264Encoder
 *	Constructor de la clase
 ***********************/
+int H264Encoder::WantedPacketizationMode(const Properties& properties)
+{
+	// Absence == pas de contrainte == 1 (cf. déclaration, écart assumé à la RFC).
+	return properties.GetProperty("h264.packetization-mode", 1) == 0 ? 0 : 1;
+}
+
+bool H264Encoder::WantsHardware(const Properties& properties)
+{
+	if (WantedPacketizationMode(properties) != 0)
+		return true;
+
+	// `video.hwaccel.required` gagne dans SelectCodec/FallbackToSoftware : l'opérateur a
+	// demandé deux choses incompatibles, et le dire est tout ce que nous pouvons faire —
+	// les NALUs dépasseront le MTU et ce pair ne décodera pas notre vidéo.
+	if (properties.GetProperty("video.hwaccel.required", 0) != 0)
+	{
+		Error("-H264Encoder: packetization_mode 0 requested but video.hwaccel.required is "
+		      "set; VAAPI cannot bound NALU size, this peer will not decode our video\n");
+		return true;
+	}
+
+	Log("-H264Encoder: falling back to software encoding because of requested "
+	    "packetization_mode 0\n");
+	return false;
+}
+
 H264Encoder::H264Encoder(const Properties& properties)
-	: FfVideoEncoder(properties, AV_CODEC_ID_H264, VideoCodec::H264, /*tryHW*/ true)
+	: FfVideoEncoder(properties, AV_CODEC_ID_H264, VideoCodec::H264,
+	                 /*tryHW*/ WantsHardware(properties))
 {
 	h264ProfileLevelId = properties.GetProperty("h264.profile-level-id",std::string("42801F"));
 	intraRefresh = (bool) properties.GetProperty("h264.intra_refresh",0);
 	qPel =  properties.GetProperty("h264.qpel",3);
+	packetizationMode = WantedPacketizationMode(properties);
 	openedBitrate = 0;
 	spsPpsCached = false;
 }
@@ -144,10 +176,28 @@ void H264Encoder::ConfigureContext()
 				break;
 		}
 
+		// Taille de slice selon le mode de paquetisation négocié :
+		//
+		//   mode 0 : chaque NALU doit tenir dans UN paquet RTP (pas de FU-A), donc les
+		//            slices sont bornées au payload — c'est ce qui rend le mode 0
+		//            réalisable sans toucher au packetiseur ;
+		//   mode 1 : le FU-A fragmente, la contrainte n'a plus lieu d'être. On garde
+		//            néanmoins une borne large : une slice par trame comprimerait un peu
+		//            mieux, mais une perte emporterait alors la trame entière, alors
+		//            qu'ici elle n'emporte qu'une slice. Un mixeur sert des liens qui
+		//            perdent : la résilience vaut les quelques % de débit.
+		//
+		// C'était RTPPAYLOADSIZE-8 pour tout le monde, donc TOUTES les pattes payaient
+		// le coût du mode 0 — beaucoup de slices, prédiction intra coupée à chaque
+		// frontière — y compris celles qui acceptent le FU-A.
+		const int sliceMaxSize = (packetizationMode == 0)
+			? RTPPAYLOADSIZE - 8
+			: H264_MODE1_SLICE_MAX_SIZE;
+
 		char x264params[256];
 		snprintf(x264params, sizeof(x264params),
 			 "slice-max-size=%d:scenecut=0:subme=%d:ref=1%s",
-			 RTPPAYLOADSIZE-8, qPel, intraRefresh ? ":intra-refresh=1" : "");
+			 sliceMaxSize, qPel, intraRefresh ? ":intra-refresh=1" : "");
 		av_opt_set(ctx->priv_data, "x264-params", x264params, 0);
 
 		ctx->thread_count = 1;
@@ -463,18 +513,24 @@ void H264Encoder::ResolveNegotiation(const Properties& localProps,
 	// proposé, et c'est un refus sec côté navigateur. Ce qui BORNE NOTRE ÉMISSION est
 	// le même mode, pour la raison opposée : émettre dans un mode que le pair ne
 	// dépaquettise pas produit un flux négocié et jamais décodé.
+	//
+	// **Absence == pas de contrainte == 1** (décidé le 2026-08-06, écart assumé à la RFC
+	// 6184 §8.1 qui fait valoir 0) : un pair qui omet le paramètre est un SDP incomplet
+	// plus qu'un décodeur single-NAL. Le mode résolu est écrit dans les DEUX jeux dans
+	// tous les cas, pour qu'en aval la clé ait une valeur et une seule signification —
+	// absente, l'encodeur devrait redeviner ce défaut, et c'est ainsi qu'on se retrouve
+	// avec deux lectures du même silence.
 	std::map<std::string,std::string>::const_iterator itMode = remoteParams.find("packetization-mode");
-	if (itMode != remoteParams.end())
-	{
-		announceProps["h264.packetization-mode"]  = itMode->second;
-		effectiveProps["h264.packetization-mode"] = itMode->second;
+	const std::string mode = (itMode != remoteParams.end() && itMode->second == "0") ? "0" : "1";
 
-		// Le packetiseur ne lit pas encore cette propriété : il émet du FU-A, soit le
-		// mode 1. Sur un PT offert en mode 0 le PT est donc annoncé honnêtement et
-		// l'émission reste non conforme jusqu'à ce que le single-NAL soit implémenté —
-		// ce log est la seule trace qui relie l'un à l'autre.
-		if (itMode->second == "0")
-			Log("-H264 ResolveNegotiation: peer offered packetization-mode 0, announced as "
-			    "such, but the packetiser still emits FU-A (mode 1)\n");
-	}
+	announceProps["h264.packetization-mode"]  = mode;
+	effectiveProps["h264.packetization-mode"] = mode;
+
+	// Mode 0 explicite : l'encodeur bornera ses slices au payload RTP et basculera sur
+	// libx264 (VAAPI ne sait pas contraindre la taille d'une slice), cf.
+	// H264Encoder::WantsHardware. Le journaliser ici garde la trace du choix côté
+	// négociation, là où le mode a été lu.
+	if (mode == "0")
+		Log("-H264 ResolveNegotiation: peer requires packetization-mode 0, slices will be "
+		    "bounded to the RTP payload and encoding forced to software\n");
 }

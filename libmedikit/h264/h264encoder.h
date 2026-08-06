@@ -61,6 +61,20 @@ public:
 	                               Properties& announceProps,
 	                               Properties& effectiveProps);
 
+	// Le mode de paquetisation à honorer à l'émission, lu de `h264.packetization-mode`.
+	//
+	// **1 par défaut, y compris quand le pair n'a rien déclaré** : écart assumé à la RFC
+	// 6184 §8.1 (qui fait valoir 0 en l'absence du paramètre), décidé le 2026-08-06. Un
+	// pair qui omet le paramètre est un SDP incomplet plus qu'un décodeur single-NAL —
+	// tout décodeur moderne dépaquettise le FU-A. Si le pari est faux le symptôme est
+	// franc (H.264 négocié, pas d'image chez ce client) et la branche mode 0 existe.
+	static int WantedPacketizationMode(const Properties& properties);
+
+	// Le mode 0 interdit le FU-A : chaque NALU doit tenir dans un paquet RTP, ce que
+	// seul libx264 sait garantir (`slice-max-size`, absent des encodeurs VAAPI). Retourne
+	// donc false — et le journalise — quand le mode 0 est demandé.
+	static bool WantsHardware(const Properties& properties);
+
 protected:
 	virtual void ConfigureContext();
 	virtual void PacketizeFrame();
@@ -71,6 +85,9 @@ private:
 	std::string h264ProfileLevelId;
 	bool intraRefresh;
 	int qPel;
+	// Mode de paquetisation négocié pour l'ÉMISSION (0 ou 1) : borne la taille des
+	// slices produites, cf. ConfigureContext.
+	int packetizationMode;
 	// Débit effectif à l'ouverture : sert à décider une réouverture VAAPI
 	int openedBitrate;
 

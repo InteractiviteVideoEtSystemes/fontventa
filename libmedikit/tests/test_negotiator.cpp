@@ -12,6 +12,7 @@
  */
 #include <gtest/gtest.h>
 #include "medkit/negotiator.h"
+#include "h264/h264encoder.h"   // WantsHardware / WantedPacketizationMode (mode 0 -> logiciel)
 #include <string>
 #include <map>
 
@@ -334,6 +335,66 @@ TEST(NegotiatorH264, PacketizationModeParDefaut)
 	NegotiateH264(H264Props("42801F", ""), announced, effective);
 
 	EXPECT_NE(announced.find("packetization-mode=1"), std::string::npos);
+}
+
+// Absence de packetization-mode = pas de contrainte = 1, dans les deux jeux (écart
+// assumé à la RFC 6184 §8.1, décidé le 2026-08-06). L'encodeur doit lire une valeur
+// explicite plutôt que redeviner un défaut.
+TEST(NegotiatorH264, ModeAbsentVautUnDansLesDeuxJeux)
+{
+	std::map<int,int> proposed;
+	proposed[96] = VideoCodec::H264;
+	Properties props = H264Props("42801F", "profile-level-id=42801f");
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &props, out));
+	ASSERT_EQ(out.codecs.size(), 1u);
+
+	EXPECT_NE(out.codecs[0].fmtp.find("packetization-mode=1"), std::string::npos);
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("h264.packetization-mode",
+	                                                   std::string()), "1");
+}
+
+// Mode 0 explicite : annoncé 0 et borné 0. C'est le seul cas qui fait basculer
+// l'encodeur en logiciel (H264Encoder::WantsHardware).
+TEST(NegotiatorH264, ModeZeroExpliciteBorneLesDeuxJeux)
+{
+	std::map<int,int> proposed;
+	proposed[96] = VideoCodec::H264;
+	Properties props = H264Props("42801F", "profile-level-id=42801f;packetization-mode=0");
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &props, out));
+	ASSERT_EQ(out.codecs.size(), 1u);
+
+	EXPECT_NE(out.codecs[0].fmtp.find("packetization-mode=0"), std::string::npos);
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("h264.packetization-mode",
+	                                                   std::string()), "0");
+}
+
+// Le mode demandé décide de l'encodeur : 0 interdit le FU-A, donc interdit VAAPI, qui
+// ne sait pas borner la taille d'une slice.
+TEST(H264Encoder, ModeZeroInterditLAccelerationMaterielle)
+{
+	Properties none;
+	EXPECT_TRUE(H264Encoder::WantsHardware(none));
+	EXPECT_EQ(H264Encoder::WantedPacketizationMode(none), 1);
+
+	Properties mode1;
+	mode1["h264.packetization-mode"] = "1";
+	EXPECT_TRUE(H264Encoder::WantsHardware(mode1));
+
+	Properties mode0;
+	mode0["h264.packetization-mode"] = "0";
+	EXPECT_FALSE(H264Encoder::WantsHardware(mode0));
+	EXPECT_EQ(H264Encoder::WantedPacketizationMode(mode0), 0);
+
+	// hwaccel exigé ET mode 0 : deux demandes incompatibles, le matériel gagne et
+	// l'incohérence est journalisée (le pair ne décodera pas).
+	Properties conflict;
+	conflict["h264.packetization-mode"] = "0";
+	conflict["video.hwaccel.required"]  = "1";
+	EXPECT_TRUE(H264Encoder::WantsHardware(conflict));
 }
 
 // LE cas de la capture du 2026-08-06 : un navigateur offre le même H.264 sous sept
