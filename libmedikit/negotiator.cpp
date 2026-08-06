@@ -164,10 +164,10 @@ void ResolveAudio(int codec, const Properties& localProps,
 // H.264 arrive sous plusieurs PT qui décrivent des configurations différentes, et
 // chacune doit être répondue avec la sienne (RFC 6184 §8.2.2).
 //
-// Seul H.264 ingère le fmtp distant pour l'instant (RFC 6184 §8.2.2, cf.
-// H264Encoder::ResolveNegotiation). VP8 et AV1 dérivent encore leur fmtp de la
-// seule config locale : l'ingestion AV1 (profile / level-idx / tier) est à
-// spécifier avant d'être écrite, et VP8 n'a pas de paramètre qui s'y prête.
+// H.264 (RFC 6184 §8.2.2, reflet contraint — cf. H264Encoder::ResolveNegotiation)
+// et AV1 (asymétrie par défaut, émission bornée au min — cf.
+// AV1Encoder::ResolveNegotiation) ingèrent le fmtp distant. VP8 n'a pas de
+// paramètre qui s'y prête et dérive son fmtp de la seule config locale.
 void ResolveVideo(int codec, const Properties& localProps,
                   const std::map<std::string,std::string>& remoteParams,
                   NegotiatedCodec& nc)
@@ -185,8 +185,12 @@ void ResolveVideo(int codec, const Properties& localProps,
 			nc.fmtp = VP8Encoder::GetFmtpParams(localProps);
 			break;
 		case VideoCodec::AV1:
-			nc.fmtp = AV1Encoder::GetFmtpParams(localProps);
+		{
+			Properties announceProps;
+			AV1Encoder::ResolveNegotiation(localProps, remoteParams, announceProps, nc.effectiveProps);
+			nc.fmtp = AV1Encoder::GetFmtpParams(announceProps);
 			break;
+		}
 		default:
 			nc.fmtp = "";
 			break;

@@ -278,6 +278,173 @@ std::string AV1Encoder::GetFmtpParams(const Properties& properties)
 }
 
 //////////////////////////////////////////////////////////////////////////
+// Négociation (phase 5b nego_fmtp)
+//////////////////////////////////////////////////////////////////////////
+
+namespace {
+
+// Limites par seq_level_idx (annexe A.3 de la spec bitstream AV1). Seuls les
+// niveaux DÉFINIS figurent ici : 2.2/2.3 (idx 2-3), 3.2/3.3 (6-7) et 4.2/4.3
+// (10-11) n'existent pas — un idx déclaré non défini se lit « le plus haut
+// niveau défini inférieur ou égal ».
+struct AV1LevelLimits
+{
+	int   idx;            // seq_level_idx
+	DWORD maxPicSize;     // échantillons luma par image
+	DWORD maxHSize;       // largeur max
+	DWORD maxVSize;       // hauteur max
+	QWORD maxDisplayRate; // échantillons luma par seconde
+};
+
+const AV1LevelLimits av1Levels[] = {
+	{  0,   147456,  2048, 1152,    4423680ULL }, // 2.0
+	{  1,   278784,  2816, 1584,    8363520ULL }, // 2.1
+	{  4,   665856,  4352, 2448,   19975680ULL }, // 3.0
+	{  5,  1065024,  5504, 3096,   31950720ULL }, // 3.1
+	{  8,  2359296,  6144, 3456,   70778880ULL }, // 4.0
+	{  9,  2359296,  6144, 3456,  141557760ULL }, // 4.1
+	{ 12,  8912896,  8192, 4352,  267386880ULL }, // 5.0
+	{ 13,  8912896,  8192, 4352,  534773760ULL }, // 5.1
+	{ 14,  8912896,  8192, 4352, 1069547520ULL }, // 5.2
+	{ 15,  8912896,  8192, 4352, 1069547520ULL }, // 5.3
+	{ 16, 35651584, 16384, 8704, 1069547520ULL }, // 6.0
+	{ 17, 35651584, 16384, 8704, 2139095040ULL }, // 6.1
+	{ 18, 35651584, 16384, 8704, 4278190080ULL }, // 6.2
+	{ 19, 35651584, 16384, 8704, 4278190080ULL }, // 6.3
+};
+
+const AV1LevelLimits* LimitsForLevelIdx(int levelIdx)
+{
+	const AV1LevelLimits* found = NULL;
+	for (size_t i = 0; i < sizeof(av1Levels)/sizeof(av1Levels[0]); i++)
+	{
+		if (av1Levels[i].idx > levelIdx)
+			break;
+		found = &av1Levels[i];
+	}
+	// un idx sous 2.0 se lit comme 2.0 : borner plus bas n'existe pas
+	return found ? found : &av1Levels[0];
+}
+
+int RemoteIntParam(const std::map<std::string,std::string>& params,
+                   const char* name, int defaultValue)
+{
+	std::map<std::string,std::string>::const_iterator it = params.find(name);
+	if (it == params.end())
+		return defaultValue;
+	return atoi(it->second.c_str());
+}
+
+} // namespace
+
+void AV1Encoder::ResolveNegotiation(const Properties& localProps,
+                                    const std::map<std::string,std::string>& remoteParams,
+                                    Properties& announceProps,
+                                    Properties& effectiveProps)
+{
+	// Tout ce que la négociation ne touche pas (av1.preset…) survit des deux
+	// côtés, et l'annonce n'est JAMAIS un reflet : chaque camp déclare sa
+	// propre capacité de réception (asymétrie par défaut, sans équivalent du
+	// level-asymmetry-allowed de H.264).
+	announceProps  = localProps;
+	effectiveProps = localProps;
+
+	// Rien relayé par le contrôleur : aucune contrainte exploitable (cf. le
+	// commentaire de déclaration — la lecture stricte de la spec passe par un
+	// relais explicite des défauts).
+	if (remoteParams.empty())
+		return;
+
+	// Les paramètres omis d'un fmtp PRÉSENT valent leurs défauts spec : le
+	// piège ordinaire, un pair qui n'écrit que profile déclare level-idx=5
+	// (3.1) — une contrainte réelle, pas une absence de contrainte.
+	const int peerProfile = RemoteIntParam(remoteParams, "profile",   0);
+	const int peerLevel   = RemoteIntParam(remoteParams, "level-idx", 5);
+	const int peerTier    = RemoteIntParam(remoteParams, "tier",      0);
+
+	const int ourProfile = localProps.GetProperty("av1.profile",   0);
+	const int ourLevel   = localProps.GetProperty("av1.level-idx", 5);
+	const int ourTier    = localProps.GetProperty("av1.tier",      0);
+
+	// « lesser or equal to the values declared by the receiving agent » :
+	// minimum composante par composante entre notre capacité et la sienne.
+	effectiveProps["av1.profile"]   = std::to_string(peerProfile < ourProfile ? peerProfile : ourProfile);
+	effectiveProps["av1.level-idx"] = std::to_string(peerLevel   < ourLevel   ? peerLevel   : ourLevel);
+	effectiveProps["av1.tier"]      = std::to_string(peerTier    < ourTier    ? peerTier    : ourTier);
+
+	if (peerLevel < ourLevel)
+		Log("-AV1 ResolveNegotiation: emission bounded to the peer's level "
+		    "[peer level-idx=%d, ours=%d]\n", peerLevel, ourLevel);
+}
+
+bool AV1Encoder::ClampToLevel(const Properties& properties,
+                              int& width, int& height, int& fps)
+{
+	// -1 : pas de borne négociée (la clé n'est posée que par la négociation ou
+	// une config explicite) — ne rien toucher.
+	const int levelIdx = properties.GetProperty("av1.level-idx", -1);
+	if (levelIdx < 0 || width <= 0 || height <= 0 || fps <= 0)
+		return false;
+
+	const AV1LevelLimits* lim = LimitsForLevelIdx(levelIdx);
+
+	int w = width;
+	int h = height;
+	int f = fps;
+
+	// Taille d'abord : MaxHSize/MaxVSize/MaxPicSize, ratio conservé. Le facteur
+	// est le plus contraignant des trois ; arrondi pair (chroma 4:2:0).
+	double scale = 1.0;
+
+	if ((DWORD)w > lim->maxHSize && (double)lim->maxHSize / w < scale)
+		scale = (double)lim->maxHSize / w;
+	if ((DWORD)h > lim->maxVSize && (double)lim->maxVSize / h < scale)
+		scale = (double)lim->maxVSize / h;
+
+	const QWORD picSize = (QWORD)w * h;
+	if (picSize > lim->maxPicSize)
+	{
+		// sqrt sans <cmath> : approximation par bissection entière suffit ici
+		double s = (double)lim->maxPicSize / picSize;
+		double lo = 0.0, hi = 1.0;
+		for (int i = 0; i < 32; i++)
+		{
+			double mid = (lo + hi) / 2;
+			if (mid * mid > s) hi = mid; else lo = mid;
+		}
+		if (lo < scale)
+			scale = lo;
+	}
+
+	if (scale < 1.0)
+	{
+		w = ((int)(w * scale)) & ~1;
+		h = ((int)(h * scale)) & ~1;
+		if (w < 2) w = 2;
+		if (h < 2) h = 2;
+	}
+
+	// Cadence ensuite : picSize × fps ≤ MaxDisplayRate, plancher 1 i/s.
+	if ((QWORD)w * h * f > lim->maxDisplayRate)
+	{
+		f = (int)(lim->maxDisplayRate / ((QWORD)w * h));
+		if (f < 1)
+			f = 1;
+	}
+
+	if (w == width && h == height && f == fps)
+		return false;
+
+	Log("-AV1Encoder: emission clamped to declared level-idx %d: "
+	    "%dx%d@%d -> %dx%d@%d\n", levelIdx, width, height, fps, w, h, f);
+
+	width  = w;
+	height = h;
+	fps    = f;
+	return true;
+}
+
+//////////////////////////////////////////////////////////////////////////
 // AV1Decoder
 //////////////////////////////////////////////////////////////////////////
 

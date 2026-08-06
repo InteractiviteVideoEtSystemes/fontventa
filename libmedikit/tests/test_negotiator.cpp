@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include "medkit/negotiator.h"
 #include "h264/h264encoder.h"   // WantsHardware / WantedPacketizationMode (mode 0 -> logiciel)
+#include "av1/av1codec.h"       // ResolveNegotiation / ClampToLevel (phase 5b)
 #include <string>
 #include <map>
 
@@ -553,4 +554,114 @@ TEST(NegotiatorOpus, SansFmtpDistant)
 	EXPECT_NE(out.codecs[0].fmtp.find("maxaveragebitrate=64000"), std::string::npos);
 	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("opus.maxaveragebitrate", std::string()),
 	          "64000");
+}
+
+// --- AV1 : ingestion du fmtp distant (phase 5b) -----------------------------
+// L'asymétrie est le défaut de la spec : l'annonce reste NOTRE capacité, jamais
+// un reflet ; l'émission est bornée au minimum composante par composante.
+TEST(NegotiatorAV1, IngestionDistante)
+{
+	Properties props;
+	props["av1.level-idx"] = "9"; // notre capacité : 4.1
+
+	std::map<int,int> proposed;
+	proposed[45] = VideoCodec::AV1;
+
+	// le pair ne sait décoder que le niveau 3.1 (idx 5), tier Main
+	Properties remote;
+	remote["pt.45.fmtp"] = "profile=0;level-idx=5;tier=0";
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &remote, out));
+	ASSERT_EQ(out.codecs.size(), 1u);
+
+	// annonce : notre capacité, pas la sienne
+	EXPECT_NE(out.codecs[0].fmtp.find("level-idx=9"), std::string::npos);
+
+	// émission : min(nous 9, pair 5) = 5
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("av1.level-idx", std::string()), "5");
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("av1.profile", std::string()), "0");
+}
+
+// Le piège des défauts : un fmtp PRÉSENT qui omet level-idx déclare 5 (3.1),
+// une contrainte réelle — pas une absence de contrainte.
+TEST(NegotiatorAV1, DefautsDUnFmtpPresent)
+{
+	Properties props;
+	props["av1.level-idx"] = "9";
+
+	std::map<int,int> proposed;
+	proposed[45] = VideoCodec::AV1;
+
+	Properties remote;
+	remote["pt.45.fmtp"] = "profile=0"; // level-idx omis => défaut 5
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &remote, out));
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("av1.level-idx", std::string()), "5");
+}
+
+// Sans entrée distante relayée : aucune contrainte, comportement inchangé.
+TEST(NegotiatorAV1, SansFmtpDistant)
+{
+	Properties props;
+	std::map<int,int> proposed;
+	proposed[45] = VideoCodec::AV1;
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, NULL, out));
+	// annonce = défauts 0/5/0 ; émission non bornée (pas de clé posée par la négo)
+	EXPECT_NE(out.codecs[0].fmtp.find("level-idx=5"), std::string::npos);
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("av1.level-idx", -1), -1);
+}
+
+// --- AV1 : écrêtage cadence/taille (annexe A.3) -----------------------------
+TEST(AV1Clamp, CadenceSeule)
+{
+	// 720p60 sous niveau 3.1 (idx 5) : la taille tient (921600 <= 1065024),
+	// la cadence non (921600*60 > 31950720) -> 34 i/s
+	Properties props;
+	props["av1.level-idx"] = "5";
+
+	int w = 1280, h = 720, fps = 60;
+	EXPECT_TRUE(AV1Encoder::ClampToLevel(props, w, h, fps));
+	EXPECT_EQ(w, 1280);
+	EXPECT_EQ(h, 720);
+	EXPECT_EQ(fps, 34);
+}
+
+TEST(AV1Clamp, TaillePuisCadence)
+{
+	// 1080p30 sous 3.1 : 2073600 > MaxPicSize 1065024 -> réduction ~x0.716
+	// (ratio conservé, arrondi pair), puis cadence bornée par MaxDisplayRate.
+	Properties props;
+	props["av1.level-idx"] = "5";
+
+	int w = 1920, h = 1080, fps = 30;
+	EXPECT_TRUE(AV1Encoder::ClampToLevel(props, w, h, fps));
+	EXPECT_LE((long long)w * h, 1065024LL);
+	EXPECT_EQ(w % 2, 0);
+	EXPECT_EQ(h % 2, 0);
+	EXPECT_LE((long long)w * h * fps, 31950720LL);
+	EXPECT_GE(fps, 25); // l'écrêtage taille laisse une cadence utilisable
+}
+
+TEST(AV1Clamp, IdxNonDefiniArrondiVersLeBas)
+{
+	// idx 6 (3.2) n'existe pas : se lit comme 5 (3.1)
+	Properties props;
+	props["av1.level-idx"] = "6";
+
+	int w = 1280, h = 720, fps = 60;
+	EXPECT_TRUE(AV1Encoder::ClampToLevel(props, w, h, fps));
+	EXPECT_EQ(fps, 34);
+}
+
+TEST(AV1Clamp, SansBorneNiTouche)
+{
+	Properties props; // pas de clé av1.level-idx
+	int w = 1920, h = 1080, fps = 60;
+	EXPECT_FALSE(AV1Encoder::ClampToLevel(props, w, h, fps));
+	EXPECT_EQ(w, 1920);
+	EXPECT_EQ(fps, 60);
 }

@@ -39,6 +39,31 @@ public:
 	// sequence header réel. cf. nego_fmtp décision E.
 	static std::string GetFmtpParams(const Properties& properties);
 
+	// Ingestion du fmtp distant (phase 5b nego_fmtp, spec AV1 RTP payload §7.2) :
+	// l'asymétrie est le DÉFAUT — on annonce toujours notre propre capacité,
+	// rien à refléter (`announceProps` = localProps inchangées). Le sens
+	// émission est normatif : « MUST be encoded with a profile, level and tier
+	// lesser or equal to the values declared by the receiving agent » —
+	// `effectiveProps` = minimum composante par composante. Les paramètres
+	// omis d'un fmtp PRÉSENT valent leurs défauts (0 / 5 / 0) ; une map
+	// distante VIDE (rien relayé par le contrôleur) n'apporte aucune
+	// contrainte — un pair AV1 sans ligne fmtp déclare formellement 0/5/0,
+	// mais c'est indistinguable d'un contrôleur qui ne relaie pas, et le
+	// contrôleur qui veut la lecture stricte relaie les défauts explicitement.
+	static void ResolveNegotiation(const Properties& localProps,
+	                               const std::map<std::string,std::string>& remoteParams,
+	                               Properties& announceProps,
+	                               Properties& effectiveProps);
+
+	// Écrêtage cadence/taille au niveau AV1 borné (annexe A.3 de la spec
+	// bitstream, décidé le 2026-08-06) : lit `av1.level-idx` dans `properties`
+	// (les effectiveProps fusionnées) et ramène (width, height, fps) dans
+	// MaxPicSize / MaxHSize / MaxVSize / MaxDisplayRate — taille d'abord
+	// (ratio conservé, arrondi pair), cadence ensuite. Sans clé, ne touche à
+	// rien. Rend true si quelque chose a été écrêté (et le journalise).
+	static bool ClampToLevel(const Properties& properties,
+	                         int& width, int& height, int& fps);
+
 protected:
 	virtual void ConfigureContext();
 	virtual void PacketizeFrame();
