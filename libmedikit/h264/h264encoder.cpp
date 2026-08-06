@@ -355,17 +355,26 @@ std::string H264Encoder::GetFmtpParams(const Properties& properties)
 	// minuscules par convention SDP (l'attribut est insensible à la casse).
 	std::string profileLevelId = LowerCopy(properties.GetProperty("h264.profile-level-id", std::string("42801F")));
 
+	// packetization-mode ANNONCÉ = celui que la négociation a retenu pour CE payload
+	// type (ResolveNegotiation y met le mode du pair), notre mode 1 à défaut — offer
+	// sortant, ou pair qui n'a rien déclaré.
+	//
+	// Il était codé en dur à 1, et c'était une erreur du même ordre que celle du
+	// profil : le mode fait partie de l'IDENTITÉ d'un payload type pour le pair
+	// (RFC 6184 §8.2.2). Un PT offert en mode 0 et répondu en mode 1 n'est pas le
+	// codec qu'il a proposé, et un navigateur refuse la réponse entière.
+	std::string packetizationMode =
+		properties.GetProperty("h264.packetization-mode", std::string("1"));
+
 	// level-asymmetry-allowed=1 : un mixeur transcode dans les deux sens, donc le
 	// cas même pour lequel ce paramètre existe — décoder à un niveau et encoder à un
 	// autre — est le nôtre. Sans lui, RFC 6184 §8.2.2 nous imposerait le niveau de
 	// l'offre même quand nous savons faire mieux.
 	//
-	// packetization-mode ANNONCÉ = le nôtre (mode 1). Le mode d'ÉMISSION, qui doit
-	// être un mode que le pair a déclaré, voyage dans effectiveProps et pas ici.
-	//
 	// sprop-parameter-sets délibérément absent (cf. déclaration).
 	return "profile-level-id=" + profileLevelId +
-	       ";packetization-mode=1;level-asymmetry-allowed=1";
+	       ";packetization-mode=" + packetizationMode +
+	       ";level-asymmetry-allowed=1";
 }
 
 void H264Encoder::ResolveNegotiation(const Properties& localProps,
@@ -448,11 +457,24 @@ void H264Encoder::ResolveNegotiation(const Properties& localProps,
 		FormatProfileLevelId(peerProfile, peerLevel < ourLevel ? peerLevel : ourLevel);
 
 	// packetization-mode n'est PAS régi par la règle d'asymétrie : c'est une capacité
-	// de réception par direction. Ce que nous annonçons reste le nôtre ; ce que nous
-	// émettons doit être un mode que le pair a déclaré, remonté ici en propriété. Le
-	// packetiseur reste à y brancher (il émet aujourd'hui du single-NAL/FU-A, soit
-	// le mode 1).
+	// de réception par direction. Mais il fait partie de l'identité du payload type
+	// pour le pair, donc ce que nous ANNONÇONS sur ce PT est le mode qu'il a déclaré —
+	// répondre notre mode 1 sur un PT offert en mode 0 décrit un codec qu'il n'a pas
+	// proposé, et c'est un refus sec côté navigateur. Ce qui BORNE NOTRE ÉMISSION est
+	// le même mode, pour la raison opposée : émettre dans un mode que le pair ne
+	// dépaquettise pas produit un flux négocié et jamais décodé.
 	std::map<std::string,std::string>::const_iterator itMode = remoteParams.find("packetization-mode");
 	if (itMode != remoteParams.end())
+	{
+		announceProps["h264.packetization-mode"]  = itMode->second;
 		effectiveProps["h264.packetization-mode"] = itMode->second;
+
+		// Le packetiseur ne lit pas encore cette propriété : il émet du FU-A, soit le
+		// mode 1. Sur un PT offert en mode 0 le PT est donc annoncé honnêtement et
+		// l'émission reste non conforme jusqu'à ce que le single-NAL soit implémenté —
+		// ce log est la seule trace qui relie l'un à l'autre.
+		if (itMode->second == "0")
+			Log("-H264 ResolveNegotiation: peer offered packetization-mode 0, announced as "
+			    "such, but the packetiser still emits FU-A (mode 1)\n");
+	}
 }

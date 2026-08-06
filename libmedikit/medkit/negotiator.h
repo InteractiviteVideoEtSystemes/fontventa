@@ -61,12 +61,24 @@ public:
 	// media      : Audio / Video / Text (Application non négocié ici).
 	// proposed   : RTPMap (PT -> codec Type) venant du contrôleur SIP.
 	// localProps : props locales (config + défauts) pour dériver le fmtp local.
-	// remoteFmtp : fmtp du pair, une entrée par codec sous la clé
-	//              "<nomcodec>.fmtp" en minuscules (ex. "h264.fmtp"), portant les
-	//              paramètres SEULS. Convention §5.3 de nego_fmtp.md, alimentée par
-	//              `codec.<x>.fmtp` via SetRTPProperties (JSR-309) ou par le
-	//              paramètre `offer` de StartReceiving (MCU). NULL ⇒ pas d'entrée
-	//              distante, on annonce notre config telle quelle.
+	// remoteFmtp : fmtp du pair, portant les paramètres SEULS, sous l'une des deux
+	//              clés de la convention §5.3 de nego_fmtp.md :
+	//                "pt.<pt>.fmtp"    par PAYLOAD TYPE — la seule correcte dès qu'un
+	//                                  codec est offert sous plusieurs PT (une offre
+	//                                  navigateur énumère H.264 sous six ou sept PT
+	//                                  pour décrire autant de couples profil/mode).
+	//                                  Alimentée par le paramètre `offer` de
+	//                                  StartReceiving (MCU).
+	//                "<nomcodec>.fmtp" par nom de codec (ex. "h264.fmtp"), la
+	//                                  convention historique, alimentée par
+	//                                  `codec.<x>.fmtp` via SetRTPProperties
+	//                                  (JSR-309, un PT par codec).
+	//              La clé par PT gagne quand les deux sont présentes. NULL ⇒ pas
+	//              d'entrée distante, on annonce notre config telle quelle.
+	//
+	//              La résolution est donc **par payload type** : deux PT du même codec
+	//              peuvent repartir avec deux fmtp différents, ce que RFC 6184 §8.2.2
+	//              exige et ce que la clé par codec, seule, rendait impossible.
 	// out        : rempli avec la map filtrée + le détail par codec.
 	// Retourne false si le média n'est pas négociable ; true sinon
 	// (out.acceptedMap peut être vide si rien de proposé n'est supporté).

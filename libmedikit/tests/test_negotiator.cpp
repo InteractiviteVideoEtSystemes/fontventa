@@ -175,7 +175,8 @@ TEST(Negotiator, T140RedOrphelin)
 namespace {
 
 // Le fmtp distant voyage sous "<nomcodec>.fmtp" dans les mêmes Properties que
-// notre config (convention §5.3, cf. Endpoint::Port::NegotiateReceiving).
+// notre config (convention §5.3, cf. Endpoint::Port::NegotiateReceiving). C'est la
+// clé historique, celle du JSR-309 : un PT par codec.
 Properties H264Props(const std::string& localPlid, const std::string& remoteFmtp)
 {
 	Properties p;
@@ -183,6 +184,31 @@ Properties H264Props(const std::string& localPlid, const std::string& remoteFmtp
 	if (!remoteFmtp.empty())
 		p["h264.fmtp"] = remoteFmtp;
 	return p;
+}
+
+// La clé par PAYLOAD TYPE, celle du MCU (paramètre `offer` de StartReceiving) : un
+// même codec sous plusieurs PT, chacun avec son propre fmtp.
+Properties H264PtProps(const std::string& localPlid,
+                       const std::map<int,std::string>& remoteByPt)
+{
+	Properties p;
+	p["h264.profile-level-id"] = localPlid;
+	for (std::map<int,std::string>::const_iterator it=remoteByPt.begin(); it!=remoteByPt.end(); ++it)
+	{
+		char key[32];
+		snprintf(key,sizeof(key),"pt.%d.fmtp",it->first);
+		p[key] = it->second;
+	}
+	return p;
+}
+
+// Le fmtp annoncé pour un PT donné dans un résultat de négociation.
+std::string FmtpOf(const NegotiationResult& out, int pt)
+{
+	for (size_t i=0;i<out.codecs.size();i++)
+		if (out.codecs[i].payloadType == pt)
+			return out.codecs[i].fmtp;
+	return "(pt absent)";
 }
 
 // Négocie un unique PT H.264 et rend le couple (fmtp annoncé, props encodeur).
@@ -282,8 +308,10 @@ TEST(NegotiatorH264, FmtpDistantIllisible)
 	EXPECT_EQ(effective, "42801F");
 }
 
-// packetization-mode n'est PAS régi par la règle d'asymétrie : ce qu'on annonce
-// reste le nôtre, ce que le pair a déclaré part dans les props d'encodeur.
+// packetization-mode : celui du PAIR, dans les deux jeux. Il fait partie de
+// l'identité du payload type côté pair — un PT offert en mode 0 et répondu en mode 1
+// n'est pas le codec qu'il a proposé, et un navigateur refuse la réponse entière.
+// Ce test pinnait l'inverse ("on annonce le nôtre"), corrigé le 2026-08-06.
 TEST(NegotiatorH264, PacketizationModeDistant)
 {
 	std::map<int,int> proposed;
@@ -294,7 +322,102 @@ TEST(NegotiatorH264, PacketizationModeDistant)
 	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &props, out));
 	ASSERT_EQ(out.codecs.size(), 1u);
 
-	EXPECT_NE(out.codecs[0].fmtp.find("packetization-mode=1"), std::string::npos);
+	EXPECT_NE(out.codecs[0].fmtp.find("packetization-mode=0"), std::string::npos);
 	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("h264.packetization-mode",
 	                                                   std::string()), "0");
+}
+
+// Sans entrée distante, le mode annoncé reste le nôtre (offer sortant, pair muet).
+TEST(NegotiatorH264, PacketizationModeParDefaut)
+{
+	std::string announced, effective;
+	NegotiateH264(H264Props("42801F", ""), announced, effective);
+
+	EXPECT_NE(announced.find("packetization-mode=1"), std::string::npos);
+}
+
+// LE cas de la capture du 2026-08-06 : un navigateur offre le même H.264 sous sept
+// payload types — quatre profils × deux modes de paquetisation — et chacun doit
+// repartir avec SON fmtp. La clé par nom de codec ne pouvait porter qu'une
+// résolution pour les sept ; la clé par PT en porte sept.
+TEST(NegotiatorH264, SeptPayloadTypesChacunSonProfil)
+{
+	std::map<int,int> proposed;
+	std::map<int,std::string> remote;
+	// (pt, profil, mode) tels que Chrome 138 les offre
+	remote[39]  = "level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=4d001f";
+	remote[103] = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f";
+	remote[107] = "level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42001f";
+	remote[109] = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f";
+	remote[115] = "level-asymmetry-allowed=1;packetization-mode=0;profile-level-id=42e01f";
+	remote[117] = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=4d001f";
+	remote[119] = "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=64001f";
+	for (std::map<int,std::string>::const_iterator it=remote.begin(); it!=remote.end(); ++it)
+		proposed[it->first] = VideoCodec::H264;
+
+	// notre capacité : niveau 1f, et le pair autorise l'asymétrie partout, donc le
+	// niveau annoncé est le nôtre et le PROFIL est celui de chaque PT
+	Properties props = H264PtProps("42801F", remote);
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &props, out));
+	ASSERT_EQ(out.codecs.size(), 7u);
+
+	EXPECT_NE(FmtpOf(out,39).find("profile-level-id=4d001f"),  std::string::npos);
+	EXPECT_NE(FmtpOf(out,39).find("packetization-mode=0"),     std::string::npos);
+	EXPECT_NE(FmtpOf(out,103).find("profile-level-id=42001f"), std::string::npos);
+	EXPECT_NE(FmtpOf(out,103).find("packetization-mode=1"),    std::string::npos);
+	EXPECT_NE(FmtpOf(out,107).find("profile-level-id=42001f"), std::string::npos);
+	EXPECT_NE(FmtpOf(out,107).find("packetization-mode=0"),    std::string::npos);
+	EXPECT_NE(FmtpOf(out,109).find("profile-level-id=42e01f"), std::string::npos);
+	EXPECT_NE(FmtpOf(out,115).find("profile-level-id=42e01f"), std::string::npos);
+	EXPECT_NE(FmtpOf(out,117).find("profile-level-id=4d001f"), std::string::npos);
+	EXPECT_NE(FmtpOf(out,119).find("profile-level-id=64001f"), std::string::npos);
+
+	// et surtout : plus aucun PT ne porte le profil d'un autre. Avant le correctif,
+	// les sept portaient 64001f (le dernier PT itéré gagnait).
+	int with64 = 0;
+	for (size_t i=0;i<out.codecs.size();i++)
+		if (out.codecs[i].fmtp.find("profile-level-id=64001f") != std::string::npos)
+			with64++;
+	EXPECT_EQ(with64, 1);
+}
+
+// La clé par PT gagne sur la clé par nom de codec quand les deux sont là : un
+// contrôleur qui migre peut envoyer les deux sans que l'ancienne écrase la nouvelle.
+TEST(NegotiatorH264, ClePtPrioritaireSurCleCodec)
+{
+	std::map<int,int> proposed;
+	proposed[96] = VideoCodec::H264;
+
+	std::map<int,std::string> remote;
+	remote[96] = "profile-level-id=42e01f";
+	Properties props = H264PtProps("42801F", remote);
+	props["h264.fmtp"] = "profile-level-id=64001f";
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &props, out));
+	ASSERT_EQ(out.codecs.size(), 1u);
+	EXPECT_NE(out.codecs[0].fmtp.find("profile-level-id=42e01f"), std::string::npos);
+}
+
+// Un PT sans entrée distante (l'offre n'a pas écrit de fmtp pour lui) n'hérite pas de
+// celle d'un autre PT : il repart sur notre config.
+TEST(NegotiatorH264, PtSansFmtpNHeritePasDeSonVoisin)
+{
+	std::map<int,int> proposed;
+	proposed[96] = VideoCodec::H264;
+	proposed[97] = VideoCodec::H264;
+
+	std::map<int,std::string> remote;
+	remote[97] = "profile-level-id=64001f;packetization-mode=1";
+
+	Properties props = H264PtProps("42801F", remote);
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &props, out));
+	ASSERT_EQ(out.codecs.size(), 2u);
+
+	EXPECT_NE(FmtpOf(out,96).find("profile-level-id=42801f"), std::string::npos);
+	EXPECT_NE(FmtpOf(out,97).find("profile-level-id=64001f"), std::string::npos);
 }

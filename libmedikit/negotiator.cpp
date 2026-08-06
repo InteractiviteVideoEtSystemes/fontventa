@@ -55,14 +55,38 @@ std::map<std::string,std::string> ParseFmtpParams(const std::string& params)
 namespace
 {
 
-// fmtp du pair pour un codec donné, découpé. La convention de clé est celle de
-// nego_fmtp.md §5.3 : "<nomcodec>.fmtp" en minuscules. Map vide si le contrôleur
-// n'a rien transmis pour ce codec (ou rien du tout).
+// fmtp du pair pour UN PAYLOAD TYPE, découpé. Deux clés, dans cet ordre (§5.3 de
+// nego_fmtp.md) :
+//
+//   "pt.<pt>.fmtp"   — par payload type. C'est la seule clé correcte quand un même
+//                      codec est offert sous plusieurs PT, et un navigateur le fait
+//                      systématiquement : Chrome énumère H.264 sous six ou sept PT
+//                      pour décrire autant de couples (profil, packetization-mode).
+//   "<nomcodec>.fmtp" — par nom de codec, la convention historique. Conservée pour
+//                      le JSR-309, qui n'a qu'un PT par codec et pousse
+//                      `codec.h264.fmtp` via SetRTPProperties.
+//
+// Map vide si le contrôleur n'a rien transmis pour ce PT ni pour son codec : le
+// négociateur annonce alors notre propre config.
+//
+// **Le bug que la clé par PT corrige** (2026-08-06) : la clé par nom de codec seule
+// force UNE résolution pour tous les PT d'un même codec. Sur une offre navigateur,
+// `RTPParticipant::StartReceiving` écrasait `h264.fmtp` à chaque tour de boucle, le
+// dernier PT gagnait, et les sept PT acceptés repartaient avec SON profil — donc six
+// réponses décrivant un codec que l'appelant n'avait pas offert, et un navigateur qui
+// refuse la réponse entière.
 std::map<std::string,std::string> RemoteParamsFor(const Properties* remoteFmtp,
-                                                  MediaFrame::Type media, int codec)
+                                                  MediaFrame::Type media, int codec,
+                                                  int pt)
 {
 	if (!remoteFmtp)
 		return std::map<std::string,std::string>();
+
+	char ptKey[32];
+	snprintf(ptKey, sizeof(ptKey), "pt.%d.fmtp", pt);
+
+	if (remoteFmtp->HasProperty(std::string(ptKey)))
+		return ParseFmtpParams(remoteFmtp->GetProperty(std::string(ptKey), std::string()));
 
 	const char* name = GetNameForCodec(media, (DWORD) codec);
 	if (!name)
@@ -107,9 +131,14 @@ std::string AudioFmtp(int codec, const Properties& props)
 	}
 }
 
-// Résout un codec vidéo : le fmtp que nous ANNONÇONS (notre capacité de réception)
-// et, dans `nc.effectiveProps`, ce qui BORNE NOTRE ENCODEUR (ce que le pair sait
-// décoder). Les deux ne coïncident que lorsqu'aucun fmtp distant n'a été transmis.
+// Résout un codec vidéo POUR UN PAYLOAD TYPE : le fmtp que nous ANNONÇONS (notre
+// capacité de réception sur ce PT) et, dans `nc.effectiveProps`, ce qui BORNE NOTRE
+// ENCODEUR (ce que le pair sait décoder sur ce PT). Les deux ne coïncident que
+// lorsqu'aucun fmtp distant n'a été transmis.
+//
+// La résolution est bien par PT et non par codec : sur une offre navigateur, le même
+// H.264 arrive sous plusieurs PT qui décrivent des configurations différentes, et
+// chacune doit être répondue avec la sienne (RFC 6184 §8.2.2).
 //
 // Seul H.264 ingère le fmtp distant pour l'instant (RFC 6184 §8.2.2, cf.
 // H264Encoder::ResolveNegotiation). VP8 et AV1 dérivent encore leur fmtp de la
@@ -195,7 +224,7 @@ bool CodecNegotiator::Negotiate(MediaFrame::Type media,
 				nc.fmtp = AudioFmtp(codec, localProps);
 				break;
 			case MediaFrame::Video:
-				ResolveVideo(codec, localProps, RemoteParamsFor(remoteFmtp, media, codec), nc);
+				ResolveVideo(codec, localProps, RemoteParamsFor(remoteFmtp, media, codec, pt), nc);
 				break;
 			case MediaFrame::Text:
 				if ((TextCodec::Type)codec == TextCodec::T140RED && t140Pt >= 0)

@@ -47,6 +47,15 @@ public:
 	// maximum et le signalons (écart assumé à la RFC, qui ne laisse que refléter ou
 	// retirer : refuser la vidéo est un échec plus dur, et annoncer en dessous est
 	// justement ce dont un pair correct a besoin pour encoder à notre portée).
+	//
+	// `packetization-mode` suit une règle plus simple : celui du pair, dans LES DEUX
+	// jeux. Il fait partie de l'identité du payload type côté pair (un PT offert en
+	// mode 0 et répondu en mode 1 n'est pas le codec qu'il a proposé — refus sec côté
+	// navigateur), et émettre dans un mode qu'il ne dépaquettise pas ne produit rien
+	// de décodable. À défaut d'entrée distante, notre mode 1.
+	//
+	// La résolution est **par payload type** : l'appelant passe les params du PT en
+	// cours, jamais ceux d'un autre PT du même codec.
 	static void ResolveNegotiation(const Properties& localProps,
 	                               const std::map<std::string,std::string>& remoteParams,
 	                               Properties& announceProps,
