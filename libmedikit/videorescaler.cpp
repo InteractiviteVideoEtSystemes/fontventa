@@ -35,11 +35,13 @@ void VideoRescaler::Release()
 	curHwFramesCtx = NULL;
 }
 
-bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, AVBufferRef* hwFramesCtx)
+bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, AVBufferRef* hwFramesCtx,
+                              bool letterbox)
 {
 	// Réutilise le graphe existant si rien n'a changé.
 	if (graph && inW==curInW && inH==curInH && inFmt==curInFmt &&
-	    outW==curOutW && outH==curOutH && hwFramesCtx==curHwFramesCtx)
+	    outW==curOutW && outH==curOutH && hwFramesCtx==curHwFramesCtx &&
+	    letterbox==curLetterbox)
 		return true;
 
 	Release();
@@ -80,11 +82,48 @@ bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, A
 
 	// Filtre de mise à l'échelle : matériel (VAAPI) ou logiciel (+format yuv420p
 	// pour garantir la sortie attendue par les encodeurs).
-	char desc[128];
-	if (gpu)
+	//
+	// En letterbox, `force_original_aspect_ratio=decrease` inscrit l'image dans la boîte
+	// sans la déformer, et `pad` la recentre sur la taille demandée (offsets forcés pairs :
+	// un offset impair serait arrondi par le chroma 4:2:0 et décalerait l'image d'un pixel).
+	char desc[256];
+	if (gpu && !letterbox)
+	{
+		// Plein GPU : la surface reste sur la carte, aucune redescente.
 		snprintf(desc, sizeof(desc), "scale_vaapi=w=%d:h=%d", outW, outH);
+	}
+	else if (gpu)
+	{
+		// Letterbox sur une entrée VAAPI : **pas de `pad_vaapi` en ffmpeg 5** (vérifié
+		// sur 5.1.9 : `scale_vaapi` a bien `force_original_aspect_ratio`, mais aucun
+		// filtre de remplissage VAAPI n'existe). On redescend donc la trame et on
+		// letterboxe au CPU — l'encodeur matériel remonte lui-même la trame (upload dans
+		// `FfVideoEncoder::EncodeFrame`), donc c'est correct, au prix d'un aller-retour.
+		//
+		// La sortie GPU native demanderait `overlay_vaapi` d'une surface noire générée :
+		// faisable, non testable sur cette machine (pas de VAAPI utilisable), et pas
+		// nécessaire tant que le contrôleur compose à la taille encodée — auquel cas ce
+		// chemin ne sert jamais. Cf. mosaic_aspect_ratio_plan.md.
+		Log("-VideoRescaler: letterbox on a VAAPI frame goes through the CPU "
+		    "(no pad_vaapi in ffmpeg 5) [%dx%d -> %dx%d]\n", inW, inH, outW, outH);
+
+		snprintf(desc, sizeof(desc),
+		         "hwdownload,format=nv12,"
+		         "scale=%d:%d:force_original_aspect_ratio=decrease,format=yuv420p,"
+		         "pad=%d:%d:trunc((ow-iw)/4)*2:trunc((oh-ih)/4)*2:black",
+		         outW, outH, outW, outH);
+	}
+	else if (letterbox)
+	{
+		snprintf(desc, sizeof(desc),
+		         "scale=%d:%d:force_original_aspect_ratio=decrease,format=yuv420p,"
+		         "pad=%d:%d:trunc((ow-iw)/4)*2:trunc((oh-ih)/4)*2:black",
+		         outW, outH, outW, outH);
+	}
 	else
+	{
 		snprintf(desc, sizeof(desc), "scale=%d:%d,format=yuv420p", outW, outH);
+	}
 
 	AVFilterInOut* outputs = avfilter_inout_alloc();
 	AVFilterInOut* inputs  = avfilter_inout_alloc();
@@ -110,6 +149,7 @@ bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, A
 
 	curInW = inW; curInH = inH; curInFmt = inFmt;
 	curOutW = outW; curOutH = outH; curHwFramesCtx = hwFramesCtx;
+	curLetterbox = letterbox;
 	return true;
 }
 
@@ -136,11 +176,36 @@ PictPtr VideoRescaler::Rescale(const PictPtr& in, int width, int height, bool ke
 		return nullptr;
 	}
 
-	// Déjà à la taille cible : partage zéro-copie.
+	return Run(in, outW, outH, /*letterbox*/ false);
+}
+
+PictPtr VideoRescaler::Letterbox(const PictPtr& in, int width, int height)
+{
+	if (!in || !in->GetAVFrame() || width <= 0 || height <= 0)
+		return nullptr;
+
+	AVFrame* src = in->GetAVFrame();
+
+	// Ratios égaux (au pixel près) : le letterbox n'ajouterait aucune bande, autant
+	// prendre le chemin simple — et le partage zéro-copie s'il est déjà à la taille.
+	if (src->width > 0 && src->height > 0 &&
+	    (int64_t) src->width * height == (int64_t) src->height * width)
+		return Run(in, width, height, /*letterbox*/ false);
+
+	return Run(in, width, height, /*letterbox*/ true);
+}
+
+PictPtr VideoRescaler::Run(const PictPtr& in, int outW, int outH, bool letterbox)
+{
+	AVFrame* src = in->GetAVFrame();
+
+	// Déjà à la taille cible : partage zéro-copie. (En letterbox, ce cas ne se présente
+	// que si les ratios coïncident, cf. Letterbox().)
 	if (src->width == outW && src->height == outH)
 		return in;
 
-	if (!Configure(src->width, src->height, src->format, outW, outH, src->hw_frames_ctx))
+	if (!Configure(src->width, src->height, src->format, outW, outH, src->hw_frames_ctx,
+	               letterbox))
 		return nullptr;
 
 	// Pousse une référence de la trame (KEEP_REF : le graphe fait sa propre ref).
