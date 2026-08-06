@@ -131,6 +131,30 @@ std::string AudioFmtp(int codec, const Properties& props)
 	}
 }
 
+// Résout un codec audio POUR UN PAYLOAD TYPE. Seul Opus ingère le fmtp distant
+// (RFC 7587 §7 : les paramètres du pair décrivent ce qu'il veut RECEVOIR — rien
+// à refléter côté annonce, tout à honorer côté émission, cf.
+// OPUSEncoder::ResolveNegotiation). Les autres codecs audio n'ont pas de
+// paramètre qui s'y prête ; telephone-event garde sa plage serveur.
+void ResolveAudio(int codec, const Properties& localProps,
+                  const std::map<std::string,std::string>& remoteParams,
+                  NegotiatedCodec& nc)
+{
+	switch ((AudioCodec::Type)codec)
+	{
+		case AudioCodec::OPUS:
+		{
+			Properties announceProps;
+			OPUSEncoder::ResolveNegotiation(localProps, remoteParams, announceProps, nc.effectiveProps);
+			nc.fmtp = OPUSEncoder::GetFmtpParams(announceProps);
+			break;
+		}
+		default:
+			nc.fmtp = AudioFmtp(codec, localProps);
+			break;
+	}
+}
+
 // Résout un codec vidéo POUR UN PAYLOAD TYPE : le fmtp que nous ANNONÇONS (notre
 // capacité de réception sur ce PT) et, dans `nc.effectiveProps`, ce qui BORNE NOTRE
 // ENCODEUR (ce que le pair sait décoder sur ce PT). Les deux ne coïncident que
@@ -221,7 +245,7 @@ bool CodecNegotiator::Negotiate(MediaFrame::Type media,
 		switch (media)
 		{
 			case MediaFrame::Audio:
-				nc.fmtp = AudioFmtp(codec, localProps);
+				ResolveAudio(codec, localProps, RemoteParamsFor(remoteFmtp, media, codec, pt), nc);
 				break;
 			case MediaFrame::Video:
 				ResolveVideo(codec, localProps, RemoteParamsFor(remoteFmtp, media, codec, pt), nc);

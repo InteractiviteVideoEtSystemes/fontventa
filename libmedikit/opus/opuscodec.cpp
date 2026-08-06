@@ -91,6 +91,54 @@ std::string OPUSEncoder::GetFmtpParams(const Properties &properties)
 		(bool) properties.GetProperty("opus.cbr", 0));
 }
 
+void OPUSEncoder::ResolveNegotiation(const Properties& localProps,
+                                     const std::map<std::string,std::string>& remoteParams,
+                                     Properties& announceProps,
+                                     Properties& effectiveProps)
+{
+	// Tout ce que la négociation ne touche pas doit survivre des deux côtés,
+	// et l'annonce N'EST PAS un reflet : RFC 7587 §7 fait de chaque paramètre
+	// la préférence de réception de celui qui l'écrit. On annonce donc les
+	// nôtres telles quelles ; seul le sens émission est résolu ici.
+	announceProps  = localProps;
+	effectiveProps = localProps;
+
+	// Un paramètre que le pair n'a PAS écrit n'exprime aucune préférence
+	// exploitable côté flags (useinbandfec absent = « n'en a pas besoin »,
+	// mais en envoyer reste légal) : on n'écrase la config locale que sur
+	// déclaration explicite. Écrire via operator[] et non SetProperty(), qui
+	// fait un insert et n'écraserait pas la valeur héritée.
+	std::map<std::string,std::string>::const_iterator it;
+
+	// FEC en bande : l'émettre vers un pair qui ne l'a pas demandée gaspille
+	// du débit ; vers un pair qui la demande, c'est sa résilience aux pertes.
+	if ((it = remoteParams.find("useinbandfec")) != remoteParams.end())
+		effectiveProps["opus.useinbandfec"] = it->second;
+
+	if ((it = remoteParams.find("usedtx")) != remoteParams.end())
+		effectiveProps["opus.usedtx"] = it->second;
+
+	if ((it = remoteParams.find("cbr")) != remoteParams.end())
+		effectiveProps["opus.cbr"] = it->second;
+
+	// maxaveragebitrate (b/s) est une BORNE dure du récepteur : émettre
+	// au-dessus produit un flux négocié et écrêté nulle part. min() avec une
+	// éventuelle borne locale ; 0 local = pas de borne à nous.
+	if ((it = remoteParams.find("maxaveragebitrate")) != remoteParams.end())
+	{
+		const int peer  = atoi(it->second.c_str());
+		const int local = localProps.GetProperty("opus.maxaveragebitrate", 0);
+
+		if (peer > 0)
+		{
+			char value[16];
+			snprintf(value, sizeof(value), "%d",
+			         (local > 0 && local < peer) ? local : peer);
+			effectiveProps["opus.maxaveragebitrate"] = value;
+		}
+	}
+}
+
 /******************************** OPUSDecoder ********************************/
 
 OPUSDecoder::OPUSDecoder() :

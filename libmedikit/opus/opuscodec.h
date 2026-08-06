@@ -50,6 +50,17 @@ public:
 	// contrôleur SIP préfixe l'en-tête "a=fmtp:<pt> " (décision E, nego_fmtp).
 	static std::string GetFmtpParams(const Properties &properties);
 
+	// Ingestion du fmtp distant (phase 5 nego_fmtp, RFC 7587 §7) : les
+	// paramètres Opus décrivent ce que leur ÉMETTEUR souhaite RECEVOIR — rien
+	// à refléter côté annonce (asymétrique par conception, comme AV1), mais
+	// tout à honorer côté émission. `announceProps` reste donc nos propres
+	// préférences ; `effectiveProps` reprend celles du pair pour les clés que
+	// l'encodeur consomme (useinbandfec, usedtx, maxaveragebitrate, cbr).
+	static void ResolveNegotiation(const Properties& localProps,
+	                               const std::map<std::string,std::string>& remoteParams,
+	                               Properties& announceProps,
+	                               Properties& effectiveProps);
+
 private:
 	bool useInbandFec;
 	bool useDtx;

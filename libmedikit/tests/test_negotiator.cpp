@@ -482,3 +482,75 @@ TEST(NegotiatorH264, PtSansFmtpNHeritePasDeSonVoisin)
 	EXPECT_NE(FmtpOf(out,96).find("profile-level-id=42801f"), std::string::npos);
 	EXPECT_NE(FmtpOf(out,97).find("profile-level-id=64001f"), std::string::npos);
 }
+
+// --- Opus : ingestion du fmtp distant (RFC 7587 §7) ------------------------
+// Les paramètres Opus décrivent ce que leur émetteur veut RECEVOIR : l'annonce
+// reste NOS préférences (asymétrique par conception, rien à refléter), et
+// l'émission honore les siennes.
+TEST(NegotiatorOpus, IngestionDistante)
+{
+	Properties props;
+	props["opus.useinbandfec"] = "1";          // notre préférence de réception
+	props["opus.maxaveragebitrate"] = "64000"; // notre borne locale
+
+	std::map<int,int> proposed;
+	proposed[111] = AudioCodec::OPUS;
+
+	// le pair borne à 24 kb/s, exige du CBR et le DTX ; il ne dit rien de la FEC
+	Properties remote;
+	remote["pt.111.fmtp"] = "maxaveragebitrate=24000;cbr=1;usedtx=1";
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Audio, proposed, props, &remote, out));
+	ASSERT_EQ(out.codecs.size(), 1u);
+
+	// l'annonce n'est PAS un reflet : nos préférences telles quelles
+	EXPECT_NE(out.codecs[0].fmtp.find("useinbandfec=1"), std::string::npos);
+	EXPECT_NE(out.codecs[0].fmtp.find("maxaveragebitrate=64000"), std::string::npos);
+
+	// l'émission honore ce que le pair a déclaré vouloir recevoir
+	const Properties& eff = out.codecs[0].effectiveProps;
+	EXPECT_EQ(eff.GetProperty("opus.usedtx", std::string()), "1");
+	EXPECT_EQ(eff.GetProperty("opus.cbr", std::string()), "1");
+	// borne dure : min(local 64000, pair 24000)
+	EXPECT_EQ(eff.GetProperty("opus.maxaveragebitrate", std::string()), "24000");
+	// paramètre non déclaré par le pair : la config locale survit
+	EXPECT_EQ(eff.GetProperty("opus.useinbandfec", std::string()), "1");
+}
+
+// La borne locale gagne quand elle est plus basse que celle du pair.
+TEST(NegotiatorOpus, BorneLocalePlusBasse)
+{
+	Properties props;
+	props["opus.maxaveragebitrate"] = "16000";
+
+	std::map<int,int> proposed;
+	proposed[111] = AudioCodec::OPUS;
+
+	Properties remote;
+	remote["opus.fmtp"] = "maxaveragebitrate=24000"; // clé par nom de codec (repli)
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Audio, proposed, props, &remote, out));
+	ASSERT_EQ(out.codecs.size(), 1u);
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("opus.maxaveragebitrate", std::string()),
+	          "16000");
+}
+
+// Sans entrée distante, annonce et émission restent la config locale — le
+// comportement d'avant l'ingestion, à l'octet près.
+TEST(NegotiatorOpus, SansFmtpDistant)
+{
+	Properties props;
+	props["opus.maxaveragebitrate"] = "64000";
+
+	std::map<int,int> proposed;
+	proposed[111] = AudioCodec::OPUS;
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Audio, proposed, props, NULL, out));
+	ASSERT_EQ(out.codecs.size(), 1u);
+	EXPECT_NE(out.codecs[0].fmtp.find("maxaveragebitrate=64000"), std::string::npos);
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("opus.maxaveragebitrate", std::string()),
+	          "64000");
+}
