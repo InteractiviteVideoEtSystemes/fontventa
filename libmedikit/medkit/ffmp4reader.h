@@ -54,11 +54,12 @@ public:
     /**
      *  Active le transcodage audio : lit la 1ʳᵉ piste audio décodable du fichier
      *  (AAC compris) et produit des trames dans `target` (codec télécom cible
-     *  négocié avec le pair : PCMU/PCMA/…). Décodage → resampling → réencodage
-     *  par tranches de 20 ms. @return 1 si activé, 0 sinon (aucune piste audio
-     *  décodable, ou cible non encodable).
+     *  négocié avec le pair : PCMU/PCMA/OPUS/…). Décodage → resampling →
+     *  réencodage par tranches de 20 ms. `props` : bornes négociées pour
+     *  l'encodeur cible (ex. opus.useinbandfec). @return 1 si activé, 0 sinon
+     *  (aucune piste audio décodable, ou cible non encodable).
      */
-    int OpenAudioTranscoded( AudioCodec::Type target );
+    int OpenAudioTranscoded( AudioCodec::Type target, const Properties& props = Properties() );
 
     /** cf. mp4reader::GetNextFrame — implémenté en P2. */
     MediaFrame * GetNextFrame( int & errcode, unsigned long & waittime );
@@ -169,7 +170,8 @@ private:
     bool             audioTranscode;   // transcodage audio actif
     AudioCodec::Type audioSrcCodec;    // codec source (fichier) si transcodage
     AudioDecoder *   audioDec;         // décodeur source (AAC…)
-    AudioEncoder *   audioEnc;         // encodeur cible (PCMU/PCMA…)
+    AudioEncoder *   audioEnc;         // encodeur cible (PCMU/PCMA/OPUS…)
+    Properties       audioEncProps;    // bornes de l'encodeur cible (réutilisées au Rewind)
     SwrContext *     audioSwr;         // resampler srcRate -> encRate (S16 mono)
     std::vector<SWORD> pcmFifo;        // PCM S16 mono @ encRate en attente d'encodage
     DWORD            srcRate;          // fréquence de restitution du décodeur

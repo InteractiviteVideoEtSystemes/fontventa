@@ -18,6 +18,7 @@
 #include <medkit/audio.h>
 #include <h264/h264decoder.h>
 #include <h263/h263codec.h>
+#include <opus/opuscodec.h>
 #include <mp4v2/mp4v2.h>
 #include <vector>
 #include <unistd.h>
@@ -148,4 +149,48 @@ TEST(Mp4Transcode, H264versH263_AacversAmr_3gp)
 	EXPECT_EQ(ga, AudioCodec::AMR);
 
 	unlink(OUT_3GP);
+}
+
+// AAC -> OPUS avec bornes négociées (phase 5) : trames de 20 ms exactement
+// (960 ticks à 48 kHz) et bitstream décodable par le décodeur opus.
+TEST(Mp4Transcode, AacVersOpusAvecBornes)
+{
+	Mp4FfReader r(TEST_MP4_TITI_FILE);
+	if (!r.IsOpen()) GTEST_SKIP() << "fixture absente : " << TEST_MP4_TITI_FILE;
+
+	Properties props;
+	props["opus.useinbandfec"] = "1";
+	ASSERT_EQ(r.OpenAudioTranscoded(AudioCodec::OPUS, props), 1) << "transcodage AAC->OPUS indisponible";
+
+	AudioCodec::Type ac;
+	ASSERT_TRUE(r.GetCodec(ac));
+	EXPECT_EQ(ac, AudioCodec::OPUS);
+
+	OPUSDecoder dec;
+	SWORD pcm[8192];
+	int na = 0, err = 0;
+	unsigned long wait = 0;
+	DWORD prevTs = 0;
+	bool first = true;
+
+	r.Rewind();
+	for (int i = 0; i < 200000 && na < 50; i++)
+	{
+		MediaFrame* f = r.GetNextFrame(err, wait);
+		if (err == -1) break;
+		ASSERT_GE(err, 0) << "GetNextFrame errcode=" << err;
+
+		if (f && f->GetType() == MediaFrame::Audio)
+		{
+			if (!first)
+				EXPECT_EQ(f->GetTimeStamp() - prevTs, 960u);
+			first = false;
+			prevTs = f->GetTimeStamp();
+			EXPECT_GT(dec.Decode(f->GetData(), (int)f->GetLength(), pcm,
+			                     (int)(sizeof(pcm)/sizeof(pcm[0]))), 0);
+			na++;
+		}
+		if (wait > 0) usleep(wait * 1000);
+	}
+	EXPECT_GE(na, 50) << "trop peu de trames audio transcodées (AAC->OPUS)";
 }

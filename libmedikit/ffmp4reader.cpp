@@ -234,7 +234,7 @@ int Mp4FfReader::OpenTrack( AudioCodec::Type outputCodecs[], unsigned int nbCode
     return 1;
 }
 
-int Mp4FfReader::OpenAudioTranscoded( AudioCodec::Type target )
+int Mp4FfReader::OpenAudioTranscoded( AudioCodec::Type target, const Properties& props )
 {
     if( !fmtctx ) return 0;
 
@@ -272,7 +272,7 @@ int Mp4FfReader::OpenAudioTranscoded( AudioCodec::Type target )
     // 3) Encodeur cible. Les encodeurs télécom (PCMU/PCMA/G722…) NE resamplent
     //    PAS (TrySetRate renvoie leur fréquence native) : on rééchantillonne
     //    donc nous-mêmes source -> encRate via libswresample.
-    AudioEncoder * enc = AudioCodecFactory::CreateEncoder( target );
+    AudioEncoder * enc = AudioCodecFactory::CreateEncoder( target, props );
     if( enc == NULL )
     {
         Error( "Mp4FfReader: encodeur cible %s indisponible\n",
@@ -317,6 +317,7 @@ int Mp4FfReader::OpenAudioTranscoded( AudioCodec::Type target )
 
     audioDec        = dec;
     audioEnc        = enc;
+    if( &audioEncProps != &props ) audioEncProps = props;   // Rewind repasse le membre
     audioSwr        = swr;
     audioStreamIdx  = srcIdx;
     audioSrcCodec   = srcType;
@@ -332,9 +333,10 @@ int Mp4FfReader::OpenAudioTranscoded( AudioCodec::Type target )
 
     audioFrame = new AudioFrame( target, ClockRateFor( target ) );
 
-    Log( "Mp4FfReader: transcodage audio %s(%u Hz) -> %s(%u Hz) (piste %d, tranche %u éch.)\n",
+    Log( "Mp4FfReader: transcodage audio %s(%u Hz) -> %s(%u Hz) (piste %d, tranche %u éch., %d borne(s))\n",
          AudioCodec::GetNameFor( srcType ), srcRate,
-         AudioCodec::GetNameFor( target ), encRate, audioStreamIdx, outFrameSamples );
+         AudioCodec::GetNameFor( target ), encRate, audioStreamIdx, outFrameSamples,
+         (int)audioEncProps.size() );
     return 1;
 }
 
@@ -711,7 +713,7 @@ MediaFrame * Mp4FfReader::BuildTranscodedAudioFront()
 void Mp4FfReader::ResetAudioTranscode()
 {
     // Recrée décodeur/encodeur pour purger leurs tampons internes (post-seek).
-    if( audioTranscode ) OpenAudioTranscoded( audioCodec );
+    if( audioTranscode ) OpenAudioTranscoded( audioCodec, audioEncProps );
 }
 
 /*
