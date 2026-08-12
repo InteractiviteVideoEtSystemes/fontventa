@@ -7,25 +7,23 @@
  * choix par défaut de ffmpeg pour AV1, forcé ici par explicité plutôt que par
  * dépendance à l'ordre de résolution interne de ffmpeg).
  *
- * NOTE : la PAQUETISATION RTP (agrégation d'OBU, spec "RTP Payload Format For
- * AV1") n'est toujours pas implémentée ici — PacketizeFrame() ne fait que
- * retirer l'OBU de temporal delimiter (qui ne doit jamais être transmis) et
- * capturer le sequence header OBU pour GetFmtpInfo, avant de retomber sur la
- * packetisation par défaut de FfVideoEncoder, non conforme. Elle ne concerne
- * que le sens ÉMISSION d'un AV1 que le serveur a lui-même encodé (transcodage
- * vers AV1, mixage, lecture de fichier) : un pont AV1 ↔ AV1 relaie les paquets
- * du pair sans jamais y toucher.
- *
- * La DÉPAQUETISATION, elle, est faite : AV1Decoder::DecodePacket délègue à
- * AV1Depacketizer (av1depacketizer.h). C'est son absence qui a rendu tout
- * décodage AV1 impossible jusqu'au 2026-08-12 — l'accumulation brute héritée
- * donnait à libdav1d l'octet d'agrégation comme s'il était un obu_header.
+ * Les deux sens du transport RTP vivent à côté, chacun testable seul et sans
+ * dépendance ffmpeg — c'est ce codec qui les emploie :
+ *   - av1depacketizer.h : RTP -> OBU, appelé par AV1Decoder::DecodePacket. Son
+ *     absence rendait tout décodage AV1 impossible jusqu'au 2026-08-12 :
+ *     l'accumulation brute héritée donnait à libdav1d l'octet d'agrégation
+ *     comme s'il était un obu_header.
+ *   - av1packetizer.h : OBU -> RTP, appelé par AV1Encoder::PacketizeFrame. Ne
+ *     concerne que l'AV1 que le serveur encode LUI-MÊME (transcodage vers AV1,
+ *     mixage, lecture de fichier) ; un pont AV1 <-> AV1 relaie les paquets du
+ *     pair sans traverser ni l'un ni l'autre.
  */
 #ifndef _AV1CODEC_H_
 #define _AV1CODEC_H_
 
 #include "../ffvideocodec.h"
 #include "av1depacketizer.h"
+#include "av1packetizer.h"
 #include <string>
 #include <vector>
 #include <cstdint>

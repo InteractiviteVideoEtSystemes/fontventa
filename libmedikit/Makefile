@@ -70,10 +70,12 @@ H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 VP8DIR=vp8
 VP8OBJ=vp8decoder.o vp8encoder.o
 
-# AV1 : encodeur via le wrapper libsvtav1 (temps-réel), décodeur via libdav1d,
-# dépaquetiseur RTP maison (av1depacketizer.o, sans dépendance ffmpeg).
+# AV1 : encodeur via le wrapper libsvtav1 (temps-réel), décodeur via libdav1d, et
+# les deux sens du transport RTP maison (av1obu.o : leb128 + parcours OBU partagé ;
+# av1depacketizer.o : RTP -> OBU ; av1packetizer.o : OBU -> RTP), sans dépendance
+# ffmpeg et testés seuls.
 AV1DIR=av1
-AV1OBJ=av1codec.o av1depacketizer.o
+AV1OBJ=av1codec.o av1obu.o av1depacketizer.o av1packetizer.o
 
 GSMDIR=gsm
 GSMOBJ=gsmcodec.o

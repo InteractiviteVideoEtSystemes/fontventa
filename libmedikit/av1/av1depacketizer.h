@@ -36,27 +36,9 @@
 #ifndef _AV1DEPACKETIZER_H_
 #define _AV1DEPACKETIZER_H_
 
-#include "../medkit/config.h"
-#include <vector>
-
-// Types d'OBU utilisés ici (AV1 spec §6.2.2). La liste complète n'a pas
-// d'intérêt : seuls ces deux-là se traitent à part.
-enum
-{
-	AV1_OBU_SEQUENCE_HEADER    = 1,
-	AV1_OBU_TEMPORAL_DELIMITER = 2,
-};
-
-// leb128 (AV1 spec §4.10.5). Une seule implémentation pour le dépaquetiseur et
-// pour le codec : c'est le format de longueur des OBU comme des éléments RTP, et
-// deux lectures divergentes du même encodage ne se remarqueraient que sur les
-// tailles ≥ 128, donc jamais sur un flux de test.
-// Rend false sur un leb128 tronqué ou non conforme (> 8 octets).
-bool AV1ReadLeb128(const BYTE* data, size_t size, size_t& consumed, QWORD& value);
-
-// Écrit `value` en leb128 dans `out` (au plus 8 octets) ; rend le nombre
-// d'octets écrits. Forme minimale, comme l'exige la spec.
-DWORD AV1WriteLeb128(BYTE* out, QWORD value);
+// Types d'OBU, leb128 et parcours d'un flux low-overhead : la boîte à outils
+// partagée avec le paquetiseur (av1packetizer.h), en un seul exemplaire.
+#include "av1obu.h"
 
 class AV1Depacketizer
 {

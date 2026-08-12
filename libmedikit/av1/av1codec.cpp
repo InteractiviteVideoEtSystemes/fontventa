@@ -135,98 +135,63 @@ void AV1Encoder::ConfigureContext()
 		av_opt_set_int(ctx->priv_data, "preset", preset, 0);
 }
 
-// Parcourt les OBU du flux encodé (format bas-overhead : chaque OBU porte son
-// obu_size en leb128) : retire l'OBU de temporal delimiter (RFC AV1 RTP : ne
-// doit jamais être transmis), capture le premier sequence header pour
-// GetFmtpInfo. La packetisation RTP proprement dite (agrégation d'OBU par
-// paquet, cf. plan) n'est pas encore implémentée : on retombe sur le
-// découpage générique de FfVideoEncoder, non conforme au format RTP AV1 mais
-// suffisant pour valider build/factory/GetFmtpInfo en attendant.
+// Paquetisation RTP AV1 (spec « RTP Payload Format For AV1 »), plus la capture du
+// sequence header pour GetFmtpInfo — les deux se font sur le même parcours des
+// OBU du flux encodé (format low-overhead : chaque OBU porte son obu_size).
+//
+// La trame n'est PAS réécrite. Le découpage se décrit en offsets dans le tampon
+// que ffmpeg vient de remplir (AddRtpPacket : un préfixe court + une tranche),
+// donc ni malloc ni recopie par image. C'est aussi plus juste pour les autres
+// consommateurs de la trame : la version précédente retirait le temporal
+// delimiter du tampon lui-même, alors qu'un fichier AV1 en veut un en tête de
+// chaque unité temporelle — seul le FIL n'en veut pas, et c'est le paquetiseur
+// qui s'en charge maintenant.
 void AV1Encoder::PacketizeFrame()
 {
-	BYTE* data  = frame->GetData();
-	DWORD len   = frame->GetLength();
+	BYTE* data = frame->GetData();
+	DWORD len  = frame->GetLength();
 
-	BYTE* out = (BYTE*)malloc(len ? len : 1);
-	DWORD outLen = 0;
+	std::vector<AV1ObuRef> obus;
 
-	size_t pos = 0;
-	bool malformed = false;
-
-	while (pos < len && !malformed)
+	if (!AV1ParseObuStream(data, len, obus))
 	{
-		size_t obuStart = pos;
-		uint8_t hdr = data[pos];
-		uint8_t obuType   = (hdr >> 3) & 0x0f;
-		bool    extFlag   = (hdr >> 2) & 0x1;
-		bool    hasSize   = (hdr >> 1) & 0x1;
-		size_t  headerLen = 1 + (extFlag ? 1 : 0);
-
-		if (pos + headerLen > len)
-		{
-			malformed = true;
-			break;
-		}
-
-		if (!hasSize)
-		{
-			// Format bas-overhead attendu partout : sans obu_size on ne peut
-			// pas délimiter l'OBU en sécurité, on abandonne la découpe.
-			Log("-AV1Encoder: OBU sans champ de taille, packetisation par défaut\n");
-			malformed = true;
-			break;
-		}
-
-		size_t   lebConsumed = 0;
-		uint64_t obuSize     = 0;
-		if (!AV1ReadLeb128(data + pos + headerLen, len - pos - headerLen, lebConsumed, obuSize))
-		{
-			malformed = true;
-			break;
-		}
-
-		size_t payloadStart = pos + headerLen + lebConsumed;
-		size_t totalObuLen  = headerLen + lebConsumed + (size_t)obuSize;
-
-		if (payloadStart + obuSize > len)
-		{
-			malformed = true;
-			break;
-		}
-
-		if (obuType == AV1_OBU_SEQUENCE_HEADER && !obuSeqHdrCached)
-		{
-			int profile, levelIdx, tier;
-			if (ParseAV1SeqHdr(data + payloadStart, (size_t)obuSize, profile, levelIdx, tier))
-			{
-				cachedProfile  = profile;
-				cachedLevelIdx = levelIdx;
-				cachedTier     = tier;
-				obuSeqHdrCached = true;
-			}
-		}
-
-		if (obuType != AV1_OBU_TEMPORAL_DELIMITER)
-		{
-			memcpy(out + outLen, data + obuStart, totalObuLen);
-			outLen += totalObuLen;
-		}
-
-		pos += totalObuLen;
-	}
-
-	if (malformed || !outLen)
-	{
-		free(out);
+		Log("-AV1Encoder: flux OBU incoherent, packetisation par defaut\n");
 		FfVideoEncoder::PacketizeFrame();
 		return;
 	}
 
-	frame->SetMedia(out, outLen);
-	free(out);
+	if (!obuSeqHdrCached)
+	{
+		for (size_t i = 0; i < obus.size(); i++)
+		{
+			if (obus[i].type != AV1_OBU_SEQUENCE_HEADER)
+				continue;
 
-	// TODO : agrégation RTP AV1 dédiée (task packetisation), cf. plan.
-	FfVideoEncoder::PacketizeFrame();
+			int profile, levelIdx, tier;
+			if (ParseAV1SeqHdr(data + obus[i].payloadPos, obus[i].payloadLen,
+			                   profile, levelIdx, tier))
+			{
+				cachedProfile   = profile;
+				cachedLevelIdx  = levelIdx;
+				cachedTier      = tier;
+				obuSeqHdrCached = true;
+			}
+			break;
+		}
+	}
+
+	std::vector<AV1RtpPacket> packets;
+
+	if (!AV1PacketizeTemporalUnit(data, len, RTPPAYLOADSIZE, packets))
+	{
+		FfVideoEncoder::PacketizeFrame();
+		return;
+	}
+
+	for (size_t i = 0; i < packets.size(); i++)
+		frame->AddRtpPacket(packets[i].pos, packets[i].size,
+		                    packets[i].prefix, packets[i].prefixLen,
+		                    packets[i].mark);
 }
 
 bool AV1Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)

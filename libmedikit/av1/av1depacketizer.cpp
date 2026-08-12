@@ -8,47 +8,6 @@
 #include "medkit/log.h"
 #include "av1depacketizer.h"
 
-bool AV1ReadLeb128(const BYTE* data, size_t size, size_t& consumed, QWORD& value)
-{
-	value = 0;
-	consumed = 0;
-
-	if (!data)
-		return false;
-
-	for (int i = 0; i < 8; i++)
-	{
-		if (consumed >= size)
-			return false;
-
-		const BYTE b = data[consumed];
-		value |= (QWORD)(b & 0x7f) << (i * 7);
-		consumed++;
-
-		if (!(b & 0x80))
-			return true;
-	}
-
-	return false; // leb128 trop long (non conforme)
-}
-
-DWORD AV1WriteLeb128(BYTE* out, QWORD value)
-{
-	DWORD len = 0;
-
-	do
-	{
-		BYTE b = (BYTE)(value & 0x7f);
-		value >>= 7;
-		if (value)
-			b |= 0x80;
-		out[len++] = b;
-	}
-	while (value && len < 8);
-
-	return len;
-}
-
 AV1Depacketizer::AV1Depacketizer() :
 	fragmentOpen(false), unitHasSeqHdr(false), damaged(false)
 {
