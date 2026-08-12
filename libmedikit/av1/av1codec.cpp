@@ -13,27 +13,11 @@ extern "C" {
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Lecture leb128 (AV1 spec §4.10.5) et lecteur de bits MSB-first minimal,
-// utilisés pour parcourir les OBU du flux encodé (retrait du temporal
-// delimiter, capture du sequence header pour GetFmtpInfo).
+// Lecteur de bits MSB-first minimal, utilisé pour parcourir les OBU du flux
+// encodé (retrait du temporal delimiter, capture du sequence header pour
+// GetFmtpInfo). La lecture leb128 (AV1 spec §4.10.5) vit dans
+// av1depacketizer.h : un seul lecteur pour les deux sens.
 //////////////////////////////////////////////////////////////////////////
-
-static bool ReadLeb128(const uint8_t* data, size_t size, size_t& consumed, uint64_t& value)
-{
-	value = 0;
-	consumed = 0;
-	for (int i = 0; i < 8; i++)
-	{
-		if (consumed >= size)
-			return false;
-		uint8_t b = data[consumed];
-		value |= (uint64_t)(b & 0x7f) << (i * 7);
-		consumed++;
-		if (!(b & 0x80))
-			return true;
-	}
-	return false; // leb128 trop long (non conforme)
-}
 
 namespace {
 
@@ -124,12 +108,6 @@ static bool ParseAV1SeqHdr(const uint8_t* data, size_t size, int& profile, int& 
 	return true;
 }
 
-enum
-{
-	OBU_SEQUENCE_HEADER     = 1,
-	OBU_TEMPORAL_DELIMITER  = 2,
-};
-
 //////////////////////////////////////////////////////////////////////////
 // AV1Encoder
 //////////////////////////////////////////////////////////////////////////
@@ -201,7 +179,7 @@ void AV1Encoder::PacketizeFrame()
 
 		size_t   lebConsumed = 0;
 		uint64_t obuSize     = 0;
-		if (!ReadLeb128(data + pos + headerLen, len - pos - headerLen, lebConsumed, obuSize))
+		if (!AV1ReadLeb128(data + pos + headerLen, len - pos - headerLen, lebConsumed, obuSize))
 		{
 			malformed = true;
 			break;
@@ -216,7 +194,7 @@ void AV1Encoder::PacketizeFrame()
 			break;
 		}
 
-		if (obuType == OBU_SEQUENCE_HEADER && !obuSeqHdrCached)
+		if (obuType == AV1_OBU_SEQUENCE_HEADER && !obuSeqHdrCached)
 		{
 			int profile, levelIdx, tier;
 			if (ParseAV1SeqHdr(data + payloadStart, (size_t)obuSize, profile, levelIdx, tier))
@@ -228,7 +206,7 @@ void AV1Encoder::PacketizeFrame()
 			}
 		}
 
-		if (obuType != OBU_TEMPORAL_DELIMITER)
+		if (obuType != AV1_OBU_TEMPORAL_DELIMITER)
 		{
 			memcpy(out + outLen, data + obuStart, totalObuLen);
 			outLen += totalObuLen;
@@ -457,4 +435,48 @@ AV1Decoder::AV1Decoder() :
 
 AV1Decoder::~AV1Decoder()
 {
+}
+
+/***********************
+* AV1Decoder::DecodePacket
+*	Dépaquetise le flux RTP AV1 puis décode l'unité temporelle sur le bit
+*	marqueur. Tout l'état (fragments d'OBU, sequence header en cache) vit dans
+*	AV1Depacketizer ; `buffer`/`bufLen` héritées ne servent plus qu'à donner à
+*	ffmpeg une zone avec son padding.
+*
+*	Sans cette redéfinition, l'accumulation brute de FfVideoDecoder::DecodePacket
+*	donnait à libdav1d l'octet d'agrégation RTP en tête de charge : lu comme un
+*	obu_header, il annonçait des types d'OBU qui n'existent pas (« Unknown OBU
+*	type 11 »), et pas une seule image n'était jamais décodée.
+************************/
+int AV1Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
+{
+	depacketizer.AddPayload(in, inLen, lost != 0);
+
+	// Unité temporelle incomplète : on attend le bit marqueur.
+	if (!last)
+		return 1;
+
+	DWORD       len = 0;
+	const BYTE* tu  = depacketizer.GetTemporalUnit(len);
+
+	// Rien de décodable (unité amputée, ou sequence header jamais vu) : rendre 0
+	// est le signal utile — l'appelant demande une image clé, bornée à une par
+	// seconde, et c'est elle qui redonne le sequence header.
+	if (!tu || !len)
+		return 0;
+
+	if (len + AV_INPUT_BUFFER_PADDING_SIZE > bufSize)
+	{
+		Log("-AV1 DecodePacket: temporal unit too large [%u > %u], dropping\n", len, bufSize);
+		return 0;
+	}
+
+	// La recopie n'est pas gratuite mais elle est obligatoire : ffmpeg lit
+	// au-delà de la fin des données et exige AV_INPUT_BUFFER_PADDING_SIZE octets
+	// nuls, que le vecteur du dépaquetiseur ne garantit pas.
+	memcpy(buffer, tu, len);
+	memset(buffer + len, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+
+	return Decode(buffer, len);
 }
