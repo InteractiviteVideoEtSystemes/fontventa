@@ -145,14 +145,27 @@ CXXFLAGS+= $(INCLUDE) $(OPTS)
 
 all: libmedkit.a
 
+# Suivi des dependances d'en-tetes, comme mcu/Makefile.rpm. Sans lui, ajouter un
+# membre a une classe de codec ne recompilait PAS les appelants de son
+# constructeur : video.cpp garde l'ancien sizeof dans son `new`, alloue trop peu,
+# et le constructeur ecrit au-dela -- corruption du tas a la creation du codec,
+# aleatoire et sans rapport visible avec la modification. Diagnostique le
+# 2026-08-12 sur AV1Decoder (ajout du depaquetiseur), ou seuls av1codec.o et le
+# nouvel objet etaient reconstruits.
+DEPFLAGS = -MMD -MP
+
 %.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(DEPFLAGS) -c $< -o $@
 
 framebuffer.o: framebuffer.cpp
-	$(CXX) $(CXXFLAGS) -std=c++0x -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -std=c++0x -c $< -o $@
 
 %.o: %.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+# wildcard plutot que $(OBJS:.o=.d) : les .d d'un build precedent avec un autre
+# ASTERISK= restent valables et doivent etre pris en compte.
+-include $(wildcard *.d)
 
 ############################################
 #Targets
@@ -167,6 +180,7 @@ mp4format.o: astmedkit/mp4format.h medkit/mp4writer.h medkit/ffmp4reader.h medki
 
 clean:
 	rm -f $(OBJS) libmedkit.a
+	rm -f *.d
 	rm -f tests/runtests tests/*.o tests/.libmedkit.stamp
 
 

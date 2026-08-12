@@ -1,0 +1,8 @@
+# Artefacts de build. Les .d sont generes par -MMD -MP (suivi des dependances
+# d'en-tetes, cf. la cible de compilation du Makefile) : un par unite de
+# compilation, jamais a versionner. mp4track.d avait ete commite par accident.
+*.o
+*.a
+*.d
+tests/runtests
+tests/.libmedkit.stamp
