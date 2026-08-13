@@ -2,6 +2,7 @@
 #include <netinet/in.h>
 #include "medkit/log.h"
 #include "medkit/video.h"
+#include "medkit/ffcodeclock.h"
 #include "ffvideocodec.h"
 
 
@@ -136,9 +137,16 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 ************************/
 bool FfVideoEncoder::SelectCodec(bool tryHW)
 {
-	// Libère un éventuel contexte précédent (bascule VAAPI -> logiciel)
+	// Libère un éventuel contexte précédent (bascule VAAPI -> logiciel).
+	// Ouverture et destruction d'un contexte d'encodage sont sérialisées
+	// process-wide : certains backends (libsvtav1 0.9.0) tiennent un état
+	// global qu'un init concurrent d'un deinit fait déréférencer à NULL.
+	// Voir medkit/ffcodeclock.h pour le détail du défaut.
 	if (ctx)
+	{
+		std::lock_guard<std::mutex> lock(FfCodecOpenLock());
 		avcodec_free_context(&ctx);
+	}
 	codec = NULL;
 
 	if (tryHW && !hwFailed)
@@ -233,7 +241,11 @@ void FfVideoEncoder::CloseCodec()
 	if (hw_frame)
 		av_frame_free(&hw_frame);
 
-	avcodec_free_context(&ctx);
+	//Sérialisé : cf. medkit/ffcodeclock.h
+	{
+		std::lock_guard<std::mutex> lock(FfCodecOpenLock());
+		avcodec_free_context(&ctx);
+	}
 	ctx = avcodec_alloc_context3(codec);
 	ctx->hw_device_ctx = dev;
 
@@ -271,7 +283,11 @@ int FfVideoEncoder::FallbackToSoftware()
 
 	if (hw_frame)
 		av_frame_free(&hw_frame);
-	avcodec_free_context(&ctx);
+	//Sérialisé : cf. medkit/ffcodeclock.h
+	{
+		std::lock_guard<std::mutex> lock(FfCodecOpenLock());
+		avcodec_free_context(&ctx);
+	}
 
 	if (!SelectCodec(false))
 		return 0;
@@ -291,8 +307,13 @@ FfVideoEncoder::~FfVideoEncoder()
 	if (hw_frame)
 		av_frame_free(&hw_frame);
 
+	//Sérialisé : cf. medkit/ffcodeclock.h. C'est le site qui a tué le serveur —
+	//l'arrêt de l'encodeur d'une patte pendant l'ouverture de celui de l'autre.
 	if (ctx)
+	{
+		std::lock_guard<std::mutex> lock(FfCodecOpenLock());
 		avcodec_free_context(&ctx);
+	}
 
 	if (picture)
 		av_frame_free(&picture);
@@ -435,8 +456,16 @@ int FfVideoEncoder::OpenCodec()
 			return FallbackToSoftware();
 	}
 
-	// Open codec
-	if (avcodec_open2(ctx, codec, NULL)<0)
+	// Open codec. Sérialisé : cf. medkit/ffcodeclock.h. Le verrou couvre
+	// STRICTEMENT avcodec_open2 — surtout pas FallbackToSoftware() plus bas,
+	// qui détruit un contexte et reprendrait donc le même verrou.
+	int openErr;
+	{
+		std::lock_guard<std::mutex> lock(FfCodecOpenLock());
+		openErr = avcodec_open2(ctx, codec, NULL);
+	}
+
+	if (openErr<0)
 	{
 		// Un encodeur VAAPI peut refuser à l'ouverture (profil/résolution non
 		// supportés par le driver) : on retombe sur l'encodeur logiciel.
