@@ -20,10 +20,62 @@ DEBUG           = yes
 ASTERISK        = yes
 
 
-INCLUDE=-I. -I/usr/include/ffmpeg
-# En-têtes des dépendances statiques (mp4v2, srtp...) bâties par install.ksh.
-INCLUDE+= -I../../../staticdeps/include
+# ffmpeg : flags demandés à pkg-config, comme le dépôt le fait déjà pour
+# Magick++, webrtc-audio-processing et gtest. Un ffmpeg installé hors préfixe
+# système se trouve alors par PKG_CONFIG_PATH, sans toucher à ce Makefile —
+# c'est précisément ce dont le portage ffmpeg 9 a besoin (voir, à la racine du
+# dépôt mediaserver, ffmpeg9_migration_plan.md).
+FFMPEG_MODULES = libavcodec libswscale libavformat libavutil libswresample
+FFMPEG_CFLAGS := $(shell pkg-config --cflags $(FFMPEG_MODULES) 2>/dev/null)
+FFMPEG_LIBS   := $(shell pkg-config --libs   $(FFMPEG_MODULES) 2>/dev/null)
+
+# Ce qu'annoncera libmedkit.pc (cf. la cible plus bas) : ffmpeg est une
+# dépendance PUBLIQUE — ffvideocodec.h inclut <libavcodec/avcodec.h> — donc
+# Requires:, et non Requires.private:.
+PC_REQUIRES    = $(FFMPEG_MODULES)
+PC_CFLAGS_XTRA =
+PC_LIBS_XTRA   =
+
+# Repli sur les chemins historiques si pkg-config ignore ffmpeg : des flags
+# vides donneraient une erreur d'en-tête introuvable, illisible et très loin de
+# sa cause. Le .pc porte alors les flags en clair plutôt qu'un Requires: vers
+# des modules absents.
+ifeq ($(strip $(FFMPEG_LIBS)),)
+$(warning pkg-config ne connait pas ffmpeg [$(FFMPEG_MODULES)] : repli sur /usr/include/ffmpeg. Renseigner PKG_CONFIG_PATH pour un ffmpeg hors prefixe systeme.)
+FFMPEG_CFLAGS := -I/usr/include/ffmpeg
+FFMPEG_LIBS   := -lavcodec -lswscale -lavformat -lavutil -lswresample
+PC_REQUIRES    =
+PC_CFLAGS_XTRA = $(FFMPEG_CFLAGS)
+PC_LIBS_XTRA   = $(FFMPEG_LIBS)
+endif
+
+# Surcharges explicites, portées par install.ksh jusqu'ici — il écrasait INCLUDE
+# en ligne de commande, ce qui rendait ces chemins invisibles depuis ce fichier
+# et les perdait sur un `make` direct. Elles vivent désormais ici, et
+# s'utilisent aussi bien en variable d'environnement qu'en argument de make.
+#   FFMPEGINC : court-circuite pkg-config pour les EN-TÊTES ffmpeg seulement
+#               (les bibliothèques restent celles de pkg-config, comme avant) ;
+#   MP4V2INC  : en-têtes des dépendances statiques (mp4v2, srtp...) bâties par
+#               install.ksh dans staticdeps/. Le défaut relatif est équivalent
+#               au chemin absolu qu'injectait install.ksh, make tournant en -C.
+FFMPEGINC ?=
+MP4V2INC  ?= -I../../../staticdeps/include
+
+INCLUDE=-I.
+ifneq ($(strip $(FFMPEGINC)),)
+INCLUDE+= $(FFMPEGINC)
+else
+INCLUDE+= $(FFMPEG_CFLAGS)
+endif
+INCLUDE+= $(MP4V2INC)
+# CUSTOM_ASTPATH n'est renseigné qu'en build Asterisk. Sans cette garde, un
+# `-I` SANS ARGUMENT restait dans la ligne de commande, et gcc prend alors
+# l'option suivante comme répertoire : `-I -DLOG_` déclarait un include nommé
+# "-DLOG_" et LOG_ n'était jamais défini. Invisible jusqu'ici parce
+# qu'install.ksh écrasait INCLUDE — il ne le fait plus.
+ifneq ($(strip $(CUSTOM_ASTPATH)),)
 INCLUDE+= -I$(CUSTOM_ASTPATH)
+endif
 
 #DEBUG
 
@@ -137,7 +189,7 @@ VPATH += %.cpp $(VP8DIR)
 VPATH += %.cpp $(AV1DIR)
 # Plus de -lx264 : l'encodeur H264 passe par ffmpeg (wrapper libx264 ou
 # h264_vaapi), aucun appel direct à l'API x264 ne subsiste dans la lib.
-LDFLAGS = -lavcodec -lswscale -lavformat -lavutil -lswresample -lbz2 -lssl -lcrypto -lpthread
+LDFLAGS = $(FFMPEG_LIBS) -lbz2 -lssl -lcrypto -lpthread
 
 #For abyss
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g -Wno-narrowing
@@ -146,7 +198,38 @@ CFLAGS  += $(INCLUDE) $(OPTS)
 #CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x
 CXXFLAGS+= $(INCLUDE) $(OPTS)
 
-all: libmedkit.a
+all: libmedkit.a libmedkit.pc
+
+# libmedkit.pc — libmedikit n'est pas installée : elle est bâtie DANS l'arbre et
+# liée par chemin complet. Le fichier porte donc des chemins absolus vers ce
+# répertoire, et se consomme par PKG_CONFIG_PATH (motif « uninstalled » des
+# autotools) :
+#
+#     PKG_CONFIG_PATH=$(CURDIR) pkg-config --cflags --libs libmedkit
+#
+# Il rend au consommateur les -I de ffmpeg par la chaîne Requires:, ce qui
+# retire la dernière raison qu'a mcu/Makefile.rpm de coder /usr/include/ffmpeg
+# en dur (deux occurrences y subsistent, cf. ffmpeg9_migration_plan.md §4).
+#
+# Régénéré à chaque build et NON versionné (.gitignore) : le préfixe suit le
+# clone, il n'aurait aucun sens dans l'historique. Dépend du Makefile, seul
+# endroit d'où sortent version, modules et flags de repli.
+MEDKIT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo 1.5.1)
+
+libmedkit.pc: Makefile
+	@printf '%s\n' \
+		'prefix=$(CURDIR)' \
+		'libdir=$${prefix}' \
+		'includedir=$${prefix}' \
+		'' \
+		'Name: libmedkit' \
+		'Description: IVeS media and codec library (fontventa libmedikit), built in tree' \
+		'Version: $(MEDKIT_VERSION)' \
+		'Requires: $(PC_REQUIRES)' \
+		'Libs: -L$${libdir} -lmedkit $(PC_LIBS_XTRA)' \
+		'Libs.private: -lbz2 -lssl -lcrypto -lpthread' \
+		'Cflags: -I$${includedir} $(PC_CFLAGS_XTRA)' > $@
+	@echo "libmedkit.pc genere -> PKG_CONFIG_PATH=$(CURDIR)"
 
 # Suivi des dependances d'en-tetes, comme mcu/Makefile.rpm. Sans lui, ajouter un
 # membre a une classe de codec ne recompilait PAS les appelants de son
@@ -182,7 +265,7 @@ ffmp4reader.o: medkit/ffmp4reader.h medkit/media.h
 mp4format.o: astmedkit/mp4format.h medkit/mp4writer.h medkit/ffmp4reader.h medkit/media.h
 
 clean:
-	rm -f $(OBJS) libmedkit.a
+	rm -f $(OBJS) libmedkit.a libmedkit.pc
 	rm -f *.d
 	rm -f tests/runtests tests/*.o tests/.libmedkit.stamp
 
