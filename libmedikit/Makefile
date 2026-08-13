@@ -208,7 +208,7 @@ all: libmedkit.a libmedkit.pc
 #     PKG_CONFIG_PATH=$(CURDIR) pkg-config --cflags --libs libmedkit
 #
 # Il rend au consommateur les -I de ffmpeg par la chaîne Requires:, ce qui
-# retire la dernière raison qu'a mcu/Makefile.rpm de coder /usr/include/ffmpeg
+# retire la dernière raison qu'a mcu/Makefile de coder /usr/include/ffmpeg
 # en dur (deux occurrences y subsistent, cf. ffmpeg9_migration_plan.md §4).
 #
 # Régénéré à chaque build et NON versionné (.gitignore) : le préfixe suit le
@@ -231,7 +231,7 @@ libmedkit.pc: Makefile
 		'Cflags: -I$${includedir} $(PC_CFLAGS_XTRA)' > $@
 	@echo "libmedkit.pc genere -> PKG_CONFIG_PATH=$(CURDIR)"
 
-# Suivi des dependances d'en-tetes, comme mcu/Makefile.rpm. Sans lui, ajouter un
+# Suivi des dependances d'en-tetes, comme mcu/Makefile. Sans lui, ajouter un
 # membre a une classe de codec ne recompilait PAS les appelants de son
 # constructeur : video.cpp garde l'ancien sizeof dans son `new`, alloue trop peu,
 # et le constructeur ecrit au-dela -- corruption du tas a la creation du codec,
