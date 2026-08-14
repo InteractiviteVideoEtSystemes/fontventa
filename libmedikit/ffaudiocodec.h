@@ -87,9 +87,13 @@ public:
 	// Variante avec extradata (AudioSpecificConfig / avcC audio) : indispensable
 	// pour l'AAC raw des MP4 (sans en-tête ADTS), qui ne se décode pas sans sa
 	// config. extradata peut être NULL (équivaut au ctor à 2 arguments).
+	// sample_rate : fréquence posée sur le contexte AVANT avcodec_open2, pour
+	// les décodeurs qui l'exigent à l'ouverture quand il n'y a pas d'extradata
+	// (le speex natif de ffmpeg refuse d'ouvrir sans elle — constaté en trafic
+	// le 2026-08-14 : « could not open decoder » sur chaque trame). 0 = non posée.
 	FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id,
 	               const uint8_t* extradata, int extradata_size,
-	               const char* codec_name = nullptr);
+	               const char* codec_name = nullptr, int sample_rate = 0);
 	virtual ~FfAudioDecoder();
 	virtual int   Decode(BYTE *in, int inLen, SWORD* out, int outLen);
 	virtual DWORD TrySetRate(DWORD rate);

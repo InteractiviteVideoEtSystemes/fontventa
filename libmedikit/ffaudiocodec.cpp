@@ -378,7 +378,8 @@ FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_i
 }
 
 FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_id,
-                               const uint8_t* extradata, int extradata_size, const char* codec_name) :
+                               const uint8_t* extradata, int extradata_size, const char* codec_name,
+                               int sample_rate) :
 	codec(nullptr), ctx(nullptr), swr(nullptr), frame(nullptr), pkt(nullptr), opened(false)
 {
 	// Membres hérités d'AudioDecoder
@@ -416,6 +417,11 @@ FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_i
 	// l'honorent ; sinon on convertit via le resampler).
 	av_channel_layout_default(&ctx->ch_layout, 1);
 	ctx->request_sample_fmt = AV_SAMPLE_FMT_S16;
+
+	// Certains décodeurs sans extradata exigent la fréquence dès l'ouverture
+	// (le speex natif la refuse hors {8000, 16000, 32000} et échoue sur 0).
+	if (sample_rate > 0)
+		ctx->sample_rate = sample_rate;
 
 	// Extradata (AudioSpecificConfig pour l'AAC des MP4) : recopié avec le
 	// padding ffmpeg requis. Sans lui, l'AAC raw ne se décode pas.

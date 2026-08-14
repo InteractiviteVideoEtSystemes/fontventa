@@ -24,7 +24,10 @@ SpeexEncoder::SpeexEncoder(const Properties &properties) :
 /****************************** SpeexDecoder ********************************/
 
 SpeexDecoder::SpeexDecoder() :
-	FfAudioDecoder(AV_CODEC_ID_SPEEX, AudioCodec::SPEEX16)
+	// 16000 : sans extradata, le décodeur speex natif de ffmpeg exige la
+	// fréquence sur le contexte avant l'ouverture — sinon avcodec_open2 échoue
+	// et chaque trame reçue meurt sur « decoder not opened ».
+	FfAudioDecoder(AV_CODEC_ID_SPEEX, AudioCodec::SPEEX16, nullptr, 0, nullptr, 16000)
 {
 	if (numFrameSamples <= 0)
 		numFrameSamples = 160;
