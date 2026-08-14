@@ -5,7 +5,8 @@
 // Speex 16 kHz (wideband) via libavcodec.
 // Encodeur : wrapper "libspeex" de ffmpeg (seul disponible).
 // Décodeur : décodeur natif ffmpeg AV_CODEC_ID_SPEEX.
-// Fréquence : 16000 Hz fixe (mode wideband uniquement).
+// Fréquence : 16000 Hz fixe (mode wideband uniquement), trame 20 ms = 320
+// échantillons — surtout pas les 160 du monde 8 kHz.
 
 class SpeexEncoder : public FfAudioEncoder
 {
