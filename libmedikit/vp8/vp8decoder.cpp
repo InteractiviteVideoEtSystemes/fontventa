@@ -7,6 +7,7 @@
 #include <sstream>
 #include "medkit/log.h"
 #include "vp8decoder.h"
+#include "vp8depacketizer.h"
 
 // Construit "a=fmtp:<pt> max-fr=X;max-fs=Y" (RFC 7742) à partir de limites déjà
 // résolues par l'appelant (encodeur : ses propres bornes configurées ;
@@ -73,46 +74,9 @@ VP8Decoder::~VP8Decoder()
 {
 }
 
-/***********************
-* vp8_descriptor_len
-*	Longueur (octets) du VP8 payload descriptor (RFC 7741) à retirer en tête de
-*	payload RTP. Porté depuis mcu/src/vp8/vp8.h (VP8PayloadDescriptor::Parse).
-************************/
-static DWORD vp8_descriptor_len(BYTE* data, DWORD size)
-{
-	if (size < 1)
-		return 0;
-
-	DWORD len = 1;
-	/*  0 1 2 3 4 5 6 7
-	 * +-+-+-+-+-+-+-+-+
-	 * |X|R|N|S|PartID |
-	 * +-+-+-+-+-+-+-+-+ */
-	bool X = data[0] >> 7;
-	if (X)
-	{
-		if (size < 2) return 0;
-		/* X: |I|L|T|K|RSV-A| */
-		bool I = data[1] >> 7;
-		bool L = (data[1] >> 6) & 0x01;
-		bool T = (data[1] >> 5) & 0x01;
-		bool K = (data[1] >> 4) & 0x01;
-		len++; // second octet
-
-		if (I)
-		{
-			if (len >= size) return 0;
-			// PictureID : 1 ou 2 octets (bit M)
-			len += (data[len] & 0x80) ? 2 : 1;
-		}
-		if (L)
-			len++;		// TL0PICIDX
-		if (T || K)
-			len++;		// TID/Y/KEYIDX
-	}
-
-	return (len <= size) ? len : 0;
-}
+/* Le parseur du payload descriptor (RFC 7741) vit dans vp8depacketizer.cpp
+ * (VP8DescriptorLen) : une seule implémentation, partagée avec le
+ * dépaquetiseur — une copie locale dériverait. */
 
 /***********************
 * VP8Decoder::DecodePacket
@@ -131,7 +95,7 @@ int VP8Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 
 	if (inLen)
 	{
-		DWORD pos = vp8_descriptor_len(in, inLen);
+		DWORD pos = VP8DescriptorLen(in, inLen);
 		if (!pos)
 		{
 			Log("-VP8 payload descriptor invalide, reset\n");
