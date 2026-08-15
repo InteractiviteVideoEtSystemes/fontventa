@@ -1,4 +1,4 @@
-/*
+/* 
  * File:   stunmessage.h
  * Author: Sergio
  *
@@ -42,7 +42,7 @@ public:
 			IceControlled = 0x8029,
 			IceControlling = 0x802A
 		};
-
+		
 		Attribute(WORD type,BYTE *attr,WORD size)
 		{
 			//Copy values
@@ -112,7 +112,11 @@ public:
 	void  AddAttribute(Attribute::Type type,DWORD data);
 	void  AddAttribute(Attribute::Type type);
 	void  AddAddressAttribute(sockaddr_in *addr);
+	//Meme attribut, les deux familles : la famille est lue dans la sockaddr
+	void  AddAddressAttribute(const sockaddr *addr);
 	void  AddXorAddressAttribute(sockaddr_in *addr);
+	//Meme attribut, les deux familles : la famille est lue dans la sockaddr
+	void  AddXorAddressAttribute(const sockaddr *addr);
 	void  AddUsernameAttribute(const char* local,const char* remote);
 
 	Type GetType()		{ return type; }

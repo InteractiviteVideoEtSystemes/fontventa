@@ -1,16 +1,16 @@
-/*
+/* 
  * File:   stunmessage.cpp
  * Author: Sergio
- *
+ * 
  * Created on 6 de noviembre de 2012, 15:55
  */
 
-#include "stunmessage.h"
-#include "tools.h"
-#include "crc32calc.h"
-#include "log.h"
+#include "medkit/stunmessage.h"
+#include "medkit/tools.h"
+#include "medkit/crc32calc.h"
+#include "medkit/log.h"
 #include <openssl/sha.h>
-#include <openssl/hmac.h>
+#include <openssl/evp.h>
 
 static const BYTE MagicCookie[4] = {0x21,0x12,0xA4,0x42};
 
@@ -106,7 +106,7 @@ STUNMessage* STUNMessage::Parse(BYTE* data,DWORD size)
 			break;
 		//Add it
 		msg->AddAttribute((Attribute::Type)attrType,data+i+4,attrLen);
-
+		
 		//Next
 		i = pad32(i+4+attrLen);
 	}
@@ -196,7 +196,7 @@ DWORD STUNMessage::AuthenticatedFingerPrint(BYTE* data,DWORD size,const char* pw
 
 	//Set cookie
 	memcpy(data+4,MagicCookie,4);
-
+	
 	//Set trnasaction
 	memcpy(data+8,transId,12);
 
@@ -223,13 +223,19 @@ DWORD STUNMessage::AuthenticatedFingerPrint(BYTE* data,DWORD size,const char* pw
 	set2(data,2,msgSize-20-8);
 
 	//Calculate HMAC and put it in the attibute value
-	HMAC(EVP_sha1(),(BYTE*)pwd, strlen(pwd),data,i,data+i+4,&len);
+	//API EVP_MAC one-shot (remplace HMAC() deprecie en OpenSSL 3.0)
+	size_t hmacLen = 0;
+	EVP_Q_mac(NULL, "HMAC", NULL, "SHA1", NULL,
+		  (BYTE*)pwd, strlen(pwd),
+		  data, i,
+		  data+i+4, SHA_DIGEST_LENGTH, &hmacLen);
+	len = (DWORD)hmacLen;
 
 	//Set message integriti attribute
 	set2(data,i,Attribute::MessageIntegrity);
 	set2(data,i+2,len);
 
-	//INcrease sixe
+	//INcrease sixe 
 	i = pad32(i+4+len);
 
 	//REstore length
@@ -245,7 +251,7 @@ DWORD STUNMessage::AuthenticatedFingerPrint(BYTE* data,DWORD size,const char* pw
 
 	//INcrease sixe
 	i = pad32(i+8);
-
+	
 	//Return size
 	return i;
 }
@@ -332,8 +338,49 @@ void  STUNMessage::AddUsernameAttribute(const char* local,const char* remote)
 	free(data);
 }
 
+/**
+ * MAPPED-ADDRESS, RFC 5389 §15.1 — LES DEUX FAMILLES.
+ *
+ * Meme correction que pour la variante XOR juste en dessous : la famille se lit
+ * dans la sockaddr au lieu d'etre codee en dur a 0x01, et une adresse v6 occupe
+ * 16 octets. Le parametre reste declare sockaddr_in* pour ne pas casser les
+ * appelants — sa_family et sin_family occupent le meme offset dans les deux
+ * structures, c'est garanti par la sockets API.
+ *
+ * Cet attribut est l'ancetre non chiffre de XOR-MAPPED-ADDRESS (RFC 3489) : il
+ * n'est plus emis par les implementations modernes, mais un pair ancien peut
+ * encore le lire — le laisser faux en v6 reviendrait a lui annoncer 4 octets
+ * pris au debut d'une adresse de 16.
+ */
 void  STUNMessage::AddAddressAttribute(sockaddr_in* addr)
 {
+	AddAddressAttribute((const sockaddr*)addr);
+}
+
+void  STUNMessage::AddAddressAttribute(const sockaddr* addr)
+{
+	if (!addr)
+		return;
+
+	if (addr->sa_family == AF_INET6)
+	{
+		const sockaddr_in6* in6 = (const sockaddr_in6*)addr;
+		BYTE aux[20];
+
+		//Unused
+		aux[0] = 0;
+		//Family : IPv6
+		aux[1] = 2;
+		//Set port
+		memcpy(aux+2,&in6->sin6_port,2);
+		//Set address
+		memcpy(aux+4,&in6->sin6_addr,16);
+		//Add it
+		AddAttribute(Attribute::MappedAddress,aux,20);
+		return;
+	}
+
+	const sockaddr_in* in = (const sockaddr_in*)addr;
 	BYTE aux[8];
 
 	//Unused
@@ -341,14 +388,60 @@ void  STUNMessage::AddAddressAttribute(sockaddr_in* addr)
 	//Family
 	aux[1] = 1;
 	//Set port
-	memcpy(aux+2,&addr->sin_port,2);
+	memcpy(aux+2,&in->sin_port,2);
 	//Set addres
-	memcpy(aux+4,&addr->sin_addr.s_addr,4);
+	memcpy(aux+4,&in->sin_addr.s_addr,4);
 	//Add it
 	AddAttribute(Attribute::MappedAddress,aux,8);
 }
+/**
+ * XOR-MAPPED-ADDRESS, RFC 5389 §15.2 — LES DEUX FAMILLES.
+ *
+ * La famille se lit dans la sockaddr, elle n'est plus codee en dur a 0x01 : le
+ * parametre reste declare sockaddr_in* pour ne pas casser les appelants, mais
+ * il est traite comme un sockaddr — sa_family et sin_family occupent le meme
+ * offset dans les deux structures, c'est garanti par la sockets API.
+ *
+ * En IPv6 le XOR ne porte PAS que sur le magic cookie : il court sur les 16
+ * octets, soit le cookie (4) PUIS les 96 bits du transaction ID. Ce n'est pas
+ * une extension de boucle, c'est une autre regle — la manquer laisserait 12
+ * octets en clair, et un pair conforme calculerait une adresse fausse.
+ */
 void  STUNMessage::AddXorAddressAttribute(sockaddr_in* addr)
 {
+	AddXorAddressAttribute((const sockaddr*)addr);
+}
+
+void  STUNMessage::AddXorAddressAttribute(const sockaddr* addr)
+{
+	if (!addr)
+		return;
+
+	if (addr->sa_family == AF_INET6)
+	{
+		const sockaddr_in6* in6 = (const sockaddr_in6*)addr;
+		BYTE aux[20];
+
+		//Unused
+		aux[0] = 0;
+		//Family : IPv6
+		aux[1] = 2;
+		//Set port
+		memcpy(aux+2,&in6->sin6_port,2);
+		//Xor it
+		aux[2] ^= MagicCookie[0];
+		aux[3] ^= MagicCookie[1];
+		//Set address
+		memcpy(aux+4,&in6->sin6_addr,16);
+		//Xor : cookie puis transaction ID (RFC 5389 §15.2)
+		for (int i=0;i<4;++i)  aux[4+i]   ^= MagicCookie[i];
+		for (int i=0;i<12;++i) aux[8+i]   ^= transId[i];
+		//Add it
+		AddAttribute(Attribute::XorMappedAddress,aux,20);
+		return;
+	}
+
+	const sockaddr_in* in = (const sockaddr_in*)addr;
 	BYTE aux[8];
 
 	//Unused
@@ -356,12 +449,12 @@ void  STUNMessage::AddXorAddressAttribute(sockaddr_in* addr)
 	//Family
 	aux[1] = 1;
 	//Set port
-	memcpy(aux+2,&addr->sin_port,2);
+	memcpy(aux+2,&in->sin_port,2);
 	//Xor it
 	aux[2] ^= MagicCookie[0];
 	aux[3] ^= MagicCookie[1];
 	//Set addres
-	memcpy(aux+4,&addr->sin_addr.s_addr,4);
+	memcpy(aux+4,&in->sin_addr.s_addr,4);
 	//Xor it
 	aux[4] ^= MagicCookie[0];
 	aux[5] ^= MagicCookie[1];

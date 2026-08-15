@@ -156,6 +156,11 @@ NELLYOBJ=nellycodec.o
 OBJS=audio.o video.o codecs.o negotiator.o videorescaler.o utf8parser.o  avcdescriptor.o red.o text2subtitle.o log.o media.o
 OBJS+=audiosilence.o $(H263OBJ) $(H264OBJ) $(G711OBJ) $(G722OBJ) $(AACOBJ) $(AMROBJ) $(NELLYOBJ) $(GSMOBJ) $(OPUSOBJ) $(SPEEXOBJ) $(VP8OBJ) $(AV1OBJ) ffvideocodec.o ffaudiocodec.o
 OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o ffmp4reader.o
+# STUN : rapatrie du mediaserver (il en existait ici une copie morte et perimee,
+# qui ignorait IPv6 et l'API OpenSSL 3). Une seule implementation desormais, ici,
+# consommee par le mcu via medkit/stunmessage.h. crc32calc suit : le FINGERPRINT
+# STUN est son unique appelant.
+OBJS+=stunmessage.o crc32calc.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
 # framescaler.o : dernier utilisateur = transcoder.cpp (BYTE*), donc réservé au
