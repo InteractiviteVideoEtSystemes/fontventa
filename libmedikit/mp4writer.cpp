@@ -197,7 +197,22 @@ int mp4writer::AddTrack( VideoCodec::Type codec, DWORD width, DWORD height, DWOR
         if( mediatracks[trackidx] != NULL )
         {
             vtr->SetSize( width, height );
-            vtr->Create( trackName, codec, bitrate );
+            if( !vtr->Create( trackName, codec, bitrate ) )
+            {
+                // Codec que le conteneur MP4 ne sait pas porter (ex. VP8) :
+                // pas de piste fantôme, et surtout ne pas laisser waitVideo
+                // attendre une vidéo qui ne démarrera jamais — sinon audio et
+                // texte sont jetés et le fichier reste vide (durée nulle).
+                delete vtr;
+                mediatracks[trackidx] = NULL;
+                if( !secondary && waitVideo )
+                {
+                    Log( "mp4recorder: video codec %s not recordable, disabling waitVideo (audio/text only).\n",
+                        VideoCodec::GetNameFor( codec ) );
+                    waitVideo = 0;
+                }
+                return -1;
+            }
             return 1;
         }
         else
