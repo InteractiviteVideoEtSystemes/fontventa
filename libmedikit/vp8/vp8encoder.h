@@ -30,6 +30,13 @@ public:
 	// (vp8.max-fr / vp8.max-fs), sans codec ouvert. cf. nego_fmtp décision E.
 	static std::string GetFmtpParams(const Properties& properties);
 
+	// Reconfiguration à chaud : le wrapper libvpx de ffmpeg ne relit pas
+	// ctx->bit_rate en cours de route (seul libx264 le fait par trame), donc la
+	// mémorisation de FfVideoEncoder::SetFrameRate ne suffit pas — sans ceci
+	// l'encodeur garde son débit d'ouverture pour toute sa vie. Réouverture
+	// (=> nouvelle trame clé) sur variation >=10 %, comme H264 en VAAPI.
+	virtual int SetFrameRate(int fps,int kbits,int intraPeriod);
+
 protected:
 	// Packetisation RTP VP8 (RFC 7741) : préfixe chaque fragment d'un VP8 payload
 	// descriptor minimal (S=1 sur le 1er paquet de la trame, 0 ensuite).
@@ -38,6 +45,8 @@ protected:
 
 	int maxFrameSize;
 	int maxFrameRate;
+	// Débit d'ouverture, pour la logique de réouverture de SetFrameRate.
+	int openedBitrate;
 };
 
 #endif
