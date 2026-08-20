@@ -55,6 +55,14 @@ protected:
 	// Réouverture à chaud aux dimensions courantes (reconfiguration).
 	int ReopenCodec();
 
+	// Faut-il rouvrir pour que `bitrate` prenne effet ? Réponse ASYMÉTRIQUE,
+	// pour les codecs dont le wrapper ffmpeg ignore ctx->bit_rate à chaud
+	// (libvpx, SVT-AV1) : la réouverture est leur seul levier, mais elle coûte
+	// une trame clé. Baisse : tout de suite, c'est le sens qui compte quand le
+	// réseau se ferme. Hausse : par paliers, sinon la rampe de la boucle
+	// d'adaptation la déclenche en continu.
+	bool ShouldReopenForBitrate() const;
+
 	// Choisit l'encodeur (VAAPI si tryHW et utilisable, sinon l'encodeur
 	// logiciel ffmpeg par défaut, ou codec_name si fourni) et alloue le contexte.
 	bool SelectCodec(bool tryHW);
@@ -84,6 +92,8 @@ protected:
 	AVCodecContext	*ctx;
 	AVFrame		*picture;
 	int		bitrate;
+	// Débit auquel le codec a été ouvert : référence de ShouldReopenForBitrate.
+	int		openedBitrate;
 	int		fps;
 	int		format;
 	int		opened;

@@ -30,11 +30,13 @@ public:
 	// (vp8.max-fr / vp8.max-fs), sans codec ouvert. cf. nego_fmtp décision E.
 	static std::string GetFmtpParams(const Properties& properties);
 
-	// Reconfiguration à chaud : le wrapper libvpx de ffmpeg ne relit pas
-	// ctx->bit_rate en cours de route (seul libx264 le fait par trame), donc la
-	// mémorisation de FfVideoEncoder::SetFrameRate ne suffit pas — sans ceci
-	// l'encodeur garde son débit d'ouverture pour toute sa vie. Réouverture
-	// (=> nouvelle trame clé) sur variation >=10 %, comme H264 en VAAPI.
+	// Reconfiguration à chaud : le wrapper libvpx de ffmpeg ne relit JAMAIS
+	// ctx->bit_rate en cours de route (mesuré : débit inchangé après une
+	// consigne divisée par 10 ; libx264 le fait, mais seulement si le VBV était
+	// armé à l'ouverture), donc la mémorisation de FfVideoEncoder::SetFrameRate
+	// ne suffit pas — sans ceci l'encodeur garde son débit d'ouverture pour
+	// toute sa vie. La réouverture est le seul levier ; elle coûte une trame
+	// clé, d'où la politique asymétrique de ShouldReopenForBitrate.
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod);
 
 protected:
@@ -45,8 +47,6 @@ protected:
 
 	int maxFrameSize;
 	int maxFrameRate;
-	// Débit d'ouverture, pour la logique de réouverture de SetFrameRate.
-	int openedBitrate;
 };
 
 #endif

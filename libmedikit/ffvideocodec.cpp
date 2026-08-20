@@ -480,8 +480,26 @@ int FfVideoEncoder::OpenCodec()
 	// We are opened
 	opened=true;
 
+	// Référence de la politique de réouverture (ShouldReopenForBitrate)
+	openedBitrate = bitrate;
+
 	// Exit
 	return 1;
+}
+
+bool FfVideoEncoder::ShouldReopenForBitrate() const
+{
+	if (!opened || openedBitrate <= 0)
+		return false;
+
+	// Baisse : un pas de l'AIMD vaut -15 %, il doit passer.
+	if (bitrate * 10 <= openedBitrate * 9)
+		return true;
+
+	// Hausse : paliers de 1,5x. La boucle d'adaptation monte de +8 %/s, donc un
+	// seuil de 10 % vaut une trame clé toutes les 1,3 s — mesuré le 2026-08-20 :
+	// 136 réouvertures en 5,5 min, dont deux à 0,16 s d'intervalle.
+	return bitrate * 2 >= openedBitrate * 3;
 }
 
 /***********************

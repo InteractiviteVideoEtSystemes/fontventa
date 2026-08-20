@@ -15,7 +15,6 @@ VP8Encoder::VP8Encoder(const Properties& properties) :
 {
 	maxFrameRate = properties.GetProperty("vp8.max-fr", 0);
 	maxFrameSize = properties.GetProperty("vp8.max-fs", 0);
-	openedBitrate = 0;
 }
 
 void VP8Encoder::ConfigureContext()
@@ -25,8 +24,6 @@ void VP8Encoder::ConfigureContext()
 		ctx->framerate.num = maxFrameRate;
 		ctx->framerate.den = 1;
 	}
-
-	openedBitrate = bitrate;
 }
 
 int VP8Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
@@ -34,10 +31,9 @@ int VP8Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 	// Mémorise fps/débit/période intra
 	FfVideoEncoder::SetFrameRate(frames,kbits,intraPeriod);
 
-	// Réouverture seulement sur une variation significative (>=10 %) : chaque
-	// réouverture coûte une trame clé, on ne la paye pas à chaque
-	// micro-ajustement de la boucle d'adaptation.
-	if (opened && openedBitrate > 0 && abs(bitrate-openedBitrate)*10 >= openedBitrate)
+	// Politique commune (FfVideoEncoder::ShouldReopenForBitrate) : baisse tout
+	// de suite, hausse par paliers — chaque réouverture coûte une trame clé.
+	if (ShouldReopenForBitrate())
 		ReopenCodec();
 
 	return 1;

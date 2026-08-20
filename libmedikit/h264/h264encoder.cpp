@@ -61,7 +61,6 @@ H264Encoder::H264Encoder(const Properties& properties)
 	intraRefresh = (bool) properties.GetProperty("h264.intra_refresh",0);
 	qPel =  properties.GetProperty("h264.qpel",3);
 	packetizationMode = WantedPacketizationMode(properties);
-	openedBitrate = 0;
 	spsPpsCached = false;
 }
 
@@ -206,8 +205,6 @@ void H264Encoder::ConfigureContext()
 	Log("-H264Encoder: %s encoder, profile-level-id %s => profile %d level %d\n",
 	    IsHWAccelerated() ? "VAAPI" : "software", h264ProfileLevelId.c_str(), profile, level);
 
-	// Mémorise le débit d'ouverture pour la logique de réouverture VAAPI
-	openedBitrate = bitrate;
 }
 
 /************************

@@ -69,9 +69,10 @@ public:
 	                         int& width, int& height, int& fps);
 
 	// Reconfiguration à chaud : le wrapper SVT-AV1 de ffmpeg ne relit pas
-	// ctx->bit_rate en cours de route (seul libx264 le fait par trame), donc la
-	// mémorisation de FfVideoEncoder::SetFrameRate ne suffit pas. Réouverture
-	// (=> nouvelle trame clé) sur variation >=10 %, comme H264 en VAAPI.
+	// ctx->bit_rate en cours de route, donc la mémorisation de
+	// FfVideoEncoder::SetFrameRate ne suffit pas. La réouverture est le seul
+	// levier ; elle coûte une trame clé, d'où la politique asymétrique de
+	// ShouldReopenForBitrate.
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod);
 
 protected:
@@ -80,8 +81,6 @@ protected:
 
 private:
 	int  preset;	// av1.preset : SVT-AV1 -1..13 (plus petit = plus lent/meilleur)
-	// Débit d'ouverture, pour la logique de réouverture de SetFrameRate.
-	int  openedBitrate;
 
 	bool obuSeqHdrCached;
 	int  cachedProfile;

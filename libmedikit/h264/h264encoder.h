@@ -89,7 +89,6 @@ private:
 	// slices produites, cf. ConfigureContext.
 	int packetizationMode;
 	// Débit effectif à l'ouverture : sert à décider une réouverture VAAPI
-	int openedBitrate;
 
 	// SPS/PPS (bruts, sans start code) du premier NAL vu par PacketizeFrame,
 	// capturés APRÈS réécriture du profile-level-id négocié (cf.

@@ -116,7 +116,7 @@ AV1Encoder::AV1Encoder(const Properties& properties) :
 	// "libsvtav1" : encodeur temps-réel capable (presets 0-13). ffmpeg
 	// choisirait "libaom-av1" par défaut, bien trop lent pour un flux live.
 	FfVideoEncoder(properties, AV_CODEC_ID_AV1, VideoCodec::AV1, /*tryHW*/ false, "libsvtav1"),
-	openedBitrate(0), obuSeqHdrCached(false), cachedProfile(0), cachedLevelIdx(0), cachedTier(0)
+	obuSeqHdrCached(false), cachedProfile(0), cachedLevelIdx(0), cachedTier(0)
 {
 	preset = properties.GetProperty("av1.preset", 10);
 }
@@ -133,8 +133,6 @@ void AV1Encoder::ConfigureContext()
 
 	if (ctx && ctx->priv_data)
 		av_opt_set_int(ctx->priv_data, "preset", preset, 0);
-
-	openedBitrate = bitrate;
 }
 
 int AV1Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
@@ -142,10 +140,9 @@ int AV1Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 	// Mémorise fps/débit/période intra
 	FfVideoEncoder::SetFrameRate(frames,kbits,intraPeriod);
 
-	// Réouverture seulement sur une variation significative (>=10 %) : chaque
-	// réouverture coûte une trame clé, on ne la paye pas à chaque
-	// micro-ajustement de la boucle d'adaptation.
-	if (opened && openedBitrate > 0 && abs(bitrate-openedBitrate)*10 >= openedBitrate)
+	// Politique commune (FfVideoEncoder::ShouldReopenForBitrate) : baisse tout
+	// de suite, hausse par paliers — chaque réouverture coûte une trame clé.
+	if (ShouldReopenForBitrate())
 		ReopenCodec();
 
 	return 1;

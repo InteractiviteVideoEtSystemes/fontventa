@@ -175,3 +175,59 @@ TEST(VideoEncoderReconfig, LaConsigneAtteintLEncodeurAv1)
 	EXPECT_TRUE(vf->IsIntra())
 		<< "pas de trame clé après le changement de consigne : codec non rouvert";
 }
+
+// La boucle d'adaptation monte de +8 %/s. Avec un seuil de réouverture à 10 %
+// elle franchit le seuil toutes les 1,3 s, soit une trame clé toutes les 1,3 s :
+// mesuré en séance le 2026-08-20, 136 réouvertures en 5,5 min dont deux à 0,16 s
+// d'intervalle. Les paliers de 1,5x bornent cela à la hausse.
+TEST(VideoEncoderReconfig, UneRampeDeMonteeNeMultipliePasLesTramesClesVp8)
+{
+	DWORD seed = 45;
+	VP8Encoder enc((Properties()));
+	int kbits = 300;
+	ASSERT_EQ(enc.SetFrameRate(30, kbits, 300), 1);
+	ASSERT_GE(enc.SetSize(W, H), 1);
+
+	// 30 pas de +8 % : x10 au total, soit 5 paliers de 1,5x franchis.
+	size_t intras = 0, frames = 0;
+	for (int i = 0; i < 30; i++)
+	{
+		kbits = kbits + kbits * 8 / 100;
+		ASSERT_EQ(enc.SetFrameRate(30, kbits, 300), 1);
+		PictPtr pic = CreateNoise(seed);
+		ASSERT_TRUE(pic != nullptr);
+		VideoFrame* vf = enc.EncodeFrame(pic);
+		if (!vf)
+			continue;
+		frames++;
+		if (vf->IsIntra())
+			intras++;
+	}
+	ASSERT_GE(frames, 20u);
+	// 5 paliers franchis, plus la trame clé d'ouverture : 8 laisse de la marge.
+	// Le seuil symétrique de 10 % en produisait plus de 20.
+	EXPECT_LE(intras, 8u) << intras << " trames clés pour une rampe x10";
+	// Et la consigne a bien fini par être appliquée : le débit ouvert doit
+	// avoir suivi, sinon aucune trame clé n'aurait été produite du tout.
+	EXPECT_GE(intras, 1u);
+}
+
+// La baisse, elle, doit passer tout de suite : c'est le sens qui compte quand le
+// réseau se ferme, et un pas de l'AIMD ne vaut que -15 %.
+TEST(VideoEncoderReconfig, UnPasDeBaisseEstAppliqueImmediatementVp8)
+{
+	DWORD seed = 46;
+	VP8Encoder enc((Properties()));
+	ASSERT_EQ(enc.SetFrameRate(30, 2000, 300), 1);
+	ASSERT_GE(enc.SetSize(W, H), 1);
+
+	EncodeRun warmup = Encode(enc, 5, seed);
+	ASSERT_GE(warmup.frames, 1u);
+
+	// -15 %, un seul pas de l'AIMD (0,85 x l'acquitté)
+	ASSERT_EQ(enc.SetFrameRate(30, 1700, 300), 1);
+
+	EncodeRun after = Encode(enc, 5, seed);
+	ASSERT_GE(after.frames, 1u);
+	EXPECT_TRUE(after.firstIsIntra) << "la baisse n'a pas été appliquée";
+}
