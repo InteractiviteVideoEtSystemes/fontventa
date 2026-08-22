@@ -511,14 +511,27 @@ void H264Encoder::ResolveNegotiation(const Properties& localProps,
 	// le même mode, pour la raison opposée : émettre dans un mode que le pair ne
 	// dépaquettise pas produit un flux négocié et jamais décodé.
 	//
-	// **Absence == pas de contrainte == 1** (décidé le 2026-08-06, écart assumé à la RFC
-	// 6184 §8.1 qui fait valoir 0) : un pair qui omet le paramètre est un SDP incomplet
-	// plus qu'un décodeur single-NAL. Le mode résolu est écrit dans les DEUX jeux dans
-	// tous les cas, pour qu'en aval la clé ait une valeur et une seule signification —
-	// absente, l'encodeur devrait redeviner ce défaut, et c'est ainsi qu'on se retrouve
-	// avec deux lectures du même silence.
+	// **Absence == mode 0**, comme le dit la RFC 6184 §8.1. Le mode résolu est écrit
+	// dans les DEUX jeux dans tous les cas, pour qu'en aval la clé ait une valeur et
+	// une seule signification — absente, l'encodeur devrait redeviner ce défaut, et
+	// c'est ainsi qu'on se retrouve avec deux lectures du même silence.
+	//
+	// Ce fut « absence == pas de contrainte == 1 » du 2026-08-06 au 2026-08-21, écart
+	// assumé au motif qu'un pair qui omet le paramètre publie un SDP incomplet plutôt
+	// qu'un décodeur single-NAL. L'écart est inoffensif quand nous ENCODONS — nous
+	// choisissons alors la mise en paquets — et faux dès que nous RELAYONS : ce qui
+	// arrive au pair est la mise en paquets de la SOURCE, négociée avec elle, et que
+	// personne ne confronte à ce que le pair sait dépaquetiser.
+	//
+	// Trafic du 2026-08-21, Chrome relayé vers Linphone. Linphone offre
+	// `a=fmtp:99 profile-level-id=42801F` sans packetization-mode : il ne sait recevoir
+	// que du NAL simple. Lu comme un mode 1, il passait pour capable de FU-A et de
+	// STAP-A. Nous répondions donc mode 1 — décrivant un PT qu'il n'avait pas proposé,
+	// contre la §8.2.2 — et nous lui relayions les fragments de Chrome. Son décodeur
+	// répondait « dsNoParamSets » en boucle sur un flux pourtant livré intact : image
+	// noire dès que sa caméra s'allumait, pendant tout l'appel.
 	std::map<std::string,std::string>::const_iterator itMode = remoteParams.find("packetization-mode");
-	const std::string mode = (itMode != remoteParams.end() && itMode->second == "0") ? "0" : "1";
+	const std::string mode = (itMode != remoteParams.end() && itMode->second == "1") ? "1" : "0";
 
 	announceProps["h264.packetization-mode"]  = mode;
 	effectiveProps["h264.packetization-mode"] = mode;

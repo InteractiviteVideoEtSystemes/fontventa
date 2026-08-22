@@ -338,10 +338,15 @@ TEST(NegotiatorH264, PacketizationModeParDefaut)
 	EXPECT_NE(announced.find("packetization-mode=1"), std::string::npos);
 }
 
-// Absence de packetization-mode = pas de contrainte = 1, dans les deux jeux (écart
-// assumé à la RFC 6184 §8.1, décidé le 2026-08-06). L'encodeur doit lire une valeur
-// explicite plutôt que redeviner un défaut.
-TEST(NegotiatorH264, ModeAbsentVautUnDansLesDeuxJeux)
+// Absence de packetization-mode = mode 0, comme le dit la RFC 6184 §8.1, dans les
+// deux jeux. L'encodeur doit lire une valeur explicite plutôt que redeviner un défaut.
+//
+// Ce test affirmait l'inverse du 2026-08-06 au 2026-08-21 : « absence = pas de
+// contrainte = 1 », au motif qu'un pair qui omet le paramètre publie un SDP incomplet
+// plutôt qu'un décodeur single-NAL. L'écart est inoffensif quand nous ENCODONS et faux
+// quand nous RELAYONS — Linphone, qui omet le paramètre, passait pour capable de FU-A
+// et recevait les fragments de Chrome sans jamais pouvoir les assembler.
+TEST(NegotiatorH264, ModeAbsentVautZeroDansLesDeuxJeux)
 {
 	std::map<int,int> proposed;
 	proposed[96] = VideoCodec::H264;
@@ -351,9 +356,11 @@ TEST(NegotiatorH264, ModeAbsentVautUnDansLesDeuxJeux)
 	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Video, proposed, props, &props, out));
 	ASSERT_EQ(out.codecs.size(), 1u);
 
-	EXPECT_NE(out.codecs[0].fmtp.find("packetization-mode=1"), std::string::npos);
+	EXPECT_NE(out.codecs[0].fmtp.find("packetization-mode=0"), std::string::npos)
+		<< "repondre mode 1 sur un PT offert sans mode decrit un codec que le pair"
+		   " n'a pas propose (RFC 6184 §8.2.2)";
 	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("h264.packetization-mode",
-	                                                   std::string()), "1");
+	                                                   std::string()), "0");
 }
 
 // Mode 0 explicite : annoncé 0 et borné 0. C'est le seul cas qui fait basculer
