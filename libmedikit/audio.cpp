@@ -250,6 +250,55 @@ int AudioDecoder::Decode(BYTE *in, int inLen, SWORD* out, int outLen)
 	return (int)want;
 }
 
+int AudioInput::RecBuffer(SWORD *buffer, DWORD size)
+{
+	if (!buffer || size == 0)
+		return 0;
+
+	DWORD got = 0;
+
+	while (got < size)
+	{
+		if (!pending || pendingOffset >= pending->GetNbSamples())
+		{
+			// Une seconde d'attente : au-delà, le producteur est arrêté ou
+			// muet, et l'appelant historique boucle de lui-même.
+			pending = RecFrame(1000);
+			pendingOffset = 0;
+			if (!pending)
+				break;
+		}
+
+		DWORD avail = pending->GetNbSamples() - pendingOffset;
+		DWORD want  = (avail > size - got) ? size - got : avail;
+
+		memcpy(buffer + got, pending->GetData() + pendingOffset, (size_t)want * sizeof(SWORD));
+		pendingOffset += want;
+		got += want;
+
+		if (pendingOffset >= pending->GetNbSamples())
+			pending.reset();
+	}
+
+	return (int)got;
+}
+
+int AudioOutput::PlayBuffer(SWORD *buffer, DWORD size, DWORD frameTime)
+{
+	if (!buffer || size == 0)
+		return 0;
+
+	DWORD rate = GetPlayingRate();
+	if (rate == 0)
+		return Error("-AudioOutput: rate unknown, StartPlaying() missing\n");
+
+	SamplesPtr samples = Samples::FromBuffer(buffer, size, rate);
+	if (!samples)
+		return Error("-AudioOutput: could not allocate %u samples\n", size);
+
+	return PlayFrame(samples);
+}
+
 bool AudioFrame::Packetize(unsigned int mtu)
 {
 	unsigned int paksize = packetization;
