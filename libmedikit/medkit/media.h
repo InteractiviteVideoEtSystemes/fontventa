@@ -90,7 +90,10 @@ public:
 	    RTMP = 1,
 		WS = 2,
 	    TCP = 3 , // Used for MSRP, BFCP and other TCP based media
-		UDP=4
+		UDP=4,
+		// SCTP over DTLS: a WebRTC data channel (RFC 8841). The leg is still
+		// ICE + DTLS + UDP -- only what travels inside changes.
+		SCTP=5
 	};
 
 	static const char * ProtocolToString(MediaProtocol prot)
@@ -107,6 +110,8 @@ public:
 				return "tcp";
 			case UDP:
 				return "udp";
+			case SCTP:
+				return "sctp";
 			default:
 				return "http";
 		}
