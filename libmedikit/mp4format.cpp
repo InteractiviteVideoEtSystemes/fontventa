@@ -3,6 +3,7 @@ extern "C"
 #include <asterisk/frame.h>
 #include <asterisk/channel.h>
 }
+#include <string.h>
 #include "medkit/astcpp.h"
 #include "astmedkit/mp4format.h"
 #include "medkit/picturestreamer.h"
@@ -77,19 +78,33 @@ int AstMp4Recorder::ProcessFrame( struct ast_frame *f, bool secondary )
                 if( f->subclass == AST_FORMAT_SLINEAR )
                 {
                     // If audio received is SLINEAR - transcode
-                    int outLen = sizeof( audioBuff );
                     acodec = AudioCodec::PCMU;
 
                     if( audioencoder == NULL )
                         audioencoder = AudioCodecFactory::CreateEncoder( AudioCodec::PCMU );
 
-                    outLen = audioencoder->Encode( (SWORD *)AST_FRAME_GET_BUFFER( f ), f->datalen / 2,
-                        audioBuff, outLen );
-                    if( outLen > 0 )
-                        af.SetMedia( audioBuff, outLen );
-                    else
+                    // L'encodeur accumule jusqu'a sa trame complete : une trame
+                    // Asterisk plus courte ne produit rien tout de suite, sans
+                    // rien perdre. La trame rendue appartient a l'encodeur et ne
+                    // vaut que jusqu'a l'appel suivant : on la recopie, `af`
+                    // etant construite en owns=false.
+                    SamplesPtr samples = Samples::FromBuffer(
+                        (const SWORD *)AST_FRAME_GET_BUFFER( f ),
+                        f->datalen / 2, audioencoder->GetRate() );
+
+                    AudioFrame * encoded = samples ? audioencoder->EncodeFrame( samples ) : NULL;
+                    if( encoded == NULL )
                         return 0;
 
+                    if( encoded->GetLength() > sizeof( audioBuff ) )
+                    {
+                        Error( "AstMp4Recorder: trame de %u octets > tampon audio\n",
+                               encoded->GetLength() );
+                        return 0;
+                    }
+
+                    memcpy( audioBuff, encoded->GetData(), encoded->GetLength() );
+                    af.SetMedia( audioBuff, encoded->GetLength() );
                 }
                 else if( AstFormatToCodec( f->subclass, acodec ) )
                 {

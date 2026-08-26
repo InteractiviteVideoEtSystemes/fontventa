@@ -167,7 +167,6 @@ TEST(Mp4Transcode, AacVersOpusAvecBornes)
 	EXPECT_EQ(ac, AudioCodec::OPUS);
 
 	OPUSDecoder dec;
-	SWORD pcm[8192];
 	int na = 0, err = 0;
 	unsigned long wait = 0;
 	DWORD prevTs = 0;
@@ -186,8 +185,8 @@ TEST(Mp4Transcode, AacVersOpusAvecBornes)
 				EXPECT_EQ(f->GetTimeStamp() - prevTs, 960u);
 			first = false;
 			prevTs = f->GetTimeStamp();
-			EXPECT_GT(dec.Decode(f->GetData(), (int)f->GetLength(), pcm,
-			                     (int)(sizeof(pcm)/sizeof(pcm[0]))), 0);
+			EXPECT_GT(dec.Decode(f->GetData(), (int)f->GetLength()), 0);
+			EXPECT_TRUE(dec.GetFrame() != nullptr);
 			na++;
 		}
 		if (wait > 0) usleep(wait * 1000);

@@ -298,7 +298,7 @@ bool FfAudioEncoder::PushToFifo(SamplesPtr samples)
 
 	// LA TRAME FAIT FOI : si sa fréquence a changé, on reconfigure le
 	// rééchantillonneur ici, sans état partagé avec le producteur. C'est ce qui
-	// rend impossible le bug de fréquence périmée (design/audio-avframe.md §2.3).
+	// rend impossible le bug de fréquence périmée.
 	DWORD rate = samples->GetRate();
 	if (rate == 0)
 	{

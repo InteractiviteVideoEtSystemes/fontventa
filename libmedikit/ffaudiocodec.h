@@ -38,10 +38,6 @@ public:
 	               const char* codec_name = nullptr);
 	virtual ~FfAudioEncoder();
 
-	// L'adaptateur plat de la classe de base reste joignable sur un
-	// FfAudioEncoder concret (sinon masqué par la surcharge ci-dessous).
-	using AudioEncoder::Encode;
-
 	virtual AudioFrame* EncodeFrame(SamplesPtr samples);
 	virtual DWORD TrySetRate(DWORD rate);
 	virtual DWORD GetRate();
@@ -117,9 +113,6 @@ public:
 	               const uint8_t* extradata, int extradata_size,
 	               const char* codec_name = nullptr, int sample_rate = 0);
 	virtual ~FfAudioDecoder();
-
-	// Idem FfAudioEncoder : garder l'adaptateur plat visible.
-	using AudioDecoder::Decode;
 
 	virtual int        Decode(BYTE *in, int inLen);
 	virtual SamplesPtr GetFrame();

@@ -83,12 +83,6 @@ public:
 	virtual DWORD GetClockRate()=0;
 	virtual bool  GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp=""; return false; };
 
-	// ADAPTATEUR TRANSITOIRE (non virtuel) vers l'ancienne interface plate, pour
-	// les chaînes du mcu pas encore migrées. À SUPPRIMER avec le dernier appelant
-	// (cf. design/audio-avframe.md §6). N'émet qu'une trame par appel et borne
-	// l'écriture à outLen — l'appelant ne dimensionne plus rien à l'aveugle.
-	int Encode(SWORD *in,int inLen,BYTE* out,int outLen);
-
 	AudioCodec::Type	type;
 	int			numFrameSamples;
 	int			frameLength;
@@ -118,19 +112,9 @@ public:
 	virtual DWORD GetRate()=0;
 	virtual bool  GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp=""; return false; };
 
-	// ADAPTATEUR TRANSITOIRE (non virtuel) — même statut que AudioEncoder::Encode.
-	// Restitue au plus outLen échantillons par appel, le reste de la trame étant
-	// retenu ici : l'appelant boucle avec (NULL,0) comme avant.
-	int Decode(BYTE *in,int inLen,SWORD* out,int outLen);
-
 	AudioCodec::Type	type;
 	int			numFrameSamples;
 	int			frameLength;
-
-private:
-	// État de l'adaptateur seul : trame en cours de recopie et offset atteint.
-	SamplesPtr		pending;
-	DWORD			pendingOffset = 0;
 };
 
 class AudioFrame : public MediaFrame
@@ -212,17 +196,6 @@ public:
 	virtual int StartRecording(DWORD samplerate)=0;
 	virtual int StopRecording()=0;
 
-	// ADAPTATEUR TRANSITOIRE (non virtuel) vers l'ancienne interface plate,
-	// pour les chaînes du mcu pas encore migrées. Rend exactement `size`
-	// échantillons, ou moins si la capture s'arrête. À supprimer avec son
-	// dernier appelant (cf. design/audio-avframe.md §6).
-	int RecBuffer(SWORD *buffer,DWORD size);
-	void CancelRecBuffer()	{ CancelRecFrame(); }
-
-private:
-	// État de l'adaptateur seul : trame entamée et offset atteint.
-	SamplesPtr	pending;
-	DWORD		pendingOffset = 0;
 };
 
 class AudioOutput
@@ -238,11 +211,6 @@ public:
 
 	virtual int StartPlaying(DWORD samplerate)=0;
 	virtual int StopPlaying()=0;
-
-	// ADAPTATEUR TRANSITOIRE — même statut que AudioInput::RecBuffer.
-	// frameTime n'a jamais été lu par aucune implémentation : il disparaît,
-	// l'horodatage voyageant désormais avec la trame.
-	int PlayBuffer(SWORD *buffer,DWORD size,DWORD frameTime);
 };
 
 class AudioCodecFactory

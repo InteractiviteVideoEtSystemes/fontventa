@@ -3,9 +3,10 @@
  * refcompté (Samples/SamplesPtr) et contrat des codecs audio.
  *
  * Cette suite couvre la classe de bug qui a motivé la migration (appel
- * opus<->speex16 du 2026-08-14, design/audio-avframe.md) : tampons appelants
+ * opus<->speex16 du 2026-08-14) : tampons appelants
  * trop courts, trames tronquées, fréquence périmée entre deux bouts d'un pipe.
- * Chacun de ces trois défauts a ici son test.
+ * Le premier défaut n'a plus de test propre : il n'existe plus de tampon
+ * appelant à déborder, l'interface n'en demande aucun.
  */
 #include <gtest/gtest.h>
 #include <medkit/log.h>
@@ -297,55 +298,6 @@ TEST(AudioCodecResample, UnChangementDeFrequenceEstAbsorbeParLaTrame)
 	AudioFrame *frame = enc->EncodeFrame(MakeToneSamples(160, 8000));
 	ASSERT_TRUE(frame != nullptr);
 	EXPECT_EQ(frame->GetLength(), 160u);
-}
-
-/* ------------------------------------------------------------------------- *
- *      Adaptateurs plats : les chaînes non migrées ne débordent plus        *
- * ------------------------------------------------------------------------- */
-
-// Bug n°1 du 14/08 : recBuffer[512] face à des trames de 960 -> écrasement de
-// pile. L'adaptateur borne désormais l'écriture au lieu de faire confiance.
-TEST(AudioCodecAdaptateur, UnTamponDeSortieTropCourtNeDeborderPlus)
-{
-	std::unique_ptr<AudioEncoder> enc = MakeEncoder(AudioCodec::PCMU);
-	ASSERT_TRUE(enc != nullptr);
-
-	std::vector<SWORD> pcm = MakeTone(160, 8000);
-	BYTE out[32];
-	memset(out, 0xAA, sizeof(out));
-
-	// 160 octets encodés ne tiennent pas dans 16 : refus, pas d'écriture.
-	EXPECT_LE(enc->Encode(&pcm[0], 160, out, 16), 0);
-	for (size_t i = 0; i < sizeof(out); i++)
-		EXPECT_EQ(out[i], 0xAA) << "octet " << i << " écrasé";
-}
-
-// Le pendant au décodage : un appelant qui garde un tampon de 512 récupère
-// désormais TOUS les échantillons d'une trame de 960, en bouclant comme avant.
-TEST(AudioCodecAdaptateur, LAncienneInterfaceRestitueToutParTranches)
-{
-	if (!AudioCodec::IsSupported(AudioCodec::OPUS))
-		GTEST_SKIP() << "OPUS indisponible dans ffmpeg";
-
-	std::unique_ptr<AudioEncoder> enc = MakeEncoder(AudioCodec::OPUS);
-	std::unique_ptr<AudioDecoder> dec = MakeDecoder(AudioCodec::OPUS);
-	ASSERT_TRUE(enc != nullptr);
-	ASSERT_TRUE(dec != nullptr);
-	ASSERT_EQ(enc->TrySetRate(48000), 48000u);
-
-	AudioFrame *frame = enc->EncodeFrame(MakeToneSamples(960, 48000));
-	ASSERT_TRUE(frame != nullptr);
-
-	SWORD raw[512];
-	int total = 0;
-	int len = dec->Decode(frame->GetData(), (int)frame->GetLength(), raw, 512);
-	while (len > 0)
-	{
-		EXPECT_LE(len, 512);
-		total += len;
-		len = dec->Decode(NULL, 0, raw, 512);
-	}
-	EXPECT_EQ(total, 960);
 }
 
 /* ------------------------------------------------------------------------- *
