@@ -19,6 +19,21 @@ extern std::string BuildH264Fmtp(int payloadType, const std::vector<uint8_t>& sp
 // compression, assez petite pour qu'une perte n'emporte qu'une fraction de trame.
 static const int H264_MODE1_SLICE_MAX_SIZE = 10000;
 
+// Régimes de CRF par budget (bits par pixel et par image) — cf. CrfForBudget.
+static const int    H264_CRF_GENEROUS = 21;
+static const int    H264_CRF_NOMINAL  = 23;
+static const int    H264_CRF_TIGHT    = 26;
+static const double H264_BPP_GENEROUS = 0.08;
+static const double H264_BPP_TIGHT    = 0.04;
+
+// Définis plus bas (avec GetFmtpParams/ResolveNegotiation), déclarés ici pour
+// la validation du constructeur.
+namespace
+{
+std::string LowerCopy(std::string s);
+bool ParseProfileLevelId(const std::string& plid, std::string& profilePart, int& level);
+}
+
 //////////////////////////////////////////////////////////////////////////
 //Encoder H264 (ffmpeg : h264_vaapi si dispo, libx264 sinon)
 //////////////////////////////////////////////////////////////////////////
@@ -58,10 +73,53 @@ H264Encoder::H264Encoder(const Properties& properties)
 	                 /*tryHW*/ WantsHardware(properties))
 {
 	h264ProfileLevelId = properties.GetProperty("h264.profile-level-id",std::string("42801F"));
+
+	// Le chemin /mcu recopie la map XML-RPC telle quelle : rien n'a validé ce
+	// plid. GetProfileLevel fait substr(4,2) — std::out_of_range sur moins de
+	// 4 caractères, donc terminate() du thread d'encodage — et PacketizeFrame
+	// réécrit 3 octets de chaque SPS avec sa valeur.
+	std::string profilePart;
+	int level;
+	if (!ParseProfileLevelId(LowerCopy(h264ProfileLevelId), profilePart, level))
+	{
+		Error("-H264Encoder: profile-level-id illisible [%s], falling back to 42801F\n",
+		      h264ProfileLevelId.c_str());
+		h264ProfileLevelId = "42801F";
+	}
+
 	intraRefresh = (bool) properties.GetProperty("h264.intra_refresh",0);
 	qPel =  properties.GetProperty("h264.qpel",3);
 	packetizationMode = WantedPacketizationMode(properties);
+	crfApplied = H264_CRF_NOMINAL;
 	spsPpsCached = false;
+}
+
+/**********************
+* CrfForBudget
+*	CRF selon le budget par pixel et par image, avec hystérésis de sortie
+*	de régime (contrat détaillé dans la déclaration).
+***********************/
+int H264Encoder::CrfForBudget(double bpp, int current)
+{
+	if (bpp <= 0)
+		return current;
+
+	const double generous = (current == H264_CRF_GENEROUS) ? H264_BPP_GENEROUS*0.9 : H264_BPP_GENEROUS;
+	const double tight    = (current == H264_CRF_TIGHT)    ? H264_BPP_TIGHT*1.1    : H264_BPP_TIGHT;
+
+	if (bpp >= generous)
+		return H264_CRF_GENEROUS;
+	if (bpp <= tight)
+		return H264_CRF_TIGHT;
+	return H264_CRF_NOMINAL;
+}
+
+int H264Encoder::CrfForBudget(int current) const
+{
+	if (!ctx || ctx->width <= 0 || ctx->height <= 0 || fps <= 0)
+		return current;
+
+	return CrfForBudget((double)bitrate / ((double)ctx->width * ctx->height * fps), current);
 }
 
 /**********************
@@ -123,9 +181,16 @@ void H264Encoder::ConfigureContext()
 		// --- Encodeur VAAPI ---
 		// VBR piloté par bit_rate (moyenne) / rc_max_rate (crête). Pas de
 		// reconfiguration en cours de route : SetFrameRate() rouvre le codec.
+		//
+		// Le mode de rate control reste en AUTO à dessein : posé explicitement
+		// (rc_mode=VBR), il fait ÉCHOUER l'ouverture quand le driver ne l'offre
+		// pas — donc repli logiciel silencieux —, alors que l'auto essaie AVBR,
+		// VBR puis CBR (vaapi_encode.c, ffmpeg 5.1). Même raison pour l'absence
+		// de max_frame_size : VA_ATTRIB_NOT_SUPPORTED y vaut AVERROR(EINVAL)
+		// à l'ouverture.
 		ctx->bit_rate	    = bitrate*0.8;
 		ctx->rc_max_rate    = bitrate;
-		ctx->rc_buffer_size = bitrate;	// 1 seconde de VBV
+		ctx->rc_buffer_size = bitrate/2;	// VBV d'une demi-seconde : borne la latence de crête
 
 		switch (profile)
 		{
@@ -147,18 +212,28 @@ void H264Encoder::ConfigureContext()
 	else
 	{
 		// --- libx264 ---
-		// Mêmes réglages que l'ancien encodeur x264 direct (CRF borné VBV,
-		// zerolatency, slices calibrées sur le payload RTP).
-		av_opt_set(ctx->priv_data, "preset", "medium", 0);
+		// CRF borné VBV, zerolatency, slices calibrées sur le payload RTP.
+		//
+		// Preset selon la surface : « medium » (déjà allégé par ref=1/subme
+		// ci-dessous) tient le temps réel jusqu'à VGA ; au-delà, un 720p30
+		// mono-thread sur un mixeur chargé exige « veryfast ».
+		av_opt_set(ctx->priv_data, "preset",
+		           (ctx->width * ctx->height > 640*480) ? "veryfast" : "medium", 0);
 		av_opt_set(ctx->priv_data, "tune", "zerolatency", 0);
 		// FPU => vraie IDR (resynchronisation du décodeur distant)
 		av_opt_set_int(ctx->priv_data, "forced-idr", 1, 0);
-		// CRF 23 borné par le VBV : le débit suit rc_max_rate/rc_buffer_size,
-		// que le wrapper libx264 relit à chaque trame => reconfigurable à
-		// chaud sans réouverture (cf. SetFrameRate).
-		av_opt_set_double(ctx->priv_data, "crf", 23, 0);
-		ctx->rc_max_rate    = 0.6*bitrate;
-		ctx->rc_buffer_size = ctx->rc_max_rate;
+		// CRF selon le budget par pixel (CrfForBudget), borné par le VBV : le
+		// wrapper libx264 relit crf/rc_max_rate/rc_buffer_size à chaque trame
+		// => reconfigurable à chaud sans réouverture (cf. SetFrameRate).
+		crfApplied = CrfForBudget(H264_CRF_NOMINAL);
+		av_opt_set_double(ctx->priv_data, "crf", crfApplied, 0);
+		// Crête à 90 % de la consigne, la marge résiduelle couvrant l'overhead
+		// RTP/SRTP. L'ancien plafond de 60 % maintenait l'émission réelle loin
+		// sous ce que la boucle d'adaptation accordait — et la croyance de
+		// débit d'un pair TMMBR (Linphone) se forme précisément sur ce qu'on
+		// lui envoie. VBV d'une demi-seconde : borne la latence de crête.
+		ctx->rc_max_rate    = 0.9*bitrate;
+		ctx->rc_buffer_size = ctx->rc_max_rate/2;
 
 		switch (profile)
 		{
@@ -234,8 +309,19 @@ int H264Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 			// Le wrapper libx264 relit ces champs à chaque trame et applique
 			// x264_encoder_reconfig() : mise à jour sans réouverture ni IDR.
 			ctx->bit_rate	    = bitrate;
-			ctx->rc_max_rate    = 0.6*bitrate;
-			ctx->rc_buffer_size = ctx->rc_max_rate;
+			ctx->rc_max_rate    = 0.9*bitrate;
+			ctx->rc_buffer_size = ctx->rc_max_rate/2;
+
+			// Le CRF suit le budget par pixel par la même voie : l'option
+			// privée `crf` est elle aussi relue à chaque trame.
+			int crf = CrfForBudget(crfApplied);
+			if (crf != crfApplied)
+			{
+				av_opt_set_double(ctx->priv_data, "crf", crf, 0);
+				Log("-H264Encoder: crf %d -> %d [%dkbps,%dx%d@%dfps]\n",
+				    crfApplied, crf, bitrate/1024, ctx->width, ctx->height, fps);
+				crfApplied = crf;
+			}
 		}
 	}
 

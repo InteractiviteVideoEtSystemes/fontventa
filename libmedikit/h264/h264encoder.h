@@ -75,16 +75,32 @@ public:
 	// donc false — et le journalise — quand le mode 0 est demandé.
 	static bool WantsHardware(const Properties& properties);
 
+	// CRF (libx264) selon le budget par pixel et par image
+	// (bpp = débit / (largeur × hauteur × fps)) : 21 au-dessus de 0,08 bpp
+	// (~2,2 Mb/s en 720p30) où le VBV borne de toute façon, 26 sous 0,04 bpp
+	// pour éviter un VBV en butée permanente (pompage de qualité), 23 entre
+	// les deux. `current` = CRF en vigueur : le seuil de SORTIE du régime
+	// courant est décalé de ~10 % (hystérésis contre le battement de la
+	// boucle d'adaptation autour de son plateau). bpp inconnu (<= 0) rend
+	// `current` tel quel.
+	static int CrfForBudget(double bpp, int current);
+
 protected:
 	virtual void ConfigureContext();
 	virtual void PacketizeFrame();
 
 private:
 	void GetProfileLevel(int &profile, int &level);
+	// Variante instance : bpp calculé de l'état courant (bitrate, taille, fps).
+	int CrfForBudget(int current) const;
 
 	std::string h264ProfileLevelId;
 	bool intraRefresh;
 	int qPel;
+	// CRF appliqué à l'encodeur libx264 ouvert : l'option privée `crf` du
+	// wrapper est relue à chaque trame (x264_encoder_reconfig), donc suivie à
+	// chaud sans réouverture ni IDR — cf. SetFrameRate.
+	int crfApplied;
 	// Mode de paquetisation négocié pour l'ÉMISSION (0 ou 1) : borne la taille des
 	// slices produites, cf. ConfigureContext.
 	int packetizationMode;
