@@ -97,7 +97,7 @@ endif
 #Modules
 ############################################
 G711DIR=g711
-G711OBJ=g711.o pcmucodec.o pcmacodec.o
+G711OBJ=g711codec.o
 
 H263DIR=h263
 H263OBJ=h263packet.o h263codec.o mpeg4codec.o
@@ -182,7 +182,6 @@ endif
 VPATH =  %.cpp $(H263DIR)
 VPATH += %.cpp $(H264DIR)
 VPATH += %.cpp $(G711DIR)
-VPATH += %.c $(G711DIR)
 VPATH += %.cpp $(G722DIR)
 VPATH += %.cpp $(AACDIR)
 VPATH += %.cpp $(AMRDIR)

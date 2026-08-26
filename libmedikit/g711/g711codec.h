@@ -1,55 +1,46 @@
 #ifndef _G711CODEC_H_
 #define _G711CODEC_H_
 
-#include <medkit/audio.h>
+#include "../ffaudiocodec.h"
 
-class PCMAEncoder : public AudioEncoder
+/**
+ * G.711 (RFC 3551) adossé à la base générique ffmpeg, comme tous les autres
+ * codecs de la bibliothèque : PCM 8 kHz mono, un octet par échantillon.
+ *
+ * Les encodeurs/décodeurs PCM de ffmpeg n'annoncent pas de frame_size : c'est
+ * FfAudioEncoder::Open() qui impose alors la tranche de 20 ms (160 échantillons),
+ * la granularité qu'attend la packetisation RTP.
+ */
+class PCMAEncoder : public FfAudioEncoder
 {
 public:
 	PCMAEncoder(const Properties &properties);
-	virtual ~PCMAEncoder();
-	virtual int Encode(SWORD *in,int inLen,BYTE* out,int outLen);
-	virtual DWORD TrySetRate(DWORD rate)	{ return 8000;	}
-	virtual DWORD GetRate()			{ return 8000;	}
-	virtual DWORD GetClockRate()		{ return 8000;	}
 
+	virtual DWORD GetClockRate()	{ return 8000; }
 };
 
-class PCMADecoder : public AudioDecoder
+class PCMADecoder : public FfAudioDecoder
 {
 public:
 	PCMADecoder();
-	virtual ~PCMADecoder();
-	virtual int Decode(BYTE *in,int inLen,SWORD* out,int outLen);
-	virtual DWORD TrySetRate(DWORD rate)	{ return 8000;	}
-	virtual DWORD GetRate()			{ return 8000;	}
 
-	// G.711 implémenté localement (sans lib externe) : toujours disponible.
-	static bool IsSupported()		{ return true;	}
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_PCM_ALAW); }
 };
 
-class PCMUEncoder : public AudioEncoder
+class PCMUEncoder : public FfAudioEncoder
 {
 public:
 	PCMUEncoder(const Properties &properties);
-	virtual ~PCMUEncoder();
-	virtual int Encode(SWORD *in,int inLen,BYTE* out,int outLen);
-	virtual DWORD TrySetRate(DWORD rate)	{ return 8000;	}
-	virtual DWORD GetRate()			{ return 8000;	}
-	virtual DWORD GetClockRate()		{ return 8000;	}
+
+	virtual DWORD GetClockRate()	{ return 8000; }
 };
 
-class PCMUDecoder : public AudioDecoder
+class PCMUDecoder : public FfAudioDecoder
 {
 public:
 	PCMUDecoder();
-	virtual ~PCMUDecoder();
-	virtual int Decode(BYTE *in,int inLen,SWORD* out,int outLen);
-	virtual DWORD TrySetRate(DWORD rate)	{ return 8000;	}
-	virtual DWORD GetRate()			{ return 8000;	}
 
-	// G.711 implémenté localement (sans lib externe) : toujours disponible.
-	static bool IsSupported()		{ return true;	}
+	static bool IsSupported() { return FfAudioDecoder::IsCodecAvailable(AV_CODEC_ID_PCM_MULAW); }
 };
 
 #endif
