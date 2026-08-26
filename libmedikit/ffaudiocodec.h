@@ -6,11 +6,11 @@ extern "C" {
 
 #include "medkit/codecs.h"
 #include "medkit/audio.h"
-#include "medkit/fifo.h"
 #include <list>
 
-// libswresample n'est nécessaire que dans le .cpp : pointeur opaque ici.
+// Nécessaires seulement dans le .cpp : pointeurs opaques ici.
 struct SwrContext;
+struct AVAudioFifo;
 
 bool MapAudioCodec( enum AVCodecID id, AudioCodec::Type & out );
 
@@ -23,6 +23,10 @@ bool MapAudioCodec( enum AVCodecID id, AudioCodec::Type & out );
  *   3. TrySetRate() fixe le format d'échantillon et la fréquence, et crée
  *      au besoin le rééchantillonneur S16 -> format natif du codec ;
  *   4. Open() ouvre effectivement le codec (frame_size connu après coup).
+ *
+ * L'encodeur possède SA fifo (av_audio_fifo) : il accepte des SamplesPtr de
+ * n'importe quelle taille et n'émet qu'une fois numFrameSamples réunis. C'est
+ * le SEUL endroit du pipeline qui redécoupe en trames fixes.
  */
 class FfAudioEncoder : public AudioEncoder
 {
@@ -34,7 +38,11 @@ public:
 	               const char* codec_name = nullptr);
 	virtual ~FfAudioEncoder();
 
-	virtual int   Encode(SWORD *in, int inLen, BYTE* out, int outLen);
+	// L'adaptateur plat de la classe de base reste joignable sur un
+	// FfAudioEncoder concret (sinon masqué par la surcharge ci-dessous).
+	using AudioEncoder::Encode;
+
+	virtual AudioFrame* EncodeFrame(SamplesPtr samples);
 	virtual DWORD TrySetRate(DWORD rate);
 	virtual DWORD GetRate();
 	virtual DWORD GetClockRate()	{ return GetRate(); }
@@ -49,21 +57,35 @@ protected:
 	// (Ré)alloue le tampon de la trame d'entrée pour `nb` échantillons.
 	bool EnsureFrame(int nb);
 
+	// (Re)configure le rééchantillonneur pour une entrée à `rate` Hz. Appelé par
+	// TrySetRate et, à chaud, dès qu'une trame arrive à une autre fréquence.
+	bool SetupResampler(DWORD rate);
+
+	// Vide dans la fifo ce que le rééchantillonneur retient encore. À appeler
+	// avant de le reconfigurer, sinon ces échantillons sont perdus.
+	void DrainResampler();
+
+	// Verse `samples` dans la fifo (via le resampler si nécessaire).
+	bool PushToFifo(SamplesPtr samples);
+
+	// Retire numFrameSamples de la fifo et les encode dans `out`. Faux si la
+	// fifo est trop courte ou si l'encodage n'a rien produit.
+	bool EncodeFromFifo();
+
 	// Fréquence de repli si la fréquence demandée n'est pas supportée.
 	// À régler par la classe dérivée avant TrySetRate().
 	DWORD defaultSampleRate;
 
-	// Taux d'entrée tel que passé à TrySetRate() (taux pipeline du MCU).
-	// Peut différer de ctx->sample_rate si une conversion de fréquence est active.
-	DWORD inputRate;
-
 	const AVCodec	*codec;
 	AVCodecContext	*ctx;
 	SwrContext	*swr;	// nullptr si pas de rééchantillonnage nécessaire
-	AVFrame		*frame;	// trame d'entrée réutilisée
+	AVAudioFifo	*fifo;	// échantillons au format/fréquence du codec
+	AVFrame		*frame;	// trame d'entrée réutilisée (une trame codec)
 	AVPacket	*pkt;	// paquet de sortie réutilisé
+	AudioFrame	*out;	// trame encodée rendue par EncodeFrame, réutilisée
 	bool		 opened;
 	int		 allocatedSamples;	// capacité du tampon de `frame`
+	int64_t		 nextPts;		// horodatage de la prochaine trame émise
 };
 
 /**
@@ -72,8 +94,8 @@ protected:
  * Décode les paquets compressés et restitue du PCM signé 16 bits mono à la
  * fréquence native du flux. Si le décodeur produit un autre format
  * (planar/float, stéréo...), un rééchantillonneur libswresample convertit vers
- * S16 mono. Les échantillons décodés sont accumulés dans une fifo et restitués
- * par tranches de numFrameSamples (comportement aligné sur les autres codecs).
+ * S16 mono. Chaque trame décodée est publiée TELLE QUELLE, dans son propre
+ * AVFrame refcompté : plus aucun redécoupage, plus aucun tampon plafonné.
  */
 class FfAudioDecoder : public AudioDecoder
 {
@@ -95,7 +117,12 @@ public:
 	               const uint8_t* extradata, int extradata_size,
 	               const char* codec_name = nullptr, int sample_rate = 0);
 	virtual ~FfAudioDecoder();
-	virtual int   Decode(BYTE *in, int inLen, SWORD* out, int outLen);
+
+	// Idem FfAudioEncoder : garder l'adaptateur plat visible.
+	using AudioDecoder::Decode;
+
+	virtual int        Decode(BYTE *in, int inLen);
+	virtual SamplesPtr GetFrame();
 	virtual DWORD TrySetRate(DWORD rate);
 	virtual DWORD GetRate();
 
@@ -106,13 +133,22 @@ public:
 	static bool IsCodecAvailable(enum AVCodecID id, const char* preferredName = nullptr);
 
 private:
+	// Profondeur maximale de la file de sortie (1 s à 50 trames/s).
+	static const size_t MaxPendingFrames = 50;
+
+	// Publie `src` (déjà S16 mono) dans la file de sortie, en lui volant son
+	// tampon (av_frame_move_ref) : aucune recopie d'échantillons.
+	bool PublishS16Mono(AVFrame *src);
+	// Convertit `src` vers S16 mono puis le publie.
+	bool ConvertAndPublish(AVFrame *src);
+
 	const AVCodec	*codec;
 	AVCodecContext	*ctx;
 	SwrContext	*swr;	// nullptr tant que la sortie est déjà S16 mono
 	AVFrame		*frame;	// trame décodée réutilisée
 	AVPacket	*pkt;	// paquet d'entrée réutilisé
 	bool		 opened;
-	fifo<SWORD,8192>  samples;
+	std::list<SamplesPtr> frames;	// trames prêtes, dans l'ordre
 };
 
 #endif

@@ -3,6 +3,7 @@ extern "C" {
 #include <libavutil/opt.h>
 #include <libavutil/channel_layout.h>
 #include <libavutil/samplefmt.h>
+#include <libavutil/audio_fifo.h>
 #include <libswresample/swresample.h>
 }
 #include "medkit/log.h"
@@ -29,8 +30,9 @@ bool MapAudioCodec( enum AVCodecID id, AudioCodec::Type & out )
 
 FfAudioEncoder::FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id,
                                const char* codec_name) :
-	defaultSampleRate(8000), inputRate(0), codec(nullptr), ctx(nullptr), swr(nullptr),
-	frame(nullptr), pkt(nullptr), opened(false), allocatedSamples(0)
+	defaultSampleRate(8000), codec(nullptr), ctx(nullptr), swr(nullptr), fifo(nullptr),
+	frame(nullptr), pkt(nullptr), out(nullptr), opened(false), allocatedSamples(0),
+	nextPts(AV_NOPTS_VALUE)
 {
 	// Membres hérités d'AudioEncoder
 	type = codec_id;
@@ -73,8 +75,10 @@ FfAudioEncoder::FfAudioEncoder(const Properties& properties, enum AVCodecID av_c
 FfAudioEncoder::~FfAudioEncoder()
 {
 	if (swr)	swr_free(&swr);
+	if (fifo)	av_audio_fifo_free(fifo);
 	if (frame)	av_frame_free(&frame);
 	if (pkt)	av_packet_free(&pkt);
+	if (out)	delete out;
 	if (ctx)	avcodec_free_context(&ctx);	// libère aussi ch_layout
 }
 
@@ -139,36 +143,48 @@ DWORD FfAudioEncoder::TrySetRate(DWORD rate)
 	ctx->sample_fmt  = s16ok  ? AV_SAMPLE_FMT_S16 : codec->sample_fmts[0];
 	ctx->sample_rate = rateok ? (int)rate : (int)defaultSampleRate;
 
+	if (!s16ok || !rateok)
+		Log("[%s]: S16/%u Hz non supporté nativement -> resampler vers %s/%d Hz\n",
+			codec->name, rate, av_get_sample_fmt_name(ctx->sample_fmt), ctx->sample_rate);
+
+	if (!SetupResampler(rate))
+		return defaultSampleRate;
+
+	return ctx->sample_rate;
+}
+
+bool FfAudioEncoder::SetupResampler(DWORD rate)
+{
 	// On repart d'un resampler propre à chaque (re)configuration.
 	if (swr)
 		swr_free(&swr);
 
-	if (!s16ok || !rateok)
+	if (rate == 0)
+		return false;
+
+	// Entrée déjà au format et à la fréquence du codec : chemin direct, swr nul.
+	if (ctx->sample_fmt == AV_SAMPLE_FMT_S16 && (int)rate == ctx->sample_rate)
+		return true;
+
+	AVChannelLayout mono;
+	av_channel_layout_default(&mono, 1);
+
+	int err = swr_alloc_set_opts2(&swr,
+		&mono, ctx->sample_fmt,   ctx->sample_rate,	// sortie
+		&mono, AV_SAMPLE_FMT_S16, (int)rate,		// entrée
+		0, nullptr);
+
+	const bool ok = (err >= 0 && swr_init(swr) >= 0);
+	if (!ok)
 	{
-		Log("[%s]: S16/%u Hz non supporté nativement -> resampler vers %s/%d Hz\n",
-			codec->name, rate, av_get_sample_fmt_name(ctx->sample_fmt), ctx->sample_rate);
-
-		AVChannelLayout mono;
-		av_channel_layout_default(&mono, 1);
-
-		int err = swr_alloc_set_opts2(&swr,
-			&mono, ctx->sample_fmt,  ctx->sample_rate,	// sortie
-			&mono, AV_SAMPLE_FMT_S16, (int)rate,		// entrée
-			0, nullptr);
-
-		if (err < 0 || swr_init(swr) < 0)
-		{
-			Error("[%s] failed to configure resampler %u Hz -> %d Hz\n",
-				codec->name, rate, ctx->sample_rate);
-			if (swr)
-				swr_free(&swr);
-			av_channel_layout_uninit(&mono);
-			return defaultSampleRate;
-		}
-		av_channel_layout_uninit(&mono);
+		Error("[%s] failed to configure resampler %u Hz -> %d Hz\n",
+			codec->name, rate, ctx->sample_rate);
+		if (swr)
+			swr_free(&swr);
 	}
 
-	return ctx->sample_rate;
+	av_channel_layout_uninit(&mono);
+	return ok;
 }
 
 bool FfAudioEncoder::Open()
@@ -188,8 +204,14 @@ bool FfAudioEncoder::Open()
 		return false;
 	}
 
-	// frame_size n'est connu qu'après ouverture (0 = trame de taille variable).
+	// frame_size n'est connu qu'après ouverture. 0 = le codec accepte n'importe
+	// quelle taille (PCM, G.711...) : on impose alors 20 ms, la granularité que
+	// le pipeline RTP attend, pour que numFrameSamples soit TOUJOURS exploitable.
 	numFrameSamples = ctx->frame_size;
+	if (numFrameSamples <= 0)
+		numFrameSamples = ctx->sample_rate / 50;
+	if (numFrameSamples <= 0)
+		numFrameSamples = 160;
 
 	frame = av_frame_alloc();
 	pkt   = av_packet_alloc();
@@ -199,9 +221,21 @@ bool FfAudioEncoder::Open()
 		return false;
 	}
 
+	// Fifo d'accumulation au format/fréquence du codec : c'est elle qui permet
+	// d'accepter des trames d'entrée de n'importe quelle taille. Elle grandit
+	// toute seule ; MaxFifoSamples la borne en cas de consommateur en retard.
+	fifo = av_audio_fifo_alloc(ctx->sample_fmt, ctx->ch_layout.nb_channels, numFrameSamples * 4);
+	if (!fifo)
+	{
+		Error("[%s] could not allocate sample fifo\n", codec->name);
+		return false;
+	}
+
+	out = new AudioFrame(type, GetClockRate());
+
 	// Le tampon de la trame d'entrée est alloué paresseusement par EnsureFrame()
-	// au premier Encode() : ainsi les codecs à frame_size variable (frame_size==0)
-	// sont gérés comme ceux à trame fixe.
+	// au premier EncodeFrame() : ainsi les codecs à frame_size variable
+	// (frame_size==0) sont gérés comme ceux à trame fixe.
 
 	opened = true;
 	Log("[%s] encoder open: frame size %d, %d Hz, fmt %s\n",
@@ -234,129 +268,195 @@ bool FfAudioEncoder::EnsureFrame(int nb)
 	return true;
 }
 
-int FfAudioEncoder::Encode(SWORD *in, int inLen, BYTE* out, int outLen)
+void FfAudioEncoder::DrainResampler()
 {
-	if (!opened && !Open())
-		return Error("[%s] encoder not opened\n", codec ? codec->name : "?");
+	if (!swr)
+		return;
 
-	if (inLen <= 0)
-		return 0;
+	const int pending = (int)swr_get_delay(swr, ctx->sample_rate);
+	if (pending <= 0)
+		return;
 
-	// Taille de trame en samples de sortie (taux codec).
-	// Pour les codecs à taille variable (frame_size==0), on estime à partir du
-	// ratio de fréquence ; sans conversion de fréquence, c'est simplement inLen.
-	int frameSz = (numFrameSamples > 0) ? numFrameSamples
-		: (swr && inputRate ? (int)((long long)inLen * ctx->sample_rate / inputRate) + 1 : inLen);
+	uint8_t **conv = nullptr;
+	if (av_samples_alloc_array_and_samples(&conv, nullptr, ctx->ch_layout.nb_channels,
+			pending, ctx->sample_fmt, 0) < 0)
+		return;
 
-	// Alloue le tampon de trame pour frameSz samples de sortie (format codec).
-	if (!EnsureFrame(frameSz))
-		return Error("[%s] could not allocate frame buffer\n", codec->name);
+	const int got = swr_convert(swr, conv, pending, nullptr, 0);
+	if (got > 0)
+		av_audio_fifo_write(fifo, (void**)conv, got);
 
-	int total = 0;
+	av_freep(&conv[0]);
+	av_freep(&conv);
+}
 
-	if (swr)
+bool FfAudioEncoder::PushToFifo(SamplesPtr samples)
+{
+	AVFrame *src = samples ? samples->GetAVFrame() : nullptr;
+	if (!src || src->nb_samples <= 0)
+		return false;
+
+	// LA TRAME FAIT FOI : si sa fréquence a changé, on reconfigure le
+	// rééchantillonneur ici, sans état partagé avec le producteur. C'est ce qui
+	// rend impossible le bug de fréquence périmée (design/audio-avframe.md §2.3).
+	DWORD rate = samples->GetRate();
+	if (rate == 0)
 	{
-		// Chemin avec rééchantillonnage (format et/ou fréquence).
-		//
-		// swr_convert accumule en interne les samples non encore émis.
-		// Cela assure l'alignement sur la taille de trame du codec sans FIFO
-		// externe : si inLen échantillons d'entrée ne suffisent pas à remplir
-		// une trame complète, swr les bufferise et renvoie < frameSz ; on sort
-		// alors sans encoder (return 0). À l'appel suivant, le buffer interne
-		// est drainé en priorité avant de consommer la nouvelle entrée.
-		const uint8_t *src[1] = { (const uint8_t*)in };
-		bool input_fed = false;
+		Error("[%s] frame without sample rate\n", codec->name);
+		return false;
+	}
 
-		while (true)
+	if (rate != inputRate)
+	{
+		Log("[%s] fréquence d'entrée %u -> %u Hz, resampler reconfiguré\n",
+			codec->name, inputRate, rate);
+		// Vider l'ancien resampler AVANT de le remplacer : ce qu'il retient
+		// appartient au flux, le jeter ferait un trou audible à chaque bascule.
+		DrainResampler();
+		inputRate = rate;
+		if (!SetupResampler(rate))
+			return false;
+	}
+
+	// Horodatage : la première trame donne l'origine, la fifo fait le reste.
+	if (nextPts == AV_NOPTS_VALUE && src->pts != AV_NOPTS_VALUE)
+		nextPts = av_rescale(src->pts, ctx->sample_rate, (int64_t)rate);
+
+	if (!swr)
+	{
+		// Format et fréquence identiques : écriture directe dans la fifo.
+		if (av_audio_fifo_write(fifo, (void**)src->data, src->nb_samples) < src->nb_samples)
 		{
-			if (av_frame_make_writable(frame) < 0)
-				return Error("[%s] frame not writable\n", codec->name);
-
-			int produced;
-			if (!input_fed)
-			{
-				// 1ère passe : on fournit les samples d'entrée ; swr remplit
-				// frame->data avec au plus frameSz samples de sortie.
-				produced = swr_convert(swr, frame->data, frameSz, src, inLen);
-				input_fed = true;
-			}
-			else
-			{
-				// Passes suivantes (drain) : on vérifie qu'il reste assez
-				// de samples bufferisés pour une trame complète.
-				if (swr_get_delay(swr, ctx->sample_rate) < (int64_t)frameSz)
-					break;
-				produced = swr_convert(swr, frame->data, frameSz, nullptr, 0);
-			}
-
-			if (produced <= 0)
-				break;
-
-			// Trame incomplète → le codec attend frame_size samples fixes.
-			// On rend la main ; swr a bufferisé les samples.
-			if (numFrameSamples > 0 && produced < numFrameSamples)
-				break;
-
-			frame->nb_samples = produced;
-
-			int ret = avcodec_send_frame(ctx, frame);
-			if (ret < 0)
-				return Error("[%s] avcodec_send_frame: %d\n", codec->name, ret);
-
-			while ((ret = avcodec_receive_packet(ctx, pkt)) >= 0)
-			{
-				if (total + pkt->size <= outLen)
-				{
-					memcpy(out + total, pkt->data, pkt->size);
-					total += pkt->size;
-				}
-				else
-				{
-					Error("[%s] output buffer too small\n", codec->name);
-				}
-				av_packet_unref(pkt);
-			}
-
-			if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-				return Error("[%s] avcodec_receive_packet: %d\n", codec->name, ret);
+			Error("[%s] fifo write failed\n", codec->name);
+			return false;
 		}
 	}
 	else
 	{
-		// S16 mono direct, sans rééchantillonnage.
-		if (numFrameSamples > 0 && inLen != numFrameSamples)
-			return Error("[%s] sample count %d != frame size %d\n",
-				codec->name, inLen, numFrameSamples);
+		// Capacité de sortie : ce qui reste en attente dans swr + la nouvelle
+		// entrée, converti à la fréquence du codec, arrondi au supérieur.
+		const int cap = (int)av_rescale_rnd(
+			swr_get_delay(swr, (int64_t)rate) + src->nb_samples,
+			ctx->sample_rate, (int64_t)rate, AV_ROUND_UP);
+
+		uint8_t **conv = nullptr;
+		if (av_samples_alloc_array_and_samples(&conv, nullptr, ctx->ch_layout.nb_channels,
+				cap, ctx->sample_fmt, 0) < 0)
+		{
+			Error("[%s] could not allocate resampling buffer\n", codec->name);
+			return false;
+		}
+
+		const int got = swr_convert(swr, conv, cap,
+			(const uint8_t**)src->data, src->nb_samples);
+
+		bool ok = true;
+		if (got > 0 && av_audio_fifo_write(fifo, (void**)conv, got) < got)
+		{
+			Error("[%s] fifo write failed\n", codec->name);
+			ok = false;
+		}
+
+		av_freep(&conv[0]);
+		av_freep(&conv);
+
+		if (!ok)
+			return false;
+	}
+
+	// Garde-fou : un consommateur en retard ne doit pas faire enfler la fifo
+	// indéfiniment. Au-delà d'une seconde, on jette le plus ancien.
+	const int excess = av_audio_fifo_size(fifo) - ctx->sample_rate;
+	if (excess > 0)
+	{
+		Error("[%s] fifo overflow, dropping %d samples\n", codec->name, excess);
+		av_audio_fifo_drain(fifo, excess);
+	}
+
+	return true;
+}
+
+bool FfAudioEncoder::EncodeFromFifo()
+{
+	// Un encodeur peut retenir ses premières trames (délai d'amorçage, AAC) :
+	// on continue de le nourrir tant que la fifo le permet, jusqu'à obtenir un
+	// paquet. Rien à rendre quand la fifo est trop courte.
+	while (av_audio_fifo_size(fifo) >= numFrameSamples)
+	{
+		if (!EnsureFrame(numFrameSamples))
+		{
+			Error("[%s] could not allocate frame buffer\n", codec->name);
+			return false;
+		}
 
 		if (av_frame_make_writable(frame) < 0)
-			return Error("[%s] frame not writable\n", codec->name);
+		{
+			Error("[%s] frame not writable\n", codec->name);
+			return false;
+		}
 
-		memcpy(frame->data[0], in, (size_t)inLen * sizeof(SWORD));
-		frame->nb_samples = inLen;
+		if (av_audio_fifo_read(fifo, (void**)frame->data, numFrameSamples) < numFrameSamples)
+		{
+			Error("[%s] fifo read failed\n", codec->name);
+			return false;
+		}
+
+		frame->nb_samples = numFrameSamples;
+		frame->pts        = nextPts;
 
 		int ret = avcodec_send_frame(ctx, frame);
 		if (ret < 0)
-			return Error("[%s] avcodec_send_frame: %d\n", codec->name, ret);
+		{
+			Error("[%s] avcodec_send_frame: %d\n", codec->name, ret);
+			return false;
+		}
+
+		out->SetLength(0);
+		DWORD total = 0;
 
 		while ((ret = avcodec_receive_packet(ctx, pkt)) >= 0)
 		{
-			if (total + pkt->size <= outLen)
-			{
-				memcpy(out + total, pkt->data, pkt->size);
-				total += pkt->size;
-			}
-			else
-			{
-				Error("[%s] output buffer too small\n", codec->name);
-			}
+			out->AppendMedia(pkt->data, pkt->size);
+			total += pkt->size;
 			av_packet_unref(pkt);
 		}
 
 		if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-			return Error("[%s] avcodec_receive_packet: %d\n", codec->name, ret);
+		{
+			Error("[%s] avcodec_receive_packet: %d\n", codec->name, ret);
+			return false;
+		}
+
+		// Horodatage de la trame émise, dans l'horloge RTP du codec.
+		if (nextPts != AV_NOPTS_VALUE)
+		{
+			out->SetTimestamp((DWORD)av_rescale(nextPts, GetClockRate(), ctx->sample_rate));
+			nextPts += numFrameSamples;
+		}
+		out->SetDuration((DWORD)((QWORD)numFrameSamples * GetClockRate() / ctx->sample_rate));
+
+		if (total > 0)
+			return true;
 	}
 
-	return total;
+	return false;
+}
+
+AudioFrame* FfAudioEncoder::EncodeFrame(SamplesPtr samples)
+{
+	if (!opened && !Open())
+	{
+		Error("[%s] encoder not opened\n", codec ? codec->name : "?");
+		return nullptr;
+	}
+
+	if (samples && !PushToFifo(samples))
+		return nullptr;
+
+	if (!EncodeFromFifo())
+		return nullptr;
+
+	return out;
 }
 
 /******************************************************************************
@@ -450,8 +550,11 @@ FfAudioDecoder::FfAudioDecoder(enum AVCodecID av_codec, AudioCodec::Type codec_i
 		return;
 	}
 
-	// 0 si le codec restitue des trames de taille variable.
+	// 0 si le codec restitue des trames de taille variable ; on annonce alors
+	// 20 ms, la granularité attendue par le pipeline RTP (cf. côté encodeur).
 	numFrameSamples = ctx->frame_size;
+	if (numFrameSamples <= 0 && ctx->sample_rate > 0)
+		numFrameSamples = ctx->sample_rate / 50;
 
 	opened = true;
 	Log("[%s] decoder open: frame size %d, %d Hz\n",
@@ -480,80 +583,128 @@ DWORD FfAudioDecoder::TrySetRate(DWORD rate)
 	return r ? r : rate;
 }
 
-int FfAudioDecoder::Decode(BYTE *in, int inLen, SWORD* out, int outLen)
+bool FfAudioDecoder::PublishS16Mono(AVFrame *src)
+{
+	// Vol du tampon : le contenu passe dans une trame NEUVE, `src` redevient
+	// vierge pour le prochain avcodec_receive_frame. Aucune recopie, et jamais
+	// de référence sur la trame interne du décodeur (piège déjà écarté en vidéo).
+	AVFrame *owned = av_frame_alloc();
+	if (!owned)
+	{
+		Error("[%s] could not allocate output frame\n", codec->name);
+		return false;
+	}
+
+	av_frame_move_ref(owned, src);
+
+	SamplesPtr samples = Samples::FromAVFrame(owned);
+	if (!samples)
+	{
+		av_frame_free(&owned);
+		return false;
+	}
+
+	frames.push_back(samples);
+	return true;
+}
+
+bool FfAudioDecoder::ConvertAndPublish(AVFrame *src)
+{
+	// Conversion vers S16 mono, à fréquence inchangée : le décodeur restitue
+	// toujours la fréquence native du flux, c'est l'aval qui rééchantillonne.
+	if (!swr)
+	{
+		AVChannelLayout mono;
+		av_channel_layout_default(&mono, 1);
+		int err = swr_alloc_set_opts2(&swr,
+			&mono, AV_SAMPLE_FMT_S16, src->sample_rate,
+			&src->ch_layout, (AVSampleFormat)src->format, src->sample_rate,
+			0, nullptr);
+		av_channel_layout_uninit(&mono);
+
+		if (err < 0 || swr_init(swr) < 0)
+		{
+			Error("[%s] failed to configure decoder resampler\n", codec->name);
+			if (swr)
+				swr_free(&swr);
+			return false;
+		}
+	}
+
+	// Fréquence inchangée : la capacité de sortie est ce que swr retient
+	// encore plus la nouvelle entrée.
+	const int cap = (int)swr_get_delay(swr, src->sample_rate) + src->nb_samples;
+
+	SamplesPtr samples = Samples::Alloc((DWORD)cap, (DWORD)src->sample_rate);
+	if (!samples)
+	{
+		Error("[%s] could not allocate %d samples\n", codec->name, cap);
+		return false;
+	}
+
+	AVFrame *dst = samples->GetAVFrame();
+	const int got = swr_convert(swr, dst->data, cap,
+		(const uint8_t**)src->extended_data, src->nb_samples);
+	if (got <= 0)
+		return false;
+
+	// La trame porte le nombre RÉELLEMENT produit, pas la capacité allouée.
+	dst->nb_samples = got;
+	dst->pts        = src->pts;
+
+	frames.push_back(samples);
+	return true;
+}
+
+int FfAudioDecoder::Decode(BYTE *in, int inLen)
 {
 	if (!opened)
 		return Error("[%s] decoder not opened\n", codec ? codec->name : "?");
 
-	if (inLen > 0)
-	{
-		// Paquet non compté en références : ffmpeg recopiera si besoin.
-		pkt->data = (uint8_t*)in;
-		pkt->size = inLen;
-
-		int ret = avcodec_send_packet(ctx, pkt);
-		if (ret < 0)
-			return Error("[%s] avcodec_send_packet: %d\n", codec->name, ret);
-
-		// Un paquet peut donner 0, 1 ou plusieurs trames.
-		while ((ret = avcodec_receive_frame(ctx, frame)) >= 0)
-		{
-			const bool mono = (frame->ch_layout.nb_channels == 1);
-
-			if (mono && frame->format == AV_SAMPLE_FMT_S16)
-			{
-				// Déjà au bon format : empilage direct.
-				samples.push((SWORD*)frame->extended_data[0], frame->nb_samples);
-			}
-			else
-			{
-				// Conversion vers S16 mono (même fréquence : pas de rééchantillonnage).
-				if (!swr)
-				{
-					AVChannelLayout mono_out;
-					av_channel_layout_default(&mono_out, 1);
-					int err = swr_alloc_set_opts2(&swr,
-						&mono_out, AV_SAMPLE_FMT_S16,        frame->sample_rate,
-						&frame->ch_layout, (AVSampleFormat)frame->format, frame->sample_rate,
-						0, nullptr);
-					av_channel_layout_uninit(&mono_out);
-
-					if (err < 0 || swr_init(swr) < 0)
-					{
-						Error("[%s] failed to configure decoder resampler\n", codec->name);
-						if (swr)
-							swr_free(&swr);
-						av_frame_unref(frame);
-						continue;
-					}
-				}
-
-				SWORD conv[8192];
-				uint8_t* outp[1] = { (uint8_t*)conv };
-				const int cap = (int)(sizeof(conv) / sizeof(SWORD));
-				int n = swr_convert(swr, outp, cap,
-					(const uint8_t**)frame->extended_data, frame->nb_samples);
-				if (n > 0)
-					samples.push(conv, n);
-			}
-
-			av_frame_unref(frame);
-		}
-
-		if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
-			return Error("[%s] avcodec_receive_frame: %d\n", codec->name, ret);
-	}
-
-	// Restitution par tranches de numFrameSamples (ou ce qui est disponible
-	// pour les codecs à trame variable), sans déborder le tampon appelant.
-	int want = numFrameSamples;
-	if (want <= 0)
-		want = samples.length();
-	if (want > outLen)
-		want = outLen;
-	if (want <= 0 || samples.length() < want)
+	if (inLen <= 0 || !in)
 		return 0;
 
-	samples.pop(out, want);
-	return want;
+	// Paquet non compté en références : ffmpeg recopiera si besoin.
+	pkt->data = (uint8_t*)in;
+	pkt->size = inLen;
+
+	int ret = avcodec_send_packet(ctx, pkt);
+	if (ret < 0)
+		return Error("[%s] avcodec_send_packet: %d\n", codec->name, ret);
+
+	// Un paquet peut donner 0, 1 ou plusieurs trames : elles sont TOUTES
+	// publiées, à leur taille propre. Plus rien n'est tronqué ni redécoupé.
+	while ((ret = avcodec_receive_frame(ctx, frame)) >= 0)
+	{
+		if (Samples::IsS16Mono(frame))
+			PublishS16Mono(frame);
+		else
+			ConvertAndPublish(frame);
+
+		av_frame_unref(frame);
+
+		// Garde-fou : un consommateur qui n'appelle jamais GetFrame() ne doit
+		// pas faire enfler la file. Au-delà d'une seconde, on jette le plus
+		// ancien — la même politique que la fifo de l'encodeur.
+		while (frames.size() > MaxPendingFrames)
+		{
+			Error("[%s] frame queue overflow, dropping oldest\n", codec->name);
+			frames.pop_front();
+		}
+	}
+
+	if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
+		return Error("[%s] avcodec_receive_frame: %d\n", codec->name, ret);
+
+	return (int)frames.size();
+}
+
+SamplesPtr FfAudioDecoder::GetFrame()
+{
+	if (frames.empty())
+		return nullptr;
+
+	SamplesPtr samples = frames.front();
+	frames.pop_front();
+	return samples;
 }
