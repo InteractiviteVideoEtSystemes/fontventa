@@ -52,10 +52,8 @@ Mp4FfReader::Mp4FfReader( const char * filename )
     audioSrcCodec    = (AudioCodec::Type)-1;
     audioDec         = NULL;
     audioEnc         = NULL;
-    audioSwr         = NULL;
     srcRate          = 0;
     encRate          = 0;
-    outFrameSamples  = 0;
     audioOutTs       = 0;
     audioOutTsSet    = false;
     setZeroTime( &startPlaying );
@@ -114,7 +112,6 @@ Mp4FfReader::~Mp4FfReader()
     if( audioFrame ) delete audioFrame;
     if( audioDec ) delete audioDec;
     if( audioEnc ) delete audioEnc;
-    if( audioSwr ) swr_free( &audioSwr );
     if( textFrame ) delete textFrame;
     if( subConv ) delete subConv;
     if( redenc ) delete redenc;
@@ -269,9 +266,8 @@ int Mp4FfReader::OpenAudioTranscoded( AudioCodec::Type target, const Properties&
         return 0;
     }
 
-    // 3) Encodeur cible. Les encodeurs télécom (PCMU/PCMA/G722…) NE resamplent
-    //    PAS (TrySetRate renvoie leur fréquence native) : on rééchantillonne
-    //    donc nous-mêmes source -> encRate via libswresample.
+    // 3) Encodeur cible. Il rééchantillonne lui-même : sa fréquence de travail
+    //    peut différer de celle du fichier, la trame porte la sienne.
     AudioEncoder * enc = AudioCodecFactory::CreateEncoder( target, props );
     if( enc == NULL )
     {
@@ -286,56 +282,31 @@ int Mp4FfReader::OpenAudioTranscoded( AudioCodec::Type target, const Properties&
     int cpRate = fmtctx->streams[srcIdx]->codecpar->sample_rate;
     DWORD dr = ( cpRate > 0 ) ? (DWORD)cpRate : dec->GetRate();
     if( dr == 0 ) dr = 8000;          // sécurité
-    DWORD er = enc->TrySetRate( dr ); // fréquence d'entrée réellement acceptée
+    DWORD er = enc->TrySetRate( dr ); // fréquence de travail réellement retenue
     if( er == 0 ) er = 8000;
-
-    // Resampler S16 mono dr -> er (si nécessaire).
-    SwrContext * swr = NULL;
-    if( dr != er )
-    {
-        AVChannelLayout mono;
-        av_channel_layout_default( &mono, 1 );
-        int e = swr_alloc_set_opts2( &swr,
-                    &mono, AV_SAMPLE_FMT_S16, (int)er,
-                    &mono, AV_SAMPLE_FMT_S16, (int)dr,
-                    0, NULL );
-        av_channel_layout_uninit( &mono );
-        if( e < 0 || swr_init( swr ) < 0 )
-        {
-            Error( "Mp4FfReader: resampler %u->%u Hz KO\n", dr, er );
-            if( swr ) swr_free( &swr );
-            delete dec; delete enc;
-            return 0;
-        }
-    }
 
     // Installation
     if( audioDec ) delete audioDec;
     if( audioEnc ) delete audioEnc;
-    if( audioSwr ) swr_free( &audioSwr );
     if( audioFrame ) { delete audioFrame; audioFrame = NULL; }
 
     audioDec        = dec;
     audioEnc        = enc;
     if( &audioEncProps != &props ) audioEncProps = props;   // Rewind repasse le membre
-    audioSwr        = swr;
     audioStreamIdx  = srcIdx;
     audioSrcCodec   = srcType;
     audioCodec      = target;
     audioTranscode  = true;
     srcRate         = dr;
     encRate         = er;
-    outFrameSamples = er / 50;         // 20 ms à la fréquence d'entrée encodeur (160@8k)
-    if( outFrameSamples == 0 ) outFrameSamples = 160;
     audioOutTsSet   = false;
-    pcmFifo.clear();
     audioOutQueue.clear();
 
     audioFrame = new AudioFrame( target, ClockRateFor( target ) );
 
-    Log( "Mp4FfReader: transcodage audio %s(%u Hz) -> %s(%u Hz) (piste %d, tranche %u éch., %d borne(s))\n",
+    Log( "Mp4FfReader: transcodage audio %s(%u Hz) -> %s(%u Hz) (piste %d, tranche %d éch., %d borne(s))\n",
          AudioCodec::GetNameFor( srcType ), srcRate,
-         AudioCodec::GetNameFor( target ), encRate, audioStreamIdx, outFrameSamples,
+         AudioCodec::GetNameFor( target ), encRate, audioStreamIdx, audioEnc->numFrameSamples,
          (int)audioEncProps.size() );
     return 1;
 }
@@ -642,32 +613,9 @@ long Mp4FfReader::SchedMsOf( AVPacket * pkt )
 
 void Mp4FfReader::TranscodeAudioPacket( AVPacket * pkt )
 {
-    // 1) Décodage source -> PCM S16 mono @ srcRate (le décodeur restitue par
-    //    tranches ; on draine avec (NULL,0)).
-    SWORD dpcm[8192];
-    BYTE * in    = pkt->data;
-    int    inLen = pkt->size;
-    int    n;
-    while( ( n = audioDec->Decode( in, inLen, dpcm, (int)(sizeof(dpcm)/sizeof(dpcm[0])) ) ) > 0 )
-    {
-        // 2) Rééchantillonnage srcRate -> encRate (ou copie directe si égal),
-        //    puis empilage dans la FIFO à encRate.
-        if( audioSwr )
-        {
-            // marge : ceil(n * er/dr) + latence swr
-            int cap = (int)( (long long)n * encRate / ( srcRate ? srcRate : 1 ) ) + 64;
-            std::vector<SWORD> tmp( cap );
-            SWORD *   op[1]  = { &tmp[0] };
-            const uint8_t * ip[1] = { (const uint8_t *)dpcm };
-            int got = swr_convert( audioSwr, (uint8_t **)op, cap, ip, n );
-            if( got > 0 ) pcmFifo.insert( pcmFifo.end(), tmp.begin(), tmp.begin() + got );
-        }
-        else
-        {
-            pcmFifo.insert( pcmFifo.end(), dpcm, dpcm + n );
-        }
-        in = NULL; inLen = 0;
-    }
+    // 1) Décodage source. Le décodeur publie ses trames telles quelles, à sa
+    //    fréquence native ; rien ne les tronque ni ne les redécoupe.
+    audioDec->Decode( pkt->data, pkt->size );
 
     // Base d'horodatage RTP cible calée sur le 1er paquet transcodé.
     if( !audioOutTsSet )
@@ -681,20 +629,23 @@ void Mp4FfReader::TranscodeAudioPacket( AVPacket * pkt )
         audioOutTsSet = true;
     }
 
-    // 3) Encodage par tranches de 20 ms (à encRate) -> 1 trame cible / tranche.
-    const DWORD outInc = ClockRateFor( audioCodec ) / 50;   // 160@8k, 960@48k
-    BYTE out[4096];
-    while( pcmFifo.size() >= outFrameSamples )
-    {
-        int len = audioEnc->Encode( &pcmFifo[0], (int)outFrameSamples, out, (int)sizeof(out) );
-        pcmFifo.erase( pcmFifo.begin(), pcmFifo.begin() + outFrameSamples );
-        if( len <= 0 ) continue;
+    // Durée d'une trame cible, dans l'horloge RTP du codec cible.
+    const DWORD outInc = (DWORD)( (QWORD)audioEnc->numFrameSamples
+                                  * ClockRateFor( audioCodec ) / ( encRate ? encRate : 1 ) );
 
-        EncFrame ef;
-        ef.data.assign( out, out + len );
-        ef.ts = (DWORD)audioOutTs;
-        audioOutQueue.push_back( std::move( ef ) );
-        audioOutTs += outInc;
+    // 2) Encodage. L'encodeur rééchantillonne d'après la fréquence de la trame
+    //    et accumule dans sa propre fifo : plus de resampler ni de FIFO ici.
+    for( SamplesPtr samples = audioDec->GetFrame(); samples; samples = audioDec->GetFrame() )
+    {
+        for( AudioFrame * f = audioEnc->EncodeFrame( samples );
+             f; f = audioEnc->EncodeFrame( NULL ) )
+        {
+            EncFrame ef;
+            ef.data.assign( f->GetData(), f->GetData() + f->GetLength() );
+            ef.ts = (DWORD)audioOutTs;
+            audioOutQueue.push_back( std::move( ef ) );
+            audioOutTs += outInc;
+        }
     }
 }
 

@@ -172,11 +172,10 @@ private:
     AudioDecoder *   audioDec;         // décodeur source (AAC…)
     AudioEncoder *   audioEnc;         // encodeur cible (PCMU/PCMA/OPUS…)
     Properties       audioEncProps;    // bornes de l'encodeur cible (réutilisées au Rewind)
-    SwrContext *     audioSwr;         // resampler srcRate -> encRate (S16 mono)
-    std::vector<SWORD> pcmFifo;        // PCM S16 mono @ encRate en attente d'encodage
+    // Ni resampler ni fifo ici : l'encodeur rééchantillonne d'après la
+    // fréquence portée par la trame et redécoupe lui-même à numFrameSamples.
     DWORD            srcRate;          // fréquence de restitution du décodeur
-    DWORD            encRate;          // fréquence d'entrée de l'encodeur cible
-    DWORD            outFrameSamples;  // tranche d'encodage = encRate/50 (20 ms)
+    DWORD            encRate;          // fréquence de travail de l'encodeur cible
     QWORD            audioOutTs;        // horodatage RTP cible courant (échantillons)
     bool             audioOutTsSet;
     // Trame encodée prête à émettre (une par paquet RTP)
