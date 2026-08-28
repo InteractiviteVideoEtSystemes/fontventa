@@ -68,6 +68,14 @@ protected:
 	// d'adaptation la déclenche en continu.
 	bool ShouldReopenForBitrate() const;
 
+	// Faut-il rouvrir pour que `fps` prenne effet ? Toujours : la cadence n'est
+	// lue qu'à l'ouverture (`time_base`, `rc_buffer_size`, `gop_size` en
+	// dépendent), et AUCUN encodeur ne la reconfigure à chaud —
+	// x264_encoder_reconfig ne la couvre pas plus que VAAPI ou SVT-AV1. Un écart
+	// de plus de 20 % fausse le budget par image au point de diviser le débit
+	// réel ; en deçà, la trame clé coûterait plus qu'elle ne corrige.
+	bool ShouldReopenForFps() const;
+
 	// Choisit l'encodeur (VAAPI si tryHW et utilisable, sinon l'encodeur
 	// logiciel ffmpeg par défaut, ou codec_name si fourni) et alloue le contexte.
 	bool SelectCodec(bool tryHW);
@@ -99,6 +107,8 @@ protected:
 	int		bitrate;
 	// Débit auquel le codec a été ouvert : référence de ShouldReopenForBitrate.
 	int		openedBitrate;
+	// Cadence à laquelle le codec a été ouvert : référence de ShouldReopenForFps.
+	int		openedFps;
 	int		fps;
 	int		format;
 	int		opened;

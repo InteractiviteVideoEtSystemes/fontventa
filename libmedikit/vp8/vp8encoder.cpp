@@ -31,9 +31,11 @@ int VP8Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 	// Mémorise fps/débit/période intra
 	FfVideoEncoder::SetFrameRate(frames,kbits,intraPeriod);
 
-	// Politique commune (FfVideoEncoder::ShouldReopenForBitrate) : baisse tout
-	// de suite, hausse par paliers — chaque réouverture coûte une trame clé.
-	if (ShouldReopenForBitrate())
+	// Politiques communes (FfVideoEncoder) : le débit baisse tout de suite et
+	// monte par paliers ; la cadence n'est lue qu'à l'ouverture, donc seule une
+	// réouverture la change. Une SEULE réouverture porte les deux — chaque
+	// réouverture coûte une trame clé.
+	if (ShouldReopenForBitrate() || ShouldReopenForFps())
 		ReopenCodec();
 
 	return 1;

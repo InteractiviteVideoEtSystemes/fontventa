@@ -295,7 +295,15 @@ int H264Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 
 	if (opened)
 	{
-		if (IsHWAccelerated())
+		// La CADENCE n'est lue qu'à l'ouverture (time_base, rc_buffer_size,
+		// gop_size) : ni VAAPI ni x264_encoder_reconfig ne la changent à chaud.
+		// La réouverture est donc commune aux deux chemins, et elle porte au
+		// passage le nouveau débit — une seule IDR pour les deux.
+		if (ShouldReopenForFps())
+		{
+			ReopenCodec();
+		}
+		else if (IsHWAccelerated())
 		{
 			// VAAPI ne sait pas changer son rate control en cours de route :
 			// réouverture (=> nouvelle IDR), seulement sur une variation

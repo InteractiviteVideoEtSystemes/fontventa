@@ -125,6 +125,7 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 	avCodecId = av_codec;
 	hwFailed = false;
 	pts	= 0;
+	openedFps = 0;
 	forceIntra = false;
 	codecName = codec_name;
 	// Accélération matérielle exigée par configuration : aucun repli logiciel.
@@ -489,8 +490,9 @@ int FfVideoEncoder::OpenCodec()
 	// We are opened
 	opened=true;
 
-	// Référence de la politique de réouverture (ShouldReopenForBitrate)
+	// Références des politiques de réouverture (ShouldReopenForBitrate/ForFps)
 	openedBitrate = bitrate;
+	openedFps = fps;
 
 	// Exit
 	return 1;
@@ -509,6 +511,18 @@ bool FfVideoEncoder::ShouldReopenForBitrate() const
 	// seuil de 10 % vaut une trame clé toutes les 1,3 s — mesuré le 2026-08-20 :
 	// 136 réouvertures en 5,5 min, dont deux à 0,16 s d'intervalle.
 	return bitrate * 2 >= openedBitrate * 3;
+}
+
+bool FfVideoEncoder::ShouldReopenForFps() const
+{
+	if (!opened || openedFps <= 0 || fps <= 0)
+		return false;
+
+	// Symétrique, contrairement au débit : une cadence trop haute gaspille le
+	// budget par image autant qu'une cadence trop basse le divise. Seuil de 20 %,
+	// le mcu n'appelant de toute façon qu'après son propre filtre (fenêtre de 30
+	// images, hystérésis de 25 %, une application toutes les 5 s au plus).
+	return abs(fps - openedFps) * 5 >= openedFps;
 }
 
 /***********************

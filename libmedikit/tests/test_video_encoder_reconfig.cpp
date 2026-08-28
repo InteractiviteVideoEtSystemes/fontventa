@@ -231,3 +231,83 @@ TEST(VideoEncoderReconfig, UnPasDeBaisseEstAppliqueImmediatementVp8)
 	ASSERT_GE(after.frames, 1u);
 	EXPECT_TRUE(after.firstIsIntra) << "la baisse n'a pas été appliquée";
 }
+
+// ── Cadence : §3.6 de jsr309_transcode_sans_thread.md ────────────────────────
+// `fps` n'est lu qu'à OpenCodec (time_base, rc_buffer_size, gop_size) et aucun
+// wrapper ffmpeg ne le reconfigure à chaud. Sans réouverture, une source à
+// 15 im/s dans un encodeur ouvert à 30 reçoit un budget de bitrate/30 par image
+// et sort à la moitié du débit négocié.
+TEST(VideoEncoderReconfig, UnChangementDeCadenceRouvreVp8)
+{
+	DWORD seed = 47;
+	VP8Encoder enc((Properties()));
+	ASSERT_EQ(enc.SetFrameRate(30, 2000, 300), 1);
+	ASSERT_GE(enc.SetSize(W, H), 1);
+
+	// Passe la trame clé d'ouverture.
+	EncodeRun warmup = Encode(enc, 5, seed);
+	ASSERT_GE(warmup.frames, 1u);
+
+	// Cadence divisée par deux, débit INCHANGÉ : seule la cadence peut
+	// déclencher la réouverture.
+	ASSERT_EQ(enc.SetFrameRate(15, 2000, 150), 1);
+
+	EncodeRun after = Encode(enc, 5, seed);
+	ASSERT_GE(after.frames, 1u);
+	EXPECT_TRUE(after.firstIsIntra)
+		<< "la cadence n'a pas ete appliquee : codec non rouvert";
+}
+
+// L'hystérésis du mcu ne laisse passer que des écarts de plus de 25 %, mais la
+// politique doit tenir seule : une variation de quelques pour cent ne coûte pas
+// une trame clé.
+TEST(VideoEncoderReconfig, UnePetiteVariationDeCadenceNeRouvrePasVp8)
+{
+	DWORD seed = 48;
+	VP8Encoder enc((Properties()));
+	ASSERT_EQ(enc.SetFrameRate(30, 2000, 300), 1);
+	ASSERT_GE(enc.SetSize(W, H), 1);
+
+	EncodeRun warmup = Encode(enc, 5, seed);
+	ASSERT_GE(warmup.frames, 1u);
+
+	ASSERT_EQ(enc.SetFrameRate(28, 2000, 300), 1);	// -6,7 %
+
+	EncodeRun after = Encode(enc, 10, seed);
+	ASSERT_GE(after.frames, 5u);
+	EXPECT_EQ(after.intras, 0u) << "reouverture sur un ecart de cadence de 7 %";
+}
+
+// Même contrat pour AV1, dont le rate control se règle sur `frame_rate`.
+TEST(VideoEncoderReconfig, UnChangementDeCadenceRouvreAv1)
+{
+	DWORD seed = 49;
+	Properties props;
+	props.SetProperty("av1.preset", "12");
+	AV1Encoder enc(props);
+	ASSERT_EQ(enc.SetFrameRate(30, 2000, 300), 1);
+	ASSERT_GE(enc.SetSize(W, H), 1);
+
+	VideoFrame* vf = nullptr;
+	for (int i = 0; i < 100 && !vf; i++)
+	{
+		PictPtr pic = CreateNoise(seed);
+		ASSERT_TRUE(pic != nullptr);
+		vf = enc.EncodeFrame(pic);
+	}
+	ASSERT_TRUE(vf != nullptr) << "SVT-AV1 n'a rien rendu en 100 trames";
+
+	// Débit inchangé, cadence divisée par deux.
+	ASSERT_EQ(enc.SetFrameRate(15, 2000, 150), 1);
+
+	vf = nullptr;
+	for (int i = 0; i < 100 && !vf; i++)
+	{
+		PictPtr pic = CreateNoise(seed);
+		ASSERT_TRUE(pic != nullptr);
+		vf = enc.EncodeFrame(pic);
+	}
+	ASSERT_TRUE(vf != nullptr) << "SVT-AV1 n'a rien rendu apres le changement de cadence";
+	EXPECT_TRUE(vf->IsIntra())
+		<< "pas de trame cle apres le changement de cadence : codec non rouvert";
+}
