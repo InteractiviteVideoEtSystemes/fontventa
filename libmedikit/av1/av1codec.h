@@ -43,6 +43,10 @@ public:
 	// sequence header réel. cf. nego_fmtp décision E.
 	static std::string GetFmtpParams(const Properties& properties);
 
+	// "libsvtav1" : le seul encodeur AV1 temps-reel utilisable ici, celui que le
+	// constructeur reclame. libaom-av1 seul ne rend PAS l'AV1 emettable.
+	static bool IsSupported() { return FfVideoEncoder::IsCodecAvailable(AV_CODEC_ID_AV1, "libsvtav1"); }
+
 	// Ingestion du fmtp distant (phase 5b nego_fmtp, spec AV1 RTP payload §7.2) :
 	// l'asymétrie est le DÉFAUT — on annonce toujours notre propre capacité,
 	// rien à refléter (`announceProps` = localProps inchangées). Le sens

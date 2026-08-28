@@ -45,6 +45,9 @@ public:
 	virtual DWORD GetClockRate() { return 48000; }
 	virtual bool  GetFmtpInfo(std::string &fmtp, int payloadType);
 
+	// "libopus" : le meme backend que le constructeur exige.
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_OPUS, "libopus"); }
+
 	// Paramètres fmtp SDP (SANS "a=fmtp:<pt> "), dérivés de la seule config
 	// (aucun codec ouvert requis) : forme consommée par la négociation. Le
 	// contrôleur SIP préfixe l'en-tête "a=fmtp:<pt> " (décision E, nego_fmtp).

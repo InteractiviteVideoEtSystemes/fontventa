@@ -28,6 +28,15 @@ bool MapAudioCodec( enum AVCodecID id, AudioCodec::Type & out )
 }
 
 
+bool FfAudioEncoder::IsCodecAvailable(enum AVCodecID id, const char* preferredName)
+{
+	// Meme logique de resolution que le constructeur : nom prefere d'abord, puis
+	// repli sur l'ID. Ne rien ouvrir (avcodec_open2), juste tester la presence.
+	if (preferredName && avcodec_find_encoder_by_name(preferredName))
+		return true;
+	return avcodec_find_encoder(id) != nullptr;
+}
+
 FfAudioEncoder::FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id,
                                const char* codec_name) :
 	defaultSampleRate(8000), codec(nullptr), ctx(nullptr), swr(nullptr), fifo(nullptr),

@@ -98,6 +98,15 @@ static void AllocateVAAPIFrame(AVCodecContext * ctx)
 		}
 	}
 }
+bool FfVideoEncoder::IsCodecAvailable(enum AVCodecID id, const char* preferredName)
+{
+	// Branche logicielle de SelectCodec() uniquement : nom prefere d'abord, puis
+	// repli sur l'ID. Rien n'est ouvert.
+	if (preferredName && avcodec_find_encoder_by_name(preferredName))
+		return true;
+	return avcodec_find_encoder(id) != nullptr;
+}
+
 /***********************
 * FfVideoEncoder
 ************************/

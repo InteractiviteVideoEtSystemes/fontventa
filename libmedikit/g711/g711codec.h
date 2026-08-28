@@ -17,6 +17,8 @@ public:
 	PCMAEncoder(const Properties &properties);
 
 	virtual DWORD GetClockRate()	{ return 8000; }
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_PCM_ALAW); }
 };
 
 class PCMADecoder : public FfAudioDecoder
@@ -33,6 +35,8 @@ public:
 	PCMUEncoder(const Properties &properties);
 
 	virtual DWORD GetClockRate()	{ return 8000; }
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_PCM_MULAW); }
 };
 
 class PCMUDecoder : public FfAudioDecoder

@@ -228,6 +228,9 @@ public:
 	// filtrés par AudioCodec::IsSupported). Calculée une fois, mémoïsée,
 	// thread-safe. Ordre = priorité de préférence.
 	static const std::vector<AudioCodec::Type>& GetSupportedCodecs();
+
+	// Idem en sens ÉMISSION (filtré par AudioCodec::IsEncodingSupported).
+	static const std::vector<AudioCodec::Type>& GetSupportedEncoderCodecs();
 };
 
 #endif

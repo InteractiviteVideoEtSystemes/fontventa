@@ -26,6 +26,8 @@ public:
 	// ci-dessous : les vraies limites configurées pour cet encodeur.
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 
+	static bool IsSupported() { return FfVideoEncoder::IsCodecAvailable(AV_CODEC_ID_VP8); }
+
 	// Paramètres fmtp SDP (SANS "a=fmtp:<pt> ") dérivés de la seule config
 	// (vp8.max-fr / vp8.max-fs), sans codec ouvert. cf. nego_fmtp décision E.
 	static std::string GetFmtpParams(const Properties& properties);

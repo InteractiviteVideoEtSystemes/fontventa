@@ -18,6 +18,8 @@ class AMRNBEncoder : public FfAudioEncoder
 {
 public:
 	AMRNBEncoder(const Properties &properties);
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_AMR_NB); }
 };
 
 class AMRNBDecoder : public FfAudioDecoder
@@ -35,6 +37,8 @@ class AMRWBEncoder : public FfAudioEncoder
 {
 public:
 	AMRWBEncoder(const Properties &properties);
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_AMR_WB); }
 };
 
 class AMRWBDecoder : public FfAudioDecoder

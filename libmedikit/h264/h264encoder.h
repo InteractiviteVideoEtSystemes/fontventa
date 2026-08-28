@@ -22,6 +22,10 @@ public:
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod);
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 
+	// h264_vaapi n'est qu'un bonus : c'est la disponibilite de l'encodeur
+	// LOGICIEL (libx264) qui decide du support.
+	static bool IsSupported() { return FfVideoEncoder::IsCodecAvailable(AV_CODEC_ID_H264); }
+
 	// Paramètres fmtp SDP (SANS "a=fmtp:<pt> ") dérivés de la seule config, sans
 	// codec ouvert : profile-level-id (h264.profile-level-id) + packetization-mode.
 	// sprop-parameter-sets est OMIS car les SPS/PPS ne sont connus qu'après

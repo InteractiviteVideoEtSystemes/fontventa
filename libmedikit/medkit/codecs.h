@@ -80,6 +80,12 @@ public:
 	// Défini hors ligne dans codecs.cpp pour garder ce header sans ffmpeg.
 	static bool IsSupported(Type codec);
 
+	// Vrai si le média serveur sait ÉMETTRE ce codec (encodeur disponible). Les
+	// deux sens ne coïncident pas — ffmpeg décode des codecs qu'il n'encode pas —
+	// donc un contrôleur qui n'interroge qu'IsSupported se croit capable de faire
+	// produire au serveur un flux qu'il ne sait que recevoir.
+	static bool IsEncodingSupported(Type codec);
+
 	typedef std::map<int,Type> RTPMap;
 };
 
@@ -152,6 +158,10 @@ public:
 
 	// cf. AudioCodec::IsSupported.
 	static bool IsSupported(Type codec);
+
+	// cf. AudioCodec::IsEncodingSupported. C'est ici que l'écart entre les deux
+	// sens est le plus visible : VP6 se décode et ne s'encode pas.
+	static bool IsEncodingSupported(Type codec);
 
 	typedef std::map<int,Type> RTPMap;
 

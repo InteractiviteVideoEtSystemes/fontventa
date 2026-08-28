@@ -14,6 +14,8 @@ public:
 	// G.722 : audio échantillonné à 16 kHz mais horloge RTP annoncée à 8 kHz
 	// (RFC 3551 §4.5.2).
 	virtual DWORD GetClockRate()	{ return 8000; }
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_ADPCM_G722); }
 };
 
 /**

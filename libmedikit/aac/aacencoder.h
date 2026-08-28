@@ -21,6 +21,8 @@ class AACEncoder : public FfAudioEncoder
 {
 public:
 	AACEncoder(const Properties &properties);
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_AAC); }
 };
 
 #endif	/* AACENCODER_H */

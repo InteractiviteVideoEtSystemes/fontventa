@@ -45,6 +45,11 @@ public:
 	virtual int SetSize(int width, int height);
 	virtual int SetFrameRate(int fps, int kbits, int intraPeriod);
 
+	// cf. FfAudioEncoder::IsCodecAvailable. Ne teste que la branche LOGICIELLE
+	// de SelectCodec() : l'encodeur VAAPI est opportuniste (repli logiciel), il
+	// ne conditionne donc pas le support du codec.
+	static bool IsCodecAvailable(enum AVCodecID id, const char* preferredName = nullptr);
+
 protected:
 	int OpenCodec();
 

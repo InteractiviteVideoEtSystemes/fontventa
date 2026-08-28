@@ -16,6 +16,8 @@ public:
 	// Force 16000 Hz quel que soit le taux demandé par le MCU.
 	virtual DWORD TrySetRate(DWORD)  { return FfAudioEncoder::TrySetRate(16000); }
 	virtual DWORD GetClockRate()     { return 16000; }
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_SPEEX); }
 };
 
 class SpeexDecoder : public FfAudioDecoder

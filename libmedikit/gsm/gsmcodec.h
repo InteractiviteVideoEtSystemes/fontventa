@@ -17,6 +17,8 @@ class GSMEncoder : public FfAudioEncoder
 public:
 	GSMEncoder(const Properties &properties);
 	virtual ~GSMEncoder() {}
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_GSM); }
 };
 
 class GSMDecoder : public FfAudioDecoder

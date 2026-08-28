@@ -18,6 +18,8 @@ class NellyEncoder : public FfAudioEncoder
 public:
 	NellyEncoder(const Properties &properties);
 	virtual ~NellyEncoder() {}
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_NELLYMOSER); }
 };
 
 class NellyEncoder11Khz : public FfAudioEncoder
@@ -25,6 +27,8 @@ class NellyEncoder11Khz : public FfAudioEncoder
 public:
 	NellyEncoder11Khz(const Properties &properties);
 	virtual ~NellyEncoder11Khz() {}
+
+	static bool IsSupported() { return FfAudioEncoder::IsCodecAvailable(AV_CODEC_ID_NELLYMOSER); }
 };
 
 /* ---- Décodeurs ---- */

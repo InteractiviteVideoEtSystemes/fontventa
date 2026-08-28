@@ -43,6 +43,13 @@ public:
 	virtual DWORD GetRate();
 	virtual DWORD GetClockRate()	{ return GetRate(); }
 
+	// Primitive de disponibilite en sens EMISSION, symetrique de
+	// FfAudioDecoder::IsCodecAvailable : vrai si libavcodec fournit un ENCODEUR
+	// (par nom prefere si fourni, sinon par ID) — meme resolution/repli que le
+	// constructeur. Les deux sens ne coincident pas : ffmpeg livre des codecs
+	// qu'il decode sans savoir les encoder.
+	static bool IsCodecAvailable(enum AVCodecID id, const char* preferredName = nullptr);
+
 protected:
 	// Ouvre le codec une fois la configuration faite par la classe dérivée.
 	bool Open();

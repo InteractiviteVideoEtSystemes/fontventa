@@ -266,5 +266,8 @@ public:
 
 	// cf. AudioCodecFactory::GetSupportedCodecs.
 	static const std::vector<VideoCodec::Type>& GetSupportedCodecs();
+
+	// cf. AudioCodecFactory::GetSupportedEncoderCodecs.
+	static const std::vector<VideoCodec::Type>& GetSupportedEncoderCodecs();
 };
 #endif

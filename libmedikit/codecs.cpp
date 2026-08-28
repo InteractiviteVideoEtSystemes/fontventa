@@ -6,8 +6,10 @@
  * ffmpeg -> délègue à FfAudio/VideoDecoder::IsCodecAvailable avec SON id/nom,
  * autre lib -> son propre test). Ce fichier ne fait que :
  *   - DISPATCHER AudioCodec/VideoCodec::IsSupported(Type) vers la classe du codec
- *     (même mapping Type->classe que les factories CreateDecoder) ;
- *   - exposer GetSupportedCodecs() (liste de candidats filtrée, mémoïsée).
+ *     (même mapping Type->classe que les factories CreateDecoder), et
+ *     IsEncodingSupported(Type) vers celle de CreateEncoder ;
+ *   - exposer GetSupportedCodecs() / GetSupportedEncoderCodecs() (une seule liste
+ *     de candidats par média, filtrée dans chaque sens, mémoïsée).
  * Ainsi l'intégration d'un codec sur une autre lib ne touche que sa classe.
  */
 #include "medkit/codecs.h"
@@ -23,8 +25,11 @@
 #include "speex/speexcodec.h"
 #include "g722/g722codec.h"
 #include "nelly/nellycodec.h"
+#include "aac/aacencoder.h"
 #include "h264/h264decoder.h"
+#include "h264/h264encoder.h"
 #include "vp8/vp8decoder.h"
+#include "vp8/vp8encoder.h"
 #include "av1/av1codec.h"
 #include "h263/h263codec.h"
 #include "ffvideocodec.h"	// FfVideoDecoder::IsCodecAvailable pour les types legacy
@@ -33,6 +38,23 @@
 #include <string>
 
 /* ----------------------------- Audio ----------------------------- */
+
+// Candidats = types réellement instanciables par CreateEncoder/CreateDecoder,
+// dans l'ordre de préférence. UNE seule liste : les deux sens (réception,
+// émission) n'en diffèrent que par le filtre. Deux listes divergeraient.
+static const AudioCodec::Type AudioCandidates[] = {
+	AudioCodec::OPUS,
+	AudioCodec::PCMU,
+	AudioCodec::PCMA,
+	AudioCodec::G722,
+	AudioCodec::AAC,
+	AudioCodec::AMRWB,
+	AudioCodec::AMR,
+	AudioCodec::SPEEX16,
+	AudioCodec::GSM,
+	AudioCodec::NELLY11,
+	AudioCodec::NELLY8,
+};
 
 bool AudioCodec::IsSupported(AudioCodec::Type codec)
 {
@@ -60,34 +82,66 @@ bool AudioCodec::IsSupported(AudioCodec::Type codec)
 	}
 }
 
+bool AudioCodec::IsEncodingSupported(AudioCodec::Type codec)
+{
+	// Sens ÉMISSION : même mapping Type->classe que AudioCodecFactory::CreateEncoder.
+	switch (codec)
+	{
+		case PCMA:            return PCMAEncoder::IsSupported();
+		case PCMU:            return PCMUEncoder::IsSupported();
+		case GSM:             return GSMEncoder::IsSupported();
+		case G722:            return G722Encoder::IsSupported();
+		case SPEEX16:         return SpeexEncoder::IsSupported();
+		case AMR:             return AMRNBEncoder::IsSupported();
+		case AMRWB:           return AMRWBEncoder::IsSupported();
+		case AAC:             return AACEncoder::IsSupported();
+		case OPUS:            return OPUSEncoder::IsSupported();
+		case NELLY8:          return NellyEncoder::IsSupported();
+		case NELLY11:         return NellyEncoder11Khz::IsSupported();
+		// Ni l'un ni l'autre ne passent par un encodeur (événements DTMF, PCM brut).
+		case TELEPHONE_EVENT:
+		case SLIN:            return true;
+		default:              return false;
+	}
+}
+
 const std::vector<AudioCodec::Type>& AudioCodecFactory::GetSupportedCodecs()
 {
-	// Candidats = types réellement instanciables par CreateEncoder/CreateDecoder,
-	// dans l'ordre de préférence. Filtrés une fois par IsSupported().
-	static const AudioCodec::Type candidates[] = {
-		AudioCodec::OPUS,
-		AudioCodec::PCMU,
-		AudioCodec::PCMA,
-		AudioCodec::G722,
-		AudioCodec::AAC,
-		AudioCodec::AMRWB,
-		AudioCodec::AMR,
-		AudioCodec::SPEEX16,
-		AudioCodec::GSM,
-		AudioCodec::NELLY11,
-		AudioCodec::NELLY8,
-	};
 	static std::vector<AudioCodec::Type> cache;
 	static std::once_flag once;
 	std::call_once(once, [] {
-		for (AudioCodec::Type t : candidates)
+		for (AudioCodec::Type t : AudioCandidates)
 			if (AudioCodec::IsSupported(t))
 				cache.push_back(t);
 	});
 	return cache;
 }
 
+const std::vector<AudioCodec::Type>& AudioCodecFactory::GetSupportedEncoderCodecs()
+{
+	static std::vector<AudioCodec::Type> cache;
+	static std::once_flag once;
+	std::call_once(once, [] {
+		for (AudioCodec::Type t : AudioCandidates)
+			if (AudioCodec::IsEncodingSupported(t))
+				cache.push_back(t);
+	});
+	return cache;
+}
+
 /* ----------------------------- Video ----------------------------- */
+
+// cf. AudioCandidates.
+static const VideoCodec::Type VideoCandidates[] = {
+	VideoCodec::H264,
+	VideoCodec::VP8,
+	VideoCodec::AV1,
+	VideoCodec::H263_1998,
+	VideoCodec::H263_1996,
+	VideoCodec::MPEG4,
+	VideoCodec::SORENSON,
+	VideoCodec::VP6,
+};
 
 bool VideoCodec::IsSupported(VideoCodec::Type codec)
 {
@@ -109,23 +163,45 @@ bool VideoCodec::IsSupported(VideoCodec::Type codec)
 	}
 }
 
+bool VideoCodec::IsEncodingSupported(VideoCodec::Type codec)
+{
+	// Sens ÉMISSION : même mapping Type->classe que VideoCodecFactory::CreateEncoder.
+	switch (codec)
+	{
+		case H264:      return H264Encoder::IsSupported();
+		case VP8:       return VP8Encoder::IsSupported();
+		case AV1:       return AV1Encoder::IsSupported();
+		// Types instanciés via un FfVideoEncoder générique : on interroge la même
+		// primitive ffmpeg, avec l'AVCodecID que CreateEncoder lui passe.
+		case H263_1998: return FfVideoEncoder::IsCodecAvailable(AV_CODEC_ID_H263P);
+		case H263_1996: return FfVideoEncoder::IsCodecAvailable(AV_CODEC_ID_H263);
+		case MPEG4:     return FfVideoEncoder::IsCodecAvailable(AV_CODEC_ID_MPEG4);
+		case SORENSON:  return FfVideoEncoder::IsCodecAvailable(AV_CODEC_ID_FLV1);
+		// VP6 : CreateEncoder n'a AUCUN cas pour lui. Il se décode (flux RTMP
+		// entrants) et ne s'encode jamais — l'écart entre les deux sens en personne.
+		default:        return false;
+	}
+}
+
 const std::vector<VideoCodec::Type>& VideoCodecFactory::GetSupportedCodecs()
 {
-	static const VideoCodec::Type candidates[] = {
-		VideoCodec::H264,
-		VideoCodec::VP8,
-		VideoCodec::AV1,
-		VideoCodec::H263_1998,
-		VideoCodec::H263_1996,
-		VideoCodec::MPEG4,
-		VideoCodec::SORENSON,
-		VideoCodec::VP6,
-	};
 	static std::vector<VideoCodec::Type> cache;
 	static std::once_flag once;
 	std::call_once(once, [] {
-		for (VideoCodec::Type t : candidates)
+		for (VideoCodec::Type t : VideoCandidates)
 			if (VideoCodec::IsSupported(t))
+				cache.push_back(t);
+	});
+	return cache;
+}
+
+const std::vector<VideoCodec::Type>& VideoCodecFactory::GetSupportedEncoderCodecs()
+{
+	static std::vector<VideoCodec::Type> cache;
+	static std::once_flag once;
+	std::call_once(once, [] {
+		for (VideoCodec::Type t : VideoCandidates)
+			if (VideoCodec::IsEncodingSupported(t))
 				cache.push_back(t);
 	});
 	return cache;
