@@ -5,6 +5,10 @@
  */
 #include "vp8encoder.h"
 
+extern "C" {
+#include <libavutil/opt.h>
+}
+
 // Partagées avec vp8decoder.cpp : construction du fmtp VP8 (max-fr/max-fs,
 // RFC 7742) à partir de limites déjà résolues par l'appelant.
 extern bool BuildVP8FmtpFromLimits(int payloadType, int maxFrameRate, int maxFrameSize, std::string &fmtp2);
@@ -24,6 +28,23 @@ void VP8Encoder::ConfigureContext()
 		ctx->framerate.num = maxFrameRate;
 		ctx->framerate.den = 1;
 	}
+
+	// Temps réel. Les défauts du wrapper libvpx de ffmpeg sont ceux d'un
+	// transcodage de fichier : deadline « good », cpu-used 1, un seul thread,
+	// 25 images d'avance pour choisir une trame de référence alternative.
+	// Mesuré le 2026-08-29 sur deux cœurs : 125 ms par image 720p, pire cas
+	// 782 ms — deux fois et demie le budget d'une source à 20 im/s. Le
+	// transcodeur inline encodant sur le thread de démux, ce retard faisait
+	// jeter les paquets de la source et réclamer une trame clé par seconde.
+	av_opt_set_int(ctx->priv_data, "deadline", 1, 0);	// VPX_DL_REALTIME
+	av_opt_set_int(ctx->priv_data, "cpu-used", 6, 0);
+	av_opt_set_int(ctx->priv_data, "lag-in-frames", 0, 0);
+	// Trames codées pour tolérer la perte : sur RTP, une trame manquante ne
+	// doit pas rendre les suivantes indécodables jusqu'à la prochaine clé.
+	av_opt_set(ctx->priv_data, "error-resilient", "default", 0);
+	// Deux threads au plus : le reste de la machine sert au décodage, à l'autre
+	// sens et aux jambes RTP.
+	ctx->thread_count = 2;
 }
 
 int VP8Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)

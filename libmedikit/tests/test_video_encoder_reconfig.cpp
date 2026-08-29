@@ -9,8 +9,13 @@
  * le ×5 « première image » de videostream jamais restauré, toute la boucle
  * d'adaptation inopérante).
  *
- * Les trames de bruit sont incompressibles : le débit de sortie colle à la
- * consigne interne de l'encodeur, ce qui rend la consigne observable.
+ * Les trames de bruit sont peu compressibles : le débit de sortie colle à la
+ * consigne interne de l'encodeur, ce qui rend la consigne observable. Le bruit
+ * est d'amplitude LIMITÉE (±32) : du bruit pur sur les trois plans a un
+ * plancher — 16 Ko par image 320x240 au quantificateur maximal en VP8 temps
+ * réel — sous lequel aucune consigne ne peut descendre, et le test mesurait
+ * alors ce plancher, pas la consigne (constaté le 2026-08-29 en passant libvpx
+ * en `deadline=realtime`).
  */
 #include <gtest/gtest.h>
 #include <medkit/log.h>
@@ -23,7 +28,8 @@ namespace {
 
 const int W = 320, H = 240;
 
-// Bruit déterministe (LCG) : chaque trame est différente et incompressible.
+// Bruit déterministe (LCG) d'amplitude ±32 autour du gris : chaque trame est
+// différente, coûteuse à coder, mais compressible jusqu'aux consignes testées.
 PictPtr CreateNoise(DWORD& seed)
 {
 	PictPtr pic = Pict::CreateColor(W, H, 128, 128, 128);
@@ -40,7 +46,7 @@ PictPtr CreateNoise(DWORD& seed)
 			for (int x = 0; x < w; x++)
 			{
 				seed = seed * 1103515245u + 12345u;
-				line[x] = (seed >> 16) & 0xFF;
+				line[x] = (BYTE)(96 + ((seed >> 16) & 0x3F));
 			}
 		}
 	}
