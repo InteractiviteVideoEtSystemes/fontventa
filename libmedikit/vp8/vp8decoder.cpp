@@ -8,6 +8,7 @@
 #include "medkit/log.h"
 #include "vp8decoder.h"
 #include "vp8depacketizer.h"
+#include "vp8frameheader.h"
 
 // Construit "a=fmtp:<pt> max-fr=X;max-fs=Y" (RFC 7742) à partir de limites déjà
 // résolues par l'appelant (encodeur : ses propres bornes configurées ;
@@ -102,6 +103,10 @@ int VP8Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 			bufLen = 0;
 			return 0;
 		}
+		// PictureID lu sur le paquet de tête de trame (RFC 7741 : la valeur
+		// est identique sur tous les paquets d'une même trame)
+		if (!bufLen)
+			hasPictureId = VP8DescriptorPictureId(in, inLen, pictureId);
 		memcpy(buffer+bufLen, in+pos, inLen-pos);
 		bufLen += inLen-pos;
 	}
@@ -109,10 +114,28 @@ int VP8Decoder::DecodePacket(BYTE *in,DWORD inLen,int lost,int last)
 	if (last)
 	{
 		memset(buffer+bufLen,0,AV_INPUT_BUFFER_PADDING_SIZE);
+		// Drapeaux de mise à jour des références, lus AVANT le décodage : le
+		// tampon est vidé ensuite. L'acquittement RPSI n'est armé que si la
+		// trame se décode (RFC 4585 §6.3.3 : le RPSI désigne une référence
+		// que le récepteur POSSÈDE).
+		VP8FrameHeaderInfo header;
+		bool parsed = VP8ParseFrameHeader(buffer, bufLen, header);
 		ret = Decode(buffer,bufLen);
+		ackReady = ret && parsed && hasPictureId && header.UpdatesReference();
+		if (ackReady)
+			ackPictureId = pictureId;
+		hasPictureId = false;
 		bufLen = 0;
 	}
 	return ret;
+}
+
+bool VP8Decoder::GetReferencePictureId(WORD &pid)
+{
+	if (!ackReady)
+		return false;
+	pid = ackPictureId;
+	return true;
 }
 
 bool VP8Decoder::GetFmtpInfo(std::string &fmtp, int payloadType)

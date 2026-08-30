@@ -253,6 +253,14 @@ public:
 	virtual PictPtr GetFrame()=0;
 	virtual bool IsKeyFrame()=0;
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp =""; return false; };
+	// Acquittement de trame de référence (RPSI, RFC 7741 §5.1 — VP9 partage
+	// le même contrat, RFC 9628 §5.1) : true si la DERNIÈRE trame décodée
+	// avec succès met à jour une référence long-terme (VP8 : golden/altref,
+	// remplacement ou copie) et portait un PictureID dans son payload
+	// descriptor RTP. pictureId = la valeur telle que reçue (2 octets réseau
+	// bit M inclus, ou 1 octet < 0x80) : l'émetteur la compare à l'identique.
+	// En FIN de vtable : contrat d'ABI (cf. DecodePacket ci-dessus).
+	virtual bool GetReferencePictureId(WORD &pictureId) { return false; }
 
 public:
 	VideoCodec::Type type;

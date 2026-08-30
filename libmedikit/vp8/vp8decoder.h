@@ -19,8 +19,18 @@ public:
 	// Dépaquetisation RTP VP8 (RFC 7741 : retrait du payload descriptor).
 	virtual int DecodePacket(BYTE *in,DWORD len,int lost,int last);
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
+	// Acquittement RPSI : cf. VideoDecoder::GetReferencePictureId.
+	virtual bool GetReferencePictureId(WORD &pictureId);
 
 	static bool IsSupported() { return FfVideoDecoder::IsCodecAvailable(AV_CODEC_ID_VP8); }
+
+private:
+	// PictureID de la trame en cours d'accumulation (paquet de tête)
+	bool hasPictureId = false;
+	WORD pictureId = 0;
+	// Dernière trame décodée : mérite-t-elle un RPSI, et avec quel PictureID
+	bool ackReady = false;
+	WORD ackPictureId = 0;
 };
 
 #endif

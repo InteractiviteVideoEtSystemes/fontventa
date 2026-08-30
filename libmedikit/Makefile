@@ -120,7 +120,7 @@ H264OBJ=h264encoder.o h264decoder.o h264depacketizer.o
 # VP8 : décodeur natif ffmpeg + encodeur via le wrapper libvpx de ffmpeg
 # (ffmpeg n'a pas d'encodeur VP8 natif, mais expose le wrapper libvpx).
 VP8DIR=vp8
-VP8OBJ=vp8decoder.o vp8encoder.o vp8depacketizer.o
+VP8OBJ=vp8decoder.o vp8encoder.o vp8depacketizer.o vp8frameheader.o
 
 # AV1 : encodeur via le wrapper libsvtav1 (temps-réel), décodeur via libdav1d, et
 # les deux sens du transport RTP maison (av1obu.o : leb128 + parcours OBU partagé ;

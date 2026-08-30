@@ -50,6 +50,27 @@ DWORD VP8DescriptorLen(const BYTE* data, DWORD size)
 	return (len <= size) ? len : 0;
 }
 
+bool VP8DescriptorPictureId(const BYTE* data, DWORD size, WORD &pictureId)
+{
+	if (size < 3)
+		return false;
+	if (!(data[0] >> 7))	// X=0 : pas d'octet d'extension
+		return false;
+	if (!(data[1] >> 7))	// I=0 : pas de PictureID
+		return false;
+	// Le PictureID suit immédiatement l'octet d'extension
+	if (data[2] & 0x80)
+	{
+		// M=1 : 15 bits sur 2 octets réseau, rendus tels quels bit M compris
+		if (size < 4)
+			return false;
+		pictureId = (WORD(data[2]) << 8) | data[3];
+	}
+	else
+		pictureId = data[2];
+	return true;
+}
+
 VP8Depacketizer::VP8Depacketizer() : frame(VideoCodec::VP8, 0)
 {
 	started = false;

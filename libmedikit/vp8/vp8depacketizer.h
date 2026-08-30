@@ -25,6 +25,13 @@
 // annonce (paquet invalide).
 DWORD VP8DescriptorLen(const BYTE* data, DWORD size);
 
+// PictureID du payload descriptor (RFC 7741), TEL QUE REÇU : 2 octets réseau
+// (bit M inclus, valeur >= 0x8000) ou 1 octet (< 0x80). Il se renvoie à
+// l'identique dans le bit string RPSI (RFC 7741 §5.1) — l'encodeur du pair le
+// compare sans le décoder. false si le descripteur est invalide ou sans
+// PictureID (I=0).
+bool VP8DescriptorPictureId(const BYTE* data, DWORD size, WORD &pictureId);
+
 class VP8Depacketizer
 {
 public:
