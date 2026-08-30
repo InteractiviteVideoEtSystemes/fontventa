@@ -73,7 +73,7 @@ EncodeRun Encode(VideoEncoder& enc, int count, DWORD& seed)
 		PictPtr pic = CreateNoise(seed);
 		if (!pic)
 			return run;
-		VideoFrame* vf = enc.EncodeFrame(pic);
+		VideoFramePtr vf = enc.EncodeFrame(pic);
 		if (!vf)
 			continue;
 		if (!run.frames)
@@ -159,7 +159,7 @@ TEST(VideoEncoderReconfig, LaConsigneAtteintLEncodeurAv1)
 	ASSERT_EQ(enc.SetFrameRate(30, 2000, 300), 1);
 	ASSERT_GE(enc.SetSize(W, H), 1);
 
-	VideoFrame* vf = nullptr;
+	VideoFramePtr vf;
 	for (int i = 0; i < 100 && !vf; i++)
 	{
 		PictPtr pic = CreateNoise(seed);
@@ -202,7 +202,7 @@ TEST(VideoEncoderReconfig, UneRampeDeMonteeNeMultipliePasLesTramesClesVp8)
 		ASSERT_EQ(enc.SetFrameRate(30, kbits, 300), 1);
 		PictPtr pic = CreateNoise(seed);
 		ASSERT_TRUE(pic != nullptr);
-		VideoFrame* vf = enc.EncodeFrame(pic);
+		VideoFramePtr vf = enc.EncodeFrame(pic);
 		if (!vf)
 			continue;
 		frames++;
@@ -294,7 +294,7 @@ TEST(VideoEncoderReconfig, UnChangementDeCadenceRouvreAv1)
 	ASSERT_EQ(enc.SetFrameRate(30, 2000, 300), 1);
 	ASSERT_GE(enc.SetSize(W, H), 1);
 
-	VideoFrame* vf = nullptr;
+	VideoFramePtr vf;
 	for (int i = 0; i < 100 && !vf; i++)
 	{
 		PictPtr pic = CreateNoise(seed);

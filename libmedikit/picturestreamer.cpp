@@ -38,23 +38,23 @@ bool PictureStreamer::SetFrameRate(int fps,int kbits,int intraPeriod)
 	return false;
 }
 
-VideoFrame* PictureStreamer::Stream(bool askiframe)
+VideoFramePtr PictureStreamer::Stream(bool askiframe)
 {
 	if (!pict)
 	{
 		// No picture loaded
 		Error("-PictureStreamer: no picture loaded. Cannot stream.\n");
-		return NULL;
+		return nullptr;
 	}
 
 	if (encoder == NULL)
 	{
 		// No encoder
 		Error("-PictureStreamer: no video encoder configured. Cannot stream.\n");
-		return NULL;
+		return nullptr;
 	}
 
-	VideoFrame * vf = encoder->EncodeFrame( pict );
+	VideoFramePtr vf = encoder->EncodeFrame( pict );
 
 	if (vf == NULL) Error("-PictureStreamer: fail to encode picture. Cannot stream.\n");
 

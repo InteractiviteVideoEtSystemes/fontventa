@@ -38,7 +38,7 @@ public:
 	/**
 	 * Create an encoded videoframe
 	 **/
-	VideoFrame* Stream(bool askiframe = false);
+	VideoFramePtr Stream(bool askiframe = false);
 
 private:
 	PictPtr pict;

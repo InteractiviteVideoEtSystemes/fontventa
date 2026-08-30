@@ -57,11 +57,11 @@ bool WriteMp4(int& videoWritten, int& audioWritten)
 			PictPtr pic = Pict::CreateColor(W, H, 16 + (i * 8) % 200, 128, 128);
 			RET_FALSE_IF_NEG(pic ? 0 : -1);
 
-			VideoFrame* vf = enc.EncodeFrame(pic);
+			VideoFramePtr vf = enc.EncodeFrame(pic);
 			if (vf)
 			{
 				vf->SetTimestamp((DWORD)(i * (90000 / FPS)));    // horloge 90 kHz
-				if (w.ProcessFrame(vf) == 1)
+				if (w.ProcessFrame(vf.get()) == 1)
 					videoWritten++;
 			}
 

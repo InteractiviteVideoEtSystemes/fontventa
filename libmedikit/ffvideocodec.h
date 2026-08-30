@@ -40,7 +40,7 @@ public:
 	FfVideoEncoder(const Properties& properties, enum AVCodecID av_codec, enum VideoCodec::Type codec_id,
 	               bool tryHW = false, const char* codec_name = nullptr);
 	virtual ~FfVideoEncoder();
-	virtual VideoFrame* EncodeFrame(PictPtr pic);
+	virtual VideoFramePtr EncodeFrame(PictPtr pic);
 	virtual int FastPictureUpdate();
 	virtual int SetSize(int width, int height);
 	virtual int SetFrameRate(int fps, int kbits, int intraPeriod);
@@ -94,11 +94,11 @@ protected:
 	// fixe historique (H263, MPEG4, FLV1...).
 	virtual void ConfigureContext();
 
-	// Construit l'info de packetisation RTP de `frame` (déjà rempli). Défaut :
+	// Construit l'info de packetisation RTP de `frame` (déjà remplie). Défaut :
 	// schéma H263 (saut du start code 2 octets + préfixe RFC 2429). Les codecs
 	// à packetisation RTP propre (H264, VP8...) la redéfinissent dans leur
 	// sous-classe.
-	virtual void PacketizeFrame();
+	virtual void PacketizeFrame(VideoFrame& frame);
 
 	enum AVCodecID	avCodecId;
 	const AVCodec 	*codec;
@@ -113,7 +113,6 @@ protected:
 	int		format;
 	int		opened;
 	int		intraPeriod;
-	VideoFrame	*frame;
 	// PAS de 'VideoCodec::Type type' ici : il masquerait VideoEncoder::type
 	// (medkit/video.h), que le constructeur laisserait alors non initialisé —
 	// or les appelants le lisent via un VideoEncoder* (FLVEncoder.cpp).

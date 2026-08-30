@@ -38,7 +38,7 @@ public:
 	               const char* codec_name = nullptr);
 	virtual ~FfAudioEncoder();
 
-	virtual AudioFrame* EncodeFrame(SamplesPtr samples);
+	virtual AudioFramePtr EncodeFrame(SamplesPtr samples);
 	virtual DWORD TrySetRate(DWORD rate);
 	virtual DWORD GetRate();
 	virtual DWORD GetClockRate()	{ return GetRate(); }
@@ -71,9 +71,9 @@ protected:
 	// Verse `samples` dans la fifo (via le resampler si nécessaire).
 	bool PushToFifo(SamplesPtr samples);
 
-	// Retire numFrameSamples de la fifo et les encode dans `out`. Faux si la
-	// fifo est trop courte ou si l'encodage n'a rien produit.
-	bool EncodeFromFifo();
+	// Retire numFrameSamples de la fifo et les encode dans une trame neuve.
+	// nullptr si la fifo est trop courte ou si l'encodage n'a rien produit.
+	AudioFramePtr EncodeFromFifo();
 
 	// Fréquence de repli si la fréquence demandée n'est pas supportée.
 	// À régler par la classe dérivée avant TrySetRate().
@@ -85,7 +85,6 @@ protected:
 	AVAudioFifo	*fifo;	// échantillons au format/fréquence du codec
 	AVFrame		*frame;	// trame d'entrée réutilisée (une trame codec)
 	AVPacket	*pkt;	// paquet de sortie réutilisé
-	AudioFrame	*out;	// trame encodée rendue par EncodeFrame, réutilisée
 	bool		 opened;
 	int		 allocatedSamples;	// capacité du tampon de `frame`
 	int64_t		 nextPts;		// horodatage de la prochaine trame émise

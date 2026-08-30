@@ -61,7 +61,7 @@ EncodeRun Encode(VideoEncoder& enc, int count, DWORD& seed, size_t skip = 0)
 		PictPtr pic = CreateNoise(seed);
 		if (!pic)
 			return run;
-		VideoFrame* vf = enc.EncodeFrame(pic);
+		VideoFramePtr vf = enc.EncodeFrame(pic);
 		if (!vf)
 			continue;
 		run.frames++;
@@ -83,7 +83,7 @@ EncodeRun Encode(VideoEncoder& enc, int count, DWORD& seed, size_t skip = 0)
 
 // Octets profil/contraintes/niveau du SPS d'une trame (NALs préfixées taille
 // 4 octets, cf. H264Encoder::PacketizeFrame) ; vide si pas de SPS.
-std::vector<BYTE> SpsProfileBytes(VideoFrame* vf)
+std::vector<BYTE> SpsProfileBytes(const VideoFramePtr& vf)
 {
 	BYTE* data = vf->GetData();
 	DWORD len  = vf->GetLength();
@@ -102,14 +102,14 @@ std::vector<BYTE> SpsProfileBytes(VideoFrame* vf)
 }
 
 // Encode jusqu'à obtenir une trame, rendue telle quelle (pour lire son SPS).
-VideoFrame* EncodeOne(VideoEncoder& enc, DWORD& seed)
+VideoFramePtr EncodeOne(VideoEncoder& enc, DWORD& seed)
 {
 	for (int i = 0; i < 10; i++)
 	{
 		PictPtr pic = CreateNoise(seed);
 		if (!pic)
 			return nullptr;
-		VideoFrame* vf = enc.EncodeFrame(pic);
+		VideoFramePtr vf = enc.EncodeFrame(pic);
 		if (vf)
 			return vf;
 	}
@@ -210,7 +210,7 @@ TEST(H264EncoderPlid, UnPlidMalformeSeReplieSur42801F)
 		H264Encoder enc(props);
 		ASSERT_EQ(enc.SetFrameRate(FPS, 500, 300), 1) << "[" << plid << "]";
 		ASSERT_GE(enc.SetSize(W, H), 1) << "[" << plid << "]";
-		VideoFrame* vf = EncodeOne(enc, seed);
+		VideoFramePtr vf = EncodeOne(enc, seed);
 		ASSERT_TRUE(vf != nullptr) << "[" << plid << "]";
 		std::vector<BYTE> sps = SpsProfileBytes(vf);
 		ASSERT_EQ(sps.size(), 3u) << "[" << plid << "]";
@@ -230,7 +230,7 @@ TEST(H264EncoderPlid, UnPlidValideEstConserve)
 	H264Encoder enc(props);
 	ASSERT_EQ(enc.SetFrameRate(FPS, 500, 300), 1);
 	ASSERT_GE(enc.SetSize(W, H), 1);
-	VideoFrame* vf = EncodeOne(enc, seed);
+	VideoFramePtr vf = EncodeOne(enc, seed);
 	ASSERT_TRUE(vf != nullptr);
 	std::vector<BYTE> sps = SpsProfileBytes(vf);
 	ASSERT_EQ(sps.size(), 3u);

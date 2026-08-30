@@ -105,11 +105,11 @@ TEST(Mp4Transcode, H264versH263_AacversAmr_3gp)
 							ASSERT_GE(venc.SetSize(dw, dh), 0) << "ouverture encodeur H263";
 							encOpened = true;
 						}
-						VideoFrame* h = venc.EncodeFrame(pic);
+						VideoFramePtr h = venc.EncodeFrame(pic);
 						if (h)
 						{
 							h->SetTimestamp(vf->GetTimeStamp());
-							if (w.ProcessFrame(h) == 1) nv++;
+							if (w.ProcessFrame(h.get()) == 1) nv++;
 						}
 					}
 				}

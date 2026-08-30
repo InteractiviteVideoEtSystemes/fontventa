@@ -57,11 +57,11 @@ bool WriteInterleavedMp4()
 			PictPtr pic = Pict::CreateColor(W, H, 16 + (i * 8) % 200, 128, 128);
 			if (!pic) break;
 
-			VideoFrame* vf = enc.EncodeFrame(pic);
+			VideoFramePtr vf = enc.EncodeFrame(pic);
 			if (vf)
 			{
 				vf->SetTimestamp(i * FRAME_TS);            // horloge 90 kHz
-				w.ProcessFrame(vf);
+				w.ProcessFrame(vf.get());
 			}
 
 			// 2 trames audio de 20 ms par trame vidéo de 40 ms

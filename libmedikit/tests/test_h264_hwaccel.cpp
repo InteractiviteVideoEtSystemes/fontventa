@@ -38,7 +38,7 @@ TEST(H264HwVaapi, DISABLED_EncodeDecodeRequiresVaapi)
 	// --- Aller-retour matériel : encode une image, décode-la ------------------
 	PictPtr pic = Pict::CreateColor(W, H, 128, 128, 128); // image grise I420
 	ASSERT_TRUE(pic != nullptr);
-	VideoFrame* vf = enc.EncodeFrame(pic);
+	VideoFramePtr vf = enc.EncodeFrame(pic);
 	ASSERT_TRUE(vf != NULL) << "échec encodage matériel";
 
 	int r = dec.Decode(vf->GetData(), vf->GetLength());

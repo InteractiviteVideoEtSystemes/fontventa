@@ -637,7 +637,7 @@ void Mp4FfReader::TranscodeAudioPacket( AVPacket * pkt )
     //    et accumule dans sa propre fifo : plus de resampler ni de FIFO ici.
     for( SamplesPtr samples = audioDec->GetFrame(); samples; samples = audioDec->GetFrame() )
     {
-        for( AudioFrame * f = audioEnc->EncodeFrame( samples );
+        for( AudioFramePtr f = audioEnc->EncodeFrame( samples );
              f; f = audioEnc->EncodeFrame( NULL ) )
         {
             EncFrame ef;

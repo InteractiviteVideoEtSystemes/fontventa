@@ -75,9 +75,9 @@ VP8Encoder::~VP8Encoder()
 *	  |X|R|N|S|PartID |   X=0,R=0,N=0 ; S=1 sur le 1er paquet de la trame (début
 *	  +-+-+-+-+-+-+-+-+   de partition), 0 ensuite ; PartID=0.
 ************************/
-void VP8Encoder::PacketizeFrame()
+void VP8Encoder::PacketizeFrame(VideoFrame& frame)
 {
-	DWORD len = frame->GetLength();
+	DWORD len = frame.GetLength();
 	DWORD ini = 0;
 	BYTE desc = 0x10;	// S=1 (start of partition) sur le premier fragment
 
@@ -91,7 +91,7 @@ void VP8Encoder::PacketizeFrame()
 			lenpkt = len-ini;
 		}
 
-		frame->AddRtpPacket(ini, lenpkt, &desc, 1, mark);
+		frame.AddRtpPacket(ini, lenpkt, &desc, 1, mark);
 
 		// Fragments suivants : S=0.
 		desc = 0x00;

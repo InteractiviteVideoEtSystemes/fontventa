@@ -114,7 +114,6 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
                                bool tryHW, const char* codec_name)
 {
 	// Set default values
-	frame	= NULL;
 	ctx	= NULL;
 	codec	= NULL;
 	picture	= NULL;
@@ -311,9 +310,6 @@ int FfVideoEncoder::FallbackToSoftware()
 ************************/
 FfVideoEncoder::~FfVideoEncoder()
 {
-	if (frame)
-		delete frame;
-
 	if (hw_frame)
 		av_frame_free(&hw_frame);
 
@@ -413,22 +409,6 @@ int FfVideoEncoder::OpenCodec()
 	// Check
 	if (opened)
 		return Error("Already opened\n");
-
-	//If already got a buffer
-	if (frame)
-		//Free it
-		delete(frame);
-
-	//Set new buffer size
-	DWORD bufSize = 1.5*bitrate/fps;
-
-	//Check size
-	if (bufSize<AV_INPUT_BUFFER_MIN_SIZE)
-		//Set minimun
-		bufSize = AV_INPUT_BUFFER_MIN_SIZE;
-
-	//Y alocamos el buffer
-	frame = new VideoFrame(type,bufSize);
 
 	// Bitrate,fps
 	ctx->bit_rate 		= bitrate;
@@ -550,15 +530,15 @@ void FfVideoEncoder::ConfigureContext()
 * EncodeFrame
 *	Codifica un frame
 ************************/
-VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
+VideoFramePtr FfVideoEncoder::EncodeFrame(PictPtr pic)
 {
 	int ret = 0;
 	//Check if we are opened
 	if (!opened)
-		return NULL;
+		return nullptr;
 
 	if (!pic || !pic->GetAVFrame())
-		return NULL;
+		return nullptr;
 
 	AVFrame* src = pic->GetAVFrame();
 
@@ -568,7 +548,7 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 	{
 		Error("-EncodeFrame: frame size %dx%d != encoder %dx%d\n",
 		      src->width, src->height, ctx->width, ctx->height);
-		return NULL;
+		return nullptr;
 	}
 
 	const bool encoderHW = (ctx->hw_device_ctx && ctx->hw_frames_ctx && hw_frame);
@@ -594,14 +574,14 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 		if (ret < 0) {
 			Error("Failed to get VAAPI surface: %s\n", AVErrToStr(ret));
 			av_packet_free(&pkt);
-			return NULL;
+			return nullptr;
 		}
 
 		ret = av_hwframe_transfer_data(hw_frame, src, 0);
 		if (ret < 0) {
 			Error("Failed to transfer frame to VAAPI: %s\n", AVErrToStr(ret));
 			av_packet_free(&pkt);
-			return NULL;
+			return nullptr;
 		}
 		frameToSend = hw_frame;
 	}
@@ -619,7 +599,7 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 			if (!cpuTmp || !cpuTmp->GetAVFrame()) {
 				Error("-EncodeFrame: GPU->CPU download failed\n");
 				av_packet_free(&pkt);
-				return NULL;
+				return nullptr;
 			}
 			refSrc = cpuTmp->GetAVFrame();
 		}
@@ -629,7 +609,7 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 		if (ret < 0) {
 			Error("-EncodeFrame: av_frame_ref failed: %s\n", AVErrToStr(ret));
 			av_packet_free(&pkt);
-			return NULL;
+			return nullptr;
 		}
 		frameToSend = picture;
 	}
@@ -651,13 +631,18 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 		frameToSend->pict_type = AV_PICTURE_TYPE_NONE;
 	}
 
+	//Trame neuve : elle appartient a l'appelant, pas a l'encodeur.
+	DWORD bufSize = 1.5*bitrate/fps;
+	if (bufSize<AV_INPUT_BUFFER_MIN_SIZE)
+		bufSize = AV_INPUT_BUFFER_MIN_SIZE;
+	VideoFramePtr frame = std::make_shared<VideoFrame>(type,bufSize);
 	bool firstPacket = true;
 
 	ret = avcodec_send_frame(ctx, frameToSend);
 	if (ret < 0) {
 		Error("Encoding error: %s\n", AVErrToStr(ret));
 		av_packet_free(&pkt);
-		return NULL;
+		return nullptr;
 	}
 
 	DWORD size = 0;
@@ -673,12 +658,6 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 
 				//Is intra
 				frame->SetIntra( (pkt->flags & AV_PKT_FLAG_KEY) != 0 );
-
-				//Clean all previous packets
-				frame->ClearRTPPacketizationInfo();
-
-				//Reset previous content
-				frame->SetLength(0);
 
 				firstPacket = false;
 			}
@@ -701,7 +680,7 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 		{
 			Error("Encoding error (receive_packet): %s\n", AVErrToStr(ret));
 			av_packet_free(&pkt);
-			return NULL;
+			return nullptr;
 		}
 		av_packet_unref(pkt);
 	} while(ret >= 0);
@@ -710,13 +689,13 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 
 	// Aucune donnée produite (trame éventuellement bufferisée par l'encodeur).
 	if (size == 0)
-		return NULL;
+		return nullptr;
 
 	//Set length
 	frame->SetLength(size);
 
 	// Packetisation RTP propre au codec (virtuelle).
-	PacketizeFrame();
+	PacketizeFrame(*frame);
 
 	return frame;
 }
@@ -727,9 +706,9 @@ VideoFrame* FfVideoEncoder::EncodeFrame(PictPtr pic)
 *	avec un préfixe de payload RFC 2429. Redéfini par les codecs à packetisation
 *	RTP spécifique (cf. VP8Encoder::PacketizeFrame).
 ************************/
-void FfVideoEncoder::PacketizeFrame()
+void FfVideoEncoder::PacketizeFrame(VideoFrame& frame)
 {
-	DWORD len = frame->GetLength();
+	DWORD len = frame.GetLength();
 	DWORD ini = 2;		// saute le start code 2 octets
 	BYTE prefix[2] = { 0x04, 0x00 };
 
@@ -743,7 +722,7 @@ void FfVideoEncoder::PacketizeFrame()
 			lenpkt = len-ini;
 		}
 
-		frame->AddRtpPacket(ini, lenpkt, prefix, 2, mark);
+		frame.AddRtpPacket(ini, lenpkt, prefix, 2, mark);
 
 		// Paquets suivants : préfixe sans le bit P.
 		if (ini == 2)

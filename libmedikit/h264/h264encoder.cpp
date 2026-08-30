@@ -340,7 +340,7 @@ int H264Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 * EncodeFrame
 *	Codifica un frame
 ***********************/
-VideoFrame* H264Encoder::EncodeFrame(PictPtr pic)
+VideoFramePtr H264Encoder::EncodeFrame(PictPtr pic)
 {
 	// Patch IVeS : une I-frame toutes les 2 s pendant la première période
 	// intra (repris de l'ancien encodeur x264)
@@ -359,10 +359,10 @@ VideoFrame* H264Encoder::EncodeFrame(PictPtr pic)
 *	le profile-level-id négocié en SDP (interop), et on packetise
 *	(single NAL / FU-A).
 ***********************/
-void H264Encoder::PacketizeFrame()
+void H264Encoder::PacketizeFrame(VideoFrame& frame)
 {
-	BYTE* data = frame->GetData();
-	DWORD len  = frame->GetLength();
+	BYTE* data = frame.GetData();
+	DWORD len  = frame.GetLength();
 
 	// Découpe Annex-B : liste (offset,taille) des NALs
 	std::vector< std::pair<DWORD,DWORD> > nalus;
@@ -435,12 +435,12 @@ void H264Encoder::PacketizeFrame()
 		outLen += 4+nalSize;
 	}
 
-	frame->SetMedia(out,outLen);
+	frame.SetMedia(out,outLen);
 	free(out);
 
 	// Packetisation RTP single NAL / FU-A sur les préfixes de taille
-	frame->SetH264NalSizeLength(4);
-	frame->Packetize(RTPPAYLOADSIZE-2);
+	frame.SetH264NalSizeLength(4);
+	frame.Packetize(RTPPAYLOADSIZE-2);
 }
 
 bool H264Encoder::GetFmtpInfo(std::string &fmtp, int payloadType)

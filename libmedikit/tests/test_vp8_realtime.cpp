@@ -62,7 +62,7 @@ TEST(Vp8Realtime, UneImage720pCouteMoinsDe33ms)
 		ASSERT_TRUE(pic);
 
 		const QWORD before = getTime();
-		VideoFrame* out = enc.EncodeFrame(pic);
+		VideoFramePtr out = enc.EncodeFrame(pic);
 		const QWORD cost = getTime() - before;
 
 		if (!out)

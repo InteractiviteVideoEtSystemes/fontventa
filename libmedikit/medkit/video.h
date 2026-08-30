@@ -221,13 +221,15 @@ public:
 
 
 
+typedef std::shared_ptr<VideoFrame> VideoFramePtr;
+
 class VideoEncoder
 {
 public:
 	virtual ~VideoEncoder(){};
 
 	virtual int SetSize(int width,int height)=0;
-	virtual VideoFrame* EncodeFrame(PictPtr pic)=0;
+	virtual VideoFramePtr EncodeFrame(PictPtr pic)=0;
 	virtual int FastPictureUpdate()=0;
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod)=0;
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp =""; return false; };

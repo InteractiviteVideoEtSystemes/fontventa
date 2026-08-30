@@ -197,6 +197,13 @@ LDFLAGS = $(FFMPEG_LIBS) -lbz2 -lssl -lcrypto -lpthread
 
 #For abyss
 OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS -fPIC -g -Wno-narrowing
+
+# ASAN=yes : AddressSanitizer, meme usage et meme piege que dans mcu/Makefile
+# (objets dans le meme repertoire : rebatir sans ASAN=yes ensuite).
+ifeq ($(ASAN),yes)
+	OPTS    += -fsanitize=address -fno-omit-frame-pointer
+	LDFLAGS += -fsanitize=address
+endif
 #OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS
 CFLAGS  += $(INCLUDE) $(OPTS)
 #CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x

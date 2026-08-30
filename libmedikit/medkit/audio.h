@@ -63,6 +63,9 @@ private:
 	AVFrame * av_frame;
 };
 
+class AudioFrame;
+typedef std::shared_ptr<AudioFrame> AudioFramePtr;
+
 class AudioEncoder
 {
 public:
@@ -72,11 +75,11 @@ public:
 	// dans sa fifo interne et n'émet qu'une fois numFrameSamples atteint. Il
 	// rééchantillonne lui-même si samples->GetRate() diffère de sa fréquence.
 	//
-	// Rend UNE trame encodée, propriété de l'encodeur, valide jusqu'au prochain
-	// appel ; nullptr quand la fifo ne contient plus de trame complète. Un appel
-	// peut donc en produire plusieurs : BOUCLER, samples=nullptr pour purger.
-	//   for (AudioFrame* f = enc->EncodeFrame(s); f; f = enc->EncodeFrame(nullptr))
-	virtual AudioFrame* EncodeFrame(SamplesPtr samples)=0;
+	// Rend UNE trame encodée, neuve, que l'appelant possède ; nullptr quand la
+	// fifo ne contient plus de trame complète. Un appel peut donc en produire
+	// plusieurs : BOUCLER, samples=nullptr pour purger.
+	//   for (AudioFramePtr f = enc->EncodeFrame(s); f; f = enc->EncodeFrame(nullptr))
+	virtual AudioFramePtr EncodeFrame(SamplesPtr samples)=0;
 
 	virtual DWORD TrySetRate(DWORD rate)=0;
 	virtual DWORD GetRate()=0;

@@ -92,7 +92,7 @@ int AstMp4Recorder::ProcessFrame( struct ast_frame *f, bool secondary )
                         (const SWORD *)AST_FRAME_GET_BUFFER( f ),
                         f->datalen / 2, audioencoder->GetRate() );
 
-                    AudioFrame * encoded = samples ? audioencoder->EncodeFrame( samples ) : NULL;
+                    AudioFramePtr encoded = samples ? audioencoder->EncodeFrame( samples ) : nullptr;
                     if( encoded == NULL )
                         return 0;
 

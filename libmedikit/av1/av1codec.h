@@ -81,7 +81,7 @@ public:
 
 protected:
 	virtual void ConfigureContext();
-	virtual void PacketizeFrame();
+	virtual void PacketizeFrame(VideoFrame& frame);
 
 private:
 	int  preset;	// av1.preset : SVT-AV1 -1..13 (plus petit = plus lent/meilleur)

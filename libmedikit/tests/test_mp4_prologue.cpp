@@ -77,10 +77,10 @@ int WriteWithDelay(const char* path, bool prologue, int nframes, DWORD tsBase,
 			PictPtr pic = Pict::CreateColor(W, H, 16 + (i * 8) % 200, 128, 128);
 			if (!pic) break;
 
-			VideoFrame* vf = enc.EncodeFrame(pic);
+			VideoFramePtr vf = enc.EncodeFrame(pic);
 			if (vf == NULL) continue;
 			vf->SetTimestamp(tsBase + i * FRAME_TS);
-			if (w.ProcessFrame(vf) < 0) break;
+			if (w.ProcessFrame(vf.get()) < 0) break;
 			sent++;
 
 			// 2 trames audio de 20 ms par trame vidéo de 40 ms.
@@ -342,7 +342,7 @@ TEST(Mp4Prologue, AttenteIdrSansPictureStreamer)
 		PictPtr pic = Pict::CreateColor(W, H, 64, 128, 128);
 		ASSERT_TRUE(pic != nullptr);
 
-		VideoFrame* vf = enc.EncodeFrame(pic);   // intra, non transmise
+		VideoFramePtr vf = enc.EncodeFrame(pic);   // intra, non transmise
 		ASSERT_TRUE(vf != NULL);
 
 		vf = enc.EncodeFrame(pic);
@@ -352,7 +352,7 @@ TEST(Mp4Prologue, AttenteIdrSansPictureStreamer)
 		// Première trame vue par le writer : une P-frame, donc attente de l'IDR
 		// alors qu'aucun prologue n'a pu être créé.
 		vf->SetTimestamp(0);
-		EXPECT_NO_FATAL_FAILURE(w.ProcessFrame(vf));
+		EXPECT_NO_FATAL_FAILURE(w.ProcessFrame(vf.get()));
 		EXPECT_EQ(w.IsVideoStarted(), 0) << "la vidéo ne doit pas démarrer sur une P-frame";
 	}
 	MP4Close(mp4);

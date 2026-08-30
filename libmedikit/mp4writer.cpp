@@ -453,7 +453,7 @@ int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
                     {
                         // We are still waiting for video
                         // Replace P-Frames with black frames
-                        VideoFrame *f3 = pcstream->Stream( false );
+                        VideoFramePtr f3 = pcstream->Stream( false );
                         if( f3 != NULL )
                         {
                             /* Pas de détour par `depak` : sa trame interne est
@@ -461,7 +461,7 @@ int mp4writer::ProcessFrame( const MediaFrame *f, bool secondary )
                              * réutiliser ici la détruirait. Et c'est inutile,
                              * l'encodeur rendant déjà de l'AVCC. */
                             f3->SetTimestamp( f2->GetTimeStamp() );
-                            tr->ProcessFrame( f3 );
+                            tr->ProcessFrame( f3.get() );
                         }
                     }
 
@@ -566,13 +566,13 @@ unsigned int mp4writer::WriteVideoPrologue( Mp4VideoTrack *tr, DWORD firstTs, DW
         // La 1re trame doit être une intra : Mp4VideoTrack ignore tout ce qui
         // précède la première image clé. Elle porte aussi les SPS/PPS qui
         // initialisent l'avcC de la piste.
-        VideoFrame *bf = pcstream->Stream( i == 0 );
+        VideoFramePtr bf = pcstream->Stream( i == 0 );
         if( bf == NULL ) break;
 
         // L'encodeur rend déjà des NALs préfixées par leur taille (AVCC), le
         // format attendu par MP4WriteSample : aucune conversion à faire.
         bf->SetTimestamp( firstTs + i * PROLOGUE_FRAME_TS );
-        if( tr->ProcessFrame( bf ) < 0 ) break;
+        if( tr->ProcessFrame( bf.get() ) < 0 ) break;
         written++;
     }
 

@@ -40,7 +40,7 @@ bool FfAudioEncoder::IsCodecAvailable(enum AVCodecID id, const char* preferredNa
 FfAudioEncoder::FfAudioEncoder(const Properties& properties, enum AVCodecID av_codec, AudioCodec::Type codec_id,
                                const char* codec_name) :
 	defaultSampleRate(8000), codec(nullptr), ctx(nullptr), swr(nullptr), fifo(nullptr),
-	frame(nullptr), pkt(nullptr), out(nullptr), opened(false), allocatedSamples(0),
+	frame(nullptr), pkt(nullptr), opened(false), allocatedSamples(0),
 	nextPts(AV_NOPTS_VALUE)
 {
 	// Membres hérités d'AudioEncoder
@@ -87,7 +87,6 @@ FfAudioEncoder::~FfAudioEncoder()
 	if (fifo)	av_audio_fifo_free(fifo);
 	if (frame)	av_frame_free(&frame);
 	if (pkt)	av_packet_free(&pkt);
-	if (out)	delete out;
 	if (ctx)	avcodec_free_context(&ctx);	// libère aussi ch_layout
 }
 
@@ -240,8 +239,6 @@ bool FfAudioEncoder::Open()
 		return false;
 	}
 
-	out = new AudioFrame(type, GetClockRate());
-
 	// Le tampon de la trame d'entrée est alloué paresseusement par EnsureFrame()
 	// au premier EncodeFrame() : ainsi les codecs à frame_size variable
 	// (frame_size==0) sont gérés comme ceux à trame fixe.
@@ -385,7 +382,7 @@ bool FfAudioEncoder::PushToFifo(SamplesPtr samples)
 	return true;
 }
 
-bool FfAudioEncoder::EncodeFromFifo()
+AudioFramePtr FfAudioEncoder::EncodeFromFifo()
 {
 	// Un encodeur peut retenir ses premières trames (délai d'amorçage, AAC) :
 	// on continue de le nourrir tant que la fifo le permet, jusqu'à obtenir un
@@ -395,19 +392,19 @@ bool FfAudioEncoder::EncodeFromFifo()
 		if (!EnsureFrame(numFrameSamples))
 		{
 			Error("[%s] could not allocate frame buffer\n", codec->name);
-			return false;
+			return nullptr;
 		}
 
 		if (av_frame_make_writable(frame) < 0)
 		{
 			Error("[%s] frame not writable\n", codec->name);
-			return false;
+			return nullptr;
 		}
 
 		if (av_audio_fifo_read(fifo, (void**)frame->data, numFrameSamples) < numFrameSamples)
 		{
 			Error("[%s] fifo read failed\n", codec->name);
-			return false;
+			return nullptr;
 		}
 
 		frame->nb_samples = numFrameSamples;
@@ -417,10 +414,10 @@ bool FfAudioEncoder::EncodeFromFifo()
 		if (ret < 0)
 		{
 			Error("[%s] avcodec_send_frame: %d\n", codec->name, ret);
-			return false;
+			return nullptr;
 		}
 
-		out->SetLength(0);
+		AudioFramePtr out = std::make_shared<AudioFrame>(type, GetClockRate());
 		DWORD total = 0;
 
 		while ((ret = avcodec_receive_packet(ctx, pkt)) >= 0)
@@ -433,7 +430,7 @@ bool FfAudioEncoder::EncodeFromFifo()
 		if (ret != AVERROR(EAGAIN) && ret != AVERROR_EOF)
 		{
 			Error("[%s] avcodec_receive_packet: %d\n", codec->name, ret);
-			return false;
+			return nullptr;
 		}
 
 		// Horodatage de la trame émise, dans l'horloge RTP du codec.
@@ -445,13 +442,13 @@ bool FfAudioEncoder::EncodeFromFifo()
 		out->SetDuration((DWORD)((QWORD)numFrameSamples * GetClockRate() / ctx->sample_rate));
 
 		if (total > 0)
-			return true;
+			return out;
 	}
 
-	return false;
+	return nullptr;
 }
 
-AudioFrame* FfAudioEncoder::EncodeFrame(SamplesPtr samples)
+AudioFramePtr FfAudioEncoder::EncodeFrame(SamplesPtr samples)
 {
 	if (!opened && !Open())
 	{
@@ -462,10 +459,7 @@ AudioFrame* FfAudioEncoder::EncodeFrame(SamplesPtr samples)
 	if (samples && !PushToFifo(samples))
 		return nullptr;
 
-	if (!EncodeFromFifo())
-		return nullptr;
-
-	return out;
+	return EncodeFromFifo();
 }
 
 /******************************************************************************

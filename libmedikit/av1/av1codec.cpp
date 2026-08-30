@@ -161,17 +161,17 @@ int AV1Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 // delimiter du tampon lui-même, alors qu'un fichier AV1 en veut un en tête de
 // chaque unité temporelle — seul le FIL n'en veut pas, et c'est le paquetiseur
 // qui s'en charge maintenant.
-void AV1Encoder::PacketizeFrame()
+void AV1Encoder::PacketizeFrame(VideoFrame& frame)
 {
-	BYTE* data = frame->GetData();
-	DWORD len  = frame->GetLength();
+	BYTE* data = frame.GetData();
+	DWORD len  = frame.GetLength();
 
 	std::vector<AV1ObuRef> obus;
 
 	if (!AV1ParseObuStream(data, len, obus))
 	{
 		Log("-AV1Encoder: flux OBU incoherent, packetisation par defaut\n");
-		FfVideoEncoder::PacketizeFrame();
+		FfVideoEncoder::PacketizeFrame(frame);
 		return;
 	}
 
@@ -199,12 +199,12 @@ void AV1Encoder::PacketizeFrame()
 
 	if (!AV1PacketizeTemporalUnit(data, len, RTPPAYLOADSIZE, packets))
 	{
-		FfVideoEncoder::PacketizeFrame();
+		FfVideoEncoder::PacketizeFrame(frame);
 		return;
 	}
 
 	for (size_t i = 0; i < packets.size(); i++)
-		frame->AddRtpPacket(packets[i].pos, packets[i].size,
+		frame.AddRtpPacket(packets[i].pos, packets[i].size,
 		                    packets[i].prefix, packets[i].prefixLen,
 		                    packets[i].mark);
 }

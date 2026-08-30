@@ -137,7 +137,7 @@ TEST(AudioCodecG711, AllerRetourPcmu)
 	SamplesPtr in = MakeToneSamples(160, 8000);
 	ASSERT_TRUE(in != nullptr);
 
-	AudioFrame *frame = enc->EncodeFrame(in);
+	AudioFramePtr frame = enc->EncodeFrame(in);
 	ASSERT_TRUE(frame != nullptr);
 	EXPECT_EQ(frame->GetLength(), 160u);	// 1 octet par échantillon
 
@@ -162,7 +162,7 @@ TEST(AudioCodecG711, AllerRetourPcma)
 	ASSERT_TRUE(enc != nullptr);
 	ASSERT_TRUE(dec != nullptr);
 
-	AudioFrame *frame = enc->EncodeFrame(MakeToneSamples(160, 8000));
+	AudioFramePtr frame = enc->EncodeFrame(MakeToneSamples(160, 8000));
 	ASSERT_TRUE(frame != nullptr);
 	EXPECT_EQ(frame->GetLength(), 160u);
 
@@ -185,7 +185,7 @@ TEST(AudioCodecFifo, LEncodeurAccepteDesTaillesQuelconques)
 	EXPECT_TRUE(enc->EncodeFrame(MakeToneSamples(100, 8000)) == nullptr);
 
 	// 100 + 100 = 200 >= 160 : une trame sort, 40 échantillons restent.
-	AudioFrame *frame = enc->EncodeFrame(MakeToneSamples(100, 8000));
+	AudioFramePtr frame = enc->EncodeFrame(MakeToneSamples(100, 8000));
 	ASSERT_TRUE(frame != nullptr);
 	EXPECT_EQ(frame->GetLength(), 160u);
 	EXPECT_TRUE(enc->EncodeFrame(nullptr) == nullptr);
@@ -193,7 +193,7 @@ TEST(AudioCodecFifo, LEncodeurAccepteDesTaillesQuelconques)
 	// Une trame plus grosse qu'une tranche produit plusieurs trames, retirées
 	// par purges successives : rien n'est perdu, rien n'est concaténé.
 	int emitted = 0;
-	for (AudioFrame *f = enc->EncodeFrame(MakeToneSamples(1000, 8000));
+	for (AudioFramePtr f = enc->EncodeFrame(MakeToneSamples(1000, 8000));
 	     f; f = enc->EncodeFrame(nullptr))
 	{
 		EXPECT_EQ(f->GetLength(), 160u);
@@ -221,7 +221,7 @@ TEST(AudioCodecOpus, LaTrameDecodeeSortEntiere)
 
 	// C'est le cas exact du 14/08 : 960 échantillons par trame face aux
 	// tampons appelants de 512. La trame doit sortir ENTIÈRE, en un morceau.
-	AudioFrame *frame = enc->EncodeFrame(MakeToneSamples(960, 48000));
+	AudioFramePtr frame = enc->EncodeFrame(MakeToneSamples(960, 48000));
 	ASSERT_TRUE(frame != nullptr);
 	ASSERT_GT(frame->GetLength(), 0u);
 
@@ -250,7 +250,7 @@ TEST(AudioCodecOpus, DixTramesEncodeesDonnentDixTramesDecodees)
 	int frames = 0;
 	for (int i = 0; i < 10; i++)
 	{
-		AudioFrame *f = enc->EncodeFrame(MakeToneSamples(960, 48000));
+		AudioFramePtr f = enc->EncodeFrame(MakeToneSamples(960, 48000));
 		if (!f)
 			continue;
 		ASSERT_GT(dec->Decode(f->GetData(), (int)f->GetLength()), 0);
@@ -283,7 +283,7 @@ TEST(AudioCodecResample, UnChangementDeFrequenceEstAbsorbeParLaTrame)
 	// DÉBIT sur dix trames — c'est lui que le bug du 14/08 dégradait.
 	int emitted = 0;
 	for (int i = 0; i < 10; i++)
-		for (AudioFrame *f = enc->EncodeFrame(MakeToneSamples(320, 16000));
+		for (AudioFramePtr f = enc->EncodeFrame(MakeToneSamples(320, 16000));
 		     f; f = enc->EncodeFrame(nullptr))
 		{
 			EXPECT_EQ(f->GetLength(), 160u);	// 20 ms à 8 kHz
@@ -295,7 +295,7 @@ TEST(AudioCodecResample, UnChangementDeFrequenceEstAbsorbeParLaTrame)
 
 	// Retour à 8 kHz : le resampler est vidé avant d'être défait, ce qu'il
 	// retenait n'est pas perdu, et l'encodeur repart sans état résiduel.
-	AudioFrame *frame = enc->EncodeFrame(MakeToneSamples(160, 8000));
+	AudioFramePtr frame = enc->EncodeFrame(MakeToneSamples(160, 8000));
 	ASSERT_TRUE(frame != nullptr);
 	EXPECT_EQ(frame->GetLength(), 160u);
 }
