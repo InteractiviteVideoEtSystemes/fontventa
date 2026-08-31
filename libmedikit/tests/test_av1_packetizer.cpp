@@ -199,11 +199,12 @@ TEST(AV1Packetizer, LeTemporalDelimiterNEstJamaisTransmis)
 	EXPECT_EQ(packets.size(), 2u);
 }
 
-TEST(AV1Packetizer, LObuSizeNEstPasTransmisEtLeDrapeauEstRetombe)
+TEST(AV1Packetizer, LObuSizeEstTransmisAvecSonDrapeau)
 {
-	// La longueur de l'élément RTP porte déjà la taille : la spec recommande
-	// obu_has_size_field = 0. Le préfixe doit donc l'avoir remis à 0, et la
-	// tranche commencer APRÈS l'obu_size.
+	// La longueur de l'élément RTP porte déjà la taille, mais un récepteur qui
+	// recolle les charges sans lire les bits d'agrégation n'a que l'obu_size pour
+	// délimiter les OBU. Il part donc sur le fil, drapeau compris, et la tranche
+	// commence AU leb128, pas après.
 	std::vector<BYTE> tu = TemporalUnit(false, 40);
 
 	std::vector<AV1RtpPacket> packets;
@@ -212,13 +213,41 @@ TEST(AV1Packetizer, LObuSizeNEstPasTransmisEtLeDrapeauEstRetombe)
 
 	const AV1RtpPacket& p = packets[0];
 	ASSERT_EQ(p.prefixLen, 2u);
-	EXPECT_EQ((p.prefix[1] >> 1) & 0x01, 0) << "obu_has_size_field doit etre a 0";
-	EXPECT_EQ((p.prefix[1] >> 3) & 0x0f, 6) << "le type doit survivre a la reecriture";
+	EXPECT_NE((p.prefix[1] >> 1) & 0x01, 0) << "obu_has_size_field doit rester a 1";
+	EXPECT_EQ((p.prefix[1] >> 3) & 0x0f, 6) << "le type doit survivre au transport";
 
-	// La tranche, c'est exactement la charge de l'OBU : 40 octets de 0xa5.
-	EXPECT_EQ(p.size, 40u);
-	for (DWORD i = 0; i < p.size; i++)
+	// La tranche, c'est l'obu_size (1 octet ici) puis 40 octets de 0xa5.
+	ASSERT_EQ(p.size, 41u);
+	EXPECT_EQ(tu[p.pos], 40) << "le leb128 de la taille ouvre la tranche";
+	for (DWORD i = 1; i < p.size; i++)
 		ASSERT_EQ(tu[p.pos + i], 0xa5) << "octet " << i;
+}
+
+TEST(AV1Packetizer, UnRecepteurNaifRetrouveLesObuDUneImageCle)
+{
+	// Le cas qui motive la présence de l'obu_size : un récepteur qui se contente
+	// de retirer l'octet d'agrégation et de recoller les charges — mediastreamer2
+	// (Linphone) est de ceux-là — doit obtenir un flux low-overhead que son
+	// décodeur sait délimiter. Sans obu_size, le sequence header d'une image clé
+	// avale la trame qui le suit.
+	std::vector<BYTE> tu = TemporalUnit(true, 3000);
+
+	std::vector<AV1RtpPacket> packets;
+	ASSERT_TRUE(AV1PacketizeTemporalUnit(tu.data(), tu.size(), kMtu, packets));
+
+	std::vector<BYTE> naive;
+	for (size_t i = 0; i < packets.size(); i++)
+	{
+		std::vector<BYTE> payload = Wire(tu, packets[i]);
+		naive.insert(naive.end(), payload.begin() + 1, payload.end());
+	}
+
+	std::vector<std::pair<int,DWORD> > obus = Obus(naive.data(), naive.size());
+	ASSERT_EQ(obus.size(), 2u) << "les deux OBU doivent rester delimitables";
+	EXPECT_EQ(obus[0].first, AV1_OBU_SEQUENCE_HEADER);
+	EXPECT_EQ(obus[0].second, 10u);
+	EXPECT_EQ(obus[1].first, 6);
+	EXPECT_EQ(obus[1].second, 3000u);
 }
 
 TEST(AV1Packetizer, LesBitsDAgregationDUnFragmentSeSuivent)
@@ -228,13 +257,15 @@ TEST(AV1Packetizer, LesBitsDAgregationDUnFragmentSeSuivent)
 	std::vector<AV1RtpPacket> packets;
 	ASSERT_TRUE(AV1PacketizeTemporalUnit(tu.data(), tu.size(), kMtu, packets));
 
-	// L'arithmétique exacte, écrite pour être vérifiable : le premier paquet perd
-	// 2 octets de préfixe (agrégation + obu_header) et porte 1348 octets, les
-	// suivants n'en perdent qu'un et portent 1349. 1348 + 1349 + 1303 = 4000.
+	// L'arithmétique exacte, écrite pour être vérifiable : la tranche à découper
+	// vaut 4002 octets (le leb128 de 4000 en tient 2, et il voyage avec la
+	// charge). Le premier paquet perd 2 octets de préfixe (agrégation +
+	// obu_header) et porte 1348 octets, les suivants n'en perdent qu'un et
+	// portent 1349. 1348 + 1349 + 1305 = 4002.
 	ASSERT_EQ(packets.size(), 3u);
 	EXPECT_EQ(packets[0].size, 1348u);
 	EXPECT_EQ(packets[1].size, 1349u);
-	EXPECT_EQ(packets[2].size, 1303u);
+	EXPECT_EQ(packets[2].size, 1305u);
 
 	for (size_t i = 0; i < packets.size(); i++)
 	{
@@ -295,9 +326,9 @@ TEST(AV1Packetizer, LaTrameNEstJamaisRecopiee)
 		covered += packets[i].size;
 	}
 
-	// 10 octets de sequence header + 3000 de trame ; les en-têtes d'OBU voyagent
-	// dans les préfixes, pas dans les tranches.
-	EXPECT_EQ(covered, 3010u);
+	// 10 octets de sequence header + 3000 de trame, plus leur obu_size (1 octet
+	// pour 10, 2 pour 3000) ; seuls les obu_header voyagent dans les préfixes.
+	EXPECT_EQ(covered, 3013u);
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +397,9 @@ TEST(AV1Packetizer, UnObuSansChargeVautQuandMemeUnPaquet)
 	ASSERT_TRUE(AV1PacketizeTemporalUnit(tu.data(), tu.size(), kMtu, packets));
 	ASSERT_EQ(packets.size(), 3u) << "sequence header, frame header, tile group";
 
-	EXPECT_EQ(packets[1].size, 0u);
+	// Sa tranche se réduit à l'obu_size, qui vaut 0 : un octet, pas zéro.
+	ASSERT_EQ(packets[1].size, 1u);
+	EXPECT_EQ(tu[packets[1].pos], 0);
 	EXPECT_EQ((packets[1].prefix[1] >> 3) & 0x0f, 3);
 
 	// Et l'aller-retour le rend.

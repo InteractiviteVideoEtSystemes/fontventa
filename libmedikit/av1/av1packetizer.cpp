@@ -47,12 +47,17 @@ bool AV1PacketizeTemporalUnit(const BYTE* data, DWORD len, DWORD maxPayload,
 			return false;
 		}
 
-		DWORD pos       = obu.payloadPos;
-		DWORD remaining = obu.payloadLen;
-		bool  first     = true;
+		// La tranche part de l'obu_size, qui est TRANSMIS : la longueur d'élément
+		// RTP le rend redondant, mais un récepteur qui recolle les charges sans
+		// la lire — mediastreamer2 le fait — n'a que lui pour délimiter les OBU
+		// d'une même unité.
+		const DWORD sizePos   = obu.headerPos + obu.headerLen;
+		DWORD       pos       = sizePos;
+		DWORD       remaining = obu.payloadLen + (obu.payloadPos - sizePos);
+		bool        first     = true;
 
-		// `first ||` : un OBU sans charge (rien que son en-tête) vaut quand même un
-		// paquet, sinon il disparaîtrait du flux.
+		// `first ||` : un OBU sans charge (rien que son obu_size) vaut quand même
+		// un paquet, sinon il disparaîtrait du flux.
 		while (first || remaining > 0)
 		{
 			const DWORD prefixLen = first ? firstPrefix : 1;
@@ -79,10 +84,9 @@ bool AV1PacketizeTemporalUnit(const BYTE* data, DWORD len, DWORD maxPayload,
 
 			if (first)
 			{
-				// obu_has_size_field remis à 0 : la longueur de l'élément la porte,
-				// et la spec recommande de ne pas la dupliquer. C'est le seul octet
-				// réécrit de tout le flux.
-				p.prefix[1] = (BYTE)(data[obu.headerPos] & ~0x02);
+				// L'obu_header part tel quel, obu_has_size_field compris : la taille
+				// suit dans la tranche. Aucun octet de la trame n'est réécrit.
+				p.prefix[1] = data[obu.headerPos];
 
 				if (obu.headerLen == 2)
 					p.prefix[2] = data[obu.headerPos + 1];

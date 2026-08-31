@@ -40,8 +40,12 @@ struct AV1RtpPacket
 //
 // Ce qui est retiré, ajouté ou réécrit au passage :
 //   - le temporal delimiter est SUPPRIMÉ (la spec RTP l'interdit sur le fil) ;
-//   - obu_has_size_field est mis à 0 et obu_size n'est pas transmis : la
-//     longueur de l'élément le porte déjà, et la spec recommande son absence ;
+//   - obu_has_size_field et obu_size sont transmis TELS QUELS, alors que la
+//     spec recommande leur absence (la longueur de l'élément porte déjà la
+//     taille). Elle l'autorise, et c'est ce qui rend le flux lisible par un
+//     récepteur qui recolle les charges sans lire les bits d'agrégation :
+//     mediastreamer2 (Linphone) fait exactement cela, et sans obu_size il ne
+//     peut pas séparer le sequence header de la trame dans une image clé ;
 //   - le bit N est posé sur le premier paquet d'une unité qui contient un
 //     sequence header, ce qui est le début d'une séquence codée.
 bool AV1PacketizeTemporalUnit(const BYTE* data, DWORD len, DWORD maxPayload,
