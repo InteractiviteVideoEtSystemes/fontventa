@@ -239,10 +239,29 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 * CloseCodec
 *	Ferme le codec et repart sur un contexte vierge (même encodeur)
 ************************/
+void FfVideoEncoder::DrainCodec()
+{
+	if (!ctx || !opened)
+		return;
+
+	// La trame NULL déclare la fin du flux ; l'encodeur n'accepte plus rien
+	// ensuite, ce qui est le cas ici : le contexte est détruit juste après.
+	if (avcodec_send_frame(ctx, NULL) < 0)
+		return;
+
+	AVPacket* pkt = av_packet_alloc();
+	// Borné par prudence : un pipeline ne retient jamais autant d'images.
+	for (int i = 0; i < 512 && avcodec_receive_packet(ctx, pkt) >= 0; i++)
+		av_packet_unref(pkt);
+	av_packet_free(&pkt);
+}
+
 void FfVideoEncoder::CloseCodec()
 {
 	if (!ctx)
 		return;
+
+	DrainCodec();
 
 	// Conserve le device VAAPI pour le contexte suivant
 	AVBufferRef *dev = ctx->hw_device_ctx ? av_buffer_ref(ctx->hw_device_ctx) : NULL;
@@ -317,6 +336,7 @@ FfVideoEncoder::~FfVideoEncoder()
 	//l'arrêt de l'encodeur d'une patte pendant l'ouverture de celui de l'autre.
 	if (ctx)
 	{
+		DrainCodec();
 		std::lock_guard<std::mutex> lock(FfCodecOpenLock());
 		avcodec_free_context(&ctx);
 	}

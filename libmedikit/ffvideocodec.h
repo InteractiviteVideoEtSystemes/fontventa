@@ -57,6 +57,12 @@ protected:
 	// un contexte vierge sur le même encodeur, en conservant le device VAAPI.
 	void CloseCodec();
 
+	// Vide l'encodeur avant sa fermeture (trame NULL puis paquets jusqu'à
+	// EOF). Fermer SVT-AV1 avec des images en vol bloque son destructeur :
+	// il joint des threads internes dont l'un attend un buffer libre que
+	// seul ce drainage rend (deadlock observé au raccroché, 2026-09-01).
+	void DrainCodec();
+
 	// Réouverture à chaud aux dimensions courantes (reconfiguration).
 	int ReopenCodec();
 
