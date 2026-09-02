@@ -238,3 +238,98 @@ TEST(H264EncoderPlid, UnPlidValideEstConserve)
 	EXPECT_EQ(sps[1], 0x0c);
 	EXPECT_EQ(sps[2], 0x1f);
 }
+
+namespace {
+
+// Contenu compressible mais pas figé : un dégradé qui glisse d'un pixel par
+// trame, plus un bruit de ±1. En CRF nominal le bruit est quantifié, en
+// remplissage il est codé et c'est le VBV qui borne.
+PictPtr CreateTextured(DWORD& seed, int shift)
+{
+	PictPtr pic = Pict::CreateColor(W, H, 128, 128, 128);
+	if (!pic || !pic->GetAVFrame())
+		return nullptr;
+	AVFrame* f = pic->GetAVFrame();
+	for (int y = 0; y < H; y++)
+	{
+		BYTE* line = f->data[0] + y * f->linesize[0];
+		for (int x = 0; x < W; x++)
+		{
+			seed = seed * 1103515245u + 12345u;
+			int v = ((x + y + shift) & 0xFF) + (int)((seed >> 16) % 3) - 1;
+			line[x] = (BYTE)(v < 0 ? 0 : (v > 255 ? 255 : v));
+		}
+	}
+	return pic;
+}
+
+EncodeRun EncodeTextured(VideoEncoder& enc, int count, DWORD& seed, int& shift, size_t skip)
+{
+	EncodeRun run = { 0, 0, 0.0 };
+	double bytes = 0;
+	size_t counted = 0;
+	for (int i = 0; i < count; i++)
+	{
+		PictPtr pic = CreateTextured(seed, shift++);
+		if (!pic)
+			return run;
+		VideoFramePtr vf = enc.EncodeFrame(pic);
+		if (!vf)
+			continue;
+		run.frames++;
+		if (vf->IsIntra())
+		{
+			run.intras++;
+			continue;
+		}
+		if (run.frames > skip)
+		{
+			bytes += vf->GetLength();
+			counted++;
+		}
+	}
+	if (counted)
+		run.avgBytes = bytes / counted;
+	return run;
+}
+
+} // namespace
+
+// Sonde de débit : en remplissage, l'encodeur émet réellement la consigne sur
+// un contenu qu'il coderait sinon bien en dessous — à chaud, sans trame clé —
+// et revient à son régime économe quand la sonde s'arrête.
+TEST(H264EncoderRc, LeRemplissageColleAuPlafondPuisRelache)
+{
+	DWORD seed = 44;
+	int shift = 0;
+	const int kbits = 600;
+	H264Encoder enc((Properties()));
+	ASSERT_EQ(enc.SetFrameRate(FPS, kbits, 300), 1);
+	ASSERT_GE(enc.SetSize(W, H), 1);
+
+	// Trois fenêtres de 20 trames : la trame I périodique des 8 premières
+	// secondes (pts 60, 120…) tombe hors des trois.
+	EncodeRun eco = EncodeTextured(enc, 20, seed, shift, 8);
+	ASSERT_GE(eco.frames, 18u);
+	ASSERT_GT(eco.avgBytes, 0.0);
+
+	const double budget = kbits * 1024.0 / 8 / FPS;
+	ASSERT_LT(eco.avgBytes, 0.5 * budget)
+		<< eco.avgBytes << " octets/trame : le contenu de test remplit deja la consigne, il ne prouve rien";
+
+	enc.SetFillBudget(true);
+	EncodeRun fill = EncodeTextured(enc, 20, seed, shift, 8);
+	ASSERT_GE(fill.frames, 18u);
+	EXPECT_EQ(fill.intras, 0u) << "le remplissage a rouvert le codec";
+	EXPECT_GT(fill.avgBytes, 0.72 * budget)
+		<< fill.avgBytes << " octets/trame : le remplissage n'atteint pas ~90 % de " << budget;
+	EXPECT_LT(fill.avgBytes, 1.05 * budget)
+		<< fill.avgBytes << " octets/trame : le VBV ne borne plus la consigne";
+
+	enc.SetFillBudget(false);
+	EncodeRun after = EncodeTextured(enc, 20, seed, shift, 8);
+	ASSERT_GE(after.frames, 18u);
+	EXPECT_EQ(after.intras, 0u) << "la fin du remplissage a rouvert le codec";
+	EXPECT_LT(after.avgBytes * 2, fill.avgBytes)
+		<< "avant=" << fill.avgBytes << " apres=" << after.avgBytes << " : le regime econome n'est pas revenu";
+}

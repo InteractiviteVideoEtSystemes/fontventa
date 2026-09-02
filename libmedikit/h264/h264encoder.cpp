@@ -23,6 +23,8 @@ static const int H264_MODE1_SLICE_MAX_SIZE = 10000;
 static const int    H264_CRF_GENEROUS = 21;
 static const int    H264_CRF_NOMINAL  = 23;
 static const int    H264_CRF_TIGHT    = 26;
+// Remplissage (SetFillBudget) : assez bas pour que le VBV borne toujours.
+static const int    H264_CRF_FILL     = 10;
 static const double H264_BPP_GENEROUS = 0.08;
 static const double H264_BPP_TIGHT    = 0.04;
 
@@ -91,6 +93,7 @@ H264Encoder::H264Encoder(const Properties& properties)
 	qPel =  properties.GetProperty("h264.qpel",3);
 	packetizationMode = WantedPacketizationMode(properties);
 	crfApplied = H264_CRF_NOMINAL;
+	fillBudget = false;
 	spsPpsCached = false;
 }
 
@@ -225,7 +228,7 @@ void H264Encoder::ConfigureContext()
 		// CRF selon le budget par pixel (CrfForBudget), borné par le VBV : le
 		// wrapper libx264 relit crf/rc_max_rate/rc_buffer_size à chaque trame
 		// => reconfigurable à chaud sans réouverture (cf. SetFrameRate).
-		crfApplied = CrfForBudget(H264_CRF_NOMINAL);
+		crfApplied = WantedCrf(H264_CRF_NOMINAL);
 		av_opt_set_double(ctx->priv_data, "crf", crfApplied, 0);
 		// Crête à 90 % de la consigne, la marge résiduelle couvrant l'overhead
 		// RTP/SRTP. L'ancien plafond de 60 % maintenait l'émission réelle loin
@@ -322,18 +325,43 @@ int H264Encoder::SetFrameRate(int frames,int kbits,int intraPeriod)
 
 			// Le CRF suit le budget par pixel par la même voie : l'option
 			// privée `crf` est elle aussi relue à chaque trame.
-			int crf = CrfForBudget(crfApplied);
-			if (crf != crfApplied)
-			{
-				av_opt_set_double(ctx->priv_data, "crf", crf, 0);
-				Log("-H264Encoder: crf %d -> %d [%dkbps,%dx%d@%dfps]\n",
-				    crfApplied, crf, bitrate/1024, ctx->width, ctx->height, fps);
-				crfApplied = crf;
-			}
+			ApplyCrf();
 		}
 	}
 
 	return 1;
+}
+
+int H264Encoder::WantedCrf(int current) const
+{
+	return fillBudget ? H264_CRF_FILL : CrfForBudget(current);
+}
+
+void H264Encoder::ApplyCrf()
+{
+	int crf = WantedCrf(crfApplied);
+	if (crf == crfApplied)
+		return;
+	av_opt_set_double(ctx->priv_data, "crf", crf, 0);
+	Log("-H264Encoder: crf %d -> %d [%dkbps,%dx%d@%dfps%s]\n",
+	    crfApplied, crf, bitrate/1024, ctx->width, ctx->height, fps,
+	    fillBudget ? ", remplissage" : "");
+	crfApplied = crf;
+}
+
+/**********************
+* SetFillBudget
+*	Sonde de débit : le CRF descend pour que le VBV borne et que le débit
+*	émis atteigne la consigne. À chaud sans réouverture (libx264) ; VAAPI,
+*	en VBR sur la consigne, n'a rien à changer.
+***********************/
+void H264Encoder::SetFillBudget(bool fill)
+{
+	if (fill == fillBudget)
+		return;
+	fillBudget = fill;
+	if (opened && !IsHWAccelerated())
+		ApplyCrf();
 }
 
 /**********************

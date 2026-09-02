@@ -233,6 +233,10 @@ public:
 	virtual int FastPictureUpdate()=0;
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod)=0;
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType) { fmtp =""; return false; };
+	// Remplir la consigne : émettre réellement le débit demandé (sonde de débit)
+	// au lieu de s'arrêter à la qualité qui suffit. Sans effet pour un codec
+	// dont le rate control vise déjà la consigne.
+	virtual void SetFillBudget(bool fill) {}
 
 public:
 	VideoCodec::Type type;
