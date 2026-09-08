@@ -269,7 +269,8 @@ mais **ignorée** en l'état ; `effectiveProps` vaut donc `localProps`.
   `medkit/red.h` (`RTPRedundantPayload`/`RTPRedundantEncoder`, RFC 2198/4103).
 - Outils bas niveau : `medkit/bitstream.h`, `medkit/tools.h`,
   `medkit/avcdescriptor.h` (`avcC`, `H264SeqParameterSet`),
-  `medkit/h263packet.h`, `medkit/framescaler.h`, `medkit/logo.h` +
+  `medkit/h263packet.h`, `medkit/videorescaler.h` (`VideoRescaler`, graphe
+  avfilter persistant, CPU `scale` / VAAPI `scale_vaapi`), `medkit/logo.h` +
   `medkit/picturestreamer.h` (image fixe → flux encodé), `medkit/stunmessage.h`,
   `medkit/fifo.h`, `medkit/audiosilence.h`, `medkit/log.h` (`SetLogFunctions`),
   `medkit/config.h` (typedefs `BYTE`/`WORD`/`DWORD`/`QWORD`, tailles d'image
