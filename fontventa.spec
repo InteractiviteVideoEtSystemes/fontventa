@@ -1,14 +1,11 @@
 Name:           fontventa
 Version:        2.0.0
-Release:        2.ives%{?dist}
+Release:        3.ives%{?dist}
 Summary:        Fontventa shared libraries for Asterisk
 License:        GPL
 URL:            http://sip.fontventa.com/
 BuildRequires:  asteriskv-devel
 BuildRequires:  gcc-c++
-# ffmpeg 5 complet de RPM Fusion (et non le ffmpeg-free d'AlmaLinux, ampute des
-# codecs non libres). ffmpeg-devel tire ffmpeg-libs, qui fournit les huit
-# libav*/libsw* ainsi que l'encodeur libx264 et l'AMR.
 BuildRequires:  ffmpeg-devel >= 5.0
 BuildRequires:  mp4v2-devel
 BuildRequires:  gsm-devel
@@ -16,14 +13,11 @@ BuildRequires:  openssl-devel
 BuildRequires:  bzip2-devel
 Requires:       asteriskv
 Requires:       bc
-# Les dependances de bibliotheques partagees (libmp4v2, libav*, ...) sont
-# generees automatiquement par rpm depuis les sonames.
 
 %description
 Fontventa shared libraries for Asterisk.
 
 %prep
-# Pas de tarball : install.ksh place un lien SOURCES/%{name} vers l'arbre
 # source, la construction se fait sur place.
 
 %build
