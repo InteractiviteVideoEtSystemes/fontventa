@@ -34,7 +34,7 @@ int VideoTranscoderDestroy(struct VideoTranscoder *vtc);
  * @return 	0 frame was processed,
  *		1 picture is complete
  *		-1 could not decode
- *		-2
+ *		-2 could not rescale or encode
  *
  */
 int VideoTranscoderProcessFrame(struct VideoTranscoder *vtc, const ast_frame * f);

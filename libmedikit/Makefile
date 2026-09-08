@@ -163,11 +163,7 @@ OBJS+=mp4track.o logo.o  picturestreamer.o mp4writer.o ffmp4reader.o
 OBJS+=stunmessage.o crc32calc.o
 
 # Objets dépendant des en-têtes Asterisk, exclus si ASTERISK=no.
-# framescaler.o : dernier utilisateur = transcoder.cpp (BYTE*), donc réservé au
-# build Asterisk ; le reste de la bibliothèque (et le mcu) passe par
-# VideoRescaler (graphe avfilter). Porter transcoder.cpp sur VideoRescaler lors
-# d'une campagne Asterisk, puis supprimer framescaler.{h,cpp}.
-ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o framescaler.o
+ASTOBJ=transcoder.o mp4format.o framebuffer.o frameutils.o astlog.o
 ifeq ($(ASTERISK),yes)
 OBJS+= $(ASTOBJ)
 # En build Asterisk, libmedkit.a finit dans des modules chargés par dlopen().
