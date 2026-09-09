@@ -222,9 +222,9 @@ PCMA, G722, GSM, AAC, AMR, Speex, Nelly, T140.
 L'ingestion du `fmtp` **distant** est prévue dans la signature (`remoteFmtp`)
 mais **ignorée** en l'état ; `effectiveProps` vaut donc `localProps`.
 
-### MP4
+### Fichiers média (MP4, Matroska)
 
-- **Écriture** — `medkit/mp4writer.h` (`mp4writer`), sur **mp4v2**. Pistes
+- **Écriture, chemin historique** — `medkit/mp4writer.h` (`mp4writer`), sur **mp4v2**. Pistes
   déclarées explicitement par `AddTrack()` (audio / vidéo / texte), puis
   `ProcessFrame()` par trame (codes de retour détaillés dans l'en-tête).
   Fonctions annexes : attente de la première intra (`waitVideo`,
@@ -235,6 +235,65 @@ mais **ignorée** en l'état ; `effectiveProps` vaut donc `localProps`.
   - **Piège mp4v2** : le `mp4writer` écrit encore dans son destructeur
     (`MP4TagsStore`) → **le détruire avant `MP4Close()`**, sinon assertion mp4v2
     (`AddDescendantAtoms`).
+- **Écriture, second chemin** — `medkit/ffmediafilewriter.h`
+  (`FfMediaFileWriter`), sur **ffmpeg/libavformat**. Même API de pistes
+  (`AddTrack`/`ProcessFrame`, mêmes codes de retour), mais le **conteneur suit
+  l'extension** du nom de fichier : `.mp4`, `.mov`, `.3gp`, `.mkv`, `.mka`,
+  `.webm`. Les deux classes **coexistent volontairement** : `mp4writer` reste le
+  chemin d'Asterisk et de tout appelant qui déclare ses pistes en cours
+  d'enregistrement, ce que libavformat ne sait pas faire.
+  - **Aucune piste ne naît après la première trame** : libavformat fige l'en-tête
+    dès la première écriture. Donc pas d'auto-création (une trame sans piste rend
+    -3), et `AddTrack` après coup est refusé. L'en-tête est **différé** jusqu'à
+    ce que toutes les pistes soient déclarables ; les trames reçues d'ici là sont
+    mises de côté (file bornée), puis écrites.
+  - **La classe possède le fichier** (ouverture au constructeur, trailer à
+    `Close()`, appelé par le destructeur) : plus d'ordre de destruction à
+    respecter, contrairement au piège mp4v2 ci-dessus.
+  - **H264 et AV1 attendent leurs paramètres** : l'`avcC` est reconstruit
+    (`AVCDescriptor`) depuis les SPS/PPS de la première trame AVCC, l'`av1C`
+    depuis le sequence header OBU (`AV1ParseObuStream`). Sans eux, aucun des deux
+    muxers ne peut écrire son en-tête — d'où le report ci-dessus. Une piste dont
+    aucune trame ne porte ces paramètres est **abandonnée**, les autres sont
+    enregistrées.
+  - **Le délai initial n'est plus comblé par du média synthétique** : la première
+    trame porte son horodatage réel (`SetInitialDelay` + temps écoulé depuis
+    l'ouverture) et le conteneur exprime le trou — *edit list* en ISOBMFF,
+    absence de bloc en Matroska. Ni prologue vidéo ni pré-roll de silence, à la
+    différence de `mp4writer`.
+  - **PIÈGE : le muxer `mp4` de ffmpeg refuse tous les codecs télécom** — PCMU,
+    PCMA, SLIN, AMR, G722, GSM, H263 — quelle que soit la conformité demandée
+    (`Could not find tag for codec … in stream #0`). Les enregistrer sans
+    transcodage demande `.mkv` (tous) ou `.mov` (tous sauf G722 et Opus, que ce
+    muxer refuse aussi ; il refuse VP8 également). `IsCodecSupported(container,
+    codec)` répond **avant** d'ouvrir la piste, et la table est prouvée couple par
+    couple par `tests/test_ffmediafilewriter.cpp` — ne pas la « corriger » sans
+    ce test, `avformat_query_codec` mentant dans les deux sens.
+  - Le texte suit le conteneur : `mov_text` (tx3g, `[longueur 2 octets][UTF-8]`)
+    en ISOBMFF, `S_TEXT/UTF8` (texte nu) en Matroska. Le muxer ISOBMFF **insère
+    ses propres échantillons vides** pour combler les trous d'une piste de
+    sous-titres : le premier échantillon relu n'est pas forcément le premier
+    écrit.
+  - **Le texte est enregistré au fil de l'eau, et ça ne s'obtient pas
+    gratuitement.** Chaque frappe produit son échantillon tout de suite, portant
+    pour durée l'intervalle qui la PRÉCÈDE (modèle `mp4writer` : l'horloge de la
+    piste est la somme des durées écrites, donc les échantillons se suivent sans
+    trou). Retenir le sous-titre jusqu'à la frappe suivante donnerait des durées
+    exactes, mais perdrait la dernière frappe d'un enregistrement interrompu :
+    arbitrage tranché le 2026-09-09, l'écriture immédiate est **impérative**.
+    Trois tampons séparent pourtant l'écriture du disque, et il faut les vider
+    tous les trois (`FlushToDisk`) : la file d'entrelacement de libavformat, les
+    tampons du muxer — **Matroska garde son Cluster courant en mémoire**, seul un
+    paquet NULL passé à `av_write_frame` le referme —, puis l'AVIO. Sans le
+    deuxième, un `.mkv` interrompu ne contient aucun sous-titre.
+  - Le fichier texte annexe (`textfile` d'`AddTrack`) reçoit chaque ligne
+    terminée à la frappe du saut de ligne, et `onLineRemoved` la retire quand
+    l'utilisateur revient en arrière. **`ftruncate` ne déplace pas la position
+    d'écriture** : sans un `lseek` derrière, la ligne suivante atterrit au-delà
+    de la fin et laisse un trou d'octets nuls, qui tronque toute relecture en C.
+    Le défaut existe encore dans l'`onLineRemoved` de `mp4track.cpp`.
+  - `SaveTextInComment` est **sans effet en Matroska** : ce muxer écrit ses tags
+    avec l'en-tête, or le texte des sous-titres n'est connu qu'à la fermeture.
 - **Lecture** — `medkit/ffmp4reader.h` (`Mp4FfReader`), sur
   **ffmpeg/libavformat**. Remplace le lecteur historique mp4v2 piloté par les
   *hint tracks* : il démuxe n'importe quel MP4, **hinté ou non**. Décisions de
@@ -256,11 +315,12 @@ mais **ignorée** en l'état ; `effectiveProps` vaut donc `localProps`.
     piste AAC vers un pair télécom.
   - `HasAudioCodec`/`HasVideoCodec` interrogent le fichier **sans effet de bord**
     (la piste sélectionnée ne change pas) : utile à la négociation côté appelant.
-- `libmedikit/supp_mp4v2.md` est un **brouillon non implémenté** de suppression
-  totale de mp4v2 (écriture comprise). Attention : sa « décision » de
-  packetisation différée (option D, `FfRtpPacketizer`) a été **écartée** pour la
-  lecture, qui conserve le contrat packetisé ci-dessus. Ne pas le lire comme
-  l'état du code.
+- `libmedikit/supp_mp4v2.md` est un **brouillon périmé** de suppression totale de
+  mp4v2. Deux écarts avec le code : sa « décision » de packetisation différée
+  (option D, `FfRtpPacketizer`) a été **écartée** pour la lecture, qui conserve le
+  contrat packetisé ci-dessus, et son contrat d'écriture (`AVFormatContext*`
+  traversant l'API) l'a été aussi — `FfMediaFileWriter` ouvre le fichier
+  lui-même, comme le lecteur. Ne pas le lire comme l'état du code.
 
 ### Texte et divers
 
