@@ -20,6 +20,7 @@ public:
 	// du VBV relue par libx264 à chaque trame, ou réouverture throttlée en
 	// VAAPI (qui ne sait pas changer son rate control en cours de route).
 	virtual int SetFrameRate(int fps,int kbits,int intraPeriod);
+	virtual void SetFillBudget(bool fill);
 	virtual bool GetFmtpInfo(std::string &fmtp, int payloadType);
 
 	// h264_vaapi n'est qu'un bonus : c'est la disponibilite de l'encodeur
@@ -97,6 +98,10 @@ private:
 	void GetProfileLevel(int &profile, int &level);
 	// Variante instance : bpp calculé de l'état courant (bitrate, taille, fps).
 	int CrfForBudget(int current) const;
+	// CRF voulu : H264_CRF_FILL en remplissage, sinon CrfForBudget.
+	int WantedCrf(int current) const;
+	// Pousse le CRF voulu au codec ouvert (libx264 seulement), trace au changement.
+	void ApplyCrf();
 
 	std::string h264ProfileLevelId;
 	bool intraRefresh;
@@ -105,6 +110,9 @@ private:
 	// wrapper est relue à chaque trame (x264_encoder_reconfig), donc suivie à
 	// chaud sans réouverture ni IDR — cf. SetFrameRate.
 	int crfApplied;
+	// Remplissage demandé (SetFillBudget) : le CRF descend à H264_CRF_FILL et
+	// c'est le VBV qui borne, donc le débit émis colle à la consigne.
+	bool fillBudget;
 	// Mode de paquetisation négocié pour l'ÉMISSION (0 ou 1) : borne la taille des
 	// slices produites, cf. ConfigureContext.
 	int packetizationMode;
