@@ -247,6 +247,13 @@ mais **ignorée** en l'état ; `effectiveProps` vaut donc `localProps`.
     -3), et `AddTrack` après coup est refusé. L'en-tête est **différé** jusqu'à
     ce que toutes les pistes soient déclarables ; les trames reçues d'ici là sont
     mises de côté (file bornée), puis écrites.
+  - **`ExpectTrack(track, maxWaitMs)` est la seule issue pour un appelant qui ne
+    connaît pas encore un codec** — une source RTP ne le livre qu'avec son
+    premier paquet, alors que l'audio d'un autre média coule déjà. La piste
+    annoncée **retient l'en-tête** jusqu'à son `AddTrack`, au plus `maxWaitMs` ;
+    passé ce délai (ou si la file de mise de côté déborde, ou à `Close()`), elle
+    est abandonnée et les autres pistes sont sauvées. Sans cette annonce, l'ordre
+    d'arrivée des médias décide silencieusement de ce que le fichier contient.
   - **La classe possède le fichier** (ouverture au constructeur, trailer à
     `Close()`, appelé par le destructeur) : plus d'ordre de destruction à
     respecter, contrairement au piège mp4v2 ci-dessus.

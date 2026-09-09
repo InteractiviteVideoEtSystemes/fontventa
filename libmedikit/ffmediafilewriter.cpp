@@ -225,7 +225,13 @@ FfMediaFileWriter::FfMediaFileWriter( void * ctxdata, const char * filename, boo
     pendingBytes     = 0;
     textFd           = -1;
 
-    for( int i = 0; i < TrackCount; i++ ) tracks[i] = NULL;
+    for( int i = 0; i < TrackCount; i++ )
+    {
+        tracks[i]   = NULL;
+        expected[i] = false;
+        expectMs[i] = 0;
+        gettimeofday( &expectSince[i], NULL );
+    }
 
     SetParticipantName( "participant" );
     textEncoder.SetListener( this );
@@ -366,6 +372,10 @@ int FfMediaFileWriter::AddTrack( AudioCodec::Type codec, DWORD samplerate, const
         return -1;
     }
 
+    // L'attente est levée par la réponse, quelle qu'elle soit : la piste naît
+    // ici, ou jamais.
+    expected[TrackAudio] = false;
+
     if( !IsCodecSupported( container, codec ) )
     {
         Error( "FfMediaFileWriter: le conteneur %s ne porte pas l'audio %s.\n",
@@ -409,6 +419,8 @@ int FfMediaFileWriter::AddTrack( VideoCodec::Type codec, DWORD width, DWORD heig
                "-- libavformat a déjà figé l'en-tête.\n" );
         return -1;
     }
+
+    expected[idx] = false;
 
     if( !IsCodecSupported( container, codec ) )
     {
@@ -459,6 +471,8 @@ int FfMediaFileWriter::AddTrack( TextCodec::Type codec, const char * trackName, 
         return -1;
     }
 
+    expected[TrackText] = false;
+
     if( !IsTextSupported( container ) )
     {
         Error( "FfMediaFileWriter: le conteneur %s ne porte pas de piste texte.\n",
@@ -508,6 +522,19 @@ int FfMediaFileWriter::AddTrack( TextCodec::Type codec, const char * trackName, 
     Log( "FfMediaFileWriter: piste texte [%s] %s déclarée.\n",
          tr->name.c_str(), TextCodec::GetNameFor( codec ) );
     return 1;
+}
+
+void FfMediaFileWriter::ExpectTrack( int track, DWORD maxWaitMs )
+{
+    if( track < 0 || track >= TrackCount ) return;
+    if( tracks[track] != NULL || headerWritten ) return;
+
+    expected[track]    = true;
+    expectMs[track]    = maxWaitMs;
+    gettimeofday( &expectSince[track], NULL );
+
+    Log( "FfMediaFileWriter: piste %d attendue, au plus %u ms.\n",
+         track, (unsigned)maxWaitMs );
 }
 
 // ---------------------------------------------------------------------------
@@ -634,6 +661,12 @@ void FfMediaFileWriter::GiveUpNotReadyTracks( const char * why )
 {
     for( int i = 0; i < TrackCount; i++ )
     {
+        if( expected[i] && tracks[i] == NULL )
+        {
+            Error( "FfMediaFileWriter: piste %d attendue et jamais déclarée (%s).\n", i, why );
+            expected[i] = false;
+        }
+
         if( tracks[i] == NULL || tracks[i]->ready ) continue;
 
         Error( "FfMediaFileWriter: piste %d abandonnée (%s).\n", i, why );
@@ -646,6 +679,21 @@ bool FfMediaFileWriter::MaybeWriteHeader()
 {
     if( headerWritten ) return true;
     if( !IsOpen() || headerFailed ) return false;
+
+    // Piste annoncée par ExpectTrack et pas encore déclarée : écrire l'en-tête
+    // sans elle la perdrait pour tout le fichier. Passé son délai, elle est
+    // abandonnée -- sinon une piste qui ne vient jamais retiendrait les autres.
+    for( int i = 0; i < TrackCount; i++ )
+    {
+        if( !expected[i] || tracks[i] != NULL ) continue;
+
+        struct timeval since = expectSince[i];
+        if( getDifTime( &since ) / 1000 < (QWORD)expectMs[i] ) return false;
+
+        Log( "FfMediaFileWriter: piste %d attendue en vain (%u ms), abandonnée.\n",
+             i, (unsigned)expectMs[i] );
+        expected[i] = false;
+    }
 
     for( int i = 0; i < TrackCount; i++ )
     {

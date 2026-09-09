@@ -840,6 +840,110 @@ TEST( FfMediaFileWriter, LaPisteDemandeeApresLaPremiereTrameEstRefusee )
     ::unlink( path.c_str() );
 }
 
+/*
+ * ExpectTrack : le cas de l'appelant qui ne connaît le codec d'un média qu'avec
+ * sa première trame RTP. Sans l'attente, l'en-tête se figerait sur la première
+ * piste servie et le média tardif n'aurait plus de piste où aller.
+ */
+TEST( FfMediaFileWriter, LaPisteAnnonceeRetientLEnTete )
+{
+    std::string path = TmpPath( "attendue.mkv" );
+    ::unlink( path.c_str() );
+
+    int audioPushed = 0, videoWritten = 0;
+    {
+        FfMediaFileWriter w( NULL, path.c_str(), false );
+        ASSERT_TRUE( w.IsOpen() );
+
+        w.ExpectTrack( FfMediaFileWriter::TrackVideo, 60000 );
+        ASSERT_EQ( 1, w.AddTrack( AudioCodec::PCMU, 8000, "audio" ) );
+
+        // L'audio coule d'abord : il est mis de côté, l'en-tête attend la vidéo.
+        audioPushed = PushAudio( w, AudioCodec::PCMU, 8000, 5 );
+        ASSERT_EQ( 5, audioPushed );
+
+        // Déclaration tardive, mais l'en-tête n'est pas écrit : elle est ACCEPTÉE.
+        ASSERT_EQ( 1, w.AddTrack( VideoCodec::H264, W, H, 256, "video" ) );
+        ASSERT_TRUE( PushRealH264( w, 10, videoWritten ) );
+
+        audioPushed += PushAudio( w, AudioCodec::PCMU, 8000, 5 );
+        EXPECT_EQ( 0, w.Close() );
+    }
+
+    FileInfo info;
+    ASSERT_TRUE( Probe( path, info ) );
+    ASSERT_EQ( 2u, info.streams.size() );
+
+    const StreamInfo * a = FindStream( info, AVMEDIA_TYPE_AUDIO );
+    const StreamInfo * v = FindStream( info, AVMEDIA_TYPE_VIDEO );
+    ASSERT_TRUE( a != NULL );
+    ASSERT_TRUE( v != NULL );
+    // Rien de ce qui a précédé l'en-tête n'est perdu.
+    EXPECT_EQ( audioPushed, a->packets );
+    EXPECT_EQ( videoWritten, v->packets );
+
+    ::unlink( path.c_str() );
+}
+
+TEST( FfMediaFileWriter, LAttenteExpireEtLEnTeteSEcritSansLaPiste )
+{
+    std::string path = TmpPath( "attente_expiree.mkv" );
+    ::unlink( path.c_str() );
+
+    {
+        FfMediaFileWriter w( NULL, path.c_str(), false );
+        ASSERT_TRUE( w.IsOpen() );
+
+        // Une piste annoncée qui ne vient jamais ne doit pas retenir les autres.
+        w.ExpectTrack( FfMediaFileWriter::TrackVideo, 100 );
+        ASSERT_EQ( 1, w.AddTrack( AudioCodec::PCMU, 8000, "audio" ) );
+
+        ASSERT_EQ( 5, PushAudio( w, AudioCodec::PCMU, 8000, 5 ) );
+        ::usleep( 150000 );
+        ASSERT_EQ( 5, PushAudio( w, AudioCodec::PCMU, 8000, 5 ) );
+
+        // Le délai est passé : l'en-tête est écrit, la piste vidéo est perdue.
+        EXPECT_EQ( -1, w.AddTrack( VideoCodec::H264, W, H, 256, "video" ) );
+        EXPECT_EQ( 0, w.Close() );
+    }
+
+    FileInfo info;
+    ASSERT_TRUE( Probe( path, info ) );
+    EXPECT_EQ( 1u, info.streams.size() );
+
+    const StreamInfo * a = FindStream( info, AVMEDIA_TYPE_AUDIO );
+    ASSERT_TRUE( a != NULL );
+    EXPECT_EQ( 10, a->packets );
+
+    ::unlink( path.c_str() );
+}
+
+TEST( FfMediaFileWriter, LaFermetureAbandonneLaPisteAnnonceeEtGardeLesAutres )
+{
+    std::string path = TmpPath( "attente_fermeture.mkv" );
+    ::unlink( path.c_str() );
+
+    {
+        FfMediaFileWriter w( NULL, path.c_str(), false );
+        ASSERT_TRUE( w.IsOpen() );
+
+        // Attente très longue, fermeture immédiate : l'enregistrement s'arrête
+        // avant que le média annoncé n'arrive. Le fichier doit rester lisible.
+        w.ExpectTrack( FfMediaFileWriter::TrackVideo, 3600000 );
+        ASSERT_EQ( 1, w.AddTrack( AudioCodec::PCMU, 8000, "audio" ) );
+
+        ASSERT_EQ( 5, PushAudio( w, AudioCodec::PCMU, 8000, 5 ) );
+        EXPECT_EQ( 0, w.Close() );
+    }
+
+    FileInfo info;
+    ASSERT_TRUE( Probe( path, info ) );
+    ASSERT_EQ( 1u, info.streams.size() );
+    EXPECT_EQ( 5, info.streams[0].packets );
+
+    ::unlink( path.c_str() );
+}
+
 TEST( FfMediaFileWriter, SansPisteVideoDeclareeLaTrameVideoEstRefusee )
 {
     std::string path = TmpPath( "sansvideo.mkv" );

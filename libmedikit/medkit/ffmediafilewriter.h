@@ -127,6 +127,19 @@ public:
     int AddTrack( TextCodec::Type codec, const char * trackName, int textfile );
 
     /**
+     * Annonce une piste que l'appelant ne peut pas encore déclarer : une source
+     * RTP ne livre son codec, sa fréquence et ses dimensions qu'avec sa
+     * première trame, or l'en-tête se ferme à la première écriture. L'en-tête
+     * ATTEND donc cette déclaration, et les trames des autres pistes patientent
+     * dans la file d'attente. L'attente cesse au bout de `maxWaitMs`, ou si la
+     * file déborde : l'en-tête s'écrit alors sans la piste, plutôt que de perdre
+     * les autres. `AddTrack` la lève, y compris quand elle refuse la piste.
+     *
+     * @param track: TrackAudio, TrackVideo, TrackVideoDoc ou TrackText
+     **/
+    void ExpectTrack( int track, DWORD maxWaitMs );
+
+    /**
      * Traite une trame.
      *
      * @return 1 = trame enregistrée
@@ -208,7 +221,9 @@ private:
     // pour H264 suppose d'avoir vu SPS/PPS. @return true si l'en-tête est écrit.
     bool  MaybeWriteHeader();
     bool  DeclareStream( Track * tr );
-    // Abandonne les pistes encore indéclarables, pour ne pas perdre les autres.
+    // Abandonne les pistes encore indéclarables -- déclarées sans paramètres de
+    // codec, ou seulement annoncées par ExpectTrack -- pour ne pas perdre les
+    // autres.
     void  GiveUpNotReadyTracks( const char * why );
 
     int   WriteSample( Track * tr, const BYTE * data, DWORD size,
@@ -264,6 +279,11 @@ private:
     // Texte : un seul accumulateur, la piste texte est unique.
     Text2Subtitle textEncoder;
     int           textFd;
+
+    // Pistes annoncées par ExpectTrack, que l'en-tête attend, et depuis quand.
+    bool           expected[TrackCount];
+    DWORD          expectMs[TrackCount];
+    struct timeval expectSince[TrackCount];
 };
 
 #endif /* __cplusplus */
