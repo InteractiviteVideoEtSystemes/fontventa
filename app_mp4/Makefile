@@ -45,7 +45,7 @@ CC = gcc
 # (mp4v2-devel ne fournit pas de .a), cf. "Requires: mp4v2" de fontventa.spec.
 # Plus de -lx264 : l'encodeur H264 de libmedkit passe desormais par ffmpeg.
 LIBS = -L../libmedikit -Wl,-Bstatic -lmedkit -Wl,-Bdynamic -lmp4v2 \
-	-lavcodec -lavformat -lavutil -lswscale -lswresample -lgsm \
+	-lavcodec -lavformat -lavutil -lswscale -lswresample -lavfilter \
 	-lssl -lcrypto -lbz2 -lstdc++ -lpthread -lm
 DEBUG := -g
 

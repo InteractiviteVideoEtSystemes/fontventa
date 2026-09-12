@@ -22,10 +22,9 @@ ASTERISK        = yes
 
 # ffmpeg : flags demandés à pkg-config, comme le dépôt le fait déjà pour
 # Magick++, webrtc-audio-processing et gtest. Un ffmpeg installé hors préfixe
-# système se trouve alors par PKG_CONFIG_PATH, sans toucher à ce Makefile —
-# c'est précisément ce dont le portage ffmpeg 9 a besoin (voir, à la racine du
-# dépôt mediaserver, ffmpeg9_migration_plan.md).
-FFMPEG_MODULES = libavcodec libswscale libavformat libavutil libswresample
+# système se trouve alors par PKG_CONFIG_PATH, sans toucher à ce Makefile.
+# libavfilter is required by videorescaler.cpp (scale / scale_vaapi graph).
+FFMPEG_MODULES = libavcodec libswscale libavformat libavutil libswresample libavfilter
 FFMPEG_CFLAGS := $(shell pkg-config --cflags $(FFMPEG_MODULES) 2>/dev/null)
 FFMPEG_LIBS   := $(shell pkg-config --libs   $(FFMPEG_MODULES) 2>/dev/null)
 
@@ -33,20 +32,11 @@ FFMPEG_LIBS   := $(shell pkg-config --libs   $(FFMPEG_MODULES) 2>/dev/null)
 # dépendance PUBLIQUE — ffvideocodec.h inclut <libavcodec/avcodec.h> — donc
 # Requires:, et non Requires.private:.
 PC_REQUIRES    = $(FFMPEG_MODULES)
-PC_CFLAGS_XTRA =
-PC_LIBS_XTRA   =
 
-# Repli sur les chemins historiques si pkg-config ignore ffmpeg : des flags
-# vides donneraient une erreur d'en-tête introuvable, illisible et très loin de
-# sa cause. Le .pc porte alors les flags en clair plutôt qu'un Requires: vers
-# des modules absents.
+# Without pkg-config, empty flags would give a "header not found" error, far
+# from its cause: stop here, with the cause.
 ifeq ($(strip $(FFMPEG_LIBS)),)
-$(warning pkg-config ne connait pas ffmpeg [$(FFMPEG_MODULES)] : repli sur /usr/include/ffmpeg. Renseigner PKG_CONFIG_PATH pour un ffmpeg hors prefixe systeme.)
-FFMPEG_CFLAGS := -I/usr/include/ffmpeg
-FFMPEG_LIBS   := -lavcodec -lswscale -lavformat -lavutil -lswresample
-PC_REQUIRES    =
-PC_CFLAGS_XTRA = $(FFMPEG_CFLAGS)
-PC_LIBS_XTRA   = $(FFMPEG_LIBS)
+$(error pkg-config ne connait pas ffmpeg [$(FFMPEG_MODULES)] : installer ffmpeg-devel >= 9 ou renseigner PKG_CONFIG_PATH)
 endif
 
 # Surcharges explicites, portées par install.ksh jusqu'ici — il écrasait INCLUDE
@@ -233,9 +223,9 @@ libmedkit.pc: Makefile
 		'Description: IVeS media and codec library (fontventa libmedikit), built in tree' \
 		'Version: $(MEDKIT_VERSION)' \
 		'Requires: $(PC_REQUIRES)' \
-		'Libs: -L$${libdir} -lmedkit $(PC_LIBS_XTRA)' \
+		'Libs: -L$${libdir} -lmedkit' \
 		'Libs.private: -lbz2 -lssl -lcrypto -lpthread' \
-		'Cflags: -I$${includedir} $(PC_CFLAGS_XTRA)' > $@
+		'Cflags: -I$${includedir}' > $@
 	@echo "libmedkit.pc genere -> PKG_CONFIG_PATH=$(CURDIR)"
 
 # Suivi des dependances d'en-tetes, comme mcu/Makefile. Sans lui, ajouter un
@@ -315,7 +305,7 @@ testsps.o: medkit/bitstream.h
 # mediaserver. Usage : make ffmp4probe && ./ffmp4probe fichier.mp4 [seekMs]
 ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
 	$(CXX) $(CXXFLAGS) tools/ffmp4probe.cpp libmedkit.a -o $@ \
-		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm
+		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2
 
 # Harnais de test hors-ligne du négociateur de codecs (CodecNegotiator, cf.
 # nego_fmtp.md). Vérifie le contrat de la struct fmtpByPt d'EndpointStartReceiving
@@ -323,7 +313,7 @@ ffmp4probe: tools/ffmp4probe.cpp libmedkit.a
 # Usage : make negotest && ./negotest
 negotest: tools/negotest.cpp libmedkit.a
 	$(CXX) $(CXXFLAGS) tools/negotest.cpp libmedkit.a -o $@ \
-		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm
+		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2
 
 ############################################
 # Tests automatises (GoogleTest, cf. libmedikit_tests_plan.md)
@@ -351,7 +341,7 @@ tests/runtests: $(TEST_SRCS) tests/.libmedkit.stamp
 	$(CXX) $(CXXFLAGS) $(GTEST_CFLAGS) \
 		-DTEST_MP4_FILE='"$(TEST_MP4)"' -DTEST_MP4_TITI_FILE='"$(TEST_MP4_TITI)"' \
 		$(TEST_SRCS) libmedkit.a -o $@ \
-		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 -lgsm $(GTEST_LIBS)
+		-L../../../staticdeps/lib $(LDFLAGS) -lmp4v2 $(GTEST_LIBS)
 
 # Reconstruit la bibliotheque a chaque appel, mais ne touche le temoin que si
 # l'archive a reellement change : le binaire de test n'est relie qu'en cas de
