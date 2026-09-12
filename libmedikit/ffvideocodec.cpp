@@ -881,14 +881,17 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
                 goto error;
             }
 
-			PictPtr tmp = std::make_shared<Pict>(av_frame_alloc());
-			ret = avcodec_receive_frame(ctx, tmp->GetAVFrame());
-			if (ret == 0) {
-				// Trame prête : on la garde.
-				pict = tmp;
-			} else if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
-				// Pas de frame prête pour ce paquet (ex: NAL SPS/PPS seul) : normal.
-			} else {
+			// Vide tout ce que le décodeur tient : un décodeur à retard (threads,
+			// VAAPI) peut rendre plusieurs images d'un coup, on garde la dernière.
+			for (;;) {
+				PictPtr tmp = std::make_shared<Pict>(av_frame_alloc());
+				ret = avcodec_receive_frame(ctx, tmp->GetAVFrame());
+				if (ret == 0) {
+					pict = tmp;
+					continue;
+				}
+				if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
+					break;
 				Error("%s decoding error (receive frame). Error = %s\n", VideoCodec::GetNameFor(type), AVErrToStr(ret));
 				goto error;
 			}
