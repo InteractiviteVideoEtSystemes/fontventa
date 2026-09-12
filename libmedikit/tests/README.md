@@ -36,6 +36,7 @@ Filtrer une suite ou un test précis :
 |---|---|---|
 | `test_env.cpp` | `Smoke` | Environment gtest global : installe `SetLogFunctions` (sinon les `Log()`/`Debug()` de libmedkit segfaultent) + smoke test |
 | `test_negotiator.cpp` | `Negotiator` | `CodecNegotiator::Negotiate` (contrat `fmtpByPt`) |
+| `test_codec_catalogue.cpp` | `AudioCatalogue`, `VideoCatalogue` | Cohérence décodeur/encodeur du catalogue avec le ffmpeg installé ; chaque encodeur audio annoncé produit des trames |
 | `test_h264_sps.cpp` | `H264Sps` | Décodage `H264SeqParameterSet` |
 | `test_avcdescriptor.cpp` | `AvcDescriptor` | avcC : round-trip `Serialize`/`Parse` |
 | `test_utf8parser.cpp` | `Utf8Parser` | `UTF8Parser` (encodage/décodage UTF-8) |
