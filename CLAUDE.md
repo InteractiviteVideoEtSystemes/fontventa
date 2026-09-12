@@ -63,10 +63,11 @@ de lecture MP4 hors-ligne : ouverture, métadonnées, lecture cadencée, seek),
 `negotest` (harnais du négociateur), `install`/`uninstall` (en-têtes `medkit/` +
 `astmedkit/` et `libmedkit.a` sous `/opt/ives`).
 
-> **Piège majeur** : le Makefile **ne suit pas les dépendances d'en-têtes**
-> (seules trois règles explicites existent en fin de fichier). Après toute
-> modification d'un `.h`, faire `make clean` (ou `rm *.o`) avant de reconstruire,
-> sinon on obtient des objets incohérents (corruption silencieuse au lien).
+> **Piège** : le Makefile suit les dépendances d'en-têtes du dépôt (`-MMD -MP`,
+> fichiers `.d` inclus), mais **pas les en-têtes système** : après un changement
+> de paquet `ffmpeg-devel`, `mp4v2-devel` ou `asteriskv-devel`, faire
+> `make clean` avant de reconstruire, sinon on obtient des objets incohérents
+> (corruption silencieuse au lien).
 
 ### Modules Asterisk (`Makefile` racine)
 

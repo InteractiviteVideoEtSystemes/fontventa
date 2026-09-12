@@ -29,7 +29,8 @@ machine ne porte qu'une des deux générations. Tout binaire lié à
 --disable-autodetect --enable-gpl --enable-version3
 --enable-libx264 --enable-libvpx --enable-libdav1d --enable-libsvtav1 --enable-libopus
 --enable-libspeex --enable-libgsm --enable-libopencore-amrnb --enable-libopencore-amrwb
---enable-libvo-amrwbenc --enable-vaapi --enable-zlib --pkg-config-flags=--static
+--enable-libvo-amrwbenc --enable-whisper --enable-vaapi --enable-zlib
+--pkg-config-flags=--static
 ```
 
 - `--disable-autodetect` : rien n'entre dans le paquet par la seule présence
@@ -40,6 +41,8 @@ machine ne porte qu'une des deux générations. Tout binaire lié à
 - `--pkg-config-flags=--static` : les bibliothèques de codecs sont liées en
   statique dans `libavcodec`. `ffmpeg-libs` n'ajoute aucune dépendance runtime
   pour elles, et `libmedikit` n'a rien à lier en plus.
+- `--enable-whisper` : filtre `whisper` de libavfilter (transcription de la
+  parole). Présent dans le paquet, non utilisé par `libmedikit`.
 
 ## Codecs disponibles pour libmedikit
 
