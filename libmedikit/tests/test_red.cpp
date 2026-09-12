@@ -90,4 +90,7 @@ TEST(Red, TailleRedondanceMensongere)
 
 	EXPECT_TRUE(red.GetPrimaryPayloadData() == NULL);
 	EXPECT_EQ(red.GetPrimaryPayloadSize(), 0u);
+	// Le header menteur ne doit pas survivre : son payload pointerait hors tampon.
+	EXPECT_EQ(red.GetRedundantCount(), 0);
+	EXPECT_TRUE(red.GetRedundantPayloadData(0) == NULL);
 }
