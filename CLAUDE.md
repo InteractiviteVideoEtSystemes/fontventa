@@ -12,7 +12,7 @@ d'activité :
    codecs audio/vidéo/texte adossés à ffmpeg, lecture/écriture MP4,
    packetisation RTP, négociation de codecs/`fmtp`, texte T.140/RED, outils
    bitstream. C'est la partie **activement maintenue**, portée
-   **AlmaLinux 9 / GCC 11 / ffmpeg 5**. Elle est consommée soit par les modules
+   **AlmaLinux 9 / GCC 11 / ffmpeg 9**. Elle est consommée soit par les modules
    Asterisk de ce dépôt, soit par un projet applicatif externe qui l'embarque en
    sous-module et lie `libmedkit.a` par chemin.
 2. **Modules Asterisk et outils historiques** — `app_mp4/` (`mp4save`/`mp4play`),
@@ -47,13 +47,16 @@ Commutateurs de `libmedikit/Makefile` :
   `FLV1DIR`/`FLV1OBJ` qui ne sont **plus référencées** par `OBJS` (le répertoire
   `flv1/` n'existe pas). Sans effet.
 
-Dépendances : ffmpeg 5 (`-I/usr/include/ffmpeg` ; `avcodec`, `avformat`,
-`avutil`, `swscale`, `swresample`), `x264`, `openssl`, `bz2`, et **`mp4v2` +
-`gsm`** liés seulement par les exécutables (`tests/runtests`, `ffmp4probe`,
-`negotest`). `mp4v2` n'étant pas packagé, il est attendu en **statique** sous
-`../../../staticdeps/{include,lib}` — fourni par le projet hôte qui embarque ce
-dépôt. En build isolé, il faut donc produire cet arbre ou ajuster
-`INCLUDE`/`-L` dans le Makefile.
+Dépendances : ffmpeg 9 du paquet IVèS `ffmpeg-devel` (`avcodec`, `avformat`,
+`avutil`, `swscale`, `swresample`, `avfilter`), trouvé **uniquement par
+`pkg-config`** (`PKG_CONFIG_PATH` pour un ffmpeg hors préfixe système ; le
+Makefile s'arrête en erreur sinon), `openssl`, `bz2`, et `mp4v2` lié seulement
+par les exécutables (`tests/runtests`, `ffmp4probe`, `negotest`). `mp4v2-devel`
+système suffit ; `MP4V2INC` pointe encore vers `../../../staticdeps/include`
+pour le projet hôte qui embarque ce dépôt avec ses dépendances statiques. Les
+codecs externes (x264, libvpx, opus, speex, gsm, AMR) sont **embarqués en
+statique dans `libavcodec`** par le paquet IVèS : rien à lier en plus.
+Voir `docs/reference/ffmpeg.md`.
 
 Cibles utiles : `all` (= `libmedkit.a`), `check`/`tests`, `ffmp4probe` (harnais
 de lecture MP4 hors-ligne : ouverture, métadonnées, lecture cadencée, seek),
@@ -68,7 +71,7 @@ de lecture MP4 hors-ligne : ouverture, métadonnées, lecture cadencée, seek),
 ### Modules Asterisk (`Makefile` racine)
 
 ```sh
-./install.ksh prereq     # deps: ffmpeg-devel mp4v2-devel asteriskv-devel SDL-devel x264-devel
+./install.ksh prereq     # deps: ffmpeg-devel (>= 9, dépôt ives-externals) mp4v2-devel asteriskv-devel
 ./install.ksh rpm nosign # rpmbuild via fontventa.spec (omettre "nosign" pour signer GPG)
 ./install.ksh clean
 ```
@@ -164,6 +167,11 @@ Ce contrat est la **frontière d'ABI** de la bibliothèque : voir « Conventions
   le **même test qu'à l'ouverture réelle**. Catalogue calculé une fois et
   mémoïsé ; l'ordre du vecteur = ordre de préférence. `IsSupported` est défini
   dans `codecs.cpp` pour garder l'en-tête sans ffmpeg.
+  - `IsSupported` porte sur le **décodeur** seul ;
+    `IsEncodingSupported`/`GetSupportedEncoderCodecs` sur l'encodeur. ffmpeg
+    décode des codecs qu'il n'encode pas : un paquet ffmpeg sans
+    libopencore-amr, libgsm ou libspeex garde `IsSupported` vrai et casse à la
+    création de l'encodeur. `tests/test_codec_catalogue.cpp` le détecte.
 - **Fabriques** : `AudioCodecFactory`/`VideoCodecFactory::CreateEncoder/Decoder`,
   avec surcharge `Properties` (configuration) et, pour l'audio, surcharge
   `extradata` (`AudioSpecificConfig`/`esds`, requise par l'AAC des MP4).
