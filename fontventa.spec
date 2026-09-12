@@ -6,9 +6,8 @@ License:        GPL
 URL:            http://sip.fontventa.com/
 BuildRequires:  asteriskv-devel
 BuildRequires:  gcc-c++
-BuildRequires:  ffmpeg-devel >= 5.0
+BuildRequires:  ffmpeg-devel >= 9.0
 BuildRequires:  mp4v2-devel
-BuildRequires:  gsm-devel
 BuildRequires:  openssl-devel
 BuildRequires:  bzip2-devel
 Requires:       asteriskv

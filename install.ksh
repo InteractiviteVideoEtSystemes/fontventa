@@ -105,8 +105,9 @@ case $1 in
 
 	"prereq")
 		# dependances de compilation almalinux 9 (cf. BuildRequires de fontventa.spec)
-		# plus de SDL-devel ni x264-devel : x264 passe par le ffmpeg de RPM Fusion
-		PKGS="gcc gcc-c++ make git rpm-build asteriskv-devel mp4v2-devel ffmpeg-devel gsm-devel openssl-devel bzip2-devel"
+		# ffmpeg-devel >= 9: IVeS package (ives-externals repo), which embeds x264,
+		# libvpx, opus, speex, gsm and the AMR codecs statically
+		PKGS="gcc gcc-c++ make git rpm-build asteriskv-devel mp4v2-devel ffmpeg-devel openssl-devel bzip2-devel"
 		if [ "`id -u`" == "0" ]
 		then
 			dnf install -y $PKGS
