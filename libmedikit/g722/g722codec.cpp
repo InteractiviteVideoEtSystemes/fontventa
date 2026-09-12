@@ -2,7 +2,7 @@
  * File:   g722codec.cpp
  * Author: Emmanuel BUU
  *
- * G.722 branché sur la base générique FfAudioEncoder/FfAudioDecoder (ffmpeg 5).
+ * G.722 branché sur la base générique FfAudioEncoder/FfAudioDecoder (ffmpeg).
  */
 #include "g722codec.h"
 #include <medkit/log.h>

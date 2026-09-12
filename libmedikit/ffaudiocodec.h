@@ -56,6 +56,8 @@ protected:
 
 	bool IsSigned16FmtSupported() const;
 	bool IsRateNativelySupported(DWORD rate) const;
+	// Native sample formats of the encoder, nullptr (count 0) when unconstrained.
+	const enum AVSampleFormat* GetNativeSampleFormats(int &count) const;
 
 	// (Ré)alloue le tampon de la trame d'entrée pour `nb` échantillons.
 	bool EnsureFrame(int nb);

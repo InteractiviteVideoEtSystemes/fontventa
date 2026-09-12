@@ -161,7 +161,7 @@ public:
 	virtual int GetWidth()		{ return ctx->width;		};
 	virtual int GetHeight()		{ return ctx->height;		};
 	virtual PictPtr GetFrame();
-	virtual bool  IsKeyFrame()	{ return picture && picture->GetAVFrame() ? picture->GetAVFrame()->key_frame : false; };
+	virtual bool  IsKeyFrame()	{ return picture && picture->GetAVFrame() ? (picture->GetAVFrame()->flags & AV_FRAME_FLAG_KEY) != 0 : false; };
 
 	// cf. FfAudioDecoder::IsCodecAvailable : primitive de disponibilité ffmpeg
 	// pour les codecs vidéo adossés à libavcodec.

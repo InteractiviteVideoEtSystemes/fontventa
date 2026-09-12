@@ -641,20 +641,21 @@ VideoFramePtr FfVideoEncoder::EncodeFrame(PictPtr pic)
 	// Demande d'intra (FPU) : forcée ici, sur la trame envoyée uniquement.
 	if (forceIntra)
 	{
-		frameToSend->key_frame = 1;
+		frameToSend->flags |= AV_FRAME_FLAG_KEY;
 		frameToSend->pict_type = AV_PICTURE_TYPE_I;
 		forceIntra = false;
 	}
 	else
 	{
-		frameToSend->key_frame = 0;
+		frameToSend->flags &= ~AV_FRAME_FLAG_KEY;
 		frameToSend->pict_type = AV_PICTURE_TYPE_NONE;
 	}
 
 	//Trame neuve : elle appartient a l'appelant, pas a l'encodeur.
+	static const DWORD kMinEncodedFrameSize = 16384;
 	DWORD bufSize = 1.5*bitrate/fps;
-	if (bufSize<AV_INPUT_BUFFER_MIN_SIZE)
-		bufSize = AV_INPUT_BUFFER_MIN_SIZE;
+	if (bufSize<kMinEncodedFrameSize)
+		bufSize = kMinEncodedFrameSize;
 	VideoFramePtr frame = std::make_shared<VideoFrame>(type,bufSize);
 	bool firstPacket = true;
 

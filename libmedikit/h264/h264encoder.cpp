@@ -199,16 +199,16 @@ void H264Encoder::ConfigureContext()
 		{
 			case 100:
 			case 88:
-				ctx->profile = FF_PROFILE_H264_HIGH;
+				ctx->profile = AV_PROFILE_H264_HIGH;
 				break;
 			case 77:
-				ctx->profile = FF_PROFILE_H264_MAIN;
+				ctx->profile = AV_PROFILE_H264_MAIN;
 				break;
 			case 66:
 			default:
 				// le baseline "pur" n'est pas supporté par la plupart
 				// des drivers VAAPI
-				ctx->profile = FF_PROFILE_H264_CONSTRAINED_BASELINE;
+				ctx->profile = AV_PROFILE_H264_CONSTRAINED_BASELINE;
 				break;
 		}
 	}

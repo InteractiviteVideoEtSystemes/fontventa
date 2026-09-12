@@ -95,14 +95,26 @@ DWORD FfAudioEncoder::GetRate()
 	return (ctx && ctx->sample_rate) ? (DWORD)ctx->sample_rate : 0;
 }
 
+const enum AVSampleFormat* FfAudioEncoder::GetNativeSampleFormats(int &count) const
+{
+	const enum AVSampleFormat *fmts = nullptr;
+	count = 0;
+	if (avcodec_get_supported_config(ctx, codec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0,
+	                                 (const void**)&fmts, &count) < 0)
+		count = 0;
+	return count > 0 ? fmts : nullptr;
+}
+
 bool FfAudioEncoder::IsSigned16FmtSupported() const
 {
-	// sample_fmts == NULL : aucune contrainte sur le format.
-	if (!codec->sample_fmts)
+	// Aucune liste : aucune contrainte sur le format.
+	int n = 0;
+	const enum AVSampleFormat *fmts = GetNativeSampleFormats(n);
+	if (!fmts)
 		return true;
 
-	for (int i = 0; codec->sample_fmts[i] != AV_SAMPLE_FMT_NONE; i++)
-		if (codec->sample_fmts[i] == AV_SAMPLE_FMT_S16)
+	for (int i = 0; i < n; i++)
+		if (fmts[i] == AV_SAMPLE_FMT_S16)
 			return true;
 
 	return false;
@@ -110,12 +122,15 @@ bool FfAudioEncoder::IsSigned16FmtSupported() const
 
 bool FfAudioEncoder::IsRateNativelySupported(DWORD rate) const
 {
-	// supported_samplerates == NULL : toutes les fréquences sont acceptées.
-	if (!codec->supported_samplerates)
+	// Aucune liste : toutes les fréquences sont acceptées.
+	const int *rates = nullptr;
+	int n = 0;
+	if (avcodec_get_supported_config(ctx, codec, AV_CODEC_CONFIG_SAMPLE_RATE, 0,
+	                                 (const void**)&rates, &n) < 0 || !rates || n <= 0)
 		return true;
 
-	for (int i = 0; codec->supported_samplerates[i] != 0; i++)
-		if ((DWORD)codec->supported_samplerates[i] == rate)
+	for (int i = 0; i < n; i++)
+		if ((DWORD)rates[i] == rate)
 			return true;
 
 	return false;
@@ -148,7 +163,9 @@ DWORD FfAudioEncoder::TrySetRate(DWORD rate)
 
 	// L'entrée du mediaserver est toujours du S16 mono. On encode en S16 si
 	// le codec l'accepte, sinon dans son premier format natif via un resampler.
-	ctx->sample_fmt  = s16ok  ? AV_SAMPLE_FMT_S16 : codec->sample_fmts[0];
+	int nfmts = 0;
+	const enum AVSampleFormat *fmts = GetNativeSampleFormats(nfmts);
+	ctx->sample_fmt  = (s16ok || !fmts) ? AV_SAMPLE_FMT_S16 : fmts[0];
 	ctx->sample_rate = rateok ? (int)rate : (int)defaultSampleRate;
 
 	if (!s16ok || !rateok)
