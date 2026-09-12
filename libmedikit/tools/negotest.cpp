@@ -88,14 +88,14 @@ int main()
 	}
 
 	// --- Cas 2 : vidéo mixte (PCMU non pertinent ; H264 avec fmtp + PT filtré) ---
-	// H264(96->99)=présent "profile-level-id=42801f;packetization-mode=1" ;
+	// H264(96->99)=présent "profile-level-id=42801f;packetization-mode=1;level-asymmetry-allowed=1" ;
 	// ULPFEC(108) n'est pas un codec média -> filtré.
 	{
 		std::map<int,int> proposed;
 		proposed[96]  = VideoCodec::H264;   // 99
 		proposed[108] = VideoCodec::ULPFEC; // 108 -> non supporté
 		std::map<int,std::string> m = BuildFmtpByPt(MediaFrame::Video, proposed, props);
-		CheckPresent(m, 96, "profile-level-id=42801f;packetization-mode=1",
+		CheckPresent(m, 96, "profile-level-id=42801f;packetization-mode=1;level-asymmetry-allowed=1",
 		             "video: H264 present avec sa chaine fmtp");
 		CheckAbsent (m, 108, "video: ULPFEC filtre (absent)");
 	}
