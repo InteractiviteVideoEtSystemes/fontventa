@@ -73,6 +73,7 @@ declare -i echo_on_stdout=1
 mode_fast=0
 # contenue des track
 mimeType="other"
+isMp4=0
 rtpStat=""
 haveVideo=0
 haveAudio=0
@@ -382,8 +383,12 @@ WhatThisFile()
     grep "Input #0" $INFO_FILE | grep "mov,mp4,m4a,3gp" >>  $LOG_FILE
     ret=$?
     if [ "$ret" -eq "0" ]
-        then CheckMP4File $1 std_out_ok
-        else CheckFfmpegFile $1
+        then
+        isMp4=1
+        CheckMP4File $1 std_out_ok
+        else
+        isMp4=0
+        CheckFfmpegFile $1
     fi
     # Build base name
     base="/tmp/"`basename $inFile .$mimeType`
@@ -1428,7 +1433,12 @@ CopyTmp2out()
 CopyIn2tmp()
 {
     ORG_REP=$PWD
-    cp $inFile $tmpWorkInFile
+    # mp4creator et pcm2mp4 refusent une cible qui n'est pas un MP4 : hors MP4,
+    # on laisse mp4creator creer le conteneur.
+    if [ $isMp4 -eq 1 ]
+        then cp $inFile $tmpWorkInFile
+        else rm -f $tmpWorkInFile
+    fi
     cp $inFile $tmpWorkOrgFile
 }
 
@@ -1502,10 +1512,10 @@ MakeH263Only()
 MakeWebMOnly()
 {
     CopyIn2tmp
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile  $V_FFMPEG_OPTS_H264 -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE_H264 \
          -bt $V_BR_TOLERANCE_H264 -acodec aac -ac 1 -ar 32000 -strict -2 $tmpVideoFile"
     $cmd > $INFO_FILE 2>&1
-    cp $tmpWorkInFile $outFile
+    cp $tmpWorkOrgFile $outFile
     whatFile $outFile
 }
 
