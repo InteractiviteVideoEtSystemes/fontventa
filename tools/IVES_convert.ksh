@@ -714,7 +714,7 @@ hint_mulaw_track()
 
 create_alaw_track()
 {
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpPcmFile  -acodec pcm_alaw -ar 8000 -ac 1 -f mulaw $tmpAlawFile"
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpPcmFile  -acodec pcm_alaw -ar 8000 -ac 1 -f alaw $tmpAlawFile"
     printLine "create track alaw : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
