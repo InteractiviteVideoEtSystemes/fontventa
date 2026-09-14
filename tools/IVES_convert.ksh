@@ -1449,8 +1449,11 @@ MakeMp4()
     if [ $haveAudio -ne 0 ]
          then create_pcm_track
     fi
+    # AddVideoTracks reexamine le MP4 en construction et ecrase haveAudio :
+    # on retient l'audio de la source avant.
+    srcHaveAudio=$haveAudio
     AddVideoTracks
-    if [ $haveAudio -ne 0 ]
+    if [ $srcHaveAudio -ne 0 ]
          then AddAudioTracks
     fi
 
