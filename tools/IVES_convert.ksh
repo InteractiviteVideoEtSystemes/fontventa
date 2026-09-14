@@ -647,6 +647,25 @@ build_duration()
  	rm -f $INFO_FILE.nb_frame
 }
 
+create_silence_track()
+{
+    ${BIN_PATH}/${BIN_FFMPEG} -i $inFile 2>&1 | egrep Duration | awk '{print $2}' | tr -d , > $INFO_FILE.srcduration 2>&1
+    srcDuration=`cat $INFO_FILE.srcduration`
+    rm -f $INFO_FILE.srcduration
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -f lavfi -i anullsrc=r=8000:cl=mono -t $srcDuration -acodec pcm_s16le $wavname"
+    printLine "create silence track : "
+    echo $cmd >> $LOG_FILE
+    $cmd >> $LOG_FILE 2>&1
+    ret=$?
+    if [ $ret -ne 0 ]
+    then
+        PrintFailed
+        exit $EXIT_ERROR
+    else
+        PrintOK
+    fi
+}
+
 
 
 create_mulaw_track()
@@ -1559,11 +1578,12 @@ MakeQueueFile()
     else
         PrintOK
     fi
+    wavname="${outFile%.*}.wav"
     if [ $haveAudio -ne 0 ]
         then
         create_pcm_track
-        wavname=`basename $inFile $mimetype`.wav
         cp $tmpPcmFile $wavname
+        else create_silence_track
     fi
 }
 
