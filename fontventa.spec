@@ -12,6 +12,7 @@ BuildRequires:  openssl-devel
 BuildRequires:  bzip2-devel
 Requires:       asteriskv
 Requires:       bc
+Requires:       ffmpeg >= 9.0
 
 %description
 Fontventa shared libraries for Asterisk.
