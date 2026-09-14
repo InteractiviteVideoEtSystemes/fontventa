@@ -1139,7 +1139,7 @@ create_H264_track()
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
          $tmpStats2pnoip  -pass 1 $tmpMp4File"
     else
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file \
          $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 $tmpVideoFile"
     fi
@@ -1162,7 +1162,7 @@ create_H264_track()
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
           $tmpStats2pnoip -pass 2 $tmpMp4File"
     else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file  \
          $tmpStats2pnoip  -pass 2 -acodec amr_nb -ac 1 -ab 12200  $tmpVideoFile"
     fi
@@ -1230,7 +1230,7 @@ create_H264_track_from_org()
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
          $tmpStats2pnoip  -pass 1 $tmpMp4File"
     else
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file \
          $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 $tmpVideoFile"
     fi
@@ -1253,7 +1253,7 @@ create_H264_track_from_org()
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
           $tmpStats2pnoip -pass 2 $tmpMp4File"
     else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file  \
          $tmpStats2pnoip  -pass 2 -acodec amr_nb -ac 1 -ab 12200  $tmpVideoFile"
     fi
