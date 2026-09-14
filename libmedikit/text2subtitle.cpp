@@ -41,7 +41,6 @@ void Text2Subtitle::SendLineToHistory()
         UTF8Parser p( line );
         p.Serialize( utf8line );
         listener->onNewLine( utf8line );
-        //Log("Pushed line [%s].\n", utf8line.c_str());
     }
     //Empty it
     line.clear();
@@ -186,7 +185,7 @@ void Text2Subtitle::GetSubtitle( std::wstring &sub )
     //Check number of lines in scroll
     while( scroll.size() > 2 ) scroll.pop_front();
 
-	Log("Subtitle has %d lines. Content: '%ls'.\n", scroll.size(), sub.c_str() );
+    Log( "Subtitle has %d lines, %d characters.\n", (int) scroll.size(), (int) sub.size() );
 }
 
 void Text2Subtitle::GetSubtitle( std::string &sub )
@@ -203,7 +202,7 @@ void Text2Subtitle::GetFirstHistoryLine( std::string &hist )
     {
         std::wstring &subw = scroll.back();
         UTF8Parser p( subw );
-        Log( "First line: %ls.\n", subw.c_str() );
+        Log( "First line: %d characters.\n", (int) subw.size() );
 
         p.Serialize( hist );
     }
