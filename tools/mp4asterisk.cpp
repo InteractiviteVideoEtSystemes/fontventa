@@ -54,6 +54,32 @@ static void dump_buffer_hex(unsigned char * text, unsigned char * buff, int len)
         free(temp);
 }
 
+/* Ecrit SPS et PPS comme paquets sans marqueur : format_h264 les envoie
+ * aussitot, avec l'intra qui suit, et un recepteur qui a perdu le debut du
+ * flux retrouve ses parametres a l'intra suivante. */
+static void write_h264_headers(int outfile, uint8_t **seqheader, uint32_t *seqheadersize,
+                               uint8_t **pictheader, uint32_t *pictheadersize, unsigned int samples)
+{
+	uint32_t ix;
+	unsigned int ts = htonl(samples);
+	unsigned short len;
+
+	for (ix = 0; seqheadersize[ix] != 0; ix++)
+	{
+		len = htons(seqheadersize[ix]);
+		write(outfile, &ts, 4);
+		write(outfile, &len, 2);
+		write(outfile, seqheader[ix], seqheadersize[ix]);
+	}
+	for (ix = 0; pictheadersize[ix] != 0; ix++)
+	{
+		len = htons(pictheadersize[ix]);
+		write(outfile, &ts, 4);
+		write(outfile, &len, 2);
+		write(outfile, pictheader[ix], pictheadersize[ix]);
+	}
+}
+
 int mp4asterisk(char *name)
 {
   int index;
@@ -153,55 +179,16 @@ int mp4asterisk(char *name)
 			return 1;
 		}
 
-    if (name)
-    if (!strcmp(name, "H264"))
+    uint8_t **seqheader = NULL, **pictheader = NULL;
+    uint32_t *pictheadersize = NULL, *seqheadersize = NULL;
+    int isH264 = (name && !strcmp(name, "H264"));
+
+    if (isH264)
     {
-      uint8_t **seqheader, **pictheader;
-      uint32_t *pictheadersize, *seqheadersize;
-      uint32_t ix;
-
-			int samples;
-			int zero = 0;
-      unsigned int ts;
-			unsigned short len;
-			int mark = 0x8000;
-
       MP4GetTrackH264SeqPictHeaders(mp4, trackId,
 				&seqheader, &seqheadersize,
 				&pictheader, &pictheadersize);
-
-      for (ix = 0; seqheadersize[ix] != 0; ix++)
-      {
-        //dump_buffer_hex("SeqHeader", seqheader[ix], seqheadersize[ix]);
-
-        memcpy(databuffer, seqheader[ix], seqheadersize[ix]);
-				  datalen = seqheadersize[ix];
-
-        ts = htonl(zero);
-        len = htons(datalen | mark);
-
-		    dump_buffer_hex((unsigned char *)name, (unsigned char *)databuffer, datalen);
-
- 		  	write(outfile, &ts, 4) ;
-	      write(outfile, &len, 2) ;
-	      write(outfile, databuffer, datalen) ;
-      }
-      for (ix = 0; pictheadersize[ix] != 0; ix++)
-      {
-        //dump_buffer_hex("PictHeader", pictheader[ix], pictheadersize[ix]);
-
-        memcpy(databuffer, pictheader[ix], pictheadersize[ix]);
-				  datalen = pictheadersize[ix];
-
-	      ts = htonl(zero);
-        len = htons(datalen | mark);
-
-		    dump_buffer_hex((unsigned char *)name, (unsigned char *)databuffer, datalen);
-
- 		  	write(outfile, &ts, 4) ;
-	      write(outfile, &len, 2) ;
-	      write(outfile, databuffer, datalen) ;
-      }
+      write_h264_headers(outfile, seqheader, seqheadersize, pictheader, pictheadersize, 0);
     }
 
 		/* Iterate frames */
@@ -226,9 +213,11 @@ int mp4asterisk(char *name)
 
 			printf("%d\t%d\t%d\t%d\t%d\n",i,frameDuration, frameTime,frameSize,frameSize*8/10);
 
+			int isSync = isH264 && MP4GetSampleSync(mp4, trackId, i) != 0;
+
 			for (int j=0;j<numHintSamples;j++)
 			{
-			  int samples = frameDuration * (90000 / timeScale);
+			  int samples = (uint64_t)frameDuration * 90000 / timeScale;
 			  int zero = 0;
        	unsigned int ts;
 			  unsigned short len;
@@ -257,6 +246,9 @@ int mp4asterisk(char *name)
         mark = 0x8000;
         else
         mark = 0;
+
+        if (j == 0 && isSync && (databuffer[0] & 0x1f) != 7)
+          write_h264_headers(outfile, seqheader, seqheadersize, pictheader, pictheadersize, samples);
 
         ts = htonl(samples);
         len = htons(datalen | mark);

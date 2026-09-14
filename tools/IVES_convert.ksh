@@ -36,7 +36,9 @@ V_SIZE_H264="vga"
 V_FPS_H264=25
 V_BITRATE_H264=340000
 V_BR_TOLERANCE_H264=30000
-V_FFMPEG_OPTS_H264="-g 250 -slice-max-size 1300 -level 20 -qmax 38 -me_method hex "
+# Profil telecom : Baseline, seul profil que negocient les UA (42001F), une
+# intra par seconde, SPS/PPS repetes devant chaque intra, tranches sous le MTU.
+V_FFMPEG_OPTS_H264="-g $V_FPS_H264 -profile:v baseline -level 31 -x264-params slice-max-size=1200:repeat-headers=1 -qmax 38 "
 
 # =============================================================================
 # Constant de travail
@@ -56,6 +58,8 @@ LOG_FILE="/dev/null"
 debug=0
 declare -i echo_on_stdout=1
 mode_fast=0
+# options a retransmettre a l'appel interne du mode -q
+fwdOpts=""
 # contenue des track
 mimeType="other"
 isMp4=0
@@ -578,7 +582,9 @@ ExtractRtpStatOnMp4()
 
 create_pcm_track()
 {
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $inFile -acodec pcm_s16le -ar 8000 -ac 1 $tmpPcmFile"
+    # format_wav d'asterisk n'accepte que fact ou data apres fmt : ni LIST, ni
+    # aucun autre chunk de metadonnees.
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $inFile -acodec pcm_s16le -ar 8000 -ac 1 -map_metadata -1 -fflags +bitexact $tmpPcmFile"
     printLine "create track pcm : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -611,7 +617,7 @@ create_silence_track()
     ${BIN_PATH}/${BIN_FFMPEG} -i $inFile 2>&1 | egrep Duration | awk '{print $2}' | tr -d , > $INFO_FILE.srcduration 2>&1
     srcDuration=`cat $INFO_FILE.srcduration`
     rm -f $INFO_FILE.srcduration
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -f lavfi -i anullsrc=r=8000:cl=mono -t $srcDuration -acodec pcm_s16le $wavname"
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -f lavfi -i anullsrc=r=8000:cl=mono -t $srcDuration -acodec pcm_s16le -map_metadata -1 -fflags +bitexact $wavname"
     printLine "create silence track : "
     echo $cmd >> $LOG_FILE
     $cmd >> $LOG_FILE 2>&1
@@ -904,7 +910,9 @@ AddVideoBackground()
         test_input_file $backgroundFile
         create_mulaw_track
         #cmd="${BIN_PATH}/${BIN_FFMPEG}  -loop 1 -i $backgroundFile -i $tmpPcmFile -pix_fmt yuv420p -r $frame_rate -vcodec libx264 -ac 1 -force_key_frames \"expr:gte(t,n_forced)\" -vframes 20 $tmpVideoFile"
-        cmd="${BIN_PATH}/${BIN_FFMPEG}  -loop 1 -i $backgroundFile -i $tmpPcmFile -pix_fmt yuv420p -r $frame_rate -vcodec libx264 -ac 1 -vframes 10 $tmpVideoFile"
+        # -shortest laisse la video deborder de 2 s : on borne a la duree de l'audio.
+        pcmDuration=`${BIN_PATH}/ffprobe -v error -show_entries format=duration -of csv=p=0 $tmpPcmFile`
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -loop 1 -framerate $frame_rate -i $backgroundFile -i $tmpPcmFile -t $pcmDuration -vf scale=iw-mod(iw\,2):ih-mod(ih\,2) -pix_fmt yuv420p -r $frame_rate $V_FFMPEG_OPTS_H264 -g $frame_rate -tune stillimage -vcodec libx264 -acodec amr_nb -ar 8000 -ac 1 -ab 12200 $tmpVideoFile"
         printLine "Add video  : "
         echo $cmd >> $LOG_FILE
         $cmd >> $LOG_FILE 2>&1
@@ -934,7 +942,7 @@ create_H264_track()
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
          $tmpStats2pnoip  -pass 1 $tmpMp4File"
     else
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_H264 -r $V_FPS_H264 $V_FFMPEG_OPTS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file \
          $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 $tmpVideoFile"
     fi
@@ -957,7 +965,7 @@ create_H264_track()
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
           $tmpStats2pnoip -pass 2 $tmpMp4File"
     else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkInFile -s $V_SIZE_H264 -r $V_FPS_H264 $V_FFMPEG_OPTS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file  \
          $tmpStats2pnoip  -pass 2 -acodec amr_nb -ac 1 -ab 12200  $tmpVideoFile"
     fi
@@ -1025,7 +1033,7 @@ create_H264_track_from_org()
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file \
          $tmpStats2pnoip  -pass 1 $tmpMp4File"
     else
-    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
+    cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE_H264 -r $V_FPS_H264 $V_FFMPEG_OPTS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file \
          $tmpStats2pnoip -pass 1 -acodec amr_nb -ac 1 -ab 12200 $tmpVideoFile"
     fi
@@ -1048,7 +1056,7 @@ create_H264_track_from_org()
          -bt $V_BR_TOLERANCE_H264 -an -vstats -vstats_file  \
           $tmpStats2pnoip -pass 2 $tmpMp4File"
     else
-        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE_H264 -r $V_FPS_H264 -vcodec libx264 -b:v $V_BITRATE \
+        cmd="${BIN_PATH}/${BIN_FFMPEG} -y -i $tmpWorkOrgFile -s $V_SIZE_H264 -r $V_FPS_H264 $V_FFMPEG_OPTS_H264 -vcodec libx264 -b:v $V_BITRATE \
          -bt 10000 -vstats -vstats_file  \
          $tmpStats2pnoip  -pass 2 -acodec amr_nb -ac 1 -ab 12200  $tmpVideoFile"
     fi
@@ -1123,6 +1131,43 @@ hint_H264_track()
     fi
 }
 
+H264IsBaseline()
+{
+    h264Profile=`${BIN_PATH}/ffprobe -v error -select_streams v:0 -show_entries stream=profile -of csv=p=0 $tmpWorkInFile`
+    case "$h264Profile" in
+        *Baseline*) return 0 ;;
+    esac
+    return 1
+}
+
+delete_H264_track()
+{
+    # Seule piste du fichier : mp4creator refuse un MP4 sans piste, on repart
+    # d'un conteneur vide que mp4creator -create reconstruit.
+    if [ $haveAudio -eq 0 ]
+    then
+        rm -f $tmpWorkInFile
+        haveH264=0
+        return
+    fi
+    for idx in $idxHintH264Track $idxH264Track
+    do
+        cmd="${BIN_PATH}/mp4creator -delete=$idx $tmpWorkInFile"
+        printLine "Delete track H264 $h264Profile : "
+        echo $cmd >> $LOG_FILE
+        $cmd >> $LOG_FILE 2>&1
+        ret=$?
+        if [ $ret -ne 0 ]
+        then
+            PrintFailed
+            exit $EXIT_ERROR
+        else
+            PrintOK
+        fi
+    done
+    CheckMP4File $tmpWorkInFile
+}
+
 AddVideoTracks()
 {
    if  [ $haveVideo -eq 0 ]
@@ -1131,6 +1176,9 @@ AddVideoTracks()
 
    if  [ $haveVideo -ne 0 ]
    then
+       if [ $haveH264 -eq 1 ] && ! H264IsBaseline
+           then delete_H264_track
+       fi
        if [ $haveH264 -eq 0 ]
            then
            if [ $orgHaveVideo -eq 1 ]
@@ -1304,7 +1352,14 @@ MakeHtml5()
 MakeQueueFile()
 {
     CopyIn2tmp
-    IVES_convert.ksh -i $inFile -o /tmp/.queueFile.mp4
+    $0 -i $inFile -o /tmp/.queueFile.mp4 $fwdOpts
+    ret=$?
+    if [ $ret -ne 0 ]
+    then
+        printLine "Convert $inFile to MP4 : "
+        PrintFailed
+        exit $EXIT_ERROR
+    fi
     mv /tmp/.queueFile.mp4 $outFile
     cmd="${BIN_PATH}/mp4asterisk $outFile "
     printLine "Creation file for asterisk Queue and Playback app : "
@@ -1389,27 +1444,34 @@ while [ "$1" ]
       -r)
       shift
       frame_rate=$1
+      fwdOpts="$fwdOpts -r $1"
       ;;
       -b)
       shift
       backgroundFile=$1
+      fwdOpts="$fwdOpts -b $1"
       ;;
       -v)
       LOG_FILE="/tmp/IVES_convert.log"
+      fwdOpts="$fwdOpts -v"
       ;;
       -d)
       debug=1
       LOG_FILE="/tmp/IVES_convert.log"
+      fwdOpts="$fwdOpts -d"
       ;;
       -s)
       echo_on_stdout=0
+      fwdOpts="$fwdOpts -s"
       ;;
       -f)
       mode_fast=1
+      fwdOpts="$fwdOpts -f"
       ;;
       -t)
       shift
       duration=$1
+      fwdOpts="$fwdOpts -t $1"
       ;;
       -T)
       shift
