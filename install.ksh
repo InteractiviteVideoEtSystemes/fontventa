@@ -39,18 +39,6 @@ function create_rpm
     echo "%_gpg_name IVeSkey" >> ~/.rpmmacros
     echo "%_gpg_path" $PWD"/gnupg" >> ~/.rpmmacros
     echo "%vendor IVeS" >> ~/.rpmmacros
-    #Import de la clef gpg IVeS
-    if [ -r gnupg/ ] ; then
-        echo -e "${LINE} [ ${YELLOW}ALREADY EXISTS${NC} ]\r  $FLECHE Import de la clef GPG IVeS gnupg/"
-    else
-        git clone git@git.ives.fr:internal/gnupg.git
-        if [ -r gnupg/ ] ; then
-	    rm -rf gnupg/.git
-            echo -e "${LINE} [ ${GREEN}OK${NC} \xE2\x9C\x94 ]\r  $FLECHE Import de la clef GPG IVeS"
-        else
-            echo -e "${LINE} [ ${RED}ERROR${NC} \xe2\x9c\x97 ]\r  $FLECHE Import de la clef GPG IVeS"
-        fi
-    fi
     mkdir -p rpmbuild
     mkdir -p rpmbuild/SOURCES
     mkdir -p rpmbuild/SPECS
@@ -70,13 +58,7 @@ function create_rpm
     ln -s ../.. ${PROJET}
     cd ../../
     #Cree le package
-    if [[ -z $1 || $1 -ne nosign ]]
-    then
-             rpmbuild -bb --sign $PWD/rpmbuild/SPECS/${PROJET}.spec
-    else
-             rpmbuild -bb $PWD/rpmbuild/SPECS/${PROJET}.spec
-    fi
-
+    rpmbuild -bb $PWD/rpmbuild/SPECS/${PROJET}.spec
     if [ $? == 0 ]
     then
         echo "************************* fin du rpmbuild ****************************"
