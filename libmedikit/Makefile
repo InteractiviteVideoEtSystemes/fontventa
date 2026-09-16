@@ -367,4 +367,9 @@ tests: tests/runtests
 check: tests/runtests
 	./tests/runtests
 
-.PHONY: tests check force-libmedkit
+# Mesures de performance : dependent de la machine et de sa charge, donc
+# DISABLED_ et jouees seulement ici, sur la machine de reference.
+check-perf: tests/runtests
+	./tests/runtests --gtest_filter='Vp8Realtime.*' --gtest_also_run_disabled_tests
+
+.PHONY: tests check check-perf force-libmedkit

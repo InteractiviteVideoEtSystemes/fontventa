@@ -1,5 +1,5 @@
 /**
- * test_vp8_realtime.cpp — l'encodeur VP8 tient le temps réel en 720p.
+ * test_vp8_realtime.cpp — l'encodeur VP8 est ouvert pour le temps réel.
  *
  * Appel du 2026-08-29 : libvpx ouvert avec les défauts ffmpeg (deadline
  * « good », un thread) mettait ~96 ms par image 720p sur une machine à deux
@@ -7,9 +7,13 @@
  * sur le thread de démux de la source, prenait du retard, et la jambe RTP
  * jetait ses paquets.
  *
- * Ce test mesure le coût par image et le borne. La borne est large — la moitié
- * du budget d'une source à 15 im/s — pour ne pas dépendre de la machine ; elle
- * reste bien en dessous de ce que coûte le mode « good ».
+ * Deux tests, deux natures :
+ *  - le premier relit les options posées sur le contexte libvpx à l'ouverture.
+ *    Il est déterministe et joué par `make check` : c'est lui qui garde le
+ *    correctif ;
+ *  - le second mesure le coût par image et le borne. Il dépend de la machine et
+ *    de sa charge, donc il est DISABLED_ et joué par `make check-perf` sur la
+ *    machine de référence.
  */
 #include <gtest/gtest.h>
 #include <medkit/log.h>
@@ -18,9 +22,29 @@
 #include <medkit/tools.h>
 #include <vp8/vp8encoder.h>
 
+extern "C" {
+#include <libavutil/opt.h>
+}
+
 namespace {
 
 const int W = 1280, H = 720;
+
+// Atteint le contexte ffmpeg, membre protégé de FfVideoEncoder : idiome de la
+// classe dérivée, sans accesseur de production.
+struct Vp8Probe : VP8Encoder
+{
+	using VP8Encoder::VP8Encoder;
+	const AVCodecContext* Ctx() const { return ctx; }
+};
+
+int64_t PrivOpt(const AVCodecContext* ctx, const char* name)
+{
+	int64_t value = -1;
+	if (av_opt_get_int(ctx->priv_data, name, 0, &value) < 0)
+		return -1;
+	return value;
+}
 
 // Image texturée déterministe : un dégradé bruité, pour que l'encodeur ait
 // quelque chose à coder sans que la trame soit du bruit pur (incompressible,
@@ -44,7 +68,22 @@ PictPtr CreateTextured(int n)
 	return pic;
 }
 
-TEST(Vp8Realtime, UneImage720pCouteMoinsDe33ms)
+TEST(Vp8Realtime, LEncodeurEstOuvertEnModeTempsReel)
+{
+	Properties props;
+	Vp8Probe enc(props);
+	ASSERT_EQ(1, enc.SetFrameRate(20, 2500, 200));
+	ASSERT_EQ(1, enc.SetSize(W, H));
+	ASSERT_TRUE(enc.Ctx() && enc.Ctx()->priv_data) << "codec non ouvert";
+
+	EXPECT_EQ(1, PrivOpt(enc.Ctx(), "deadline"))      << "VPX_DL_REALTIME attendu";
+	EXPECT_EQ(6, PrivOpt(enc.Ctx(), "cpu-used"));
+	EXPECT_EQ(0, PrivOpt(enc.Ctx(), "lag-in-frames")) << "aucune image d'avance en temps reel";
+	EXPECT_GE(enc.Ctx()->thread_count, 1);
+	EXPECT_LE(enc.Ctx()->thread_count, 2) << "le reste de la machine sert aux autres jambes";
+}
+
+TEST(Vp8Realtime, DISABLED_UneImage720pCouteMoinsDe33ms)
 {
 	Properties props;
 	VP8Encoder enc(props);
