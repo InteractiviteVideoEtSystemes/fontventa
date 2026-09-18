@@ -112,7 +112,7 @@ int Text2Subtitle::Accumulate( const std::wstring &text )
                     if( line.size() == 0 )
                     {
                         PopLineFromHistory();
-                        Log( "RTT: editing previous line\n" );
+                        Debug( "RTT: editing previous line\n" );
                     }
                     //Remove last
                     if( line.size() )
@@ -186,7 +186,10 @@ void Text2Subtitle::GetSubtitle( std::wstring &sub )
     //Check number of lines in scroll
     while( scroll.size() > 2 ) scroll.pop_front();
 
-	Log("Subtitle has %d lines. Content: '%ls'.\n", scroll.size(), sub.c_str() );
+	//Aucune trace ici : cet accesseur est appele pour CHAQUE trame texte, donc
+	//pour chaque frappe. Journaliser le tampon accumule y coutait O(n^2), et une
+	//rafale de trames saturait stdout - que la glibc serialise -, donc tous les
+	//threads qui journalisent.
 }
 
 void Text2Subtitle::GetSubtitle( std::string &sub )
