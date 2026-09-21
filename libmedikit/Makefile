@@ -191,7 +191,10 @@ ifeq ($(ASAN),yes)
 	LDFLAGS += -fsanitize=address
 endif
 #OPTS 	+= -D_UNIX -D__STDC_CONSTANT_MACROS
-CFLAGS  += $(INCLUDE) $(OPTS)
+# -std=gnu17 : GCC >= 14 compile le C en C23 par défaut, où bool est un mot-clé
+# — mp4v2/platform.h le déclare en typedef — et où une déclaration implicite est
+# une erreur. GCC 11 (AlmaLinux 9) était déjà en gnu17 : on le fixe.
+CFLAGS  += $(INCLUDE) $(OPTS) -std=gnu17
 #CXXFLAGS+= $(INCLUDE) $(OPTS) -std=c++0x
 CXXFLAGS+= $(INCLUDE) $(OPTS)
 

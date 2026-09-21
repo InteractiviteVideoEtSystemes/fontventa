@@ -34,6 +34,10 @@ int Error(const char *msg, ...);
 // PC() et BitPrint() sont desormais definis dans medkit/tools.h (inclus ci-dessus)
 // pour rester la source unique partagee avec le mcu (dont log.h les attend depuis
 // tools.h). BitDump/Dump ci-dessous les utilisent via cet include.
+//
+// tools.h n'etant inclus qu'en C++, tout ce qui suit l'est aussi : compile en C,
+// PC/BitPrint y sont des declarations implicites, que GCC >= 14 refuse.
+#ifdef __cplusplus
 
 static inline void BitDump(uint32_t val,uint8_t n)
 {
@@ -63,7 +67,6 @@ static inline void BitDump(uint32_t val,uint8_t n)
 	Debug("Dumping 0x%.4x:%d\n\t%s\n\t%s\n",val,n,line1,line2);
 }
 
-#ifdef __cplusplus
 inline void BitDump(WORD val)
 {
 	BitDump(val,16);
@@ -79,7 +82,6 @@ inline void BitDump(QWORD val)
 	BitDump(val>>32,32);
 	BitDump(val,32);
 }
-#endif
 
 static inline void Dump(uint8_t *data,uint32_t size)
 {
@@ -115,7 +117,6 @@ static inline void Dump(uint8_t *data,uint32_t size)
 	}
 }
 
-#ifdef __cplusplus
 class Logger
 {
 public:
