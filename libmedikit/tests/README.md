@@ -48,6 +48,7 @@ Filtrer une suite ou un test précis :
 | `test_mp4_transcode.cpp` | `Mp4Transcode` | Transcodage `titi.mp4` : H264→H263 + AAC→AMR-NB → enregistrement `.3gp` → relecture |
 | `test_h264_hwaccel.cpp` | `H264HwVaapi` | Encodage + décodage H264 **VAAPI** (accélération matérielle exigée) — **DÉSACTIVÉ par défaut** |
 | `test_av1_encoder_concurrency.cpp` | `Av1EncoderConcurrency` | Ouvertures et fermetures simultanées d'encodeurs AV1 (SVT-AV1) depuis plusieurs threads, sans verrou côté libmedkit |
+| `test_vp8_realtime.cpp` | `Vp8Realtime` | Options temps réel posées sur libvpx à l'ouverture (déterministe) ; coût par image 720p borné — **DÉSACTIVÉ par défaut**, cible `make check-perf` |
 
 ### Tests désactivés par défaut (`DISABLED_`)
 
@@ -63,6 +64,18 @@ Il s'appuie sur le mode « accélération matérielle exigée » :
 - **encodeur** : propriété `video.hwaccel.required=1` (aucun repli logiciel) ;
 - **décodeur** : `H264Decoder(/*requireHW*/ true)`.
 Les deux exposent `IsHardwareReady()`.
+
+`Vp8Realtime.DISABLED_UneImage720pCouteMoinsDe33ms` mesure le coût d'encodage
+d'une image 720p. Le résultat dépend de la machine et de sa charge : il ne fait
+pas partie de `make check`. Le lancer sur la machine de référence :
+
+```sh
+make check-perf
+```
+
+Ce qui garde le correctif dans `make check`, c'est
+`Vp8Realtime.LEncodeurEstOuvertEnModeTempsReel` : il relit les options posées
+sur le contexte libvpx (`deadline`, `cpu-used`, `lag-in-frames`, threads).
 
 ### Fixtures (`tests/fixtures/`, versionnées)
 

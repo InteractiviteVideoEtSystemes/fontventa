@@ -15,8 +15,9 @@ RTPRedundantPayload::RTPRedundantPayload(BYTE *data,DWORD size)
 
 void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 {
-	//Number of bytes to skip of text until primary data
-	WORD skip = 0;
+	//Number of bytes to skip of text until primary data (DWORD : une suite de
+	//blocs annonçant chacun jusqu'à 1023 octets déborde un compteur 16 bits)
+	DWORD skip = 0;
 
 	//The the payload
 	BYTE *payload = data;
@@ -108,6 +109,9 @@ void RTPRedundantPayload::ParseRed(BYTE *data,DWORD size)
 	//sinon size-i-skip sous-déborde (DWORD) -> primarySize aberrant.
 	if (i + skip > size)
 	{
+		//Paquet incohérent : ni redondance ni primaire exposés, un header
+		//conservé pointerait derrière la fin du tampon.
+		headers.clear();
 		primaryData = NULL;
 		primarySize = 0;
 		return;

@@ -111,7 +111,7 @@ int Text2Subtitle::Accumulate( const std::wstring &text )
                     if( line.size() == 0 )
                     {
                         PopLineFromHistory();
-                        Log( "RTT: editing previous line\n" );
+                        Debug( "RTT: editing previous line\n" );
                     }
                     //Remove last
                     if( line.size() )
@@ -185,7 +185,6 @@ void Text2Subtitle::GetSubtitle( std::wstring &sub )
     //Check number of lines in scroll
     while( scroll.size() > 2 ) scroll.pop_front();
 
-    Log( "Subtitle has %d lines, %d characters.\n", (int) scroll.size(), (int) sub.size() );
 }
 
 void Text2Subtitle::GetSubtitle( std::string &sub )
