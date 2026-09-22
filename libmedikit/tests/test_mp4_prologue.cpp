@@ -47,6 +47,18 @@ const DWORD    TS_BASE_ABSOLU   = 90000;
 // enregistrement dont la vidéo arrive en retard. L'audio est émis APRÈS la
 // première trame vidéo, comme en production (les trames audio sont jetées tant
 // que la vidéo n'a pas démarré). @return nb de trames vidéo émises.
+// Un encodeur MATERIEL retient sa premiere image : EncodeFrame rend alors nullptr
+// sans que rien n'aille mal. On represente la meme image jusqu'a ce qu'une trame
+// sorte, sinon ces tests comptent une trame de moins que ce qu'ils ont soumis et
+// mesurent la latence de l'encodeur au lieu du prologue.
+VideoFramePtr EncodeOne(H264Encoder& enc, const PictPtr& pic)
+{
+	VideoFramePtr vf;
+	for (int attempt = 0; attempt < 4 && !vf; ++attempt)
+		vf = enc.EncodeFrame(pic);
+	return vf;
+}
+
 int WriteWithDelay(const char* path, bool prologue, int nframes, DWORD tsBase,
                    int naudio = 0, const char* plid = NULL)
 {
@@ -77,7 +89,7 @@ int WriteWithDelay(const char* path, bool prologue, int nframes, DWORD tsBase,
 			PictPtr pic = Pict::CreateColor(W, H, 16 + (i * 8) % 200, 128, 128);
 			if (!pic) break;
 
-			VideoFramePtr vf = enc.EncodeFrame(pic);
+			VideoFramePtr vf = EncodeOne(enc, pic);
 			if (vf == NULL) continue;
 			vf->SetTimestamp(tsBase + i * FRAME_TS);
 			if (w.ProcessFrame(vf.get()) < 0) break;
@@ -342,10 +354,10 @@ TEST(Mp4Prologue, AttenteIdrSansPictureStreamer)
 		PictPtr pic = Pict::CreateColor(W, H, 64, 128, 128);
 		ASSERT_TRUE(pic != nullptr);
 
-		VideoFramePtr vf = enc.EncodeFrame(pic);   // intra, non transmise
+		VideoFramePtr vf = EncodeOne(enc, pic);   // intra, non transmise
 		ASSERT_TRUE(vf != NULL);
 
-		vf = enc.EncodeFrame(pic);
+		vf = EncodeOne(enc, pic);
 		ASSERT_TRUE(vf != NULL);
 		if (vf->IsIntra()) GTEST_SKIP() << "l'encodeur a produit une 2e intra";
 
