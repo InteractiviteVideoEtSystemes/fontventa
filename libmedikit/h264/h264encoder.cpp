@@ -52,6 +52,17 @@ int H264Encoder::WantedPacketizationMode(const Properties& properties)
 
 bool H264Encoder::WantsHardware(const Properties& properties)
 {
+	// Refus explicite du matériel pour CET encodeur, pendant de
+	// `video.hwaccel.required`. Sert à qui a besoin du rate control de libx264 —
+	// VBV, régimes CRF, consigne appliquée à chaud sans trame clé — qu'aucun
+	// encodeur VAAPI ne reproduit. `required` reste plus fort : FfVideoEncoder
+	// ouvre alors le matériel malgré ce refus, ce qui est le sens d'une exigence.
+	if (properties.GetProperty("video.hwaccel", 1) == 0)
+	{
+		Log("-H264Encoder: hardware encoding declined by configuration\n");
+		return false;
+	}
+
 	if (WantedPacketizationMode(properties) != 0)
 		return true;
 

@@ -144,6 +144,23 @@ TEST(H264CrfBudget, BudgetInconnuNeChangeRien)
 	EXPECT_EQ(H264Encoder::CrfForBudget(-1.0, 21), 21);
 }
 
+// --- Rate control : ces tests portent sur libx264, et sur lui seul -----------
+//
+// VBV, régimes CRF, consigne appliquée à chaud sans trame clé : ce sont des
+// propriétés de l'encodeur LOGICIEL. Un encodeur VAAPI a son propre contrôle de
+// débit (AVBR) qui n'en reproduit aucune, et sur une machine équipée d'un GPU
+// ces tests mesuraient donc un encodeur dont ils ne décrivent pas le
+// comportement — 17 823 octets par trame là où le VBV en borne 4 480.
+//
+// D'où ce refus explicite du matériel. Tester le rate control matériel est un
+// autre sujet, qui demande d'autres seuils.
+Properties SoftwareOnly()
+{
+	Properties props;
+	props.SetProperty("video.hwaccel", "0");
+	return props;
+}
+
 // Sur du bruit le débit de sortie colle au plafond VBV : il doit valoir ~90 %
 // de la consigne, pas les 60 % historiques qui ancraient bas la croyance de
 // débit du pair TMMBR.
@@ -151,7 +168,7 @@ TEST(H264EncoderRc, LaCreteSuitLaConsigne)
 {
 	DWORD seed = 42;
 	const int kbits = 1000;
-	H264Encoder enc((Properties()));
+	H264Encoder enc(SoftwareOnly());
 	ASSERT_EQ(enc.SetFrameRate(FPS, kbits, 300), 1);
 	ASSERT_GE(enc.SetSize(W, H), 1);
 
@@ -175,7 +192,7 @@ TEST(H264EncoderRc, LaCreteSuitLaConsigne)
 TEST(H264EncoderRc, LaBaisseSAppliqueSansTrameCle)
 {
 	DWORD seed = 43;
-	H264Encoder enc((Properties()));
+	H264Encoder enc(SoftwareOnly());
 	ASSERT_EQ(enc.SetFrameRate(FPS, 2000, 300), 1);	// 0,89 bpp -> CRF 21
 	ASSERT_GE(enc.SetSize(W, H), 1);
 
@@ -303,7 +320,7 @@ TEST(H264EncoderRc, LeRemplissageColleAuPlafondPuisRelache)
 	DWORD seed = 44;
 	int shift = 0;
 	const int kbits = 600;
-	H264Encoder enc((Properties()));
+	H264Encoder enc(SoftwareOnly());
 	ASSERT_EQ(enc.SetFrameRate(FPS, kbits, 300), 1);
 	ASSERT_GE(enc.SetSize(W, H), 1);
 
