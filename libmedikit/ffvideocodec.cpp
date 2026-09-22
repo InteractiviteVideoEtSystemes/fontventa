@@ -190,6 +190,7 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 				if (requireHW)
 					return Error("FFMpeg encoder: VAAPI device required but unavailable\n");
 				Log("FFMpeg encoder: no usable VAAPI device, falling back to software\n");
+				VideoAccel::OnHwFallback();
 			}
 			else
 			{
@@ -205,6 +206,7 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 			if (requireHW)
 				return Error("FFMpeg encoder: VAAPI encoder required but none for [%s]\n", avcodec_get_name(avCodecId));
 			Log("FFMpeg encoder: no VAAPI encoder for [%s], using software\n", avcodec_get_name(avCodecId));
+			VideoAccel::OnHwFallback();
 		}
 	}
 
@@ -266,6 +268,12 @@ void FfVideoEncoder::CloseCodec()
 
 	DrainCodec();
 
+	// Le compteur suit les codecs OUVERTS : cette fermeture en retire un, la
+	// réouverture qui suit en remettra un. Relevé avant de remplacer le
+	// contexte, qui est ce qui porte la nature matérielle de l'encodeur.
+	if (opened)
+		VideoAccel::OnEncoderClosed(IsHWAccelerated());
+
 	// Conserve le device VAAPI pour le contexte suivant
 	AVBufferRef *dev = ctx->hw_device_ctx ? av_buffer_ref(ctx->hw_device_ctx) : NULL;
 
@@ -308,6 +316,7 @@ int FfVideoEncoder::FallbackToSoftware()
 	int height = ctx->height;
 
 	hwFailed = true;
+	VideoAccel::OnHwFallback();
 
 	if (hw_frame)
 		av_frame_free(&hw_frame);
@@ -331,6 +340,10 @@ FfVideoEncoder::~FfVideoEncoder()
 	if (ctx)
 	{
 		DrainCodec();
+		// Ce destructeur ne passe pas par CloseCodec : sans ce décompte, tout
+		// encodeur détruit resterait compté comme ouvert.
+		if (opened)
+			VideoAccel::OnEncoderClosed(IsHWAccelerated());
 		avcodec_free_context(&ctx);
 	}
 
@@ -475,6 +488,7 @@ int FfVideoEncoder::OpenCodec()
 
 	// We are opened
 	opened=true;
+	VideoAccel::OnEncoderOpened(IsHWAccelerated());
 
 	// Références des politiques de réouverture (ShouldReopenForBitrate/ForFps)
 	openedBitrate = bitrate;
@@ -820,6 +834,10 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 		return;
 	}
 
+	// Repli logiciel : le décodage matériel a été tenté et n'a pas pris.
+	if (!hwOk)
+		VideoAccel::OnHwFallback();
+
 	//POnemos los valores del contexto
 	ctx->workaround_bugs 	= 255*255;
 	ctx->error_concealment 	= FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
@@ -831,6 +849,8 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 
 	//Lo abrimos
 	avcodec_open2(ctx, codec, NULL);
+
+	VideoAccel::OnDecoderOpened(IsHardwareReady());
 }
 
 /***********************
@@ -842,6 +862,10 @@ FfVideoDecoder::~FfVideoDecoder()
 	free(buffer);
 	if (parser_ctx)
 		av_parser_close(parser_ctx);
+	// Symétrique de l'OnDecoderOpened du constructeur, qui n'a lieu que si le
+	// contexte a survécu jusqu'à l'ouverture.
+	if (ctx)
+		VideoAccel::OnDecoderClosed(IsHardwareReady());
 	// `picture` est un PictPtr : sa destruction (shared_ptr) libère l'AVFrame.
 	avcodec_free_context(&ctx);	// ferme aussi le codec
 }

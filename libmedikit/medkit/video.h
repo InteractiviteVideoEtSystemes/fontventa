@@ -172,8 +172,54 @@ public:
 	// « l'accélération matérielle est-elle disponible ? » (log de démarrage mcu).
 	static AVBufferRef* GetVAAPIDevice();
 
+	// Éteint l'accélération matérielle pour tout le processus : GetVAAPIDevice()
+	// rendra nullptr, donc codecs et graphes prendront leur chemin CPU. Sans
+	// retour en arrière.
+	//
+	// À appeler AU DÉMARRAGE, avant tout usage média : un device déjà distribué
+	// reste vivant chez ceux qui en tiennent une référence, et ceux-là
+	// continueraient sur GPU pendant que les suivants passent sur CPU.
+	//
+	// Raison d'être : mesurer la même charge avec et sans GPU sans désinstaller
+	// le driver de la machine, et contourner en exploitation un driver qui se
+	// comporte mal.
+	static void DisableVAAPI();
+
 private:
 	AVFrame * av_frame;
+};
+
+// Ce que l'accélération vidéo fait RÉELLEMENT, par opposition à ce qu'elle
+// pourrait faire. Savoir qu'un device VAAPI existe ne dit pas si l'encodeur
+// d'un appel tourne en matériel : le repli logiciel est silencieux par
+// conception (FfVideoEncoder::FallbackToSoftware). Ces compteurs sont la seule
+// façon de le savoir de l'extérieur.
+//
+// Les codecs les alimentent eux-mêmes ; un appelant ne fait que les lire.
+struct VideoAccelStats
+{
+	int	encoders;	// encodeurs vidéo ouverts à cet instant
+	int	encodersHw;	// ... dont matériels (VAAPI)
+	int	decoders;	// décodeurs vidéo ouverts à cet instant
+	int	decodersHw;	// ... dont matériels (VAAPI)
+	// Replis matériel -> logiciel depuis le démarrage, CUMULATIF. Ne compte que
+	// les replis subis alors qu'un device VAAPI était utilisable : sur une
+	// machine sans GPU, tout est logiciel et un compteur qui monte sans cesse
+	// n'apprendrait rien.
+	int	hwFallbacks;
+};
+
+class VideoAccel
+{
+public:
+	static VideoAccelStats GetStats();
+
+	// Alimentation, réservée aux codecs. `hw` = ce codec tourne en VAAPI.
+	static void OnEncoderOpened(bool hw);
+	static void OnEncoderClosed(bool hw);
+	static void OnDecoderOpened(bool hw);
+	static void OnDecoderClosed(bool hw);
+	static void OnHwFallback();
 };
 
 class VideoInput
