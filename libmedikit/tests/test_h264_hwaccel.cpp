@@ -35,12 +35,36 @@ TEST(H264HwVaapi, DISABLED_EncodeDecodeRequiresVaapi)
 	H264Decoder dec(/*requireHW*/ true);
 	ASSERT_TRUE(dec.IsHardwareReady()) << "décodeur H264 VAAPI indisponible (pas de GPU ?)";
 
-	// --- Aller-retour matériel : encode une image, décode-la ------------------
-	PictPtr pic = Pict::CreateColor(W, H, 128, 128, 128); // image grise I420
-	ASSERT_TRUE(pic != nullptr);
-	VideoFramePtr vf = enc.EncodeFrame(pic);
-	ASSERT_TRUE(vf != NULL) << "échec encodage matériel";
+	// --- Aller-retour matériel : encode plusieurs images, décode-les ----------
+	// PLUSIEURS, et c'est le fond du test : un encodeur matériel a une latence
+	// (une image ici), donc le premier envoi ne rend rien et n'est pas un échec.
+	// Attendre une trame du premier appel, comme faisait ce test, ne mesurait que
+	// cette latence.
+	//
+	// Ce que ce test garde vraiment : que les surfaces VAAPI soient allouées en
+	// NV12 (AllocateVAAPIFrame). En YUV420P, le driver refuse chaque image sans
+	// le dire — avcodec_send_frame rend 0, aucun paquet ne sort JAMAIS, et le DPB
+	// finit par déborder sur une assertion qui tue le processus. Une seule image
+	// encodée ne l'aurait pas vu ; vingt le voient.
+	const int kFrames = 20;
+	int encoded = 0, decoded = 0;
 
-	int r = dec.Decode(vf->GetData(), vf->GetLength());
-	ASSERT_GE(r, 0) << "échec décodage matériel";
+	for (int i = 0; i < kFrames; i++)
+	{
+		PictPtr pic = Pict::CreateColor(W, H, (BYTE)(16 + (i * 7) % 200), 128, 128);
+		ASSERT_TRUE(pic != nullptr);
+
+		VideoFramePtr vf = enc.EncodeFrame(pic);
+		if (!vf)
+			continue;	// image encore dans l'encodeur, pas une erreur
+
+		encoded++;
+		if (dec.Decode(vf->GetData(), vf->GetLength()) >= 0)
+			decoded++;
+	}
+
+	// La latence coûte au plus quelques images : en rendre zéro sur vingt est le
+	// symptôme exact d'un format de surface que le driver n'encode pas.
+	EXPECT_GE(encoded, kFrames - 4) << "encodage materiel muet ou intermittent";
+	EXPECT_GE(decoded, encoded - 1) << "decodage materiel en echec";
 }

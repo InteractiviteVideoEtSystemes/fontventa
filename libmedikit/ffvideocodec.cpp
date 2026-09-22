@@ -82,7 +82,7 @@ static void AllocateVAAPIFrame(AVCodecContext * ctx)
 			AVHWFramesContext *frames_ctx = (AVHWFramesContext *)ctx->hw_frames_ctx->data;
 
             frames_ctx->format = AV_PIX_FMT_VAAPI;
-            frames_ctx->sw_format = AV_PIX_FMT_YUV420P;
+            frames_ctx->sw_format = AV_PIX_FMT_NV12;
             frames_ctx->width = ctx->width;
             frames_ctx->height = ctx->height;
             frames_ctx->initial_pool_size = 20;
