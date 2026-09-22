@@ -610,7 +610,7 @@ bool FfMediaFileWriter::DeclareStream( Track * tr )
                 {
                     AACSpecificConfig cfg( tr->rate, 1 );
                     tr->extradata.assign( cfg.GetData(), cfg.GetData() + cfg.GetSize() );
-                    par->profile = FF_PROFILE_AAC_LOW;
+                    par->profile = AV_PROFILE_AAC_LOW;
                     break;
                 }
 
