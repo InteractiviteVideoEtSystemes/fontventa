@@ -122,6 +122,7 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 	format  = 0;
 	avCodecId = av_codec;
 	hwFailed = false;
+	fed	= false;
 	pts	= 0;
 	openedFps = 0;
 	forceIntra = false;
@@ -149,6 +150,7 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 	if (ctx)
 		avcodec_free_context(&ctx);
 	codec = NULL;
+	fed = false;
 
 	if (tryHW && !hwFailed)
 	{
@@ -236,6 +238,15 @@ void FfVideoEncoder::DrainCodec()
 	if (!ctx || !opened)
 		return;
 
+	// Rien n'est jamais entré : il n'y a rien à vider, et le demander quand
+	// même TUE le processus. h264_vaapi déréférence son état d'encodage dans
+	// avcodec_send_frame(NULL) sans avoir vu une seule trame (segfault dans
+	// libavcodec 62, reproduit hors de cette bibliothèque). Le cas est banal en
+	// exploitation : un participant dont l'encodeur s'ouvre à la négociation et
+	// qui raccroche avant la première image.
+	if (!fed)
+		return;
+
 	// La trame NULL déclare la fin du flux ; l'encodeur n'accepte plus rien
 	// ensuite, ce qui est le cas ici : le contexte est détruit juste après.
 	if (avcodec_send_frame(ctx, NULL) < 0)
@@ -266,6 +277,7 @@ void FfVideoEncoder::CloseCodec()
 	ctx->hw_device_ctx = dev;
 
 	opened = false;
+	fed    = false;	//contexte vierge : plus rien n'y est entré
 }
 
 /***********************
@@ -639,6 +651,7 @@ VideoFramePtr FfVideoEncoder::EncodeFrame(PictPtr pic)
 		av_packet_free(&pkt);
 		return nullptr;
 	}
+	fed = true;
 
 	DWORD size = 0;
 
