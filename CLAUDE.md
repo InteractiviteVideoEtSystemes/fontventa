@@ -186,7 +186,48 @@ Ce contrat est la **frontière d'ABI** de la bibliothèque : voir « Conventions
     que `libaom-av1`). Un `AVCodecContext` ne se rouvrant pas, la
     reconfiguration à chaud passe par `CloseCodec`/`ReopenCodec` en conservant le
     device VAAPI. Propriété `video.hwaccel.required=1` = **pas de repli
-    logiciel** ; `IsHardwareReady()` renseigne l'appelant.
+    logiciel** ; `video.hwaccel=0` = refus explicite du matériel pour cet
+    encodeur (`required` reste plus fort) ; `IsHardwareReady()` renseigne
+    l'appelant.
+
+### Accélération matérielle : les cinq règles d'allocation
+
+Aucune ne se devine, et **les enfreindre ne produit pas d'erreur** : la vidéo
+disparaît en silence, ou le processus meurt. Chacune a coûté une panne réelle.
+
+1. **Une surface VAAPI s'alloue en `AV_PIX_FMT_NV12`, jamais en `YUV420P`.** Le
+   driver iHD n'encode pas depuis de l'I420. Il échoue image par image alors
+   qu'`avcodec_send_frame` rend toujours 0, donc aucun paquet ne sort jamais, et
+   au bout de ~16 images libavcodec meurt sur `pic->nb_dpb_pics < 16`.
+   `av_hwframe_transfer_data` convertit une trame CPU YUV420P vers une surface
+   NV12 : rien d'autre n'est à faire pour alimenter l'encodeur.
+2. **Un buffersrc avfilter reçoit son `hw_frames_ctx` AVANT d'être initialisé.**
+   Donc `avfilter_graph_alloc_filter` → `av_buffersrc_parameters_set` →
+   `avfilter_init_str`, **jamais** `avfilter_graph_create_filter`, qui initialise
+   séance tenante. Sinon : « *Setting BufferSourceContext.pix_fmt to a HW format
+   requires hw_frames_ctx to be non-NULL!* », la configuration du graphe échoue,
+   et toute mise à l'échelle rend `nullptr` dès que la source décode en matériel.
+3. **Un encodeur matériel retient sa première image.** `EncodeFrame` rend alors
+   `nullptr` **sans que rien n'aille mal** : ce n'est pas un échec, et un
+   appelant qui le traite comme tel n'émet jamais rien. Sur une image FIXE (logo,
+   prologue) on représente la même image jusqu'à ce qu'une trame sorte ; sur un
+   flux, on passe simplement à l'image suivante.
+4. **Ne jamais vider un encodeur qui n'a rien reçu.** `avcodec_send_frame(ctx,
+   NULL)` sur un `h264_vaapi` jamais alimenté segfaute dans libavcodec. Cas banal :
+   un encodeur ouvert à la négociation, fermé avant la première image
+   (`FfVideoEncoder::DrainCodec` s'en garde par son drapeau `fed`).
+5. **Un seul device pour tout le processus** — `Pict::GetVAAPIDevice()`.
+   Décodeurs, encodeurs, uploads et graphes de composition en dérivent tous par
+   `av_buffer_ref` : les filtres `*_vaapi` refusent de mélanger des trames issues
+   de devices distincts. `Pict::DisableVAAPI()` l'éteint pour tout le processus,
+   et doit être appelée **avant** tout usage média — un device déjà distribué
+   survit chez celui qui en tient une référence.
+
+Conséquence pour les tests : un harnais qui suppose « un appel à `EncodeFrame`,
+une trame » devient rouge sur toute machine équipée d'un GPU, et mesure alors la
+latence de l'encodeur au lieu de son sujet. Un test qui porte sur le rate control
+de libx264 (VBV, régimes CRF, consigne à chaud) doit poser `video.hwaccel=0` :
+aucun encodeur VAAPI ne reproduit ces propriétés.
   - `FfAudioEncoder` **n'accumule pas** les échantillons pour l'appelant :
     l'ordre de vie attendu est construction → réglages du dérivé → `TrySetRate()`
     (fixe format/fréquence et crée le resampler S16→natif) → `Open()`
