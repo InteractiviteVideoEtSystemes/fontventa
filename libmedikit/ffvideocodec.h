@@ -188,6 +188,12 @@ protected:
 	// CHAQUE paquet RTP (aucune trame jamais décodée).
 	// Décodage matériel VAAPI exigé (cf. constructeur) : pas de repli logiciel.
 	bool		requireHW;
+
+private:
+	// Compteurs VideoAccel : matériel = la dernière image rendue est une surface.
+	void AccountOutput(const PictPtr& pict);
+	bool		outputOnGpu = false;
+	bool		fallbackCounted = false;
 };
 
 #endif

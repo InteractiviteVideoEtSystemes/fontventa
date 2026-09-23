@@ -142,6 +142,14 @@ void VideoAccel::OnDecoderClosed(bool hw)
 		accelDecodersHw.fetch_sub(1, std::memory_order_relaxed);
 }
 
+void VideoAccel::OnDecoderOutput(bool hw)
+{
+	if (hw)
+		accelDecodersHw.fetch_add(1, std::memory_order_relaxed);
+	else
+		accelDecodersHw.fetch_sub(1, std::memory_order_relaxed);
+}
+
 void VideoAccel::OnHwFallback()
 {
 	// Un repli n'est un événement que si le matériel était utilisable. Sans

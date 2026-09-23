@@ -62,22 +62,30 @@ static bool TryVAAPI(AVCodecContext * ctx, const AVCodec *codec)
 
 // Callback get_format : impose le format matériel VAAPI au décodeur quand il est
 // proposé, sinon celui-ci reste en logiciel sans jamais activer le hwaccel.
+// Clé de refus du profil du flux (VideoAccel::RefuseHw), vide si libavcodec ne
+// le nomme pas.
+static std::string ProfileRefusalKey(const AVCodecContext *ctx)
+{
+	const char* profile = avcodec_profile_name(ctx->codec_id, ctx->profile);
+	if (!profile)
+		return "";
+	std::string key = std::string(avcodec_get_name(ctx->codec_id)) + ".decode.";
+	for (const char* c = profile; *c; c++)
+		key += *c == ' ' ? '_' : (char)tolower((unsigned char)*c);
+	return key;
+}
+
 static enum AVPixelFormat GetVAAPIFormat(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
 {
 	// Le profil n'est connu qu'ici, une fois le SPS lu : c'est donc ici qu'un
 	// profil refusé par la sonde de démarrage part en logiciel.
-	if (const char* profile = avcodec_profile_name(ctx->codec_id, ctx->profile))
+	std::string key = ProfileRefusalKey(ctx);
+	if (!key.empty() && VideoAccel::IsHwRefused(key))
 	{
-		std::string key = std::string(avcodec_get_name(ctx->codec_id)) + ".decode.";
-		for (const char* c = profile; *c; c++)
-			key += *c == ' ' ? '_' : (char)tolower((unsigned char)*c);
-		if (VideoAccel::IsHwRefused(key))
-		{
-			Log("FFMpeg decoder: VAAPI refused for [%s] by the startup probe, using software\n", key.c_str());
-			for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++)
-				if (!(av_pix_fmt_desc_get(*p)->flags & AV_PIX_FMT_FLAG_HWACCEL))
-					return *p;
-		}
+		Log("FFMpeg decoder: VAAPI refused for [%s] by the startup probe, using software\n", key.c_str());
+		for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++)
+			if (!(av_pix_fmt_desc_get(*p)->flags & AV_PIX_FMT_FLAG_HWACCEL))
+				return *p;
 	}
 
 	for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++)
@@ -873,10 +881,6 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 		return;
 	}
 
-	// Repli logiciel : le décodage matériel a été tenté et n'a pas pris.
-	if (!hwOk && !refused)
-		VideoAccel::OnHwFallback();
-
 	//POnemos los valores del contexto
 	ctx->workaround_bugs 	= 255*255;
 	ctx->error_concealment 	= FF_EC_GUESS_MVS | FF_EC_DEBLOCK;
@@ -889,7 +893,33 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 	//Lo abrimos
 	avcodec_open2(ctx, codec, NULL);
 
-	VideoAccel::OnDecoderOpened(IsHardwareReady());
+	VideoAccel::OnDecoderOpened(false);
+}
+
+// Un codec sans chemin VAAPI (libdav1d) n'est pas un repli : il ne visait pas le
+// matériel. Un repli, c'est un device attaché et une image rendue en logiciel
+// sans refus de la sonde — profil que le driver ne décode pas, le plus souvent.
+// Compté une fois par épisode logiciel, pas une fois par image.
+void FfVideoDecoder::AccountOutput(const PictPtr& pict)
+{
+	const bool gpu = pict->IsGPUPict();
+	if (gpu != outputOnGpu)
+	{
+		VideoAccel::OnDecoderOutput(gpu);
+		outputOnGpu = gpu;
+	}
+	if (gpu)
+	{
+		fallbackCounted = false;
+		return;
+	}
+	if (ctx->hw_device_ctx && !fallbackCounted)
+	{
+		std::string key = ProfileRefusalKey(ctx);
+		if (key.empty() || !VideoAccel::IsHwRefused(key))
+			VideoAccel::OnHwFallback();
+		fallbackCounted = true;
+	}
 }
 
 /***********************
@@ -904,7 +934,7 @@ FfVideoDecoder::~FfVideoDecoder()
 	// Symétrique de l'OnDecoderOpened du constructeur, qui n'a lieu que si le
 	// contexte a survécu jusqu'à l'ouverture.
 	if (ctx)
-		VideoAccel::OnDecoderClosed(IsHardwareReady());
+		VideoAccel::OnDecoderClosed(outputOnGpu);
 	// `picture` est un PictPtr : sa destruction (shared_ptr) libère l'AVFrame.
 	avcodec_free_context(&ctx);	// ferme aussi le codec
 }
@@ -976,7 +1006,11 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 
 	if (pkt) av_packet_free(&pkt);
 	// Ne remplace le membre que si on a décodé une trame complète.
-	if (pict) picture = pict;
+	if (pict)
+	{
+		picture = pict;
+		AccountOutput(pict);
+	}
 	return 1;
 error:
 	if (pkt) av_packet_free(&pkt);

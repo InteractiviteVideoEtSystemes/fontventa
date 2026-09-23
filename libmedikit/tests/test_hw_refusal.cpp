@@ -124,6 +124,22 @@ int UnProfilRefuseSeDecodeEnLogiciel()
 	return refusedGpu == 0 && keptGpu >= 5 ? 0 : 1;
 }
 
+int UnProfilRefuseNestPasUnRepli()
+{
+	{
+		H264Decoder dec;
+		if (GpuFrames(dec, "42801F", 0x80) < 5)
+			return 2;
+	}
+	VideoAccel::RefuseHw("h264.decode.baseline");
+	VideoAccelStats before = VideoAccel::GetStats();
+	H264Decoder dec;
+	if (GpuFrames(dec, "42801F", 0x80) != 0)
+		return 3;
+	VideoAccelStats after = VideoAccel::GetStats();
+	return after.hwFallbacks == before.hwFallbacks && after.decodersHw == before.decodersHw ? 0 : 1;
+}
+
 int UnDecodeurRefusePasseEnLogiciel()
 {
 	{
@@ -175,6 +191,12 @@ TEST(HwRefusal, DISABLED_UnProfilRefuseSeDecodeEnLogiciel)
 {
 	GTEST_FLAG_SET(death_test_style, "threadsafe");
 	EXPECT_EXIT(exit(UnProfilRefuseSeDecodeEnLogiciel()), ::testing::ExitedWithCode(0), "");
+}
+
+TEST(HwRefusal, DISABLED_UnProfilRefuseNestPasUnRepli)
+{
+	GTEST_FLAG_SET(death_test_style, "threadsafe");
+	EXPECT_EXIT(exit(UnProfilRefuseNestPasUnRepli()), ::testing::ExitedWithCode(0), "");
 }
 
 TEST(HwRefusal, DISABLED_UnDecodeurRefusePasseEnLogiciel)

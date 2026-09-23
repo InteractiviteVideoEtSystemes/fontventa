@@ -220,6 +220,9 @@ public:
 	static void OnEncoderClosed(bool hw);
 	static void OnDecoderOpened(bool hw);
 	static void OnDecoderClosed(bool hw);
+	// Un décodeur ouvert n'est compté matériel que lorsqu'il rend une surface :
+	// il entre dans decodersHw (hw=true) ou en sort (hw=false) à ce moment-là.
+	static void OnDecoderOutput(bool hw);
 	static void OnHwFallback();
 
 	// Chemins GPU que la sonde de démarrage du serveur a vus échouer : le codec
