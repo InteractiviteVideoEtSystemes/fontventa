@@ -824,6 +824,10 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 		// Sans ce callback le décodeur ne négocie jamais le format matériel
 		// et reste en logiciel malgré hw_device_ctx.
 		ctx->get_format = GetVAAPIFormat;
+	// VAAPI ne décode que le Constrained Baseline, or beaucoup de terminaux SIP
+	// annoncent du Baseline (42801f) sans en utiliser les outils (FMO, ASO).
+	if (ctx->hw_device_ctx && av_codec == AV_CODEC_ID_H264)
+		ctx->hwaccel_flags |= AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH;
 
 	// Mode HW exigé : sans device VAAPI on refuse d'ouvrir le décodeur (pas de
 	// repli logiciel). IsHardwareReady() restera false et Decode() échouera.

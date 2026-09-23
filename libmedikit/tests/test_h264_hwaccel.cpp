@@ -68,3 +68,58 @@ TEST(H264HwVaapi, DISABLED_EncodeDecodeRequiresVaapi)
 	EXPECT_GE(encoded, kFrames - 4) << "encodage materiel muet ou intermittent";
 	EXPECT_GE(decoded, encoded - 1) << "decodage materiel en echec";
 }
+
+// Un terminal SIP annonce couramment du Baseline (42801f) sans en utiliser les
+// outils. VAAPI ne décode que le Constrained Baseline : sans tolérance de
+// profil, le décodeur passait en logiciel sans rien dire.
+TEST(H264HwVaapi, DISABLED_UnFluxBaselineSeDecodeSurGpu)
+{
+	const int W = 320, H = 240;
+	Properties props;
+	props.SetProperty("video.hwaccel", "0");
+	H264Encoder enc(props);
+	enc.SetFrameRate(25, 256, 25);
+	ASSERT_GE(enc.SetSize(W, H), 0);
+
+	H264Decoder dec(/*requireHW*/ true);
+	ASSERT_TRUE(dec.IsHardwareReady()) << "décodeur H264 VAAPI indisponible (pas de GPU ?)";
+
+	int gpuFrames = 0, spsPatched = 0;
+	for (int i = 0; i < 20; i++)
+	{
+		VideoFramePtr vf = enc.EncodeFrame(Pict::CreateColor(W, H, (BYTE)(40 + i * 5), 90, 160));
+		if (!vf)
+			continue;
+
+		// AVCC -> Annex-B, en rabattant le SPS sur 42 80 : ce que déclare le terminal.
+		std::vector<BYTE> ab;
+		BYTE* d = vf->GetData();
+		DWORD len = vf->GetLength(), p = 0;
+		while (p + 4 <= len)
+		{
+			DWORD n = (d[p] << 24) | (d[p+1] << 16) | (d[p+2] << 8) | d[p+3];
+			if (p + 4 + n > len)
+				break;
+			size_t at = ab.size() + 4;
+			ab.insert(ab.end(), { 0, 0, 0, 1 });
+			ab.insert(ab.end(), d + p + 4, d + p + 4 + n);
+			if (n >= 4 && (ab[at] & 0x1f) == 7)
+			{
+				ab[at + 2] = 0x80;
+				spsPatched++;
+			}
+			p += 4 + n;
+		}
+		size_t used = ab.size();
+		ab.resize(used + AV_INPUT_BUFFER_PADDING_SIZE, 0);
+
+		PictPtr before = dec.GetFrame();
+		dec.Decode(ab.data(), used);
+		PictPtr pic = dec.GetFrame();
+		if (pic && pic != before && pic->IsGPUPict())
+			gpuFrames++;
+	}
+
+	ASSERT_GT(spsPatched, 0) << "aucun SPS dans le flux";
+	EXPECT_GE(gpuFrames, 15) << "flux 42801f décodé hors GPU";
+}
