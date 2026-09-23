@@ -1,6 +1,8 @@
 #include "medkit/log.h"
 #include "medkit/video.h"
 #include <atomic>
+#include <mutex>
+#include <set>
 extern "C"
 {
 #include <libavutil/hwcontext.h>
@@ -149,6 +151,21 @@ void VideoAccel::OnHwFallback()
 		return;
 
 	accelHwFallbacks.fetch_add(1, std::memory_order_relaxed);
+}
+
+static std::mutex refusedLock;
+static std::set<std::string> refused;
+
+void VideoAccel::RefuseHw(const std::string& path)
+{
+	std::lock_guard<std::mutex> lock(refusedLock);
+	refused.insert(path);
+}
+
+bool VideoAccel::IsHwRefused(const std::string& path)
+{
+	std::lock_guard<std::mutex> lock(refusedLock);
+	return refused.count(path) != 0;
 }
 
 int Pict::UploadToGPU(PictPtr& out) const

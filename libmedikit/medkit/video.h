@@ -1,6 +1,7 @@
 #ifndef _VIDEO_H_
 #define _VIDEO_H_
 #include <memory>
+#include <string>
 #include "config.h"
 #include "media.h"
 #include "codecs.h"
@@ -220,6 +221,15 @@ public:
 	static void OnDecoderOpened(bool hw);
 	static void OnDecoderClosed(bool hw);
 	static void OnHwFallback();
+
+	// Chemins GPU que la sonde de démarrage du serveur a vus échouer : le codec
+	// ou le filtre ne les tente plus. Par défaut, rien n'est refusé. Un refus
+	// est une décision, pas un repli : il ne compte pas dans hwFallbacks. Clés :
+	// "<codec>.encode", "<codec>.decode" et "<codec>.decode.<profil>" (noms
+	// libavcodec, profil en minuscules, espaces en « _ », ex.
+	// h264.decode.baseline), "scale", "mosaic".
+	static void RefuseHw(const std::string& path);
+	static bool IsHwRefused(const std::string& path);
 };
 
 class VideoInput

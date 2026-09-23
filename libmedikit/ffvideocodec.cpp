@@ -1,8 +1,14 @@
 #include <string.h>
+#include <ctype.h>
+#include <string>
 #include <netinet/in.h>
 #include "medkit/log.h"
 #include "medkit/video.h"
 #include "ffvideocodec.h"
+extern "C"
+{
+#include <libavutil/pixdesc.h>
+}
 
 
 // av_err2str() alloue un tableau temporaire et en prend l'adresse : invalide en C++.
@@ -58,6 +64,22 @@ static bool TryVAAPI(AVCodecContext * ctx, const AVCodec *codec)
 // proposé, sinon celui-ci reste en logiciel sans jamais activer le hwaccel.
 static enum AVPixelFormat GetVAAPIFormat(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
 {
+	// Le profil n'est connu qu'ici, une fois le SPS lu : c'est donc ici qu'un
+	// profil refusé par la sonde de démarrage part en logiciel.
+	if (const char* profile = avcodec_profile_name(ctx->codec_id, ctx->profile))
+	{
+		std::string key = std::string(avcodec_get_name(ctx->codec_id)) + ".decode.";
+		for (const char* c = profile; *c; c++)
+			key += *c == ' ' ? '_' : (char)tolower((unsigned char)*c);
+		if (VideoAccel::IsHwRefused(key))
+		{
+			Log("FFMpeg decoder: VAAPI refused for [%s] by the startup probe, using software\n", key.c_str());
+			for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++)
+				if (!(av_pix_fmt_desc_get(*p)->flags & AV_PIX_FMT_FLAG_HWACCEL))
+					return *p;
+		}
+	}
+
 	for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++)
 		if (*p == AV_PIX_FMT_VAAPI)
 			return *p;
@@ -151,6 +173,15 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 		avcodec_free_context(&ctx);
 	codec = NULL;
 	fed = false;
+
+	const std::string refusal = std::string(avcodec_get_name(avCodecId)) + ".encode";
+	if (tryHW && !hwFailed && VideoAccel::IsHwRefused(refusal))
+	{
+		if (requireHW)
+			return Error("FFMpeg encoder: VAAPI required but refused for [%s] by the startup probe\n", refusal.c_str());
+		Log("FFMpeg encoder: VAAPI refused for [%s] by the startup probe, using software\n", refusal.c_str());
+		tryHW = false;
+	}
 
 	if (tryHW && !hwFailed)
 	{
@@ -819,7 +850,11 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
     }
 	// `picture` (PictPtr) est assigné à chaque Decode() ; pas de pré-allocation ici.
 
-	bool hwOk = TryVAAPI(ctx, codec);
+	const std::string refusal = std::string(avcodec_get_name(av_codec)) + ".decode";
+	const bool refused = VideoAccel::IsHwRefused(refusal);
+	if (refused)
+		Log("FFMpeg decoder: VAAPI refused for [%s] by the startup probe, using software\n", refusal.c_str());
+	bool hwOk = !refused && TryVAAPI(ctx, codec);
 	if (ctx->hw_device_ctx)
 		// Sans ce callback le décodeur ne négocie jamais le format matériel
 		// et reste en logiciel malgré hw_device_ctx.
@@ -839,7 +874,7 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 	}
 
 	// Repli logiciel : le décodage matériel a été tenté et n'a pas pris.
-	if (!hwOk)
+	if (!hwOk && !refused)
 		VideoAccel::OnHwFallback();
 
 	//POnemos los valores del contexto

@@ -206,6 +206,16 @@ PictPtr VideoRescaler::Run(const PictPtr& in, int outW, int outH, bool letterbox
 	if (src->width == outW && src->height == outH)
 		return in;
 
+	// scale_vaapi refusé par la sonde de démarrage : la trame redescend d'abord.
+	PictPtr cpu;
+	if (in->IsGPUPict() && VideoAccel::IsHwRefused("scale"))
+	{
+		cpu = in->DownloadToCPU();
+		if (!cpu)
+			return nullptr;
+		src = cpu->GetAVFrame();
+	}
+
 	if (!Configure(src->width, src->height, src->format, outW, outH, src->hw_frames_ctx,
 	               letterbox))
 		return nullptr;
