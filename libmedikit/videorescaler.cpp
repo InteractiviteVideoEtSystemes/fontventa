@@ -15,7 +15,7 @@ VideoRescaler::VideoRescaler()
 	sinkCtx = NULL;
 	curInW  = curInH = curInFmt = 0;
 	curOutW = curOutH = 0;
-	curHwFramesCtx = NULL;
+	curHwFrames = NULL;
 }
 
 VideoRescaler::~VideoRescaler()
@@ -32,7 +32,7 @@ void VideoRescaler::Release()
 	sinkCtx = NULL;
 	curInW  = curInH = curInFmt = 0;
 	curOutW = curOutH = 0;
-	curHwFramesCtx = NULL;
+	curHwFrames = NULL;
 }
 
 bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, AVBufferRef* hwFramesCtx,
@@ -40,7 +40,7 @@ bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, A
 {
 	// Réutilise le graphe existant si rien n'a changé.
 	if (graph && inW==curInW && inH==curInH && inFmt==curInFmt &&
-	    outW==curOutW && outH==curOutH && hwFramesCtx==curHwFramesCtx &&
+	    outW==curOutW && outH==curOutH && (hwFramesCtx ? hwFramesCtx->data : NULL)==curHwFrames &&
 	    letterbox==curLetterbox)
 		return true;
 
@@ -150,7 +150,7 @@ bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, A
 	}
 
 	curInW = inW; curInH = inH; curInFmt = inFmt;
-	curOutW = outW; curOutH = outH; curHwFramesCtx = hwFramesCtx;
+	curOutW = outW; curOutH = outH; curHwFrames = hwFramesCtx ? hwFramesCtx->data : NULL;
 	curLetterbox = letterbox;
 	return true;
 }

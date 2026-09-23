@@ -58,7 +58,9 @@ private:
 	int curInW, curInH, curInFmt;
 	int curOutW, curOutH;
 	bool curLetterbox = false;   // clé de reconfiguration : scale seul ou scale+pad
-	AVBufferRef* curHwFramesCtx;
+	// Identité du pool (hw_frames_ctx->data), pas de la référence : chaque trame
+	// porte la sienne vers le même pool.
+	const uint8_t* curHwFrames;
 };
 
 #endif
