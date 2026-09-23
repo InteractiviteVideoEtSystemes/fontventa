@@ -215,7 +215,8 @@ TEST(H264EncoderRc, LaBaisseSAppliqueSansTrameCle)
 // Un profile-level-id malformé venu du contrôleur (le chemin /mcu recopie la
 // map XML-RPC sans validation) ne doit pas jeter dans le thread d'encodage —
 // "4d0" faisait un std::out_of_range dans GetProfileLevel (substr(4,2)), donc
-// un terminate() du serveur entier. Repli attendu : 42801F, écrit dans le SPS.
+// un terminate() du serveur entier. Repli attendu : 42801F, écrit dans le SPS
+// avec constraint_set1 (cf. H264EncoderPlid.LeBaselineEstDeclareContraint).
 TEST(H264EncoderPlid, UnPlidMalformeSeReplieSur42801F)
 {
 	const char* bad[] = { "4d0", "z", "", "42e01f7", "profil" };
@@ -232,7 +233,7 @@ TEST(H264EncoderPlid, UnPlidMalformeSeReplieSur42801F)
 		std::vector<BYTE> sps = SpsProfileBytes(vf);
 		ASSERT_EQ(sps.size(), 3u) << "[" << plid << "]";
 		EXPECT_EQ(sps[0], 0x42) << "[" << plid << "]";
-		EXPECT_EQ(sps[1], 0x80) << "[" << plid << "]";
+		EXPECT_EQ(sps[1], 0xC0) << "[" << plid << "]";
 		EXPECT_EQ(sps[2], 0x1F) << "[" << plid << "]";
 	}
 }
@@ -254,6 +255,30 @@ TEST(H264EncoderPlid, UnPlidValideEstConserve)
 	EXPECT_EQ(sps[0], 0x64);
 	EXPECT_EQ(sps[1], 0x0c);
 	EXPECT_EQ(sps[2], 0x1f);
+}
+
+// Un Baseline négocié est émis avec constraint_set1 : le flux EST du Constrained
+// Baseline, et sans ce bit les décodeurs VAAPI le refusent.
+TEST(H264EncoderPlid, LeBaselineEstDeclareContraint)
+{
+	const struct { const char* plid; BYTE flags; } cases[] = {
+		{ "42801F", 0xC0 }, { "42001f", 0x40 }, { "42e01f", 0xE0 },
+	};
+	for (const auto& c : cases)
+	{
+		DWORD seed = 49;
+		Properties props;
+		props.SetProperty("h264.profile-level-id", c.plid);
+		H264Encoder enc(props);
+		ASSERT_EQ(enc.SetFrameRate(FPS, 500, 300), 1) << c.plid;
+		ASSERT_GE(enc.SetSize(W, H), 1) << c.plid;
+		VideoFramePtr vf = EncodeOne(enc, seed);
+		ASSERT_TRUE(vf != nullptr) << c.plid;
+		std::vector<BYTE> sps = SpsProfileBytes(vf);
+		ASSERT_EQ(sps.size(), 3u) << c.plid;
+		EXPECT_EQ(sps[0], 0x42) << c.plid;
+		EXPECT_EQ(sps[1], c.flags) << c.plid;
+	}
 }
 
 namespace {

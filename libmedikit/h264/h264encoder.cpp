@@ -440,6 +440,10 @@ void H264Encoder::PacketizeFrame(VideoFrame& frame)
 
 	// profile-level-id négocié, réécrit dans chaque SPS
 	DWORD profileLevel = strtol(h264ProfileLevelId.c_str(),NULL,16);
+	// Notre baseline est toujours du Constrained Baseline (x264 comme VAAPI) :
+	// effacer constraint_set1 le ferait refuser par les décodeurs VAAPI.
+	if ((profileLevel >> 16) == 66)
+		profileLevel |= 0x4000;
 
 	// Reconstruit la trame en NALs préfixées taille 4 octets
 	BYTE* out = (BYTE*)malloc(len + 4*nalus.size());
