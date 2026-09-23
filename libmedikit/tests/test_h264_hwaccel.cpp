@@ -79,7 +79,7 @@ TEST(H264HwVaapi, DISABLED_UnFluxBaselineSeDecodeSurGpu)
 	props.SetProperty("video.hwaccel", "0");
 	H264Encoder enc(props);
 	enc.SetFrameRate(25, 256, 25);
-	ASSERT_GE(enc.SetSize(W, H), 0);
+	ASSERT_GE(enc.SetSize(W, H), 1);
 
 	H264Decoder dec(/*requireHW*/ true);
 	ASSERT_TRUE(dec.IsHardwareReady()) << "décodeur H264 VAAPI indisponible (pas de GPU ?)";
