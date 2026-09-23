@@ -1,6 +1,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <string>
+#include <mutex>
 #include <netinet/in.h>
 #include "medkit/log.h"
 #include "medkit/video.h"
@@ -17,6 +18,17 @@ static const char* AVErrToStr(int err)
 	static thread_local char buf[AV_ERROR_MAX_STRING_SIZE];
 	av_strerror(err, buf, sizeof(buf));
 	return buf;
+}
+
+// SVT-AV1 < 4.1 (Ubuntu 26.04 ships 2.3.0) shares an unlocked process-global
+// between encoder init and deinit: concurrent open/close crashes the process.
+// See design/ffmpeg9_migration_plan.md §2.1 in the mediaserver repository.
+static std::unique_lock<std::mutex> LockSvtAv1(const AVCodec* codec)
+{
+	static std::mutex lock;
+	if (codec && !strcmp(codec->name, "libsvtav1"))
+		return std::unique_lock<std::mutex>(lock);
+	return std::unique_lock<std::mutex>();
 }
 
 // Retourne true si un device VAAPI a été créé et attaché à ctx->hw_device_ctx.
@@ -178,7 +190,10 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 {
 	// Libère un éventuel contexte précédent (bascule VAAPI -> logiciel).
 	if (ctx)
+	{
+		auto lock = LockSvtAv1(codec);
 		avcodec_free_context(&ctx);
+	}
 	codec = NULL;
 	fed = false;
 
@@ -319,7 +334,10 @@ void FfVideoEncoder::CloseCodec()
 	if (hw_frame)
 		av_frame_free(&hw_frame);
 
-	avcodec_free_context(&ctx);
+	{
+		auto lock = LockSvtAv1(codec);
+		avcodec_free_context(&ctx);
+	}
 	ctx = avcodec_alloc_context3(codec);
 	ctx->hw_device_ctx = dev;
 
@@ -359,7 +377,10 @@ int FfVideoEncoder::FallbackToSoftware()
 
 	if (hw_frame)
 		av_frame_free(&hw_frame);
-	avcodec_free_context(&ctx);
+	{
+		auto lock = LockSvtAv1(codec);
+		avcodec_free_context(&ctx);
+	}
 
 	if (!SelectCodec(false))
 		return 0;
@@ -383,6 +404,7 @@ FfVideoEncoder::~FfVideoEncoder()
 		// encodeur détruit resterait compté comme ouvert.
 		if (opened)
 			VideoAccel::OnEncoderClosed(IsHWAccelerated());
+		auto lock = LockSvtAv1(codec);
 		avcodec_free_context(&ctx);
 	}
 
@@ -511,7 +533,11 @@ int FfVideoEncoder::OpenCodec()
 			return FallbackToSoftware();
 	}
 
-	int openErr = avcodec_open2(ctx, codec, NULL);
+	int openErr;
+	{
+		auto lock = LockSvtAv1(codec);
+		openErr = avcodec_open2(ctx, codec, NULL);
+	}
 
 	if (openErr<0)
 	{

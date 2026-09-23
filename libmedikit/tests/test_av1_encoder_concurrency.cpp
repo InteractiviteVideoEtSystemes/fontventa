@@ -1,14 +1,14 @@
 /**
  * test_av1_encoder_concurrency.cpp — plusieurs encodeurs AV1 s'ouvrent et se
- * ferment en même temps sans verrou côté libmedkit.
+ * ferment en même temps sans planter le processus.
  *
- * SVT-AV1 0.9.0 tenait son inventaire de processeurs dans un global sans
- * verrou : deux pattes qui ouvraient ou fermaient leur encodeur à quelques
- * millisecondes d'écart faisaient déréférencer NULL (SIGSEGV en trafic réel,
- * 2026-08-13). Le paquet ffmpeg 9 IVèS embarque SVT-AV1 4.2.0, dont le
- * changelog 4.1 ajoute les mutex nécessaires ; libmedkit ne sérialise donc
- * plus rien. Ce test reproduit le scénario : si la course revient avec un
- * futur paquet, il plante.
+ * Avant 4.1, SVT-AV1 partage entre l'init et le deinit d'un encodeur un état
+ * global de processus, sans verrou : deux pattes qui ouvrent ou ferment leur
+ * encodeur à quelques millisecondes d'écart déréférencent NULL (SIGSEGV en
+ * trafic réel avec 0.9.0, 2026-08-13 ; 3 exécutions sur 10 de ce test avec
+ * 2.3.0, Ubuntu 26.04, 2026-09-23). FfVideoEncoder sérialise donc ouverture et
+ * destruction des contextes libsvtav1. Ce test reproduit le scénario : il
+ * plante si ce verrou disparaît alors que la version liée en a besoin.
  */
 #include <gtest/gtest.h>
 #include <thread>
