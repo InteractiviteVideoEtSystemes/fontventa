@@ -1,8 +1,15 @@
 #include <string.h>
+#include <ctype.h>
+#include <string>
+#include <mutex>
 #include <netinet/in.h>
 #include "medkit/log.h"
 #include "medkit/video.h"
 #include "ffvideocodec.h"
+extern "C"
+{
+#include <libavutil/pixdesc.h>
+}
 
 
 // av_err2str() alloue un tableau temporaire et en prend l'adresse : invalide en C++.
@@ -11,6 +18,17 @@ static const char* AVErrToStr(int err)
 	static thread_local char buf[AV_ERROR_MAX_STRING_SIZE];
 	av_strerror(err, buf, sizeof(buf));
 	return buf;
+}
+
+// SVT-AV1 < 4.1 (Ubuntu 26.04 ships 2.3.0) shares an unlocked process-global
+// between encoder init and deinit: concurrent open/close crashes the process.
+// See design/ffmpeg9_migration_plan.md §2.1 in the mediaserver repository.
+static std::unique_lock<std::mutex> LockSvtAv1(const AVCodec* codec)
+{
+	static std::mutex lock;
+	if (codec && !strcmp(codec->name, "libsvtav1"))
+		return std::unique_lock<std::mutex>(lock);
+	return std::unique_lock<std::mutex>();
 }
 
 // Retourne true si un device VAAPI a été créé et attaché à ctx->hw_device_ctx.
@@ -56,8 +74,32 @@ static bool TryVAAPI(AVCodecContext * ctx, const AVCodec *codec)
 
 // Callback get_format : impose le format matériel VAAPI au décodeur quand il est
 // proposé, sinon celui-ci reste en logiciel sans jamais activer le hwaccel.
+// Clé de refus du profil du flux (VideoAccel::RefuseHw), vide si libavcodec ne
+// le nomme pas.
+static std::string ProfileRefusalKey(const AVCodecContext *ctx)
+{
+	const char* profile = avcodec_profile_name(ctx->codec_id, ctx->profile);
+	if (!profile)
+		return "";
+	std::string key = std::string(avcodec_get_name(ctx->codec_id)) + ".decode.";
+	for (const char* c = profile; *c; c++)
+		key += *c == ' ' ? '_' : (char)tolower((unsigned char)*c);
+	return key;
+}
+
 static enum AVPixelFormat GetVAAPIFormat(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts)
 {
+	// Le profil n'est connu qu'ici, une fois le SPS lu : c'est donc ici qu'un
+	// profil refusé par la sonde de démarrage part en logiciel.
+	std::string key = ProfileRefusalKey(ctx);
+	if (!key.empty() && VideoAccel::IsHwRefused(key))
+	{
+		Log("FFMpeg decoder: VAAPI refused for [%s] by the startup probe, using software\n", key.c_str());
+		for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++)
+			if (!(av_pix_fmt_desc_get(*p)->flags & AV_PIX_FMT_FLAG_HWACCEL))
+				return *p;
+	}
+
 	for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; p++)
 		if (*p == AV_PIX_FMT_VAAPI)
 			return *p;
@@ -82,7 +124,7 @@ static void AllocateVAAPIFrame(AVCodecContext * ctx)
 			AVHWFramesContext *frames_ctx = (AVHWFramesContext *)ctx->hw_frames_ctx->data;
 
             frames_ctx->format = AV_PIX_FMT_VAAPI;
-            frames_ctx->sw_format = AV_PIX_FMT_YUV420P;
+            frames_ctx->sw_format = AV_PIX_FMT_NV12;
             frames_ctx->width = ctx->width;
             frames_ctx->height = ctx->height;
             frames_ctx->initial_pool_size = 20;
@@ -122,6 +164,7 @@ FfVideoEncoder::FfVideoEncoder(const Properties& properties, enum AVCodecID av_c
 	format  = 0;
 	avCodecId = av_codec;
 	hwFailed = false;
+	fed	= false;
 	pts	= 0;
 	openedFps = 0;
 	forceIntra = false;
@@ -147,8 +190,21 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 {
 	// Libère un éventuel contexte précédent (bascule VAAPI -> logiciel).
 	if (ctx)
+	{
+		auto lock = LockSvtAv1(codec);
 		avcodec_free_context(&ctx);
+	}
 	codec = NULL;
+	fed = false;
+
+	const std::string refusal = std::string(avcodec_get_name(avCodecId)) + ".encode";
+	if (tryHW && !hwFailed && VideoAccel::IsHwRefused(refusal))
+	{
+		if (requireHW)
+			return Error("FFMpeg encoder: VAAPI required but refused for [%s] by the startup probe\n", refusal.c_str());
+		Log("FFMpeg encoder: VAAPI refused for [%s] by the startup probe, using software\n", refusal.c_str());
+		tryHW = false;
+	}
 
 	if (tryHW && !hwFailed)
 	{
@@ -188,6 +244,7 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 				if (requireHW)
 					return Error("FFMpeg encoder: VAAPI device required but unavailable\n");
 				Log("FFMpeg encoder: no usable VAAPI device, falling back to software\n");
+				VideoAccel::OnHwFallback();
 			}
 			else
 			{
@@ -203,6 +260,7 @@ bool FfVideoEncoder::SelectCodec(bool tryHW)
 			if (requireHW)
 				return Error("FFMpeg encoder: VAAPI encoder required but none for [%s]\n", avcodec_get_name(avCodecId));
 			Log("FFMpeg encoder: no VAAPI encoder for [%s], using software\n", avcodec_get_name(avCodecId));
+			VideoAccel::OnHwFallback();
 		}
 	}
 
@@ -236,6 +294,15 @@ void FfVideoEncoder::DrainCodec()
 	if (!ctx || !opened)
 		return;
 
+	// Rien n'est jamais entré : il n'y a rien à vider, et le demander quand
+	// même TUE le processus. h264_vaapi déréférence son état d'encodage dans
+	// avcodec_send_frame(NULL) sans avoir vu une seule trame (segfault dans
+	// libavcodec 62, reproduit hors de cette bibliothèque). Le cas est banal en
+	// exploitation : un participant dont l'encodeur s'ouvre à la négociation et
+	// qui raccroche avant la première image.
+	if (!fed)
+		return;
+
 	// La trame NULL déclare la fin du flux ; l'encodeur n'accepte plus rien
 	// ensuite, ce qui est le cas ici : le contexte est détruit juste après.
 	if (avcodec_send_frame(ctx, NULL) < 0)
@@ -255,17 +322,27 @@ void FfVideoEncoder::CloseCodec()
 
 	DrainCodec();
 
+	// Le compteur suit les codecs OUVERTS : cette fermeture en retire un, la
+	// réouverture qui suit en remettra un. Relevé avant de remplacer le
+	// contexte, qui est ce qui porte la nature matérielle de l'encodeur.
+	if (opened)
+		VideoAccel::OnEncoderClosed(IsHWAccelerated());
+
 	// Conserve le device VAAPI pour le contexte suivant
 	AVBufferRef *dev = ctx->hw_device_ctx ? av_buffer_ref(ctx->hw_device_ctx) : NULL;
 
 	if (hw_frame)
 		av_frame_free(&hw_frame);
 
-	avcodec_free_context(&ctx);
+	{
+		auto lock = LockSvtAv1(codec);
+		avcodec_free_context(&ctx);
+	}
 	ctx = avcodec_alloc_context3(codec);
 	ctx->hw_device_ctx = dev;
 
 	opened = false;
+	fed    = false;	//contexte vierge : plus rien n'y est entré
 }
 
 /***********************
@@ -296,10 +373,14 @@ int FfVideoEncoder::FallbackToSoftware()
 	int height = ctx->height;
 
 	hwFailed = true;
+	VideoAccel::OnHwFallback();
 
 	if (hw_frame)
 		av_frame_free(&hw_frame);
-	avcodec_free_context(&ctx);
+	{
+		auto lock = LockSvtAv1(codec);
+		avcodec_free_context(&ctx);
+	}
 
 	if (!SelectCodec(false))
 		return 0;
@@ -319,6 +400,11 @@ FfVideoEncoder::~FfVideoEncoder()
 	if (ctx)
 	{
 		DrainCodec();
+		// Ce destructeur ne passe pas par CloseCodec : sans ce décompte, tout
+		// encodeur détruit resterait compté comme ouvert.
+		if (opened)
+			VideoAccel::OnEncoderClosed(IsHWAccelerated());
+		auto lock = LockSvtAv1(codec);
 		avcodec_free_context(&ctx);
 	}
 
@@ -447,7 +533,11 @@ int FfVideoEncoder::OpenCodec()
 			return FallbackToSoftware();
 	}
 
-	int openErr = avcodec_open2(ctx, codec, NULL);
+	int openErr;
+	{
+		auto lock = LockSvtAv1(codec);
+		openErr = avcodec_open2(ctx, codec, NULL);
+	}
 
 	if (openErr<0)
 	{
@@ -463,6 +553,7 @@ int FfVideoEncoder::OpenCodec()
 
 	// We are opened
 	opened=true;
+	VideoAccel::OnEncoderOpened(IsHWAccelerated());
 
 	// Références des politiques de réouverture (ShouldReopenForBitrate/ForFps)
 	openedBitrate = bitrate;
@@ -639,6 +730,7 @@ VideoFramePtr FfVideoEncoder::EncodeFrame(PictPtr pic)
 		av_packet_free(&pkt);
 		return nullptr;
 	}
+	fed = true;
 
 	DWORD size = 0;
 
@@ -792,11 +884,19 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
     }
 	// `picture` (PictPtr) est assigné à chaque Decode() ; pas de pré-allocation ici.
 
-	bool hwOk = TryVAAPI(ctx, codec);
+	const std::string refusal = std::string(avcodec_get_name(av_codec)) + ".decode";
+	const bool refused = VideoAccel::IsHwRefused(refusal);
+	if (refused)
+		Log("FFMpeg decoder: VAAPI refused for [%s] by the startup probe, using software\n", refusal.c_str());
+	bool hwOk = !refused && TryVAAPI(ctx, codec);
 	if (ctx->hw_device_ctx)
 		// Sans ce callback le décodeur ne négocie jamais le format matériel
 		// et reste en logiciel malgré hw_device_ctx.
 		ctx->get_format = GetVAAPIFormat;
+	// VAAPI ne décode que le Constrained Baseline, or beaucoup de terminaux SIP
+	// annoncent du Baseline (42801f) sans en utiliser les outils (FMO, ASO).
+	if (ctx->hw_device_ctx && av_codec == AV_CODEC_ID_H264)
+		ctx->hwaccel_flags |= AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH;
 
 	// Mode HW exigé : sans device VAAPI on refuse d'ouvrir le décodeur (pas de
 	// repli logiciel). IsHardwareReady() restera false et Decode() échouera.
@@ -818,6 +918,34 @@ FfVideoDecoder::FfVideoDecoder(enum AVCodecID av_codec, enum VideoCodec::Type co
 
 	//Lo abrimos
 	avcodec_open2(ctx, codec, NULL);
+
+	VideoAccel::OnDecoderOpened(false);
+}
+
+// Un codec sans chemin VAAPI (libdav1d) n'est pas un repli : il ne visait pas le
+// matériel. Un repli, c'est un device attaché et une image rendue en logiciel
+// sans refus de la sonde — profil que le driver ne décode pas, le plus souvent.
+// Compté une fois par épisode logiciel, pas une fois par image.
+void FfVideoDecoder::AccountOutput(const PictPtr& pict)
+{
+	const bool gpu = pict->IsGPUPict();
+	if (gpu != outputOnGpu)
+	{
+		VideoAccel::OnDecoderOutput(gpu);
+		outputOnGpu = gpu;
+	}
+	if (gpu)
+	{
+		fallbackCounted = false;
+		return;
+	}
+	if (ctx->hw_device_ctx && !fallbackCounted)
+	{
+		std::string key = ProfileRefusalKey(ctx);
+		if (key.empty() || !VideoAccel::IsHwRefused(key))
+			VideoAccel::OnHwFallback();
+		fallbackCounted = true;
+	}
 }
 
 /***********************
@@ -829,6 +957,10 @@ FfVideoDecoder::~FfVideoDecoder()
 	free(buffer);
 	if (parser_ctx)
 		av_parser_close(parser_ctx);
+	// Symétrique de l'OnDecoderOpened du constructeur, qui n'a lieu que si le
+	// contexte a survécu jusqu'à l'ouverture.
+	if (ctx)
+		VideoAccel::OnDecoderClosed(outputOnGpu);
 	// `picture` est un PictPtr : sa destruction (shared_ptr) libère l'AVFrame.
 	avcodec_free_context(&ctx);	// ferme aussi le codec
 }
@@ -900,7 +1032,11 @@ int FfVideoDecoder::Decode(BYTE *buffer,DWORD size)
 
 	if (pkt) av_packet_free(&pkt);
 	// Ne remplace le membre que si on a décodé une trame complète.
-	if (pict) picture = pict;
+	if (pict)
+	{
+		picture = pict;
+		AccountOutput(pict);
+	}
 	return 1;
 error:
 	if (pkt) av_packet_free(&pkt);

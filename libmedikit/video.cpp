@@ -1,5 +1,8 @@
 #include "medkit/log.h"
 #include "medkit/video.h"
+#include <atomic>
+#include <mutex>
+#include <set>
 extern "C"
 {
 #include <libavutil/hwcontext.h>
@@ -66,11 +69,111 @@ static AVBufferRef* GetSharedVAAPIDevice()
 	return device;
 }
 
+// Accélération éteinte par configuration (Pict::DisableVAAPI). Testé À CHAQUE
+// appel plutôt qu'au moment de créer le device : le magic static ci-dessus est
+// figé dès la première sonde, or un appelant peut éteindre après elle.
+static std::atomic<bool> vaapiDisabled(false);
+
 // Accesseur public du device partagé (cf. medkit/video.h) : décodeurs,
 // encodeurs et graphes de composition doivent TOUS dériver de ce device.
 AVBufferRef* Pict::GetVAAPIDevice()
 {
+	if (vaapiDisabled.load(std::memory_order_relaxed))
+		return nullptr;
+
 	return GetSharedVAAPIDevice();
+}
+
+void Pict::DisableVAAPI()
+{
+	vaapiDisabled.store(true, std::memory_order_relaxed);
+}
+
+/***********************
+* VideoAccel
+*	Compteurs d'accélération vidéo (cf. medkit/video.h)
+************************/
+static std::atomic<int> accelEncoders(0);
+static std::atomic<int> accelEncodersHw(0);
+static std::atomic<int> accelDecoders(0);
+static std::atomic<int> accelDecodersHw(0);
+static std::atomic<int> accelHwFallbacks(0);
+
+VideoAccelStats VideoAccel::GetStats()
+{
+	// Lecture non atomique de l'ENSEMBLE : les cinq compteurs peuvent bouger
+	// entre deux lectures. Un statut est une photo, pas un invariant — et
+	// prendre un verrou sur le chemin d'ouverture des codecs pour rendre cette
+	// photo cohérente coûterait plus que ce qu'elle rapporte.
+	VideoAccelStats s;
+	s.encoders	= accelEncoders.load(std::memory_order_relaxed);
+	s.encodersHw	= accelEncodersHw.load(std::memory_order_relaxed);
+	s.decoders	= accelDecoders.load(std::memory_order_relaxed);
+	s.decodersHw	= accelDecodersHw.load(std::memory_order_relaxed);
+	s.hwFallbacks	= accelHwFallbacks.load(std::memory_order_relaxed);
+	return s;
+}
+
+void VideoAccel::OnEncoderOpened(bool hw)
+{
+	accelEncoders.fetch_add(1, std::memory_order_relaxed);
+	if (hw)
+		accelEncodersHw.fetch_add(1, std::memory_order_relaxed);
+}
+
+void VideoAccel::OnEncoderClosed(bool hw)
+{
+	accelEncoders.fetch_sub(1, std::memory_order_relaxed);
+	if (hw)
+		accelEncodersHw.fetch_sub(1, std::memory_order_relaxed);
+}
+
+void VideoAccel::OnDecoderOpened(bool hw)
+{
+	accelDecoders.fetch_add(1, std::memory_order_relaxed);
+	if (hw)
+		accelDecodersHw.fetch_add(1, std::memory_order_relaxed);
+}
+
+void VideoAccel::OnDecoderClosed(bool hw)
+{
+	accelDecoders.fetch_sub(1, std::memory_order_relaxed);
+	if (hw)
+		accelDecodersHw.fetch_sub(1, std::memory_order_relaxed);
+}
+
+void VideoAccel::OnDecoderOutput(bool hw)
+{
+	if (hw)
+		accelDecodersHw.fetch_add(1, std::memory_order_relaxed);
+	else
+		accelDecodersHw.fetch_sub(1, std::memory_order_relaxed);
+}
+
+void VideoAccel::OnHwFallback()
+{
+	// Un repli n'est un événement que si le matériel était utilisable. Sans
+	// device, tout le processus est logiciel : le dire une fois au démarrage
+	// suffit, le répéter par codec noierait le signal.
+	if (!Pict::GetVAAPIDevice())
+		return;
+
+	accelHwFallbacks.fetch_add(1, std::memory_order_relaxed);
+}
+
+static std::mutex refusedLock;
+static std::set<std::string> refused;
+
+void VideoAccel::RefuseHw(const std::string& path)
+{
+	std::lock_guard<std::mutex> lock(refusedLock);
+	refused.insert(path);
+}
+
+bool VideoAccel::IsHwRefused(const std::string& path)
+{
+	std::lock_guard<std::mutex> lock(refusedLock);
+	return refused.count(path) != 0;
 }
 
 int Pict::UploadToGPU(PictPtr& out) const

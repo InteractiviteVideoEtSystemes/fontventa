@@ -17,6 +17,11 @@ extern "C" {
 #include <libavutil/mathematics.h>
 }
 
+// Les FF_PROFILE_* sont devenus AV_PROFILE_* en ffmpeg 7, et ont disparu en 8.
+#ifndef AV_PROFILE_AAC_LOW
+#define AV_PROFILE_AAC_LOW FF_PROFILE_AAC_LOW
+#endif
+
 // Durée maximale d'affichage d'un sous-titre, comme mp4writer.
 #define MAX_SUBTITLE_DURATION 7000
 

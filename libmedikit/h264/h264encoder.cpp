@@ -52,6 +52,17 @@ int H264Encoder::WantedPacketizationMode(const Properties& properties)
 
 bool H264Encoder::WantsHardware(const Properties& properties)
 {
+	// Refus explicite du matériel pour CET encodeur, pendant de
+	// `video.hwaccel.required`. Sert à qui a besoin du rate control de libx264 —
+	// VBV, régimes CRF, consigne appliquée à chaud sans trame clé — qu'aucun
+	// encodeur VAAPI ne reproduit. `required` reste plus fort : FfVideoEncoder
+	// ouvre alors le matériel malgré ce refus, ce qui est le sens d'une exigence.
+	if (properties.GetProperty("video.hwaccel", 1) == 0)
+	{
+		Log("-H264Encoder: hardware encoding declined by configuration\n");
+		return false;
+	}
+
 	if (WantedPacketizationMode(properties) != 0)
 		return true;
 
@@ -429,6 +440,10 @@ void H264Encoder::PacketizeFrame(VideoFrame& frame)
 
 	// profile-level-id négocié, réécrit dans chaque SPS
 	DWORD profileLevel = strtol(h264ProfileLevelId.c_str(),NULL,16);
+	// Notre baseline est toujours du Constrained Baseline (x264 comme VAAPI) :
+	// effacer constraint_set1 le ferait refuser par les décodeurs VAAPI.
+	if ((profileLevel >> 16) == 66)
+		profileLevel |= 0x4000;
 
 	// Reconstruit la trame en NALs préfixées taille 4 octets
 	BYTE* out = (BYTE*)malloc(len + 4*nalus.size());

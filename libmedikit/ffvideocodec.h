@@ -128,6 +128,10 @@ protected:
 	// Accélération matérielle EXIGÉE (propriété "video.hwaccel.required") : aucun
 	// repli logiciel n'est autorisé ; l'ouverture échoue si VAAPI est indisponible.
 	bool		requireHW;
+	// Le contexte COURANT a-t-il reçu au moins une trame ? Sans cela, le vider
+	// fait segfauler h264_vaapi (cf. DrainCodec). Remis à faux à chaque nouveau
+	// contexte.
+	bool		fed;
 
 	//Hardware acceleration
 	AVFrame *hw_frame;
@@ -184,6 +188,12 @@ protected:
 	// CHAQUE paquet RTP (aucune trame jamais décodée).
 	// Décodage matériel VAAPI exigé (cf. constructeur) : pas de repli logiciel.
 	bool		requireHW;
+
+private:
+	// Compteurs VideoAccel : matériel = la dernière image rendue est une surface.
+	void AccountOutput(const PictPtr& pict);
+	bool		outputOnGpu = false;
+	bool		fallbackCounted = false;
 };
 
 #endif

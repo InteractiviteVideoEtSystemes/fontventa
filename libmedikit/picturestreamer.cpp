@@ -54,7 +54,14 @@ VideoFramePtr PictureStreamer::Stream(bool askiframe)
 		return nullptr;
 	}
 
-	VideoFramePtr vf = encoder->EncodeFrame( pict );
+	// Un encodeur MATÉRIEL retient sa première image : EncodeFrame rend alors
+	// nullptr sans que rien n'aille mal. L'image d'un PictureStreamer étant FIXE,
+	// la représenter ne change rien à ce qui sortira. Sans cela, ni le prologue
+	// vidéo ni le logo ne produisent la moindre trame dès que le GPU encode — le
+	// prologue annonçait « 0 trame noire » pour un délai de 357 ms.
+	VideoFramePtr vf;
+	for (int attempt = 0; attempt < 4 && vf == NULL; ++attempt)
+		vf = encoder->EncodeFrame( pict );
 
 	if (vf == NULL) Error("-PictureStreamer: fail to encode picture. Cannot stream.\n");
 

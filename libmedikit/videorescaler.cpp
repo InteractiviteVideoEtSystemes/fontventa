@@ -15,7 +15,7 @@ VideoRescaler::VideoRescaler()
 	sinkCtx = NULL;
 	curInW  = curInH = curInFmt = 0;
 	curOutW = curOutH = 0;
-	curHwFramesCtx = NULL;
+	curHwFrames = NULL;
 }
 
 VideoRescaler::~VideoRescaler()
@@ -32,7 +32,7 @@ void VideoRescaler::Release()
 	sinkCtx = NULL;
 	curInW  = curInH = curInFmt = 0;
 	curOutW = curOutH = 0;
-	curHwFramesCtx = NULL;
+	curHwFrames = NULL;
 }
 
 bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, AVBufferRef* hwFramesCtx,
@@ -40,7 +40,7 @@ bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, A
 {
 	// Réutilise le graphe existant si rien n'a changé.
 	if (graph && inW==curInW && inH==curInH && inFmt==curInFmt &&
-	    outW==curOutW && outH==curOutH && hwFramesCtx==curHwFramesCtx &&
+	    outW==curOutW && outH==curOutH && (hwFramesCtx ? hwFramesCtx->data : NULL)==curHwFrames &&
 	    letterbox==curLetterbox)
 		return true;
 
@@ -52,29 +52,31 @@ bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, A
 
 	const bool gpu = (inFmt == AV_PIX_FMT_VAAPI);
 
-	// Source (buffer).
-	char args[512];
-	snprintf(args, sizeof(args),
-	         "video_size=%dx%d:pix_fmt=%d:time_base=1/1:pixel_aspect=1/1",
-	         inW, inH, inFmt);
+	// Source (buffer). ALLOUÉE PUIS INITIALISÉE EN DEUX TEMPS, et l'ordre est tout :
+	// avfilter_graph_create_filter initialiserait le filtre séance tenante, or un
+	// buffersrc refuse un pix_fmt matériel tant qu'il n'a pas son hw_frames_ctx
+	// (« Setting BufferSourceContext.pix_fmt to a HW format requires hw_frames_ctx
+	// to be non-NULL! »). Le poser après coup arrive trop tard : la configuration du
+	// graphe échoue, Rescale rend nullptr, et plus AUCUNE image ne sort dès que la
+	// source décode en matériel.
+	srcCtx = avfilter_graph_alloc_filter(graph, avfilter_get_by_name("buffer"), "in");
+	if (!srcCtx) { Release(); return false; }
 
-	int ret = avfilter_graph_create_filter(&srcCtx, avfilter_get_by_name("buffer"), "in", args, NULL, graph);
+	AVBufferSrcParameters* par = av_buffersrc_parameters_alloc();
+	if (!par) { Release(); return false; }
+	par->format              = inFmt;
+	par->width               = inW;
+	par->height              = inH;
+	par->time_base           = av_make_q(1, 1);
+	par->sample_aspect_ratio = av_make_q(1, 1);
+	// Non nul pour une surface GPU seulement ; un NULL est ignoré.
+	par->hw_frames_ctx       = hwFramesCtx;
+	int ret = av_buffersrc_parameters_set(srcCtx, par);
+	av_free(par);
 	if (ret < 0) { Release(); return false; }
 
-	// Pour les filtres *_vaapi, le buffersrc doit connaître le hw_frames_ctx.
-	if (gpu && hwFramesCtx)
-	{
-		AVBufferSrcParameters* par = av_buffersrc_parameters_alloc();
-		if (!par) { Release(); return false; }
-		par->format        = inFmt;
-		par->width         = inW;
-		par->height        = inH;
-		par->time_base     = av_make_q(1, 1);
-		par->hw_frames_ctx = hwFramesCtx;
-		ret = av_buffersrc_parameters_set(srcCtx, par);
-		av_free(par);
-		if (ret < 0) { Release(); return false; }
-	}
+	ret = avfilter_init_str(srcCtx, NULL);
+	if (ret < 0) { Release(); return false; }
 
 	// Puits (buffersink).
 	ret = avfilter_graph_create_filter(&sinkCtx, avfilter_get_by_name("buffersink"), "out", NULL, NULL, graph);
@@ -148,7 +150,7 @@ bool VideoRescaler::Configure(int inW, int inH, int inFmt, int outW, int outH, A
 	}
 
 	curInW = inW; curInH = inH; curInFmt = inFmt;
-	curOutW = outW; curOutH = outH; curHwFramesCtx = hwFramesCtx;
+	curOutW = outW; curOutH = outH; curHwFrames = hwFramesCtx ? hwFramesCtx->data : NULL;
 	curLetterbox = letterbox;
 	return true;
 }
@@ -203,6 +205,16 @@ PictPtr VideoRescaler::Run(const PictPtr& in, int outW, int outH, bool letterbox
 	// que si les ratios coïncident, cf. Letterbox().)
 	if (src->width == outW && src->height == outH)
 		return in;
+
+	// scale_vaapi refusé par la sonde de démarrage : la trame redescend d'abord.
+	PictPtr cpu;
+	if (in->IsGPUPict() && VideoAccel::IsHwRefused("scale"))
+	{
+		cpu = in->DownloadToCPU();
+		if (!cpu)
+			return nullptr;
+		src = cpu->GetAVFrame();
+	}
 
 	if (!Configure(src->width, src->height, src->format, outW, outH, src->hw_frames_ctx,
 	               letterbox))

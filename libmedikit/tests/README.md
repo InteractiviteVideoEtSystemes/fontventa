@@ -47,7 +47,7 @@ Filtrer une suite ou un test précis :
 | `test_mp4_roundtrip.cpp` | `Mp4RoundTrip` | Écriture (`mp4writer`) → relecture (`Mp4FfReader`) audio PCMU + vidéo H264 |
 | `test_mp4_transcode.cpp` | `Mp4Transcode` | Transcodage `titi.mp4` : H264→H263 + AAC→AMR-NB → enregistrement `.3gp` → relecture |
 | `test_h264_hwaccel.cpp` | `H264HwVaapi` | Encodage + décodage H264 **VAAPI** (accélération matérielle exigée) — **DÉSACTIVÉ par défaut** |
-| `test_av1_encoder_concurrency.cpp` | `Av1EncoderConcurrency` | Ouvertures et fermetures simultanées d'encodeurs AV1 (SVT-AV1) depuis plusieurs threads, sans verrou côté libmedkit |
+| `test_av1_encoder_concurrency.cpp` | `Av1EncoderConcurrency` | Ouvertures et fermetures simultanées d'encodeurs AV1 (SVT-AV1) depuis plusieurs threads ; garde le verrou libsvtav1 de `FfVideoEncoder` |
 | `test_vp8_realtime.cpp` | `Vp8Realtime` | Options temps réel posées sur libvpx à l'ouverture (déterministe) ; coût par image 720p borné — **DÉSACTIVÉ par défaut**, cible `make check-perf` |
 
 ### Tests désactivés par défaut (`DISABLED_`)
