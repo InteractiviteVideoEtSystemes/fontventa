@@ -49,7 +49,7 @@ public:
 	typedef std::vector<RtpPacketization*> RtpPacketizationInfo;
 public:
 	enum Type {Audio=0,Video=1,Text=2,Application=3};
-	enum MediaRole {VIDEO_MAIN=0,VIDEO_SLIDES=1 };
+	enum MediaRole : int {VIDEO_MAIN=0,VIDEO_SLIDES=1,VIDEO_EXTRA=2 };
 
 	static const char * TypeToString(Type type)
 	{
@@ -77,7 +77,7 @@ public:
 			case VIDEO_SLIDES:
 				return "Slides";
 			default:
-				return "Unknown";
+				return role >= VIDEO_EXTRA ? "Extra" : "Unknown";
 		}
 	}
 
