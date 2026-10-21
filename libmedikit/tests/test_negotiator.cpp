@@ -672,3 +672,30 @@ TEST(AV1Clamp, SansBorneNiTouche)
 	EXPECT_EQ(w, 1920);
 	EXPECT_EQ(fps, 60);
 }
+
+// AMR-WB offert sous deux PT, comme le font les offres VoLTE : l'un en
+// octet-aligned borné aux trois premiers modes, l'autre en bandwidth-efficient.
+// Chacun repart avec SON fmtp, et un PT qui demande le CRC n'est pas accepté.
+TEST(NegotiatorAMR, ChaquePtGardeSonModeDeChargeUtile)
+{
+	std::map<int,int> proposed;
+	proposed[96] = AudioCodec::AMRWB;
+	proposed[97] = AudioCodec::AMRWB;
+	proposed[98] = AudioCodec::AMRWB;
+
+	Properties remote;
+	remote["pt.96.fmtp"] = "octet-align=1; mode-set=0,1,2";
+	remote["pt.98.fmtp"] = "octet-align=1;crc=1";
+
+	NegotiationResult out;
+	ASSERT_TRUE(CodecNegotiator::Negotiate(MediaFrame::Audio, proposed, Properties(), &remote, out));
+
+	EXPECT_EQ(FmtpOf(out, 96), "octet-align=1;mode-set=0,1,2");
+	EXPECT_EQ(FmtpOf(out, 97), "");
+	EXPECT_EQ(FmtpOf(out, 98), "(pt absent)");
+	EXPECT_EQ(out.acceptedMap.count(98), 0u);
+
+	ASSERT_EQ(out.codecs.size(), 2u);
+	EXPECT_EQ(out.codecs[0].effectiveProps.GetProperty("amrwb.mode", -1), 2);
+	EXPECT_EQ(out.codecs[1].effectiveProps.GetProperty("amrwb.mode", -1), 8);
+}

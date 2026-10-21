@@ -15,10 +15,13 @@ AMRNBEncoder::AMRNBEncoder(const Properties &properties) :
 	defaultSampleRate = 8000;
 	TrySetRate(8000);
 
-	// L'encodeur AMR-NB exige un débit correspondant à un mode valide.
-	// 12,2 kbit/s (MR122), le mode le plus courant.
+	// L'encodeur AMR-NB exige un débit correspondant à un mode valide. Le plus
+	// haut que la négociation permet (`amr.mode`, RFC 4867 mode-set), 12,2 kbit/s
+	// (MR122) par défaut.
+	static const int nbRates[] = { 4750, 5150, 5900, 6700, 7400, 7950, 10200, 12200 };
+	const int nbMode = properties.GetProperty("amr.mode", 7);
 	if (ctx)
-		ctx->bit_rate = 12200;
+		ctx->bit_rate = nbRates[nbMode >= 0 && nbMode <= 7 ? nbMode : 7];
 
 	Open();
 
@@ -43,9 +46,12 @@ AMRWBEncoder::AMRWBEncoder(const Properties &properties) :
 	defaultSampleRate = 16000;
 	TrySetRate(16000);
 
-	// Débit correspondant à un mode AMR-WB valide : 23,85 kbit/s (mode le plus haut).
+	// Débit correspondant à un mode AMR-WB valide : le plus haut que la
+	// négociation permet (`amrwb.mode`, RFC 4867 mode-set), 23,85 kbit/s par défaut.
+	static const int wbRates[] = { 6600, 8850, 12650, 14250, 15850, 18250, 19850, 23050, 23850 };
+	const int wbMode = properties.GetProperty("amrwb.mode", 8);
 	if (ctx)
-		ctx->bit_rate = 23850;
+		ctx->bit_rate = wbRates[wbMode >= 0 && wbMode <= 8 ? wbMode : 8];
 
 	Open();
 

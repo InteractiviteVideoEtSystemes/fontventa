@@ -138,7 +138,7 @@ AACDIR=aac
 AACOBJ=aacencoder.o aacdecoder.o
 
 AMRDIR=amr
-AMROBJ=amrcodec.o
+AMROBJ=amrcodec.o amrpayload.o
 
 NELLYDIR=nelly
 NELLYOBJ=nellycodec.o

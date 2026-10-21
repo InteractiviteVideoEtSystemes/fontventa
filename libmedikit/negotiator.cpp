@@ -14,6 +14,7 @@
 #include "h264/h264encoder.h"   // H264Encoder::GetFmtpParams
 #include "vp8/vp8encoder.h"     // VP8Encoder::GetFmtpParams
 #include "av1/av1codec.h"       // AV1Encoder::GetFmtpParams
+#include "amr/amrpayload.h"     // AMRPayload::Negotiate (RFC 4867 §8)
 
 std::map<std::string,std::string> ParseFmtpParams(const std::string& params)
 {
@@ -117,7 +118,7 @@ bool IsCodecSupported(MediaFrame::Type media, int codec)
 
 // fmtp local (params seuls) d'un codec audio. Opus porte ses paramètres ;
 // telephone-event (RFC 4733) porte sa plage de tonalités DTMF acceptées. Les
-// autres codecs média (PCMU/PCMA/G722/GSM/AAC/AMR/Speex/Nelly) n'ont pas de fmtp
+// autres codecs média (PCMU/PCMA/G722/GSM/AAC/Speex/Nelly) n'ont pas de fmtp
 // -> chaîne vide (présents dans la struct avec valeur "", cf. contrat §5.2).
 std::string AudioFmtp(int codec, const Properties& props)
 {
@@ -131,12 +132,15 @@ std::string AudioFmtp(int codec, const Properties& props)
 	}
 }
 
-// Résout un codec audio POUR UN PAYLOAD TYPE. Seul Opus ingère le fmtp distant
+// Résout un codec audio POUR UN PAYLOAD TYPE. Opus ingère le fmtp distant
 // (RFC 7587 §7 : les paramètres du pair décrivent ce qu'il veut RECEVOIR — rien
 // à refléter côté annonce, tout à honorer côté émission, cf.
-// OPUSEncoder::ResolveNegotiation). Les autres codecs audio n'ont pas de
-// paramètre qui s'y prête ; telephone-event garde sa plage serveur.
-void ResolveAudio(int codec, const Properties& localProps,
+// OPUSEncoder::ResolveNegotiation). L'AMR aussi (RFC 4867 §8.3) : le mode de
+// charge utile se reflète, et le mode-set borne l'encodeur. Faux pour un PT AMR
+// dont le pair demande ce que nous ne portons pas : il n'est pas accepté. Les
+// autres codecs audio n'ont pas de paramètre qui s'y prête ; telephone-event
+// garde sa plage serveur.
+bool ResolveAudio(int codec, const Properties& localProps,
                   const std::map<std::string,std::string>& remoteParams,
                   NegotiatedCodec& nc)
 {
@@ -149,10 +153,21 @@ void ResolveAudio(int codec, const Properties& localProps,
 			nc.fmtp = OPUSEncoder::GetFmtpParams(announceProps);
 			break;
 		}
+		case AudioCodec::AMR:
+		case AudioCodec::AMRWB:
+		{
+			const bool wideband = (AudioCodec::Type)codec == AudioCodec::AMRWB;
+			int mode;
+			if (!AMRPayload::Negotiate(wideband, remoteParams, nc.fmtp, mode))
+				return false;
+			nc.effectiveProps[wideband ? "amrwb.mode" : "amr.mode"] = std::to_string(mode);
+			break;
+		}
 		default:
 			nc.fmtp = AudioFmtp(codec, localProps);
 			break;
 	}
+	return true;
 }
 
 // Résout un codec vidéo POUR UN PAYLOAD TYPE : le fmtp que nous ANNONÇONS (notre
@@ -249,7 +264,8 @@ bool CodecNegotiator::Negotiate(MediaFrame::Type media,
 		switch (media)
 		{
 			case MediaFrame::Audio:
-				ResolveAudio(codec, localProps, RemoteParamsFor(remoteFmtp, media, codec, pt), nc);
+				if (!ResolveAudio(codec, localProps, RemoteParamsFor(remoteFmtp, media, codec, pt), nc))
+					continue;
 				break;
 			case MediaFrame::Video:
 				ResolveVideo(codec, localProps, RemoteParamsFor(remoteFmtp, media, codec, pt), nc);
