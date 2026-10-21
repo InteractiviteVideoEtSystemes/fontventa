@@ -30,8 +30,11 @@ AMRNBEncoder::AMRNBEncoder(const Properties &properties) :
 		numFrameSamples = 160;
 }
 
+// libopencore, le décodeur de référence 3GPP, de préférence au natif ffmpeg : le
+// natif rejette les trames SID et NO_DATA d'un pair en DTX, et les silences
+// disparaissent du flux décodé. Repli sur le natif si ffmpeg n'a pas libopencore.
 AMRNBDecoder::AMRNBDecoder() :
-	FfAudioDecoder(AV_CODEC_ID_AMR_NB, AudioCodec::AMR)
+	FfAudioDecoder(AV_CODEC_ID_AMR_NB, AudioCodec::AMR, "libopencore_amrnb")
 {
 	if (numFrameSamples <= 0)
 		numFrameSamples = 160;
@@ -60,8 +63,10 @@ AMRWBEncoder::AMRWBEncoder(const Properties &properties) :
 		numFrameSamples = 320;
 }
 
+// Même préférence qu'en AMR-NB : le natif rejette les SID, libopencore en fait du
+// bruit de confort.
 AMRWBDecoder::AMRWBDecoder() :
-	FfAudioDecoder(AV_CODEC_ID_AMR_WB, AudioCodec::AMRWB)
+	FfAudioDecoder(AV_CODEC_ID_AMR_WB, AudioCodec::AMRWB, "libopencore_amrwb")
 {
 	if (numFrameSamples <= 0)
 		numFrameSamples = 320;

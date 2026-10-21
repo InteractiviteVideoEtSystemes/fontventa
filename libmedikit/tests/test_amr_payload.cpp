@@ -268,3 +268,51 @@ TEST(AMRPayload, NegociationDuFmtp)
 	EXPECT_FALSE(AMRPayload::Negotiate(WB, { { "interleaving", "4" } }, fmtp, mode));
 	EXPECT_TRUE(AMRPayload::Negotiate(WB, { { "crc", "0" } }, fmtp, mode));
 }
+
+// Un pair en DTX alterne parole, trame SID (descripteur de bruit de fond) et
+// trames NO_DATA. Le décodeur natif d'ffmpeg rejette les SID, et en AMR-NB aussi
+// les NO_DATA : chaque trame rejetée était 20 ms de moins dans le flux décodé.
+TEST(AMRPayload, LeDecodeurNePerdAucuneTrameDTX)
+{
+	struct Case { AudioCodec::Type type; BYTE sid; DWORD sidBytes; DWORD rate; DWORD frame; };
+	const Case cases[] = {
+		{ AudioCodec::AMRWB, 0x4C, 5, 16000, 320 },	// FT 9, 40 bits
+		{ AudioCodec::AMR,   0x44, 5, 8000,  160 },	// FT 8, 39 bits
+	};
+	for (const Case& c : cases)
+	{
+		Properties props;
+		std::unique_ptr<AudioEncoder> enc(AudioCodecFactory::CreateEncoder(c.type, props));
+		std::unique_ptr<AudioDecoder> dec(AudioCodecFactory::CreateDecoder(c.type));
+		ASSERT_TRUE(enc && dec) << AudioCodec::GetNameFor(c.type);
+
+		std::vector<SWORD> pcm(c.frame * 10);
+		for (size_t i = 0; i < pcm.size(); i++)
+			pcm[i] = (SWORD)(8000.0 * sin(2.0 * M_PI * 440.0 * i / c.rate));
+		std::vector<std::vector<BYTE>> speech;
+		SamplesPtr in = Samples::FromBuffer(pcm.data(), pcm.size(), c.rate);
+		for (AudioFramePtr f = enc->EncodeFrame(in); f; f = enc->EncodeFrame(NULL))
+			speech.push_back(std::vector<BYTE>(f->GetData(), f->GetData() + f->GetLength()));
+		ASSERT_GE(speech.size(), 4u);
+
+		std::vector<std::vector<BYTE>> stream(speech.begin(), speech.begin() + 2);
+		for (int period = 0; period < 2; period++)
+		{
+			std::vector<BYTE> sid(1, c.sid);
+			sid.resize(1 + c.sidBytes, 0);
+			stream.push_back(sid);
+			for (int i = 0; i < 7; i++)
+				stream.push_back(std::vector<BYTE>(1, 0x7C));
+		}
+		stream.insert(stream.end(), speech.begin() + 2, speech.end());
+
+		DWORD decoded = 0;
+		for (std::vector<BYTE> frame : stream)
+		{
+			dec->Decode(frame.data(), frame.size());
+			for (SamplesPtr s = dec->GetFrame(); s; s = dec->GetFrame())
+				decoded += s->GetNbSamples();
+		}
+		EXPECT_EQ(decoded, stream.size() * c.frame) << AudioCodec::GetNameFor(c.type);
+	}
+}

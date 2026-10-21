@@ -4,7 +4,8 @@
  * AMR-NB / AMR-WB branchés sur la base générique FfAudioEncoder/FfAudioDecoder
  * (ffmpeg). L'encodage utilise les encodeurs externes intégrés à libavcodec
  * (libopencore_amrnb pour l'AMR-NB, libvo_amrwbenc pour l'AMR-WB) ; le décodage
- * utilise les décodeurs natifs ffmpeg. Plus de dépendance directe -lopencore-amr*.
+ * préfère libopencore_amrnb / libopencore_amrwb, et retombe sur les décodeurs
+ * natifs ffmpeg sans eux. Plus de dépendance directe -lopencore-amr*.
  */
 #ifndef AMRCODEC_H
 #define	AMRCODEC_H
