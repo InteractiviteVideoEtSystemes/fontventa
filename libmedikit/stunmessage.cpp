@@ -116,8 +116,12 @@ STUNMessage* STUNMessage::Parse(BYTE* data,DWORD size)
 }
 DWORD STUNMessage::NonAuthenticatedFingerPrint(BYTE* data,DWORD size)
 {
-	//Get size - FINGERPRINT
-	WORD msgSize = GetSize()-8;
+	//Get size - MESSAGE-INTEGRITY - FINGERPRINT : malgré son nom, cette
+	//sérialisation n'écrit NI l'un NI l'autre. GetSize() les compte toujours
+	//(24+8) ; n'en retirer que 8 annonçait 24 octets d'attributs fantômes, et
+	//les serveurs STUN stricts (Google, linphone) ignoraient la requête sans
+	//répondre — d'où l'échec de --nat auto.
+	WORD msgSize = GetSize()-24-8;
 
 	//Check
 	if (size<msgSize)
@@ -137,9 +141,6 @@ DWORD STUNMessage::NonAuthenticatedFingerPrint(BYTE* data,DWORD size)
 
 	//Set it
 	set2(data,0,msgTypeField);
-
-	//Set attributte length
-	set2(data,2,msgSize-20);
 
 	//Set cookie
 	memcpy(data+4,MagicCookie,4);
@@ -162,6 +163,9 @@ DWORD STUNMessage::NonAuthenticatedFingerPrint(BYTE* data,DWORD size)
 		//Move
 		i = pad32(i+4+(*it)->size);
 	}
+
+	//Set attributte length : la longueur annoncée est celle réellement écrite (RFC 5389 §6)
+	set2(data,2,i-20);
 
 	//Return size
 	return i;
